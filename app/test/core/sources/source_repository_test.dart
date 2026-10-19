@@ -7,13 +7,16 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/index/index_writer.dart';
 import 'package:mediahro/core/scanner/probe_queue.dart';
 import 'package:mediahro/core/scanner/scan_service.dart';
+import 'package:mediahro/core/sources/sftp/sftp_file_system.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/core/sources/source_builders.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 import '../fakes.dart';
 import '../seed.dart';
+import 'sftp_fakes.dart';
 
 final class _Prober implements MediaProber {
   final order = <int>[];
@@ -96,6 +99,48 @@ void main() {
     );
   });
 
+  test('NET-004/PRIV-006 SFTP secrets reach the platform only by reference, and leave with the source', () async {
+    final secrets = FakeSecureStorage();
+    final sftp = FakeSftp(password: 'hunter2')..file('/srv/a.mkv', [1, 2, 3]);
+    // The fake platform reads the referenced secret like C4's facade will.
+    final reading = _ReadingSftp(sftp, secrets);
+    final resolver = DefaultSourceResolver(
+      builders: defaultFileSystemBuilders(sftp: reading),
+      secureStorage: secrets,
+      mainIsolateKinds: mainIsolateSourceKinds,
+    );
+    final repo = SourceRepository(
+      db: db,
+      resolver: resolver,
+      secureStorage: secrets,
+    );
+    final s = NewSource(
+      kind: SourceKind.sftp,
+      name: 'NAS',
+      root: Uri.parse('sftp://nas/srv/'),
+      credential: const StoredCredential(userName: 'me', secret: 'hunter2'),
+      options: const {'hostKeySha256': 'SHA256:aaaa'},
+    );
+    expect(await repo.test(s), 1);
+    expect(
+      secrets.values,
+      isEmpty,
+      reason: 'the test staged its refs and removed them',
+    );
+    final id = await repo.add(s);
+    final row = await (db.select(
+      db.sources,
+    )..where((x) => x.id.equals(id))).getSingle();
+    final refs = SftpSecretRefs(row.credentialKey!);
+    expect(secrets.values[refs.password], 'hunter2');
+    expect(reading.endpoints.every((e) => e.passwordSecretRef != null), isTrue);
+    final access = await resolver.resolve(row);
+    expect(access.mainIsolate, isTrue);
+    expect(await access.fileSystem().list(access.root).length, 1);
+    await repo.remove(id);
+    expect(secrets.values, isEmpty);
+  });
+
   test('NET-001 builders create SMB/NFS/FTP/SFTP/WebDAV/DLNA file systems from source specs', () {
     final b = defaultFileSystemBuilders();
     SourceSpec spec(
@@ -123,9 +168,8 @@ void main() {
       {'nfs'},
     );
     expect(
-      b[SourceKind.sftp]!(spec(SourceKind.sftp, 'sftp://host:2222/srv/'))
-          .schemes,
-      contains('sftp'),
+      b[SourceKind.ftp]!(spec(SourceKind.ftp, 'ftp://host:2121/srv/')).schemes,
+      contains('ftp'),
     );
     expect(
       b[SourceKind.webdav]!(spec(SourceKind.webdav, 'davs://cloud/dav/'))
@@ -175,4 +219,22 @@ void main() {
     expect(q.pending, 0);
     await q.dispose();
   });
+}
+
+/// Resolves the secret reference from secure storage, as the platform does.
+final class _ReadingSftp implements SftpFacade {
+  _ReadingSftp(this.inner, this.secrets);
+
+  final FakeSftp inner;
+  final FakeSecureStorage secrets;
+  final List<SftpEndpoint> endpoints = [];
+
+  @override
+  Future<SftpSession> connect(SftpEndpoint e) async {
+    endpoints.add(e);
+    inner.secrets[e.passwordSecretRef!] = (await secrets.read(
+      e.passwordSecretRef!,
+    ))!;
+    return await inner.connect(e);
+  }
 }

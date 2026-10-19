@@ -247,7 +247,6 @@
     }
   },
   "sourcesTrustTitle": "Trust this server?",
-  "sourcesTrustUnverified": "This server's certificate is not signed by an authority this device trusts, and its fingerprint is not available. Continue only if you set up this server yourself.",
   "sourcesUnavailableSince": "Unavailable, last seen {date}",
   "@sourcesUnavailableSince": {
     "placeholders": {

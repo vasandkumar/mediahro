@@ -18,6 +18,7 @@ final class SourceSpec {
     this.options = const {},
     this.userName,
     this.secret,
+    this.credentialKey,
   });
 
   final SourceKind kind;
@@ -25,17 +26,26 @@ final class SourceSpec {
   final Map<String, String> options;
   final String? userName;
   final String? secret;
+
+  /// SecureStorage key of the credential, for platform clients that take
+  /// references instead of values (SftpFacade, ADR-017).
+  final String? credentialKey;
 }
 
 /// Resolved access to a source: its root and a factory for its file system.
 @immutable
 final class SourceAccess {
-  const SourceAccess(this.spec, this.fileSystem);
+  const SourceAccess(this.spec, this.fileSystem, {this.mainIsolate = false});
 
   final SourceSpec spec;
 
-  /// Creates the file system; safe to call inside a scan isolate.
+  /// Creates the file system; safe to call inside a scan isolate unless
+  /// [mainIsolate].
   final FileSystemFactory fileSystem;
+
+  /// The file system talks to platform facades (TLS sockets, SFTP), which
+  /// live on the main isolate: scans run there, as async I/O.
+  final bool mainIsolate;
 
   Uri get root => spec.root;
 }
@@ -65,9 +75,13 @@ final class DefaultSourceResolver implements SourceResolver {
     required this.builders,
     this.storage,
     this.secureStorage,
+    this.mainIsolateKinds = const {},
   });
 
   final Map<SourceKind, FileSystemBuilder> builders;
+
+  /// Kinds whose file systems use platform facades (see [SourceAccess]).
+  final Set<SourceKind> mainIsolateKinds;
   final StorageFacade? storage;
   final SecureStorageFacade? secureStorage;
 
@@ -104,8 +118,13 @@ final class DefaultSourceResolver implements SourceResolver {
       options: decodeOptions(source.options),
       userName: user,
       secret: secret,
+      credentialKey: key,
     );
-    return SourceAccess(spec, () => builder(spec));
+    return SourceAccess(
+      spec,
+      () => builder(spec),
+      mainIsolate: mainIsolateKinds.contains(source.kind),
+    );
   }
 }
 

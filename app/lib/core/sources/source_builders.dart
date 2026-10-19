@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart'
@@ -7,10 +5,13 @@ import 'package:mediahro/core/net/persistent_network_policy.dart'
 import 'package:mediahro/core/sources/dlna/dlna_file_system.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
 import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
+import 'package:mediahro/core/sources/ftp/ftp_transport.dart';
 import 'package:mediahro/core/sources/http/http_auth.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/http/webdav_file_system.dart';
+import 'package:mediahro/core/sources/sftp/sftp_file_system.dart';
 import 'package:mediahro/core/sources/source_access.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 /// Allows exactly one source's host (and nothing on the allow-list): what a
@@ -31,21 +32,18 @@ final class SourceOnlyPolicy implements NetworkPolicy {
   void recordUse(NetworkEndpoint endpoint, DateTime at) {}
 }
 
-/// File system builders per protocol for [DefaultSourceResolver]. Each runs
-/// wherever the scan runs (a worker isolate), so it captures only the
-/// sendable [SourceSpec] and creates its own gateway for that host.
+/// File system builders per protocol for [DefaultSourceResolver]. Most run
+/// wherever the scan runs (a worker isolate), so they capture only the
+/// sendable [SourceSpec] and create their own gateway for that host.
 ///
-/// [nativeCurl] is false on Android and Apple, where the mediahro-deps
-/// libcurl has no TLS backend and no libssh2 ships (no OS crypto API usable
-/// from C, and OpenSSL/mbedTLS are excluded): FTP/FTPS then use
-/// [FtpFileSystem] and SFTP reports `unsupported` until an SSH fallback
-/// lands (STATUS §3). Windows libcurl uses Schannel and WinCNG.
+/// FTP/FTPS and SFTP follow ADR-017 (OS crypto only): FTPS takes TLS from
+/// [tls] and SFTP runs on [sftp]; both facades live on the main isolate, so
+/// those kinds are in [mainIsolateSourceKinds]. Without a facade the source
+/// reports `unsupported` ("not available on this device").
 Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
-  String? keyDirectory,
-  bool? nativeCurl,
+  TlsSocketFacade? tls,
+  SftpFacade? sftp,
 }) {
-  final curl =
-      nativeCurl ?? !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
   return {
     SourceKind.local: (_) => const LocalFileSystem(),
     SourceKind.smb: (s) => smbFileSystem(
@@ -66,16 +64,20 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
       ),
     ),
     SourceKind.webdav: (s) => WebDavFileSystem(_session(s)),
-    SourceKind.ftp: (s) => curl
-        ? curlFileSystem(s.root, _curl(s, keyDirectory))
-        : FtpFileSystem(_ftp(s), SourceOnlyPolicy([s.root.host])),
-    SourceKind.sftp: (s) => curl
-        ? curlFileSystem(s.root, _curl(s, keyDirectory))
-        : throw VirtualFileException(
+    SourceKind.ftp: (s) => FtpFileSystem(
+      _ftp(s),
+      SourceOnlyPolicy([s.root.host]),
+      transport: tls == null
+          ? const SocketFtpTransport()
+          : FacadeFtpTransport(tls),
+    ),
+    SourceKind.sftp: (s) => sftp == null
+        ? throw VirtualFileException(
             VirtualFileError.unsupported,
             s.root,
-            'SFTP needs libssh2, which mediahro-deps builds only for Windows',
-          ),
+            'no SFTP facade on this platform yet',
+          )
+        : SftpFileSystem(sftp, sftpEndpoint(s)),
     SourceKind.dlna: (s) => DlnaFileSystem(
       _session(s, extraHosts: [Uri.parse(s.options['controlUrl'] ?? '').host]),
       UpnpService(
@@ -84,6 +86,30 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
       ),
     ),
   };
+}
+
+/// Sources whose file systems talk to platform facades.
+const Set<SourceKind> mainIsolateSourceKinds = {
+  SourceKind.ftp,
+  SourceKind.sftp,
+};
+
+/// The facade endpoint of an SFTP source: secrets by reference only.
+SftpEndpoint sftpEndpoint(SourceSpec s) {
+  final key = s.credentialKey;
+  final keyAuth = s.options['auth'] == 'key';
+  return SftpEndpoint(
+    host: s.root.host,
+    port: s.root.hasPort ? s.root.port : 22,
+    username: s.userName ?? '',
+    passwordSecretRef: key == null || keyAuth
+        ? null
+        : SftpSecretRefs(key).password,
+    privateKeySecretRef: key == null || !keyAuth
+        ? null
+        : SftpSecretRefs(key).privateKey,
+    knownHostKeySha256: s.options['hostKeySha256'],
+  );
 }
 
 FtpOptions _ftp(SourceSpec s) => FtpOptions(
@@ -113,29 +139,6 @@ HttpSession _session(SourceSpec s, {List<String> extraHosts = const []}) {
     gw.trustCertificate(wire.host, fp);
   }
   return HttpSession(gw, auth: auth);
-}
-
-CurlOptions _curl(SourceSpec s, String? keyDirectory) {
-  final protocol = switch (s.root.scheme) {
-    'sftp' => CurlProtocol.sftp,
-    'ftps' => CurlProtocol.ftps,
-    'ftpes' => CurlProtocol.ftpes,
-    _ => s.options['tls'] == 'explicit' ? CurlProtocol.ftpes : CurlProtocol.ftp,
-  };
-  final keyAuth = s.options['auth'] == 'key';
-  return CurlOptions(
-    protocol: protocol,
-    host: s.root.host,
-    port: s.root.hasPort ? s.root.port : null,
-    rootPath: s.root.path.isEmpty ? '/' : Uri.decodeComponent(s.root.path),
-    user: s.userName,
-    password: keyAuth ? null : s.secret,
-    privateKeyPem: keyAuth ? s.secret : null,
-    keyPassphrase: s.options['keyPassphrase'],
-    hostKeySha256: s.options['hostKeySha256'],
-    allowUntrustedTls: s.options['allowUntrustedTls'] == 'true',
-    keyDirectory: keyDirectory,
-  );
 }
 
 extension on SmbOptions {

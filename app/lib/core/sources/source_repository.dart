@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
+import 'package:mediahro/core/sources/sftp/sftp_file_system.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
@@ -102,14 +104,35 @@ final class SourceRepository {
       sortOrder: 0,
     );
     final r = resolver;
-    final access = r is DefaultSourceResolver
-        ? await r.resolveWith(row, s.credential)
-        : await r.resolve(row);
-    final fs = access.fileSystem();
+    // Platform SSH clients read secrets by reference: stage them under a
+    // throwaway key for the test and remove them afterwards.
+    final c = s.credential;
+    final store = secureStorage;
+    final temp = c != null && store != null && s.kind == SourceKind.sftp
+        ? _newKey()
+        : null;
+    if (temp != null) {
+      await _writeCredential(store!, temp, s.kind, c!, s.options);
+    }
     try {
-      return (await fs.list(access.root).toList()).length;
+      final access = r is DefaultSourceResolver
+          ? await r.resolveWith(row, c, credentialKey: temp)
+          : await r.resolve(row);
+      final fs = access.fileSystem();
+      try {
+        return (await fs.list(access.root).toList()).length;
+      } finally {
+        switch (fs) {
+          case final IsolateFileSystem f:
+            await f.close();
+          case final FtpFileSystem f:
+            await f.close();
+          case final SftpFileSystem f:
+            await f.close();
+        }
+      }
     } finally {
-      if (fs is IsolateFileSystem) await fs.close();
+      if (temp != null) await _deleteCredential(temp);
     }
   }
 
@@ -121,9 +144,8 @@ final class SourceRepository {
       if (store == null) {
         throw const PlatformCapabilityUnavailable('secureStorage');
       }
-      key =
-          'source.${List.generate(8, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
-      await store.write(key, c.encode());
+      key = _newKey();
+      await _writeCredential(store, key, s.kind, c, s.options);
     }
     final count = await db.select(db.sources).get();
     return await db
@@ -186,7 +208,13 @@ final class SourceRepository {
         secureStorage ??
         (throw const PlatformCapabilityUnavailable('secureStorage'));
     final key = s.credentialKey ?? 'source.$id';
-    await store.write(key, credential.encode());
+    await _writeCredential(
+      store,
+      key,
+      s.kind,
+      credential,
+      decodeOptions(s.options),
+    );
     if (s.credentialKey == null) {
       await (db.update(db.sources)..where((x) => x.id.equals(id))).write(
         SourcesCompanion(credentialKey: Value(key)),
@@ -202,10 +230,43 @@ final class SourceRepository {
     )..where((x) => x.id.equals(id))).getSingleOrNull();
     if (s == null) return;
     final key = s.credentialKey;
-    if (key != null) await secureStorage?.delete(key);
+    if (key != null) await _deleteCredential(key);
     final grant = s.grantId;
     if (grant != null) await storage?.releaseGrant(grant);
     await (db.delete(db.sources)..where((x) => x.id.equals(id))).go();
+  }
+
+  String _newKey() =>
+      'source.${List.generate(8, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+
+  /// The credential as one record, plus, for SFTP, the raw secret under the
+  /// reference the platform reads (ADR-017: secrets never cross as values).
+  Future<void> _writeCredential(
+    SecureStorageFacade store,
+    String key,
+    SourceKind kind,
+    StoredCredential c,
+    Map<String, String> options,
+  ) async {
+    await store.write(key, c.encode());
+    if (kind != SourceKind.sftp) return;
+    final refs = SftpSecretRefs(key);
+    final secret = c.secret;
+    final keyAuth = c.kind == 'sshKey' || options['auth'] == 'key';
+    await store.delete(refs.password);
+    await store.delete(refs.privateKey);
+    if (secret != null) {
+      await store.write(keyAuth ? refs.privateKey : refs.password, secret);
+    }
+  }
+
+  Future<void> _deleteCredential(String key) async {
+    final store = secureStorage;
+    if (store == null) return;
+    final refs = SftpSecretRefs(key);
+    await store.delete(key);
+    await store.delete(refs.password);
+    await store.delete(refs.privateKey);
   }
 
   Future<List<SourceSummary>> summaries() async {
@@ -268,8 +329,9 @@ extension DefaultSourceResolverTest on DefaultSourceResolver {
   /// Resolves an unsaved source with an in-memory credential (test before save).
   Future<SourceAccess> resolveWith(
     SourceRow row,
-    StoredCredential? credential,
-  ) async {
+    StoredCredential? credential, {
+    String? credentialKey,
+  }) async {
     final builder = builders[row.kind];
     if (builder == null) {
       throw SourceUnavailable(row.id, 'no client for ${row.kind.name}');
@@ -283,7 +345,12 @@ extension DefaultSourceResolverTest on DefaultSourceResolver {
       options: decodeOptions(row.options),
       userName: credential?.userName,
       secret: credential?.secret,
+      credentialKey: credentialKey,
     );
-    return SourceAccess(spec, () => builder(spec));
+    return SourceAccess(
+      spec,
+      () => builder(spec),
+      mainIsolate: mainIsolateKinds.contains(row.kind),
+    );
   }
 }

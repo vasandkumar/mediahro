@@ -208,7 +208,7 @@ final class ScanService {
         if (!r.paused) _progress.add(r.progress);
       }
 
-      if (useIsolates) {
+      if (useIsolates && !access.mainIsolate) {
         final run = await ScanRun.start(
           root: access.root,
           fileSystem: access.fileSystem,

@@ -14,6 +14,8 @@ import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/http/webdav_file_system.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
+import 'tls_fakes.dart';
+
 final bool _enabled = Platform.environment['MEDIAHRO_NET_ENV'] == '1';
 final String? _skip = _enabled
     ? null
@@ -157,61 +159,68 @@ void main() {
     });
   }, skip: _skip);
 
-  group('NET-004 Dart FTP client (Apple fallback) against vsftpd', () {
-    Uri root(String scheme, int port) =>
-        Uri(scheme: scheme, host: _host, port: port, path: '/');
+  group(
+    'NET-004 FTP/FTPS client against vsftpd (TLS from the OS stand-in)',
+    () {
+      // Production TLS is TlsSocketFacade (ADR-017, C4); tests stand in.
+      const osTls = StandInTlsTransport();
+      Uri root(String scheme, int port) =>
+          Uri(scheme: scheme, host: _host, port: port, path: '/');
 
-    Future<void> extra(FtpFileSystem fs, Uri r) async {
-      final big = await fs.open(r.replace(path: '/Large/sparse-5g.bin'));
-      expect(await big.length(), 5 << 30);
-      expect(await big.read((5 << 30) - 1, 1), [0x5A], reason: '64-bit REST');
-      await big.close();
-      final names = await fs.list(r).map((e) => e.name).toList();
-      expect(names, contains('Spaces & Ünïcode'));
-      await fs.close();
-    }
-
-    Future<String> fingerprint(FtpOptions o, Uri r) async {
-      try {
-        await FtpFileSystem(o, _Lan()).stat(r);
-      } on VirtualFileException catch (e) {
-        expect(e.error, VirtualFileError.untrustedCertificate);
-        return e.detail!;
+      Future<void> extra(FtpFileSystem fs, Uri r) async {
+        final big = await fs.open(r.replace(path: '/Large/sparse-5g.bin'));
+        expect(await big.length(), 5 << 30);
+        expect(await big.read((5 << 30) - 1, 1), [0x5A], reason: '64-bit REST');
+        await big.close();
+        final names = await fs.list(r).map((e) => e.name).toList();
+        expect(names, contains('Spaces & Ünïcode'));
+        await fs.close();
       }
-      fail('the self-signed certificate was accepted without a pin');
-    }
 
-    test('plain FTP', () async {
-      final r = root('ftp', 21);
-      final fs = FtpFileSystem(
-        FtpOptions(host: _host, user: 'test', password: 'testpass'),
-        _Lan(),
-      );
-      await _webdavContract(fs, r);
-      await extra(fs, r);
-    });
+      Future<String> fingerprint(FtpOptions o, Uri r) async {
+        try {
+          await FtpFileSystem(o, _Lan(), transport: osTls).stat(r);
+        } on VirtualFileException catch (e) {
+          expect(e.error, VirtualFileError.untrustedCertificate);
+          return e.detail!;
+        }
+        fail('the self-signed certificate was accepted without a pin');
+      }
 
-    for (final (name, scheme, port, security) in [
-      ('explicit FTPS (AUTH TLS)', 'ftpes', 21, FtpSecurity.explicit),
-      ('implicit FTPS on 990', 'ftps', 990, FtpSecurity.implicit),
-    ]) {
-      test('$name with a pinned self-signed certificate', () async {
-        final r = root(scheme, port);
-        FtpOptions options([String? pin]) => FtpOptions(
-          host: _host,
-          port: port,
-          security: security,
-          user: 'test',
-          password: 'testpass',
-          certSha256: pin,
-        );
+      test('plain FTP', () async {
+        final r = root('ftp', 21);
         final fs = FtpFileSystem(
-          options(await fingerprint(options(), r)),
+          FtpOptions(host: _host, user: 'test', password: 'testpass'),
           _Lan(),
         );
         await _webdavContract(fs, r);
         await extra(fs, r);
       });
-    }
-  }, skip: _skip);
+
+      for (final (name, scheme, port, security) in [
+        ('explicit FTPS (AUTH TLS)', 'ftpes', 21, FtpSecurity.explicit),
+        ('implicit FTPS on 990', 'ftps', 990, FtpSecurity.implicit),
+      ]) {
+        test('$name with a pinned self-signed certificate', () async {
+          final r = root(scheme, port);
+          FtpOptions options([String? pin]) => FtpOptions(
+            host: _host,
+            port: port,
+            security: security,
+            user: 'test',
+            password: 'testpass',
+            certSha256: pin,
+          );
+          final fs = FtpFileSystem(
+            options(await fingerprint(options(), r)),
+            _Lan(),
+            transport: osTls,
+          );
+          await _webdavContract(fs, r);
+          await extra(fs, r);
+        });
+      }
+    },
+    skip: _skip,
+  );
 }

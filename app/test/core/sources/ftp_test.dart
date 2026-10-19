@@ -5,11 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
+import 'package:mediahro/core/sources/ftp/ftp_transport.dart';
+import 'package:mediahro/core/sources/sftp/sftp_file_system.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/core/sources/source_builders.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 import 'ftp_server.dart';
+import 'sftp_fakes.dart';
+import 'tls_fakes.dart';
 
 final class _Hosts implements NetworkPolicy {
   _Hosts(this.hosts);
@@ -202,6 +206,7 @@ void main() {
           password: 'testpass',
         ),
         lan,
+        transport: const StandInTlsTransport(),
       ).list(at(s, '/', scheme: 'ftpes')).toList();
       fail('expected an untrusted certificate');
     } on VirtualFileException catch (e) {
@@ -225,6 +230,7 @@ void main() {
           certSha256: fp,
         ),
         lan,
+        transport: const StandInTlsTransport(),
       ),
       s,
       scheme: 'ftpes',
@@ -241,45 +247,91 @@ void main() {
     );
   });
 
-  test('NET-004 implicit FTPS on its own port', () async {
-    final ctx = tls;
-    if (ctx == null) return markTestSkipped('openssl not installed');
-    final s = await TestFtpServer.start(
-      root,
-      options: TestFtpOptions(context: ctx, implicitTls: true),
-    );
-    addTearDown(s.close);
-    final probe = FtpFileSystem(
-      FtpOptions(
-        host: '127.0.0.1',
-        port: s.port,
-        security: FtpSecurity.implicit,
-        user: 'test',
-        password: 'testpass',
-      ),
-      lan,
-    );
-    final fp = await probe
-        .stat(at(s, '/readme.txt', scheme: 'ftps'))
-        .then<String?>(
-          (_) => null,
-          onError: (Object e) => (e as VirtualFileException).detail,
-        );
-    expect(fp, matches(RegExp(r'^([0-9A-F]{2}:){31}[0-9A-F]{2}$')));
-    await contract(
-      FtpFileSystem(
+  test(
+    'NET-004 implicit FTPS through the OS TLS facade on its own port',
+    () async {
+      final ctx = tls;
+      if (ctx == null) return markTestSkipped('openssl not installed');
+      final s = await TestFtpServer.start(
+        root,
+        options: TestFtpOptions(context: ctx, implicitTls: true),
+      );
+      addTearDown(s.close);
+      final facade = FakeTlsSocketFacade();
+      final probe = FtpFileSystem(
         FtpOptions(
           host: '127.0.0.1',
           port: s.port,
           security: FtpSecurity.implicit,
           user: 'test',
           password: 'testpass',
-          certSha256: fp,
         ),
         lan,
-      ),
-      s,
-      scheme: 'ftps',
+        transport: FacadeFtpTransport(facade),
+      );
+      final fp = await probe
+          .stat(at(s, '/readme.txt', scheme: 'ftps'))
+          .then<String?>(
+            (_) => null,
+            onError: (Object e) => (e as VirtualFileException).detail,
+          );
+      expect(fp, matches(RegExp(r'^([0-9A-F]{2}:){31}[0-9A-F]{2}$')));
+      await contract(
+        FtpFileSystem(
+          FtpOptions(
+            host: '127.0.0.1',
+            port: s.port,
+            security: FtpSecurity.implicit,
+            user: 'test',
+            password: 'testpass',
+            certSha256: fp,
+          ),
+          lan,
+          transport: FacadeFtpTransport(facade),
+        ),
+        s,
+        scheme: 'ftps',
+      );
+      // Control and every data channel went through the facade with the pin.
+      expect(facade.connects.length, greaterThan(3));
+      expect(facade.connects.skip(1).every((c) => c.$3 == fp), isTrue);
+    },
+  );
+
+  test('NET-004 TLS never falls back to bundled crypto (ADR-017)', () async {
+    final s = await TestFtpServer.start(root);
+    addTearDown(s.close);
+    for (final (security, transport) in [
+      (FtpSecurity.implicit, const SocketFtpTransport()),
+      (FtpSecurity.explicit, const SocketFtpTransport()),
+      (FtpSecurity.explicit, FacadeFtpTransport(FakeTlsSocketFacade())),
+    ]) {
+      await expectLater(
+        FtpFileSystem(
+          FtpOptions(
+            host: '127.0.0.1',
+            port: s.port,
+            security: security,
+            user: 'test',
+            password: 'testpass',
+          ),
+          lan,
+          transport: transport,
+        ).stat(at(s, '/readme.txt')),
+        throwsA(
+          isA<VirtualFileException>().having(
+            (e) => e.error,
+            'error',
+            VirtualFileError.unsupported,
+          ),
+        ),
+        reason: '$security over ${transport.runtimeType}',
+      );
+    }
+    expect(
+      s.commands,
+      isNot(contains('PASS ***')),
+      reason: 'no password in clear',
     );
   });
 
@@ -358,34 +410,24 @@ void main() {
     expect(File('${root.path}/partial.bin').existsSync(), isFalse);
   });
 
-  test('NET-004 Android/Apple builders use the Dart FTP/FTPS client; SFTP reports unsupported', () async {
-    final b = defaultFileSystemBuilders(nativeCurl: false);
+  test('NET-004 builders: FTP on dart:io, FTPS over the TLS facade, SFTP over the SFTP facade (ADR-017)', () async {
     final s = await TestFtpServer.start(root);
     addTearDown(s.close);
-    final fs = b[SourceKind.ftp]!(
+    final none = defaultFileSystemBuilders();
+    final fs = none[SourceKind.ftp]!(
       SourceSpec(
         kind: SourceKind.ftp,
         root: at(s, '/'),
         userName: 'test',
         secret: 'testpass',
       ),
-    );
-    expect(fs, isA<FtpFileSystem>());
-    expect(fs.schemes, contains('ftps'));
+    ) as FtpFileSystem;
+    expect(fs.transport, isA<SocketFtpTransport>());
     // The builder's policy allows exactly the source's host.
     expect((await fs.stat(at(s, '/readme.txt'))).size, 5);
-    await (fs as FtpFileSystem).close();
-    final secure = b[SourceKind.ftp]!(
-      SourceSpec(
-        kind: SourceKind.ftp,
-        root: Uri.parse('ftps://nas.local/'),
-        options: const {'certSha256': 'AA'},
-      ),
-    ) as FtpFileSystem;
-    expect(secure.options.security, FtpSecurity.implicit);
-    expect(secure.options.certSha256, 'AA');
+    await fs.close();
     expect(
-      () => b[SourceKind.sftp]!(
+      () => none[SourceKind.sftp]!(
         SourceSpec(kind: SourceKind.sftp, root: Uri.parse('sftp://nas.local/')),
       ),
       throwsA(
@@ -396,5 +438,44 @@ void main() {
         ),
       ),
     );
+
+    final sftp = FakeSftp();
+    final b = defaultFileSystemBuilders(tls: FakeTlsSocketFacade(), sftp: sftp);
+    final secure = b[SourceKind.ftp]!(
+      SourceSpec(
+        kind: SourceKind.ftp,
+        root: Uri.parse('ftps://nas.local/'),
+        options: const {'certSha256': 'AA'},
+      ),
+    ) as FtpFileSystem;
+    expect(secure.options.security, FtpSecurity.implicit);
+    expect(secure.options.certSha256, 'AA');
+    expect(secure.transport, isA<FacadeFtpTransport>());
+    final ssh = b[SourceKind.sftp]!(
+      SourceSpec(
+        kind: SourceKind.sftp,
+        root: Uri.parse('sftp://nas.local:2222/home/'),
+        userName: 'me',
+        secret: 'never-passed',
+        credentialKey: 'source.ab',
+        options: const {'hostKeySha256': 'SHA256:k'},
+      ),
+    ) as SftpFileSystem;
+    expect(ssh.endpoint.port, 2222);
+    expect(ssh.endpoint.username, 'me');
+    expect(ssh.endpoint.passwordSecretRef, 'source.ab/password');
+    expect(ssh.endpoint.privateKeySecretRef, isNull);
+    expect(ssh.endpoint.knownHostKeySha256, 'SHA256:k');
+    final keyed = b[SourceKind.sftp]!(
+      SourceSpec(
+        kind: SourceKind.sftp,
+        root: Uri.parse('sftp://nas.local/'),
+        credentialKey: 'source.cd',
+        options: const {'auth': 'key'},
+      ),
+    ) as SftpFileSystem;
+    expect(keyed.endpoint.privateKeySecretRef, 'source.cd/privateKey');
+    expect(keyed.endpoint.passwordSecretRef, isNull);
+    expect(mainIsolateSourceKinds, {SourceKind.ftp, SourceKind.sftp});
   });
 }

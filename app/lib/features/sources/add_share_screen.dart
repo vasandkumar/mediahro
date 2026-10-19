@@ -159,11 +159,9 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
   /// only after the user compares and accepts its fingerprint.
   Future<bool> _confirmTrust(String? detail) async {
     final l10n = AppLocalizations.of(context);
-    final fingerprint =
-        detail != null &&
-            RegExp(r'^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$').hasMatch(detail)
-        ? detail
-        : null;
+    // The fingerprint comes from the platform (TlsSocketFacade, SftpFacade)
+    // or the HTTP gateway; without one there is nothing to compare: refuse.
+    if (detail == null || detail.isEmpty) return false;
     final hostKey = _kind == SourceKind.sftp ? detail : null;
     final ok = await showDialog<bool>(
       context: context,
@@ -172,9 +170,7 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
         content: SelectableText(
           hostKey != null
               ? l10n.sourcesTrustHostKey(hostKey)
-              : fingerprint != null
-              ? l10n.sourcesTrustCertificate(fingerprint)
-              : l10n.sourcesTrustUnverified,
+              : l10n.sourcesTrustCertificate(detail),
         ),
         actions: [
           TextButton(
@@ -192,11 +188,8 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
     setState(() {
       if (hostKey != null) {
         _trust['hostKeySha256'] = hostKey;
-      } else if (fingerprint != null) {
-        _trust['certSha256'] = fingerprint;
       } else {
-        // libcurl FTPS reports no fingerprint: record the explicit consent.
-        _trust['allowUntrustedTls'] = 'true';
+        _trust['certSha256'] = detail;
       }
     });
     return true;

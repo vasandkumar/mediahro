@@ -4,15 +4,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro/core/net/network_policy.dart';
+import 'package:mediahro/core/sources/ftp/ftp_transport.dart';
+import 'package:mediahro/platform/platform_facades.dart'
+    show UntrustedCertificate;
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
-/// FTP, explicit FTPS (AUTH TLS) and implicit FTPS (NET-004) over dart:io
-/// sockets and the platform TLS of the Dart runtime.
-///
-/// The fallback where the mediahro-deps libcurl has no TLS: Android (no NDK
-/// TLS API) and Apple (curl ≥ 8.15 dropped SecureTransport); ADR request in
-/// STATUS §6. Windows uses libcurl with Schannel through [curlFileSystem];
-/// both implement the same [MutableFileSystem] contract.
+/// FTP, explicit FTPS (AUTH TLS) and implicit FTPS (NET-004). Plain FTP runs
+/// on dart:io sockets; every TLS connection comes from the operating system
+/// through [FtpTransport] / TlsSocketFacade (ADR-017: no bundled TLS).
 enum FtpSecurity { none, explicit, implicit }
 
 final class FtpOptions {
@@ -63,13 +62,14 @@ final RegExp _pasv = RegExp(r'(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)');
 
 /// One logged-in control connection. Commands run one at a time.
 final class FtpConnection {
-  FtpConnection._(this.options, this._uri, this._socket) {
+  FtpConnection._(this.options, this._uri, this._socket, this._transport) {
     _listen();
   }
 
   final FtpOptions options;
   final Uri _uri;
-  Socket _socket;
+  final FtpTransport _transport;
+  FtpStream _socket;
   late StreamSubscription<Uint8List> _sub;
   final List<int> _pending = [];
   String? _multi;
@@ -79,7 +79,6 @@ final class FtpConnection {
   Object? _failure;
   bool _protected = false;
   bool _noEpsv = false;
-  String? _rejectedFingerprint;
   Set<String> features = const {};
   Future<void> _tail = Future.value();
 
@@ -90,6 +89,7 @@ final class FtpConnection {
     FtpOptions o,
     Uri uri,
     NetworkPolicy policy,
+    FtpTransport transport,
   ) async {
     if (!policy.isUserConfiguredHost(o.host)) {
       throw VirtualFileException(
@@ -101,30 +101,17 @@ final class FtpConnection {
     if (policy case final HostUseRecorder r) {
       r.recordHostUse(o.host, DateTime.now().toUtc());
     }
-    String? rejected;
-    bool onBad(X509Certificate cert) {
-      final fp = certificateFingerprint(cert.der);
-      if (fp == o.certSha256) return true;
-      rejected = fp;
-      return false;
-    }
-
-    final Socket socket;
-    try {
-      socket = o.security == FtpSecurity.implicit
-          ? await SecureSocket.connect(
-              o.host,
-              o.effectivePort,
-              onBadCertificate: onBad,
-              timeout: o.timeout,
-            )
-          : await Socket.connect(o.host, o.effectivePort, timeout: o.timeout);
-    } on HandshakeException catch (e) {
-      throw _tlsError(uri, rejected, e);
-    } on SocketException catch (e) {
-      throw VirtualFileException(VirtualFileError.unreachable, uri, '$e');
-    }
-    final c = FtpConnection._(o, uri, socket)
+    final socket = await _guard(
+      uri,
+      () => transport.connect(
+        o.host,
+        o.effectivePort,
+        timeout: o.timeout,
+        tls: o.security == FtpSecurity.implicit,
+        pin: o.certSha256,
+      ),
+    );
+    final c = FtpConnection._(o, uri, socket, transport)
       .._protected = o.security == FtpSecurity.implicit;
     try {
       await c._login();
@@ -136,7 +123,7 @@ final class FtpConnection {
   }
 
   void _listen() {
-    _sub = _socket.listen(_onData, onError: _onError, onDone: _onDone);
+    _sub = _socket.input.listen(_onData, onError: _onError, onDone: _onDone);
   }
 
   Future<void> _login() async {
@@ -152,15 +139,15 @@ final class FtpConnection {
         );
       }
       _sub.pause();
-      try {
-        _socket = await SecureSocket.secure(
+      _socket = await _guard(
+        _uri,
+        () => _transport.startTls(
           _socket,
           host: options.host,
-          onBadCertificate: _onBadCertificate,
-        ).timeout(options.timeout);
-      } on HandshakeException catch (e) {
-        throw _tlsError(_uri, _rejectedFingerprint, e);
-      }
+          timeout: options.timeout,
+          pin: options.certSha256,
+        ),
+      );
       _listen();
       _protected = true;
     }
@@ -188,13 +175,6 @@ final class FtpConnection {
       };
     }
     if (features.contains('UTF8')) await _send('OPTS UTF8 ON');
-  }
-
-  bool _onBadCertificate(X509Certificate cert) {
-    final fp = certificateFingerprint(cert.der);
-    if (fp == options.certSha256) return true;
-    _rejectedFingerprint = fp;
-    return false;
   }
 
   /// Runs [op] after every earlier operation on this connection finished.
@@ -303,9 +283,12 @@ final class FtpConnection {
         VirtualFileException(VirtualFileError.notFound, _uri, 'bad name'),
       );
     }
-    _socket.write('$command\r\n');
+    _write('$command\r\n');
     return _next();
   }
+
+  void _write(String line) =>
+      unawaited(_socket.write(utf8.encode(line)).catchError(_onError));
 
   Future<FtpReply> _expect(String command, Set<int> ok, [Uri? uri]) async {
     final r = await _send(command);
@@ -320,15 +303,12 @@ final class FtpConnection {
   Future<FtpReply> expect(String command, Set<int> ok, Uri uri) =>
       _expect(command, ok, uri);
 
-  Future<Socket> _passive(Uri uri) async {
-    final address = _socket.remoteAddress;
+  Future<int> _passivePort(Uri uri) async {
     if (!_noEpsv) {
       final r = await _send('EPSV');
       if (r.code == 229) {
         final m = _epsv.firstMatch(r.lines.join(' '));
-        if (m != null) {
-          return await _connectData(address, int.parse(m[2]!), uri);
-        }
+        if (m != null) return int.parse(m[2]!);
       }
       _noEpsv = true;
     }
@@ -339,56 +319,41 @@ final class FtpConnection {
     }
     // The address in the reply is ignored: data goes to the control host
     // only (no FXP bounce to another machine, works behind NAT).
-    return await _connectData(
-      address,
-      int.parse(m[5]!) * 256 + int.parse(m[6]!),
+    return int.parse(m[5]!) * 256 + int.parse(m[6]!);
+  }
+
+  /// Starts a transfer; returns the data stream once the server accepted it.
+  /// The data connection (and its TLS handshake) runs while the command is
+  /// sent: servers start TLS on the data channel only after the command.
+  Future<FtpStream> transfer(String command, Uri uri) async {
+    final port = await _passivePort(uri);
+    final data = _guard(
       uri,
+      () => _transport.connect(
+        options.host,
+        port,
+        timeout: options.timeout,
+        tls: _protected,
+        pin: options.certSha256,
+        sessionOf: _socket,
+      ),
     );
-  }
-
-  Future<Socket> _connectData(InternetAddress a, int port, Uri uri) async {
-    try {
-      return await Socket.connect(a, port, timeout: options.timeout);
-    } on SocketException catch (e) {
-      throw VirtualFileException(VirtualFileError.unreachable, uri, '$e');
-    }
-  }
-
-  /// Starts a transfer; returns the data socket once the server accepted it.
-  Future<Socket> transfer(String command, Uri uri) async {
-    final raw = await _passive(uri);
-    final pre = _send(command);
-    final tls = _protected
-        ? SecureSocket.secure(
-            raw,
-            host: options.host,
-            onBadCertificate: _onBadCertificate,
-          )
-        : null;
     final FtpReply r;
     try {
-      r = await pre;
+      r = await _send(command);
     } catch (_) {
-      raw.destroy();
-      _drop(tls);
+      _drop(data);
       rethrow;
     }
     if (r.code != 125 && r.code != 150) {
-      raw.destroy();
-      _drop(tls);
+      _drop(data);
       throw _replyError(r, uri);
     }
-    if (tls == null) return raw;
-    try {
-      return await tls.timeout(options.timeout);
-    } on HandshakeException catch (e) {
-      raw.destroy();
-      throw _tlsError(uri, _rejectedFingerprint, e);
-    }
+    return await data;
   }
 
-  static void _drop(Future<SecureSocket>? tls) =>
-      unawaited(tls?.then<void>((s) => s.destroy(), onError: (Object _) {}));
+  static void _drop(Future<FtpStream> data) =>
+      unawaited(data.then<void>((s) => s.destroy(), onError: (Object _) {}));
 
   /// The final reply of a transfer whose data stream ended.
   Future<void> finish(Uri uri) async {
@@ -400,7 +365,7 @@ final class FtpConnection {
   /// the transfer (426/451/226), then the NOOP. Anything else drops the link.
   Future<void> afterAbort() async {
     try {
-      _socket.write('NOOP\r\n');
+      _write('NOOP\r\n');
       for (var i = 0; i < 4; i++) {
         final r = await _next();
         if (r.code == 200) return;
@@ -415,7 +380,7 @@ final class FtpConnection {
     final data = await transfer(command, uri);
     final out = BytesBuilder(copy: false);
     try {
-      await for (final chunk in data) {
+      await for (final chunk in data.input) {
         out.add(chunk);
         if (out.length > _maxListing) {
           data.destroy();
@@ -434,7 +399,7 @@ final class FtpConnection {
   Future<void> quit() async {
     if (_failure != null) return;
     try {
-      _socket.write('QUIT\r\n');
+      _write('QUIT\r\n');
       await _next().timeout(const Duration(seconds: 2));
     } on Object catch (_) {
       // best effort
@@ -452,10 +417,6 @@ final class FtpConnection {
     _socket.destroy();
   }
 }
-
-VirtualFileException _tlsError(Uri uri, String? fp, Object e) => fp == null
-    ? VirtualFileException(VirtualFileError.io, uri, '$e')
-    : VirtualFileException(VirtualFileError.untrustedCertificate, uri, fp);
 
 VirtualFileException _replyError(FtpReply r, Uri uri) {
   final text = r.lines.join(' ').toLowerCase();
@@ -510,10 +471,15 @@ DateTime? parseFtpTime(String? s) {
 
 /// Browse, stream and manage files on an FTP/FTPS server.
 final class FtpFileSystem implements MutableFileSystem {
-  FtpFileSystem(this.options, this.policy);
+  FtpFileSystem(
+    this.options,
+    this.policy, {
+    this.transport = const SocketFtpTransport(),
+  });
 
   final FtpOptions options;
   final NetworkPolicy policy;
+  final FtpTransport transport;
   FtpConnection? _control;
 
   @override
@@ -530,16 +496,17 @@ final class FtpFileSystem implements MutableFileSystem {
 
   Future<FtpConnection> _connection(Uri uri) {
     if (_control case final c? when c.isOpen) return Future.value(c);
-    return _connecting ??= FtpConnection.open(options, uri, policy).then(
-      (c) {
-        _connecting = null;
-        return _control = c;
-      },
-      onError: (Object e, StackTrace st) {
-        _connecting = null;
-        return Future<FtpConnection>.error(e, st);
-      },
-    );
+    return _connecting ??= FtpConnection.open(options, uri, policy, transport)
+        .then(
+          (c) {
+            _connecting = null;
+            return _control = c;
+          },
+          onError: (Object e, StackTrace st) {
+            _connecting = null;
+            return Future<FtpConnection>.error(e, st);
+          },
+        );
   }
 
   Future<T> _run<T>(Uri uri, Future<T> Function(FtpConnection c) op) async {
@@ -732,7 +699,7 @@ final class FtpFileSystem implements MutableFileSystem {
 
   @override
   Future<VirtualFileWriter> create(Uri uri) async {
-    final c = await FtpConnection.open(options, uri, policy);
+    final c = await FtpConnection.open(options, uri, policy, transport);
     try {
       final exists = await c.command('SIZE ${path(uri)}');
       if (exists.code == 213) {
@@ -778,6 +745,14 @@ Future<T> _guard<T>(Uri uri, Future<T> Function() op) async {
     throw VirtualFileException(VirtualFileError.timeout, uri, '$e');
   } on SocketException catch (e) {
     throw VirtualFileException(VirtualFileError.unreachable, uri, '$e');
+  } on UntrustedCertificate catch (e) {
+    throw VirtualFileException(
+      VirtualFileError.untrustedCertificate,
+      uri,
+      e.sha256,
+    );
+  } on FtpTlsUnavailable catch (e) {
+    throw VirtualFileException(VirtualFileError.unsupported, uri, e.reason);
   } on TlsException catch (e) {
     throw VirtualFileException(VirtualFileError.io, uri, '$e');
   }
@@ -820,7 +795,12 @@ final class _FtpFile implements VirtualFile {
         await _stop();
         var c = _conn;
         if (c == null || !c.isOpen) {
-          c = _conn = await FtpConnection.open(_fs.options, uri, _fs.policy);
+          c = _conn = await FtpConnection.open(
+            _fs.options,
+            uri,
+            _fs.policy,
+            _fs.transport,
+          );
         }
         if (offset > 0) {
           await c.expect('REST $offset', const {350}, uri);
@@ -852,7 +832,7 @@ final class _FtpFile implements VirtualFile {
 
 final class _Retr {
   _Retr(this._conn, this._data, this.position, this._uri) {
-    _sub = _data.listen(
+    _sub = _data.input.listen(
       (chunk) {
         _chunks.add(chunk);
         _buffered += chunk.length;
@@ -872,7 +852,7 @@ final class _Retr {
   }
 
   final FtpConnection _conn;
-  final Socket _data;
+  final FtpStream _data;
   final Uri _uri;
   late final StreamSubscription<Uint8List> _sub;
   final List<Uint8List> _chunks = [];
@@ -937,7 +917,7 @@ final class _FtpWriter implements VirtualFileWriter {
   _FtpWriter(this._conn, this._data, this.uri);
 
   final FtpConnection _conn;
-  final Socket _data;
+  final FtpStream _data;
   @override
   final Uri uri;
   var _ended = false;
@@ -945,8 +925,7 @@ final class _FtpWriter implements VirtualFileWriter {
   @override
   Future<void> write(List<int> bytes) => _guard(uri, () async {
     if (_ended) throw VirtualFileException(VirtualFileError.closed, uri);
-    _data.add(bytes);
-    await _data.flush();
+    await _data.write(bytes);
   });
 
   @override

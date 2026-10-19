@@ -83,10 +83,12 @@ final mountsProvider = Provider<MountedFileSystems>(
 final sourceResolverProvider = Provider<SourceResolver>(
   (ref) => DefaultSourceResolver(
     builders: defaultFileSystemBuilders(
-      keyDirectory: ref.watch(appDataDirectoryProvider).path,
+      tls: _optional(() => ref.watch(tlsSocketProvider)),
+      sftp: _optional(() => ref.watch(sftpProvider)),
     ),
     storage: _optional(() => ref.watch(storageProvider)),
     secureStorage: _optional(() => ref.watch(secureStorageProvider)),
+    mainIsolateKinds: mainIsolateSourceKinds,
   ),
 );
 
