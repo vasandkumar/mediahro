@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -43,12 +44,16 @@ class KTestStrings extends KStrings {
   String get expandSidebar => 'Expand sidebar';
 }
 
-/// Compares goldens with a small pixel tolerance so files recorded on one
-/// host OS pass on the Linux CI runner (anti-aliasing differs slightly).
+/// Golden comparator. Goldens are recorded on Linux, the CI host
+/// (re-record with `flutter test --update-goldens` on Linux or WSL). On
+/// Linux the comparison is near-exact; other hosts render
+/// text and anti-aliasing slightly differently, so local runs on Windows
+/// and macOS allow a small fraction of differing pixels.
 class TolerantGoldenComparator extends LocalFileComparator {
-  TolerantGoldenComparator(super.testFile, {this.tolerance = 0.006});
+  TolerantGoldenComparator(super.testFile, {double? tolerance})
+    : tolerance = tolerance ?? (Platform.isLinux ? 0.0005 : 0.02);
 
-  /// Fraction of differing pixels allowed (0.006 = 0.6 %).
+  /// Fraction of differing pixels allowed.
   final double tolerance;
 
   @override
@@ -126,6 +131,7 @@ Widget kVariantScope({
   required KVariant variant,
   required Widget child,
   KStrings strings = const KTestStrings(),
+  KStrings Function(BuildContext context)? stringsBuilder,
 }) => Builder(
   builder: (context) => Theme(
     data: theme,
@@ -142,7 +148,7 @@ Widget kVariantScope({
             reduceTransparency: variant.reduced,
           ),
           child: KStringsScope(
-            strings: strings,
+            strings: stringsBuilder?.call(context) ?? strings,
             child: Material(
               color: theme.colorScheme.surface,
               child: DefaultTextStyle(
@@ -169,6 +175,9 @@ Future<void> pumpK(
   Size size = const Size(400, 800),
   MediaMode mode = MediaMode.video,
   bool settle = true,
+  Iterable<LocalizationsDelegate<Object?>>? localizationsDelegates,
+  Iterable<Locale> supportedLocales = const [Locale('en')],
+  KStrings Function(BuildContext context)? stringsBuilder,
 }) async {
   tester.view
     ..physicalSize = size
@@ -179,9 +188,15 @@ Future<void> pumpK(
     MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
+      localizationsDelegates: localizationsDelegates,
+      supportedLocales: supportedLocales,
       // Scopes sit above the navigator so sheets and dialogs see them too.
-      builder: (context, navigator) =>
-          kVariantScope(theme: theme, variant: variant, child: navigator!),
+      builder: (context, navigator) => kVariantScope(
+        theme: theme,
+        variant: variant,
+        stringsBuilder: stringsBuilder,
+        child: navigator!,
+      ),
       home: child,
     ),
   );
@@ -204,6 +219,9 @@ Future<void> expectGoldenMatrix(
   double cellWidth = 360,
   int columns = 4,
   MediaMode mode = MediaMode.video,
+  Iterable<LocalizationsDelegate<Object?>>? localizationsDelegates,
+  Iterable<Locale> supportedLocales = const [Locale('en')],
+  KStrings Function(BuildContext context)? stringsBuilder,
 }) async {
   const gap = 8.0;
   tester.view
@@ -216,6 +234,8 @@ Future<void> expectGoldenMatrix(
     MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
+      localizationsDelegates: localizationsDelegates,
+      supportedLocales: supportedLocales,
       home: Align(
         alignment: Alignment.topLeft,
         child: RepaintBoundary(
@@ -234,6 +254,7 @@ Future<void> expectGoldenMatrix(
                       child: kVariantScope(
                         theme: theme,
                         variant: v,
+                        stringsBuilder: stringsBuilder,
                         child: Builder(builder: builder),
                       ),
                     ),

@@ -61,8 +61,10 @@ KPosture postureOf(BuildContext context) {
   return KPosture.flat;
 }
 
-/// List-detail layout (SYS-011): side by side from [KWindowClass.expanded],
-/// otherwise only the list (the caller pushes the detail as a route).
+/// List-detail layout (SYS-011): side by side when the space it is given is
+/// at least [KWindowClass.expanded] wide, otherwise only the list (the
+/// caller pushes the detail as a route). Uses its own constraints, not the
+/// window, so it also works inside panes and split views.
 class KListDetail extends StatelessWidget {
   const KListDetail({
     required this.list,
@@ -77,18 +79,24 @@ class KListDetail extends StatelessWidget {
   final Widget? detail;
   final double listWidth;
 
+  /// Whether a pane of [width] shows list and detail together.
+  static bool sideBySide(double width) =>
+      KWindowClass.forWidth(width).showsListDetail;
+
   @override
-  Widget build(BuildContext context) {
-    if (!KWindowClass.of(context).showsListDetail) return list;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(width: listWidth, child: list),
-        const _Divider(),
-        Expanded(child: detail ?? const SizedBox.shrink()),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (!sideBySide(constraints.maxWidth)) return list;
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: listWidth, child: list),
+          const _Divider(),
+          Expanded(child: detail ?? const SizedBox.shrink()),
+        ],
+      );
+    },
+  );
 }
 
 class _Divider extends StatelessWidget {

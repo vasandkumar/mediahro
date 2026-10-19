@@ -12,7 +12,7 @@ String formatMediaDuration(Duration d, {Duration? reference}) {
   final body = showHours
       ? '$h:${m.toString().padLeft(2, '0')}:$ss'
       : '${abs.inMinutes}:$ss';
-  return negative ? '−$body' : body;
+  return negative ? '\u2212$body' : body;
 }
 
 /// Remaining time shown as a negative duration (`−3:07`).

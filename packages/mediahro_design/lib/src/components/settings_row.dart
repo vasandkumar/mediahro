@@ -147,7 +147,11 @@ class KSettingsRow extends StatelessWidget {
           onChanged: locked ? null : _onToggle,
         ),
       ),
-      _Kind.value => Text(valueLabel!, style: secondary),
+      _Kind.value => Text(
+        valueLabel!,
+        style: secondary,
+        textAlign: TextAlign.end,
+      ),
       _Kind.navigation => Icon(
         Directionality.of(context) == TextDirection.rtl
             ? Icons.chevron_left
@@ -176,10 +180,15 @@ class KSettingsRow extends StatelessWidget {
             )
           : Row(
               children: [
-                Expanded(child: _withIcon(context, texts)),
+                Expanded(flex: 2, child: _withIcon(context, texts)),
                 if (control != null) ...[
                   const SizedBox(width: KSpacing.s12),
-                  control,
+                  // Values may be long ("Follow system") and wrap at large
+                  // text sizes instead of overflowing.
+                  if (_kind == _Kind.value)
+                    Flexible(child: control)
+                  else
+                    control,
                 ],
               ],
             ),
