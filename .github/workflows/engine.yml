@@ -1,6 +1,7 @@
 # Engine proof (lane B1, docs/10 §8 rule 4; docs/11 §1): FFI contract tests
 # and the media corpus driving MpvEngine on real libmpv per platform, plus the
-# engine example app's integration tests on A/I/M/W.
+# engine example app's integration tests on A/I/M/W (the Apple proofs share
+# one macOS runner: integration-apple).
 #
 # libmpv comes from .deps-cache/<target> once deps.lock pins a mediahro-deps
 # release; until then from the ADR-004 bootstrap
@@ -57,15 +58,9 @@ jobs:
         with: { name: engine-corpus, path: test-media/generated, retention-days: 7 }
 
   ffi:
-    name: ffi + corpus (${{ matrix.os }})
+    name: ffi + corpus (windows)
     needs: corpus
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows, runner: windows-2025, target: windows-x64, lib: lib/libmpv-2.dll }
-          - { os: macos, runner: macos-26, target: macos-dylibs, lib: lib/libmpv.dylib }
-    runs-on: ${{ matrix.runner }}
+    runs-on: windows-2025
     defaults:
       run: { shell: bash }
     steps:
@@ -76,35 +71,26 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { name: engine-corpus, path: test-media/generated }
       - name: libmpv (deps.lock archive, else ADR-004 bootstrap)
-        id: mpv
         run: |
-          PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
-          dir=$("$PY" packages/mediahro_engine/tool/fetch_libmpv.py --print-path ${{ matrix.target }} | tail -1)
-          echo "MEDIAHRO_LIBMPV=$dir/${{ matrix.lib }}" >> "$GITHUB_ENV"
-          echo "DYLD_FALLBACK_LIBRARY_PATH=$dir/lib" >> "$GITHUB_ENV"
+          dir=$(python packages/mediahro_engine/tool/fetch_libmpv.py --print-path windows-x64 | tail -1)
+          echo "MEDIAHRO_LIBMPV=$dir/lib/libmpv-2.dll" >> "$GITHUB_ENV"
       - name: Engine tests (unit + FFI contract + corpus)
         working-directory: packages/mediahro_engine
-        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-${{ matrix.os }}.json
+        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-windows.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: engine-report-${{ matrix.os }}
+          name: engine-report-windows
           path: |
             build/engine-tests-*.json
             build/corpus-report.json
           if-no-files-found: ignore
 
-  integration-desktop:
+  integration-windows:
     timeout-minutes: 90
-    name: integration (${{ matrix.os }})
+    name: integration (windows)
     needs: corpus
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows, runner: windows-2025, targets: windows-x64, device: windows }
-          - { os: macos, runner: macos-26, targets: macos-xcframeworks, device: macos, stage: macos }
-    runs-on: ${{ matrix.runner }}
+    runs-on: windows-2025
     defaults:
       run: { shell: bash }
     steps:
@@ -116,16 +102,18 @@ jobs:
         with: { name: engine-corpus, path: test-media/generated }
       - name: libmpv and corpus into the example app
         run: |
-          PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
-          "$PY" packages/mediahro_engine/tool/fetch_libmpv.py ${{ matrix.targets }}
-          if [ -n "${{ matrix.stage }}" ]; then "$PY" packages/mediahro_engine/tool/stage_native.py ${{ matrix.stage }}; fi
-          "$PY" packages/mediahro_engine/tool/stage_corpus.py
+          python packages/mediahro_engine/tool/fetch_libmpv.py windows-x64
+          python packages/mediahro_engine/tool/stage_corpus.py
       - name: Integration tests (render bridge + conformance suites)
-        shell: bash
-        run: packages/mediahro_engine/tool/run_example_tests.sh -d ${{ matrix.device }}
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d windows
 
-  integration-ios:
-    timeout-minutes: 120
+  # One macOS runner for every Apple proof (macOS runners are the CI
+  # bottleneck): FFI + corpus on macOS, then the example app on the iOS
+  # Simulator and on macOS. Later steps run even when an earlier one failed,
+  # so one run reports all three; the job fails if any of them does.
+  integration-apple:
+    timeout-minutes: 150
+    name: integration-apple
     needs: corpus
     runs-on: macos-26
     steps:
@@ -135,19 +123,40 @@ jobs:
       - run: tools/bootstrap
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with: { name: engine-corpus, path: test-media/generated }
-      - name: libmpv and corpus into the example app
+      - name: libmpv (macOS dylibs for FFI; xcframeworks for the apps) and corpus
+        id: mpv
         run: |
-          python3 packages/mediahro_engine/tool/fetch_libmpv.py ios-xcframeworks
+          dir=$(python3 packages/mediahro_engine/tool/fetch_libmpv.py --print-path macos-dylibs | tail -1)
+          echo "dylibs=$dir" >> "$GITHUB_OUTPUT"
+          python3 packages/mediahro_engine/tool/fetch_libmpv.py ios-xcframeworks macos-xcframeworks
           python3 packages/mediahro_engine/tool/stage_native.py ios
+          python3 packages/mediahro_engine/tool/stage_native.py macos
           python3 packages/mediahro_engine/tool/stage_corpus.py
-      - name: Boot simulator
+      - name: macOS engine tests (unit + FFI contract + corpus)
+        working-directory: packages/mediahro_engine
+        env:
+          MEDIAHRO_LIBMPV: ${{ steps.mpv.outputs.dylibs }}/lib/libmpv.dylib
+          DYLD_FALLBACK_LIBRARY_PATH: ${{ steps.mpv.outputs.dylibs }}/lib
+        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-macos.json
+      - name: Boot iOS Simulator
         id: sim
+        if: success() || failure()
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
           xcrun simctl boot "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-      - name: Integration tests (render bridge + conformance suites)
+      - name: iOS Simulator integration tests (render bridge + conformance suites)
+        if: (success() || failure()) && steps.sim.outcome == 'success'
         run: packages/mediahro_engine/tool/run_example_tests.sh -d ${{ steps.sim.outputs.udid }}
+      - name: macOS integration tests (render bridge + conformance suites)
+        if: success() || failure()
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d macos
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: engine-report-macos
+          path: build/engine-tests-*.json
+          if-no-files-found: ignore
 
   integration-android:
     timeout-minutes: 120
