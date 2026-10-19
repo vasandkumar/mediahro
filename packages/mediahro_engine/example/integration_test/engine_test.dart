@@ -91,7 +91,8 @@ void renderBridgeSuite() {
         id,
         isNotNull,
         reason:
-            'bridge created a texture (${engine.current.video.subtitleRenderer})',
+            'bridge created a texture (surface: ${engine.surfaceError}, '
+            'engine: ${engine.current.error})',
       );
       expect(engine.renderBackend, isNot('unknown'));
 
