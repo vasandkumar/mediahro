@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/app/app.dart';
+import 'package:mediahro/app/router.dart';
+import 'package:mediahro/ui/adaptive_shell.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 /// M0 exit: the app launches on every platform from the CI artefact and the
@@ -15,8 +17,9 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: MediahroApp()));
     await tester.pumpAndSettle();
     expect(find.text('Open a file'), findsOneWidget);
-    expect(find.text('Music'), findsWidgets);
-    expect(find.text('Photos'), findsWidgets);
+    // Destinations by key: the collapsed desktop sidebar shows icons only.
+    expect(find.byKey(destinationKey(AppDestination.music)), findsOneWidget);
+    expect(find.byKey(destinationKey(AppDestination.photos)), findsOneWidget);
   });
 
   testWidgets('M0 engine render bridge is linked natively', (tester) async {
@@ -28,7 +31,7 @@ void main() {
   testWidgets('CORE-001 mode switch completes within 100 ms', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: MediahroApp()));
     await tester.pumpAndSettle();
-    final target = find.text('Photos').first;
+    final target = find.byKey(destinationKey(AppDestination.photos));
     final sw = Stopwatch()..start();
     await tester.tap(target);
     await tester.pump();

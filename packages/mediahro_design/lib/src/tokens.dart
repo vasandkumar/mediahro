@@ -54,9 +54,11 @@ abstract final class KMotion {
       reduceMotion ? fast : d;
 }
 
-/// Minimum interactive target (44 × 44 pt, CLAUDE.md §1.8).
+/// Minimum interactive target (44 × 44 pt, CLAUDE.md §1.8). Material
+/// platforms use the 48 dp Android guideline.
 abstract final class KTarget {
   static const double min = 44;
+  static const double material = 48;
 }
 
 /// Brand colours (docs/03 §3.3). Light value first, dark-theme value second.

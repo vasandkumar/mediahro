@@ -1,27 +1,419 @@
 {
   "@@locale": "en",
   "appTitle": "Mediahro",
-  "@appTitle": {"description": "Product name. Not translated."},
+  "@appTitle": {
+    "description": "Product name. Not translated."
+  },
   "appNavVideo": "Video",
-  "@appNavVideo": {"description": "Navigation destination for the video mode."},
+  "@appNavVideo": {
+    "description": "Navigation destination for the video mode."
+  },
   "appNavMusic": "Music",
-  "@appNavMusic": {"description": "Navigation destination for the music mode."},
+  "@appNavMusic": {
+    "description": "Navigation destination for the music mode."
+  },
   "appNavPhotos": "Photos",
-  "@appNavPhotos": {"description": "Navigation destination for the photos mode."},
+  "@appNavPhotos": {
+    "description": "Navigation destination for the photos mode."
+  },
   "appNavSearch": "Search",
-  "@appNavSearch": {"description": "Navigation destination for global search."},
+  "@appNavSearch": {
+    "description": "Navigation destination for global search."
+  },
   "appNavSettings": "Settings",
-  "@appNavSettings": {"description": "Navigation destination for settings."},
+  "@appNavSettings": {
+    "description": "Navigation destination for settings."
+  },
   "appNavSources": "Sources",
-  "@appNavSources": {"description": "Navigation destination for managing folders, shares and servers."},
+  "@appNavSources": {
+    "description": "Navigation destination for managing folders, shares and servers."
+  },
   "appComingInMilestone": "{feature} arrives in milestone {milestone}.",
   "@appComingInMilestone": {
     "description": "Development-build placeholder shown on screens whose lane has not landed yet. Removed before 1.0.",
-    "placeholders": {"feature": {"type": "String"}, "milestone": {"type": "String"}}
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      },
+      "milestone": {
+        "type": "String"
+      }
+    }
   },
   "appItemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
   "@appItemCount": {
     "description": "Number of items in a list.",
-    "placeholders": {"count": {"type": "int"}}
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appClose": "Close",
+  "@appClose": {
+    "description": "Closes a sheet or dialog."
+  },
+  "appBack": "Back",
+  "@appBack": {
+    "description": "Navigates back."
+  },
+  "appLoading": "Loading",
+  "@appLoading": {
+    "description": "Spoken while placeholder rows are shown."
+  },
+  "appManagedByOrganisation": "Managed by your organisation",
+  "@appManagedByOrganisation": {
+    "description": "Shown on settings locked by managed configuration (MDM)."
+  },
+  "appSeek": "Seek",
+  "@appSeek": {
+    "description": "Accessibility name of the playback position slider."
+  },
+  "appSeekForwardLarge": "Forward 10 percent",
+  "@appSeekForwardLarge": {
+    "description": "Screen-reader action on the seek bar."
+  },
+  "appSeekBackLarge": "Back 10 percent",
+  "@appSeekBackLarge": {
+    "description": "Screen-reader action on the seek bar."
+  },
+  "appCompareDivider": "Comparison divider",
+  "@appCompareDivider": {
+    "description": "Accessibility name of the slider that reveals the second photo in compare view."
+  },
+  "appShowAdvanced": "Show advanced options",
+  "@appShowAdvanced": {
+    "description": "Expands the collapsed advanced group in a settings section."
+  },
+  "appHideAdvanced": "Hide advanced options",
+  "@appHideAdvanced": {
+    "description": "Collapses the advanced group in a settings section."
+  },
+  "appCollapseSidebar": "Collapse sidebar",
+  "@appCollapseSidebar": {
+    "description": "Collapses the navigation sidebar to icons."
+  },
+  "appExpandSidebar": "Expand sidebar",
+  "@appExpandSidebar": {
+    "description": "Expands the navigation sidebar to show labels."
+  },
+  "appSeekValue": "{position} of {duration}",
+  "@appSeekValue": {
+    "description": "Spoken value of the seek bar, e.g. '1:23 of 45:00'.",
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "appCompareItem": "Image {index} of {count}",
+  "@appCompareItem": {
+    "description": "Spoken label of one panel in photo compare view.",
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appPercent": "{value} %",
+  "@appPercent": {
+    "description": "A percentage value. Use the locale's percent convention.",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "appSizeBytes": "{count, plural, =1{1 byte} other{{count} bytes}}",
+  "@appSizeBytes": {
+    "description": "File size under 1 KiB.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "appSizeKiB": "{size} KiB",
+  "@appSizeKiB": {
+    "description": "File size in binary units; size is already formatted with one decimal (e.g. '1.5'). Keep the unit symbol KiB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "appSizeMiB": "{size} MiB",
+  "@appSizeMiB": {
+    "description": "File size in binary units; size is already formatted with one decimal (e.g. '1.5'). Keep the unit symbol MiB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "appSizeGiB": "{size} GiB",
+  "@appSizeGiB": {
+    "description": "File size in binary units; size is already formatted with one decimal (e.g. '1.5'). Keep the unit symbol GiB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "appSizeTiB": "{size} TiB",
+  "@appSizeTiB": {
+    "description": "File size in binary units; size is already formatted with one decimal (e.g. '1.5'). Keep the unit symbol TiB.",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "appKeyCtrl": "Ctrl",
+  "@appKeyCtrl": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyAlt": "Alt",
+  "@appKeyAlt": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyShift": "Shift",
+  "@appKeyShift": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeySpace": "Space",
+  "@appKeySpace": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyEscape": "Esc",
+  "@appKeyEscape": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyBackspace": "Backspace",
+  "@appKeyBackspace": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyEnter": "Enter",
+  "@appKeyEnter": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appKeyTab": "Tab",
+  "@appKeyTab": {
+    "description": "Name of a keyboard key as printed on keyboards in this locale."
+  },
+  "appShortcutGroupGeneral": "General",
+  "@appShortcutGroupGeneral": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutGroupPlayback": "Playback",
+  "@appShortcutGroupPlayback": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutGroupSeeking": "Seeking",
+  "@appShortcutGroupSeeking": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutGroupAudio": "Audio",
+  "@appShortcutGroupAudio": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutGroupSubtitles": "Subtitles",
+  "@appShortcutGroupSubtitles": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutGroupView": "View",
+  "@appShortcutGroupView": {
+    "description": "Group heading in the keyboard shortcut list."
+  },
+  "appShortcutCheatSheet": "Show keyboard shortcuts",
+  "@appShortcutCheatSheet": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSettings": "Open settings",
+  "@appShortcutSettings": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutOpenFile": "Open a file",
+  "@appShortcutOpenFile": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutOpenUrl": "Open a URL",
+  "@appShortcutOpenUrl": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSearch": "Search",
+  "@appShortcutSearch": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutModeVideo": "Go to Video",
+  "@appShortcutModeVideo": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutModeMusic": "Go to Music",
+  "@appShortcutModeMusic": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutModePhotos": "Go to Photos",
+  "@appShortcutModePhotos": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutPlayPause": "Play or pause",
+  "@appShortcutPlayPause": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekBack5": "Back 5 seconds",
+  "@appShortcutSeekBack5": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekForward5": "Forward 5 seconds",
+  "@appShortcutSeekForward5": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekBack1": "Back 1 second",
+  "@appShortcutSeekBack1": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekForward1": "Forward 1 second",
+  "@appShortcutSeekForward1": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekBack60": "Back 1 minute",
+  "@appShortcutSeekBack60": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekForward60": "Forward 1 minute",
+  "@appShortcutSeekForward60": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekBack10": "Back 10 seconds",
+  "@appShortcutSeekBack10": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSeekForward10": "Forward 10 seconds",
+  "@appShortcutSeekForward10": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutFrameBack": "Previous frame",
+  "@appShortcutFrameBack": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutFrameForward": "Next frame",
+  "@appShortcutFrameForward": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAbLoopSet": "Set A-B loop point",
+  "@appShortcutAbLoopSet": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAbLoopClear": "Clear A-B loop",
+  "@appShortcutAbLoopClear": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSpeedDown": "Slower",
+  "@appShortcutSpeedDown": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSpeedUp": "Faster",
+  "@appShortcutSpeedUp": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSpeedReset": "Normal speed",
+  "@appShortcutSpeedReset": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutVolumeUp": "Volume up",
+  "@appShortcutVolumeUp": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutVolumeDown": "Volume down",
+  "@appShortcutVolumeDown": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutMute": "Mute",
+  "@appShortcutMute": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAudioCycle": "Next audio track",
+  "@appShortcutAudioCycle": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAudioDelayMinus": "Audio delay −10 ms",
+  "@appShortcutAudioDelayMinus": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAudioDelayPlus": "Audio delay +10 ms",
+  "@appShortcutAudioDelayPlus": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSubtitleCycle": "Next subtitle track",
+  "@appShortcutSubtitleCycle": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSubtitleToggle": "Subtitles on or off",
+  "@appShortcutSubtitleToggle": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSubtitleDelayMinus": "Subtitle delay −50 ms",
+  "@appShortcutSubtitleDelayMinus": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutSubtitleDelayPlus": "Subtitle delay +50 ms",
+  "@appShortcutSubtitleDelayPlus": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutFullscreen": "Full screen",
+  "@appShortcutFullscreen": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutExitFullscreen": "Exit full screen",
+  "@appShortcutExitFullscreen": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutInfo": "Playback information",
+  "@appShortcutInfo": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutPip": "Picture in picture",
+  "@appShortcutPip": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutAlwaysOnTop": "Keep on top",
+  "@appShortcutAlwaysOnTop": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutScreenshot": "Take a screenshot",
+  "@appShortcutScreenshot": {
+    "description": "Keyboard shortcut action shown in the cheat sheet and remapping list."
+  },
+  "appShortcutJumpPercent": "Jump to {percent} %",
+  "@appShortcutJumpPercent": {
+    "description": "Keyboard shortcut action: jump to a position, e.g. 'Jump to 30 %'.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "appShortcutSheetTitle": "Keyboard shortcuts",
+  "@appShortcutSheetTitle": {
+    "description": "Title of the shortcut cheat sheet."
+  },
+  "appShortcutSheetCopy": "Copy as text",
+  "@appShortcutSheetCopy": {
+    "description": "Copies a printable list of shortcuts."
+  },
+  "appShortcutSheetCopied": "Shortcuts copied",
+  "@appShortcutSheetCopied": {
+    "description": "Confirmation after copying the shortcut list."
+  },
+  "appShortcutUnbound": "Not set",
+  "@appShortcutUnbound": {
+    "description": "Shown when an action has no key."
   }
 }

@@ -1,12 +1,19 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
+import 'package:mediahro/features/onboarding/first_run_actions.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// First run without walls (CORE-002, docs/06 §3.7): one sentence, three
-/// actions, the privacy line. No permission is requested until an action is
-/// taken. Also used as the empty-library state (docs/06 §9).
-class FirstRunPanel extends StatelessWidget {
+/// actions, the privacy line, and the note that crash reports, usage
+/// statistics and update checks are off (PRIV-001). No permission is
+/// requested until an action is taken. Also the empty-library state
+/// (docs/06 §9).
+///
+/// Callbacks default to [firstRunActionsProvider].
+class FirstRunPanel extends ConsumerWidget {
   const FirstRunPanel({
     this.onOpenFile,
     this.onAddFolder,
@@ -21,10 +28,13 @@ class FirstRunPanel extends StatelessWidget {
   final VoidCallback? onPrivacy;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final family = platformFamilyFor(defaultTargetPlatform);
+    final actions = ref.watch(firstRunActionsProvider);
+    VoidCallback run(Future<void> Function(BuildContext) f) =>
+        () => unawaited(f(context));
+
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(KSpacing.s24),
@@ -49,31 +59,40 @@ class FirstRunPanel extends StatelessWidget {
                 style: theme.textTheme.bodyLarge,
               ),
               const SizedBox(height: KSpacing.s32),
-              _Action(
-                icon: KIcon.openFile.resolve(family),
+              KButton(
+                icon: KIcon.openFile,
                 label: l10n.onboardingOpenFile,
-                onPressed: onOpenFile,
-                primary: true,
+                variant: KButtonVariant.primary,
+                expand: true,
+                onPressed: onOpenFile ?? run(actions.openFile),
               ),
               const SizedBox(height: KSpacing.s12),
-              _Action(
-                icon: KIcon.folder.resolve(family),
+              KButton(
+                icon: KIcon.folder,
                 label: l10n.onboardingAddFolder,
-                onPressed: onAddFolder,
+                expand: true,
+                onPressed: onAddFolder ?? run(actions.addFolder),
               ),
               const SizedBox(height: KSpacing.s12),
-              _Action(
-                icon: KIcon.server.resolve(family),
+              KButton(
+                icon: KIcon.server,
                 label: l10n.onboardingAddServer,
-                onPressed: onAddServer,
+                expand: true,
+                onPressed: onAddServer ?? run(actions.addServer),
               ),
               const SizedBox(height: KSpacing.s24),
-              TextButton.icon(
-                onPressed: onPrivacy,
-                icon: Icon(KIcon.lock.resolve(family), size: 18),
-                label: Text(
-                  l10n.onboardingPrivacyNote,
-                  textAlign: TextAlign.center,
+              KButton(
+                icon: KIcon.lock,
+                label: l10n.onboardingPrivacyNote,
+                variant: KButtonVariant.tertiary,
+                onPressed: onPrivacy ?? run(actions.openPrivacy),
+              ),
+              const SizedBox(height: KSpacing.s4),
+              Text(
+                l10n.onboardingTelemetryOff,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -81,37 +100,5 @@ class FirstRunPanel extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _Action extends StatelessWidget {
-  const _Action({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.primary = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = Size.fromHeight(KTarget.min + KSpacing.s4);
-    return primary
-        ? FilledButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon),
-            label: Text(label),
-            style: FilledButton.styleFrom(minimumSize: size),
-          )
-        : OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Icon(icon),
-            label: Text(label),
-            style: OutlinedButton.styleFrom(minimumSize: size),
-          );
   }
 }

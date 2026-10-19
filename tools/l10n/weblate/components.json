@@ -1,0 +1,62 @@
+{
+  "project": "mediahro",
+  "repo": "https://github.com/vasandkumar/mediahro.git",
+  "branch": "main",
+  "components": [
+    {
+      "name": "app",
+      "slug": "app",
+      "file_format": "arb",
+      "filemask": "app/lib/app/l10n/app_*.arb",
+      "template": "app/lib/app/l10n/app_en.arb",
+      "new_base": "app/lib/app/l10n/app_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
+      "name": "library",
+      "slug": "library",
+      "file_format": "arb",
+      "filemask": "app/lib/features/library/l10n/library_*.arb",
+      "template": "app/lib/features/library/l10n/library_en.arb",
+      "new_base": "app/lib/features/library/l10n/library_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
+      "name": "onboarding",
+      "slug": "onboarding",
+      "file_format": "arb",
+      "filemask": "app/lib/features/onboarding/l10n/onboarding_*.arb",
+      "template": "app/lib/features/onboarding/l10n/onboarding_en.arb",
+      "new_base": "app/lib/features/onboarding/l10n/onboarding_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
+      "name": "settings",
+      "slug": "settings",
+      "file_format": "arb",
+      "filemask": "app/lib/features/settings/l10n/settings_*.arb",
+      "template": "app/lib/features/settings/l10n/settings_en.arb",
+      "new_base": "app/lib/features/settings/l10n/settings_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
+      "name": "sources",
+      "slug": "sources",
+      "file_format": "arb",
+      "filemask": "app/lib/features/sources/l10n/sources_*.arb",
+      "template": "app/lib/features/sources/l10n/sources_en.arb",
+      "new_base": "app/lib/features/sources/l10n/sources_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    }
+  ]
+}
