@@ -51,14 +51,15 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin d3d1
 # deps.lock, else the ADR-004 bootstrap fetched by tool/fetch_libmpv.py. With
 # neither present the app builds and the engine reports libraryMissing.
 set(MEDIAHRO_LIBMPV "")
-foreach(candidate
-    "${MEDIAHRO_REPO}/.deps-cache/windows-x64/lib/mpv.dll"
-    "${MEDIAHRO_REPO}/.deps-cache/bootstrap/windows-x64/lib/libmpv-2.dll")
-  if(MEDIAHRO_LIBMPV STREQUAL "" AND EXISTS "${candidate}")
-    set(MEDIAHRO_LIBMPV "${candidate}")
-  endif()
-endforeach()
-if(NOT MEDIAHRO_LIBMPV STREQUAL "")
+# mediahro-deps archive: every runtime DLL in bin/ (mpv, FFmpeg, libplacebo,
+# ... all dynamic), copied next to the executable.
+file(GLOB MEDIAHRO_DEPS_DLLS "${MEDIAHRO_REPO}/.deps-cache/windows-x64/bin/*.dll")
+if(MEDIAHRO_DEPS_DLLS)
+  set(MEDIAHRO_LIBMPV ${MEDIAHRO_DEPS_DLLS})
+elseif(EXISTS "${MEDIAHRO_REPO}/.deps-cache/bootstrap/windows-x64/lib/libmpv-2.dll")
+  set(MEDIAHRO_LIBMPV "${MEDIAHRO_REPO}/.deps-cache/bootstrap/windows-x64/lib/libmpv-2.dll")
+endif()
+if(MEDIAHRO_LIBMPV)
   message(STATUS "mediahro_engine: bundling ${MEDIAHRO_LIBMPV}")
 endif()
 

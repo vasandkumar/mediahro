@@ -16,6 +16,7 @@
 #include <jni.h>
 
 #include <cstdint>
+#include <initializer_list>
 #include <cstdio>
 
 namespace {
@@ -48,10 +49,16 @@ int SetProperty(jlong mpv, const char *name, const char *value) {
 
 extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void * /*reserved*/) {
   g_vm = vm;
-  if (void *lib = Libmpv()) {
+  // FFmpeg is linked into libmpv.so in the bootstrap build and is its own
+  // libavcodec.so in the mediahro-deps build.
+  for (void *lib : {Libmpv(), dlopen("libavcodec.so", RTLD_NOW | RTLD_GLOBAL)}) {
+    if (lib == nullptr) continue;
     auto set_vm =
         reinterpret_cast<set_java_vm_fn>(dlsym(lib, "av_jni_set_java_vm"));
-    if (set_vm != nullptr) set_vm(vm, nullptr);
+    if (set_vm != nullptr) {
+      set_vm(vm, nullptr);
+      break;
+    }
   }
   return JNI_VERSION_1_6;
 }

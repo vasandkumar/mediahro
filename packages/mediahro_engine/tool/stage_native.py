@@ -22,7 +22,9 @@ CACHE = PLUGIN.parents[1] / ".deps-cache"
 
 def stage(platform: str) -> int:
     target = f"{platform}-xcframeworks"
-    for src in (CACHE / target / "Frameworks", CACHE / "bootstrap" / target / "Frameworks"):
+    candidates = [CACHE / target / "Frameworks", CACHE / target,
+                  CACHE / "bootstrap" / target / "Frameworks"]
+    for src in candidates:
         if src.is_dir() and any(src.glob("*.xcframework")):
             break
     else:
