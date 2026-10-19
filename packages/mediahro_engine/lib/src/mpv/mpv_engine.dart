@@ -10,6 +10,7 @@ import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
 import 'package:mediahro_engine/src/disc/disc_reader.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
+import 'package:mediahro_engine/src/mpv/mp4_gapless.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/mpv_options.dart';
@@ -128,6 +129,8 @@ final class MpvEngine implements PlaybackEngine {
   // Network source without a caller-chosen cache: resize once the bitrate
   // is known (VID-006).
   var _cacheByBitrate = false;
+  // Local files the engine opened as VirtualFiles; closed on the next open.
+  final _ownedFiles = <VirtualFile>[];
   // Completed on the next playback-restart (end of a seek).
   final _restartWaiters = <Completer<void>>[];
   var _hevcChecked = false;
@@ -290,6 +293,36 @@ final class MpvEngine implements PlaybackEngine {
     } on MpvException {
       // Size or duration unknown (live streams): keep the default budget.
     }
+  }
+
+  /// AUD-002: MP4/M4A files whose container already ends before the
+  /// iTunSMPB padding play through [Mp4GaplessFile], so the padding is
+  /// trimmed once (see [smpbRemainderToIgnore]).
+  Future<MediaSource> _oneGaplessTrim(MediaSource src) async {
+    if (_protocol == null) return src;
+    final VirtualFile file;
+    var owned = false;
+    switch (src) {
+      case UriSource(:final uri) when uri.scheme == 'file':
+        file = LocalVirtualFile(File(uri.toFilePath()));
+        owned = true;
+      case VirtualFileSource(file: final f):
+        file = f;
+      default:
+        return src;
+    }
+    int? blankAt;
+    try {
+      blankAt = await smpbRemainderToIgnore(file);
+    } on Object {
+      blankAt = null;
+    }
+    if (blankAt == null) {
+      if (owned) await file.close();
+      return src;
+    }
+    if (owned) _ownedFiles.add(file);
+    return VirtualFileSource(Mp4GaplessFile(file, blankAt), title: src.title);
   }
 
   Future<void> _quiet(Future<Object?> f) async {
@@ -618,9 +651,21 @@ final class MpvEngine implements PlaybackEngine {
     );
     _emitNow();
     final opened = _opened = Completer<void>();
+    final stale = List.of(_ownedFiles);
+    _ownedFiles.clear();
+    // The previous item's files are released once the new one is loaded.
+    unawaited(
+      opened.future.whenComplete(() async {
+        for (final f in stale) {
+          await f.close();
+        }
+      }),
+    );
+    final played = await _oneGaplessTrim(src);
+    if (gen != _generation) return;
     String url;
     var rest = const <String>[];
-    switch (src) {
+    switch (played) {
       case UriSource(:final uri):
         _isNetwork = isNetworkUri(uri);
         url = uri.scheme == 'file' ? uri.toFilePath() : uri.toString();
@@ -1046,7 +1091,8 @@ final class MpvEngine implements PlaybackEngine {
     if (_next != null) await _quiet(c.command(['playlist-clear']));
     _next = next;
     if (next != null) {
-      final url = switch (next) {
+      final played = await _oneGaplessTrim(next);
+      final url = switch (played) {
         UriSource(:final uri) =>
           uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
         VirtualFileSource(:final file) => _protocol!.urlFor(file),
@@ -1131,6 +1177,10 @@ final class MpvEngine implements PlaybackEngine {
           .catchError((Object _) {});
     }
     _protocol?.shutdown();
+    for (final f in _ownedFiles) {
+      await f.close();
+    }
+    _ownedFiles.clear();
     _software?.dispose();
     await client?.destroy();
     await _protocol?.dispose();
