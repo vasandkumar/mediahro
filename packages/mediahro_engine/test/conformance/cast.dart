@@ -51,6 +51,27 @@ void castSuite() {
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
+    test('CAST-005 H.264 comes from the OS hardware encoder', () async {
+      final t = await CastTranscoder.start(
+        UriSource(Uri.file(corpusPath('mkv_multitrack.mkv'))),
+        const CastPlan(
+          kind: CastPlanKind.transcode,
+          container: CastContainer.hls,
+          video: StreamAction.encode,
+          audio: StreamAction.encode,
+        ),
+        libmpvPath: env.libmpvPath,
+      );
+      addTearDown(t.stop);
+      await t.ready();
+      if (t.encoder == 'libvpx') {
+        markTestSkipped('no OS H.264 encoder on this host; VP8 fallback used');
+        return;
+      }
+      expect(t.encoder, castVideoEncoders(EnginePlatform.current).first);
+      expect(t.entry, 'index.m3u8');
+    }, skip: skip);
+
     test('CAST-005 passthrough serves byte ranges', () async {
       final file = File(corpusPath('mp4_h264_aac.mp4'));
       if (!file.existsSync()) {
