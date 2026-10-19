@@ -78,6 +78,8 @@ void vidHdrSuite() {
       }
       expect(frames, hasLength(5));
       expect(await prop(e, 'vd-lavc-dr'), anyOf(isTrue, 'yes', 'auto'));
+      // The info overlay (VID-072) shows the render path.
+      expect(e.current.video.renderBackend, 'software');
     }, skip: skip);
   });
 

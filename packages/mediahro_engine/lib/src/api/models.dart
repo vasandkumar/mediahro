@@ -150,6 +150,12 @@ abstract class VideoStats with _$VideoStats {
     int? dolbyVisionProfile,
     String? subtitleRenderer,
 
+    /// Render path of the video surface (VID-030, VID-072 info overlay):
+    /// "d3d11" and "opengl-iosurface" (zero-copy), "d3d11-copy",
+    /// "opengl-readback" (iOS Simulator only), "android-surface", "software";
+    /// null without a surface.
+    String? renderBackend,
+
     /// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
     double? peakNits,
     double? maxCll,

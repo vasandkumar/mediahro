@@ -6,8 +6,8 @@
 // IOSurface-backed CVPixelBuffers that Flutter (Impeller/Metal) samples as
 // external textures without a CPU copy. Recorded as an ADR request in
 // STATUS.md §6. Where the CoreVideo GL texture cache is unavailable (the
-// iOS Simulator), mpv renders into plain GL textures that are read back
-// into the pixel buffers ("opengl-readback").
+// iOS Simulator only), mpv renders into plain GL textures that are read
+// back into the pixel buffers ("opengl-readback"); devices never do.
 //
 // Licence: AGPL-3.0-or-later or the Mediahro commercial licence.
 
@@ -293,11 +293,20 @@ final class VideoSurface: NSObject, FlutterTexture {
         if rc == kCVReturnSuccess, let tex {
           target = CVOpenGLESTextureGetTarget(tex)
           name = CVOpenGLESTextureGetName(tex)
-        } else if targets.isEmpty {
-          readback = true
         } else {
+          #if targetEnvironment(simulator)
+          // Only the Simulator lacks the IOSurface texture cache; devices
+          // must stay zero-copy (VID-030), so they never fall back.
+          if targets.isEmpty {
+            readback = true
+          } else {
+            Self.lastFailure = "CVOpenGLESTextureCacheCreateTextureFromImage returned \(rc)"
+            return false
+          }
+          #else
           Self.lastFailure = "CVOpenGLESTextureCacheCreateTextureFromImage returned \(rc)"
           return false
+          #endif
         }
       }
       #else
@@ -308,9 +317,8 @@ final class VideoSurface: NSObject, FlutterTexture {
         if rc == kCVReturnSuccess, let tex {
           target = CVOpenGLTextureGetTarget(tex)
           name = CVOpenGLTextureGetName(tex)
-        } else if targets.isEmpty {
-          readback = true
         } else {
+          // macOS always has the texture cache: no readback (VID-030).
           Self.lastFailure = "CVOpenGLTextureCacheCreateTextureFromImage returned \(rc)"
           return false
         }

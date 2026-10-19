@@ -94,7 +94,23 @@ void renderBridgeSuite() {
             'bridge created a texture (surface: ${engine.surfaceError}, '
             'engine: ${engine.current.error})',
       );
-      expect(engine.renderBackend, isNot('unknown'));
+      final backend = engine.renderBackend;
+      expect(backend, isNot('unknown'));
+      // GL readback exists only for the iOS Simulator; every device and
+      // macOS must render zero-copy (VID-030).
+      final simulator = Platform.environment.containsKey(
+        'SIMULATOR_DEVICE_NAME',
+      );
+      if (!(Platform.isIOS && simulator)) {
+        expect(backend, isNot('opengl-readback'), reason: 'zero-copy only');
+      }
+      // The info overlay (VID-072) reads the same backend from the state.
+      final shown = await waitFor(
+        engine,
+        (s) => s.video.renderBackend == backend,
+        reason: 'renderBackend in VideoStats',
+      );
+      expect(shown.video.renderBackend, backend);
 
       var frames = 0;
       for (var i = 0; i < 100 && frames >= 0 && frames < 5; i++) {

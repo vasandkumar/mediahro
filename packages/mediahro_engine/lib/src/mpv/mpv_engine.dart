@@ -609,6 +609,13 @@ final class MpvEngine implements PlaybackEngine {
     if (_state.error == null) {
       _state = _state.copyWith(status: _deriveStatus());
     }
+    final backend =
+        _surface?.backend ?? (_software != null ? 'software' : null);
+    if (_state.video.renderBackend != backend) {
+      _state = _state.copyWith(
+        video: _state.video.copyWith(renderBackend: backend),
+      );
+    }
     if (!_controller.isClosed) _controller.add(_state);
   }
 

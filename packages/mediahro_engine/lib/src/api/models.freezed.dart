@@ -875,7 +875,11 @@ as String?,
 mixin _$VideoStats {
 
  String? get container; String? get videoCodec; HwdecPath get hwdec; int? get width; int? get height; double? get fps; int get droppedFrames; int? get bitrate; HdrType get hdr;/// e.g. 5, 7, 8 — profile string only, shown as "HDR (dynamic metadata, profile 8)".
- int? get dolbyVisionProfile; String? get subtitleRenderer;/// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
+ int? get dolbyVisionProfile; String? get subtitleRenderer;/// Render path of the video surface (VID-030, VID-072 info overlay):
+/// "d3d11" and "opengl-iosurface" (zero-copy), "d3d11-copy",
+/// "opengl-readback" (iOS Simulator only), "android-surface", "software";
+/// null without a surface.
+ String? get renderBackend;/// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
  double? get peakNits; double? get maxCll;
 /// Create a copy of VideoStats
 /// with the given fields replaced by the non-null parameter values.
@@ -888,20 +892,20 @@ $VideoStatsCopyWith<VideoStats> get copyWith => _$VideoStatsCopyWithImpl<VideoSt
 @override
 bool operator ==(Object other) {
   final _this = this as VideoStats;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VideoStats&&(identical(other.container, _this.container) || other.container == _this.container)&&(identical(other.videoCodec, _this.videoCodec) || other.videoCodec == _this.videoCodec)&&(identical(other.hwdec, _this.hwdec) || other.hwdec == _this.hwdec)&&(identical(other.width, _this.width) || other.width == _this.width)&&(identical(other.height, _this.height) || other.height == _this.height)&&(identical(other.fps, _this.fps) || other.fps == _this.fps)&&(identical(other.droppedFrames, _this.droppedFrames) || other.droppedFrames == _this.droppedFrames)&&(identical(other.bitrate, _this.bitrate) || other.bitrate == _this.bitrate)&&(identical(other.hdr, _this.hdr) || other.hdr == _this.hdr)&&(identical(other.dolbyVisionProfile, _this.dolbyVisionProfile) || other.dolbyVisionProfile == _this.dolbyVisionProfile)&&(identical(other.subtitleRenderer, _this.subtitleRenderer) || other.subtitleRenderer == _this.subtitleRenderer)&&(identical(other.peakNits, _this.peakNits) || other.peakNits == _this.peakNits)&&(identical(other.maxCll, _this.maxCll) || other.maxCll == _this.maxCll));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VideoStats&&(identical(other.container, _this.container) || other.container == _this.container)&&(identical(other.videoCodec, _this.videoCodec) || other.videoCodec == _this.videoCodec)&&(identical(other.hwdec, _this.hwdec) || other.hwdec == _this.hwdec)&&(identical(other.width, _this.width) || other.width == _this.width)&&(identical(other.height, _this.height) || other.height == _this.height)&&(identical(other.fps, _this.fps) || other.fps == _this.fps)&&(identical(other.droppedFrames, _this.droppedFrames) || other.droppedFrames == _this.droppedFrames)&&(identical(other.bitrate, _this.bitrate) || other.bitrate == _this.bitrate)&&(identical(other.hdr, _this.hdr) || other.hdr == _this.hdr)&&(identical(other.dolbyVisionProfile, _this.dolbyVisionProfile) || other.dolbyVisionProfile == _this.dolbyVisionProfile)&&(identical(other.subtitleRenderer, _this.subtitleRenderer) || other.subtitleRenderer == _this.subtitleRenderer)&&(identical(other.renderBackend, _this.renderBackend) || other.renderBackend == _this.renderBackend)&&(identical(other.peakNits, _this.peakNits) || other.peakNits == _this.peakNits)&&(identical(other.maxCll, _this.maxCll) || other.maxCll == _this.maxCll));
 }
 
 
 @override
 int get hashCode {
   final _this = this as VideoStats;
-  return Object.hash(runtimeType,_this.container,_this.videoCodec,_this.hwdec,_this.width,_this.height,_this.fps,_this.droppedFrames,_this.bitrate,_this.hdr,_this.dolbyVisionProfile,_this.subtitleRenderer,_this.peakNits,_this.maxCll);
+  return Object.hash(runtimeType,_this.container,_this.videoCodec,_this.hwdec,_this.width,_this.height,_this.fps,_this.droppedFrames,_this.bitrate,_this.hdr,_this.dolbyVisionProfile,_this.subtitleRenderer,_this.renderBackend,_this.peakNits,_this.maxCll);
 }
 
 @override
 String toString() {
   final _this = this as VideoStats;
-  return 'VideoStats(container: ${_this.container}, videoCodec: ${_this.videoCodec}, hwdec: ${_this.hwdec}, width: ${_this.width}, height: ${_this.height}, fps: ${_this.fps}, droppedFrames: ${_this.droppedFrames}, bitrate: ${_this.bitrate}, hdr: ${_this.hdr}, dolbyVisionProfile: ${_this.dolbyVisionProfile}, subtitleRenderer: ${_this.subtitleRenderer}, peakNits: ${_this.peakNits}, maxCll: ${_this.maxCll})';
+  return 'VideoStats(container: ${_this.container}, videoCodec: ${_this.videoCodec}, hwdec: ${_this.hwdec}, width: ${_this.width}, height: ${_this.height}, fps: ${_this.fps}, droppedFrames: ${_this.droppedFrames}, bitrate: ${_this.bitrate}, hdr: ${_this.hdr}, dolbyVisionProfile: ${_this.dolbyVisionProfile}, subtitleRenderer: ${_this.subtitleRenderer}, renderBackend: ${_this.renderBackend}, peakNits: ${_this.peakNits}, maxCll: ${_this.maxCll})';
 }
 
 
@@ -912,7 +916,7 @@ abstract mixin class $VideoStatsCopyWith<$Res>  {
   factory $VideoStatsCopyWith(VideoStats value, $Res Function(VideoStats) _then) = _$VideoStatsCopyWithImpl;
 @useResult
 $Res call({
- String? container, String? videoCodec, HwdecPath hwdec, int? width, int? height, double? fps, int droppedFrames, int? bitrate, HdrType hdr, int? dolbyVisionProfile, String? subtitleRenderer, double? peakNits, double? maxCll
+ String? container, String? videoCodec, HwdecPath hwdec, int? width, int? height, double? fps, int droppedFrames, int? bitrate, HdrType hdr, int? dolbyVisionProfile, String? subtitleRenderer, String? renderBackend, double? peakNits, double? maxCll
 });
 
 
@@ -929,7 +933,7 @@ class _$VideoStatsCopyWithImpl<$Res>
 
 /// Create a copy of VideoStats
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? container = freezed,Object? videoCodec = freezed,Object? hwdec = null,Object? width = freezed,Object? height = freezed,Object? fps = freezed,Object? droppedFrames = null,Object? bitrate = freezed,Object? hdr = null,Object? dolbyVisionProfile = freezed,Object? subtitleRenderer = freezed,Object? peakNits = freezed,Object? maxCll = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? container = freezed,Object? videoCodec = freezed,Object? hwdec = null,Object? width = freezed,Object? height = freezed,Object? fps = freezed,Object? droppedFrames = null,Object? bitrate = freezed,Object? hdr = null,Object? dolbyVisionProfile = freezed,Object? subtitleRenderer = freezed,Object? renderBackend = freezed,Object? peakNits = freezed,Object? maxCll = freezed,}) {
   return _then(VideoStats(
 container: freezed == container ? _self.container : container // ignore: cast_nullable_to_non_nullable
 as String?,videoCodec: freezed == videoCodec ? _self.videoCodec : videoCodec // ignore: cast_nullable_to_non_nullable
@@ -942,6 +946,7 @@ as int,bitrate: freezed == bitrate ? _self.bitrate : bitrate // ignore: cast_nul
 as int?,hdr: null == hdr ? _self.hdr : hdr // ignore: cast_nullable_to_non_nullable
 as HdrType,dolbyVisionProfile: freezed == dolbyVisionProfile ? _self.dolbyVisionProfile : dolbyVisionProfile // ignore: cast_nullable_to_non_nullable
 as int?,subtitleRenderer: freezed == subtitleRenderer ? _self.subtitleRenderer : subtitleRenderer // ignore: cast_nullable_to_non_nullable
+as String?,renderBackend: freezed == renderBackend ? _self.renderBackend : renderBackend // ignore: cast_nullable_to_non_nullable
 as String?,peakNits: freezed == peakNits ? _self.peakNits : peakNits // ignore: cast_nullable_to_non_nullable
 as double?,maxCll: freezed == maxCll ? _self.maxCll : maxCll // ignore: cast_nullable_to_non_nullable
 as double?,
@@ -1029,10 +1034,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  double? peakNits,  double? maxCll)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  String? renderBackend,  double? peakNits,  double? maxCll)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VideoStats() when $default != null:
-return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.peakNits,_that.maxCll);case _:
+return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.renderBackend,_that.peakNits,_that.maxCll);case _:
   return orElse();
 
 }
@@ -1050,10 +1055,10 @@ return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.h
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  double? peakNits,  double? maxCll)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  String? renderBackend,  double? peakNits,  double? maxCll)  $default,) {final _that = this;
 switch (_that) {
 case _VideoStats():
-return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.peakNits,_that.maxCll);case _:
+return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.renderBackend,_that.peakNits,_that.maxCll);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1070,10 +1075,10 @@ return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.h
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  double? peakNits,  double? maxCll)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? container,  String? videoCodec,  HwdecPath hwdec,  int? width,  int? height,  double? fps,  int droppedFrames,  int? bitrate,  HdrType hdr,  int? dolbyVisionProfile,  String? subtitleRenderer,  String? renderBackend,  double? peakNits,  double? maxCll)?  $default,) {final _that = this;
 switch (_that) {
 case _VideoStats() when $default != null:
-return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.peakNits,_that.maxCll);case _:
+return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.height,_that.fps,_that.droppedFrames,_that.bitrate,_that.hdr,_that.dolbyVisionProfile,_that.subtitleRenderer,_that.renderBackend,_that.peakNits,_that.maxCll);case _:
   return null;
 
 }
@@ -1085,7 +1090,7 @@ return $default(_that.container,_that.videoCodec,_that.hwdec,_that.width,_that.h
 
 
 class _VideoStats implements VideoStats {
-  const _VideoStats({this.container, this.videoCodec, this.hwdec = HwdecPath.none, this.width, this.height, this.fps, this.droppedFrames = 0, this.bitrate, this.hdr = HdrType.sdr, this.dolbyVisionProfile, this.subtitleRenderer, this.peakNits, this.maxCll});
+  const _VideoStats({this.container, this.videoCodec, this.hwdec = HwdecPath.none, this.width, this.height, this.fps, this.droppedFrames = 0, this.bitrate, this.hdr = HdrType.sdr, this.dolbyVisionProfile, this.subtitleRenderer, this.renderBackend, this.peakNits, this.maxCll});
   
 
 @override final  String? container;
@@ -1100,6 +1105,11 @@ class _VideoStats implements VideoStats {
 /// e.g. 5, 7, 8 — profile string only, shown as "HDR (dynamic metadata, profile 8)".
 @override final  int? dolbyVisionProfile;
 @override final  String? subtitleRenderer;
+/// Render path of the video surface (VID-030, VID-072 info overlay):
+/// "d3d11" and "opengl-iosurface" (zero-copy), "d3d11-copy",
+/// "opengl-readback" (iOS Simulator only), "android-surface", "software";
+/// null without a surface.
+@override final  String? renderBackend;
 /// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
 @override final  double? peakNits;
 @override final  double? maxCll;
@@ -1114,18 +1124,18 @@ _$VideoStatsCopyWith<_VideoStats> get copyWith => __$VideoStatsCopyWithImpl<_Vid
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VideoStats&&(identical(other.container, container) || other.container == container)&&(identical(other.videoCodec, videoCodec) || other.videoCodec == videoCodec)&&(identical(other.hwdec, hwdec) || other.hwdec == hwdec)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&(identical(other.fps, fps) || other.fps == fps)&&(identical(other.droppedFrames, droppedFrames) || other.droppedFrames == droppedFrames)&&(identical(other.bitrate, bitrate) || other.bitrate == bitrate)&&(identical(other.hdr, hdr) || other.hdr == hdr)&&(identical(other.dolbyVisionProfile, dolbyVisionProfile) || other.dolbyVisionProfile == dolbyVisionProfile)&&(identical(other.subtitleRenderer, subtitleRenderer) || other.subtitleRenderer == subtitleRenderer)&&(identical(other.peakNits, peakNits) || other.peakNits == peakNits)&&(identical(other.maxCll, maxCll) || other.maxCll == maxCll));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VideoStats&&(identical(other.container, container) || other.container == container)&&(identical(other.videoCodec, videoCodec) || other.videoCodec == videoCodec)&&(identical(other.hwdec, hwdec) || other.hwdec == hwdec)&&(identical(other.width, width) || other.width == width)&&(identical(other.height, height) || other.height == height)&&(identical(other.fps, fps) || other.fps == fps)&&(identical(other.droppedFrames, droppedFrames) || other.droppedFrames == droppedFrames)&&(identical(other.bitrate, bitrate) || other.bitrate == bitrate)&&(identical(other.hdr, hdr) || other.hdr == hdr)&&(identical(other.dolbyVisionProfile, dolbyVisionProfile) || other.dolbyVisionProfile == dolbyVisionProfile)&&(identical(other.subtitleRenderer, subtitleRenderer) || other.subtitleRenderer == subtitleRenderer)&&(identical(other.renderBackend, renderBackend) || other.renderBackend == renderBackend)&&(identical(other.peakNits, peakNits) || other.peakNits == peakNits)&&(identical(other.maxCll, maxCll) || other.maxCll == maxCll));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,container,videoCodec,hwdec,width,height,fps,droppedFrames,bitrate,hdr,dolbyVisionProfile,subtitleRenderer,peakNits,maxCll);
+    return Object.hash(runtimeType,container,videoCodec,hwdec,width,height,fps,droppedFrames,bitrate,hdr,dolbyVisionProfile,subtitleRenderer,renderBackend,peakNits,maxCll);
 }
 
 @override
 String toString() {
-    return 'VideoStats(container: $container, videoCodec: $videoCodec, hwdec: $hwdec, width: $width, height: $height, fps: $fps, droppedFrames: $droppedFrames, bitrate: $bitrate, hdr: $hdr, dolbyVisionProfile: $dolbyVisionProfile, subtitleRenderer: $subtitleRenderer, peakNits: $peakNits, maxCll: $maxCll)';
+    return 'VideoStats(container: $container, videoCodec: $videoCodec, hwdec: $hwdec, width: $width, height: $height, fps: $fps, droppedFrames: $droppedFrames, bitrate: $bitrate, hdr: $hdr, dolbyVisionProfile: $dolbyVisionProfile, subtitleRenderer: $subtitleRenderer, renderBackend: $renderBackend, peakNits: $peakNits, maxCll: $maxCll)';
 }
 
 
@@ -1136,7 +1146,7 @@ abstract mixin class _$VideoStatsCopyWith<$Res> implements $VideoStatsCopyWith<$
   factory _$VideoStatsCopyWith(_VideoStats value, $Res Function(_VideoStats) _then) = __$VideoStatsCopyWithImpl;
 @override @useResult
 $Res call({
- String? container, String? videoCodec, HwdecPath hwdec, int? width, int? height, double? fps, int droppedFrames, int? bitrate, HdrType hdr, int? dolbyVisionProfile, String? subtitleRenderer, double? peakNits, double? maxCll
+ String? container, String? videoCodec, HwdecPath hwdec, int? width, int? height, double? fps, int droppedFrames, int? bitrate, HdrType hdr, int? dolbyVisionProfile, String? subtitleRenderer, String? renderBackend, double? peakNits, double? maxCll
 });
 
 
@@ -1153,7 +1163,7 @@ class __$VideoStatsCopyWithImpl<$Res>
 
 /// Create a copy of VideoStats
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? container = freezed,Object? videoCodec = freezed,Object? hwdec = null,Object? width = freezed,Object? height = freezed,Object? fps = freezed,Object? droppedFrames = null,Object? bitrate = freezed,Object? hdr = null,Object? dolbyVisionProfile = freezed,Object? subtitleRenderer = freezed,Object? peakNits = freezed,Object? maxCll = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? container = freezed,Object? videoCodec = freezed,Object? hwdec = null,Object? width = freezed,Object? height = freezed,Object? fps = freezed,Object? droppedFrames = null,Object? bitrate = freezed,Object? hdr = null,Object? dolbyVisionProfile = freezed,Object? subtitleRenderer = freezed,Object? renderBackend = freezed,Object? peakNits = freezed,Object? maxCll = freezed,}) {
   return _then(_VideoStats(
 container: freezed == container ? _self.container : container // ignore: cast_nullable_to_non_nullable
 as String?,videoCodec: freezed == videoCodec ? _self.videoCodec : videoCodec // ignore: cast_nullable_to_non_nullable
@@ -1166,6 +1176,7 @@ as int,bitrate: freezed == bitrate ? _self.bitrate : bitrate // ignore: cast_nul
 as int?,hdr: null == hdr ? _self.hdr : hdr // ignore: cast_nullable_to_non_nullable
 as HdrType,dolbyVisionProfile: freezed == dolbyVisionProfile ? _self.dolbyVisionProfile : dolbyVisionProfile // ignore: cast_nullable_to_non_nullable
 as int?,subtitleRenderer: freezed == subtitleRenderer ? _self.subtitleRenderer : subtitleRenderer // ignore: cast_nullable_to_non_nullable
+as String?,renderBackend: freezed == renderBackend ? _self.renderBackend : renderBackend // ignore: cast_nullable_to_non_nullable
 as String?,peakNits: freezed == peakNits ? _self.peakNits : peakNits // ignore: cast_nullable_to_non_nullable
 as double?,maxCll: freezed == maxCll ? _self.maxCll : maxCll // ignore: cast_nullable_to_non_nullable
 as double?,
