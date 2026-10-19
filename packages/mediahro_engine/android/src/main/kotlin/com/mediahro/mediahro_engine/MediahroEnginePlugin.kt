@@ -135,6 +135,13 @@ class MediahroEnginePlugin :
                 surfaces[id]?.resize(call.argument<Int>("width")!!, call.argument<Int>("height")!!)
                 result.success(null)
             }
+            "stats" -> {
+                // mpv draws into the Surface itself: no native frame count.
+                val id = (call.argument<Number>("textureId"))!!.toLong()
+                result.success(
+                    if (surfaces.containsKey(id)) mapOf("frames" to -1, "backend" to "android-surface") else null,
+                )
+            }
             "dispose" -> {
                 val id = (call.argument<Number>("textureId"))!!.toLong()
                 surfaces.remove(id)?.release()

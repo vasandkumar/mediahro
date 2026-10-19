@@ -91,15 +91,15 @@ void renderBridgeSuite() {
       expect(engine.renderBackend, isNot('unknown'));
 
       var frames = 0;
-      for (var i = 0; i < 100 && frames < 5; i++) {
+      for (var i = 0; i < 100 && frames >= 0 && frames < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
         frames = (await bridge.stats(id!)).frames;
       }
-      expect(
-        frames,
-        greaterThanOrEqualTo(5),
-        reason: 'frames rendered natively',
-      );
+      // -1: the platform cannot count frames (Android draws in mpv); the
+      // composited-pixel check below proves the path.
+      if (frames >= 0) {
+        expect(frames, greaterThanOrEqualTo(5), reason: 'frames rendered');
+      }
       expect(engine.current.error, isNull);
 
       // The composited texture is not black (testsrc2 is colourful). The
