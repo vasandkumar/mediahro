@@ -5,8 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 FLUTTER="${FLUTTER:-flutter}"
 DART="${DART:-dart}"
+# Merge ARB fragments first: `flutter pub get` runs gen-l10n (generate: true),
+# which needs the merged files. The merge script uses only dart:core/io.
+"$DART" tools/l10n/merge_arb.dart
 "$FLUTTER" pub get
-"$DART" run tools/l10n/merge_arb.dart
 (cd app && "$FLUTTER" gen-l10n)
 PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
 "$PY" tools/deps/fetch.py
