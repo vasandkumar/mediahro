@@ -69,6 +69,23 @@ final class ConformanceEnv {
 
 ConformanceEnv get env => ConformanceEnv.current ??= ConformanceEnv.desktop();
 
+/// Platforms whose builds still use the ADR-004 bootstrap libmpv (media_kit
+/// "full"), which lacks the components some tests need.
+const appleBootstrap = {'ios', 'macos'};
+
+/// The STATUS §3 row behind [appleBootstrap] skips.
+const appleBootstrapBlocker =
+    'bootstrap libmpv gaps on I M (B4b Apple archives)';
+
+/// Skip reason for a test of a ⛔ STATUS cell on [platforms]
+/// (docs/lanes/README.md rule 7), after the FFI availability reason.
+/// Remove the call in the PR that ticks the cell.
+String? blockedOn(Set<String> platforms, String blocker) =>
+    ffiSkipReason ??
+    (platforms.contains(env.platformName)
+        ? 'blocked: STATUS §3 — $blocker'
+        : null);
+
 /// Why the suites cannot run here, or null when they can.
 String? get ffiSkipReason {
   if (!Libmpv.isAvailable(path: env.libmpvPath)) {

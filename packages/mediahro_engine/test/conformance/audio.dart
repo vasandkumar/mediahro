@@ -16,26 +16,32 @@ void audioSuite() {
 
   group('AUD-001 formats', () {
     for (final item in corpusItems(category: 'audio')) {
-      test('AUD-001 ${item.file} decodes', () async {
-        final e = await openItem(item.file, role: EngineRole.music);
-        final s = await waitPlaying(e, reason: item.file);
-        expect(s.error, isNull, reason: '${item.file}: ${s.error}');
-        final audio = s.tracks.where((t) => t.type == TrackType.audio);
-        expect(audio, hasLength(item.expect['audio'] ?? 1));
-        if (item.expect['audioCodec'] case final String c) {
-          expect(audio.first.codec, c);
-        }
-        if (item.expect['chapters'] case final int n) {
-          expect(s.chapters, hasLength(n), reason: 'CUE tracks');
-        }
-        if (item.expect['replayGainTrack'] case final num g) {
-          expect(audio.first.replayGainTrackDb, closeTo(g, 0.01));
-          expect(
-            audio.first.replayGainAlbumDb,
-            closeTo(item.expect['replayGainAlbum']! as num, 0.01),
-          );
-        }
-      }, skip: skip);
+      test(
+        'AUD-001 ${item.file} decodes',
+        () async {
+          final e = await openItem(item.file, role: EngineRole.music);
+          final s = await waitPlaying(e, reason: item.file);
+          expect(s.error, isNull, reason: '${item.file}: ${s.error}');
+          final audio = s.tracks.where((t) => t.type == TrackType.audio);
+          expect(audio, hasLength(item.expect['audio'] ?? 1));
+          if (item.expect['audioCodec'] case final String c) {
+            expect(audio.first.codec, c);
+          }
+          if (item.expect['chapters'] case final int n) {
+            expect(s.chapters, hasLength(n), reason: 'CUE tracks');
+          }
+          if (item.expect['replayGainTrack'] case final num g) {
+            expect(audio.first.replayGainTrackDb, closeTo(g, 0.01));
+            expect(
+              audio.first.replayGainAlbumDb,
+              closeTo(item.expect['replayGainAlbum']! as num, 0.01),
+            );
+          }
+        },
+        skip: const {'replaygain.flac', 'tracker.mod'}.contains(item.file)
+            ? blockedOn(appleBootstrap, appleBootstrapBlocker)
+            : skip,
+      );
     }
   });
 
@@ -83,7 +89,7 @@ void audioSuite() {
           lessThan(ext == 'flac' ? 2600 : 4500),
           reason: 'no click at the join (max step $jump)',
         );
-      }, skip: skip);
+      }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
     }
 
     test('AUD-002 only double-trimmed m4a files use the stream protocol, '
@@ -252,7 +258,7 @@ void audioSuite() {
       final before = await level();
       final after = await level(scanned: gain);
       expect(after - before, closeTo(gain, 0.6));
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
 
     test('AUD-004 ReplayGain track gain lowers the level by the tag', () async {
       Future<double> rms(LoudnessMode mode) async {
@@ -271,7 +277,7 @@ void audioSuite() {
       final off = await rms(LoudnessMode.off);
       final rg = await rms(LoudnessMode.replayGainTrack);
       expect(rg - off, closeTo(-6.5, 0.5));
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
   });
 
   group('AUD-005 DSP chain', () {
@@ -303,7 +309,7 @@ void audioSuite() {
         ),
       );
       expect(cut - flat, closeTo(-12, 1));
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
 
     test('AUD-005 every DSP stage is accepted by the engine', () async {
       final e = await openItem('flac_16_44.flac', role: EngineRole.music);
@@ -335,7 +341,7 @@ void audioSuite() {
         (s) => s.position > const Duration(seconds: 1),
       );
       expect(s.error, isNull);
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
   });
 
   group('AUD-006 output quality indicator', () {

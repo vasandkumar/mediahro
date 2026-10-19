@@ -114,7 +114,7 @@ void subtitlesSuite() {
         greaterThan(fallback ~/ 5),
         reason: 'embedded $embedded px vs fallback $fallback px',
       );
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
 
     test('SUB-010 ASS karaoke and animation render through libass', () async {
       final e = await scene('subs.ass');
@@ -143,7 +143,7 @@ void subtitlesSuite() {
       await e.seek(const Duration(seconds: 3), mode: SeekMode.exact);
       await waitFor(e, (s) => s.position >= const Duration(milliseconds: 2950));
       expect(await litPixels(e), 0, reason: 'cleared at 2 s');
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
 
     test('SUB-011 VobSub IDX/SUB pair is drawn', () async {
       if (corpusItems().every((i) => i.file != 'vobsub.idx')) {
@@ -211,7 +211,7 @@ void subtitlesSuite() {
       expect(text, 'Привет, мир');
       await e.setSubtitleCodepage('cp1251');
       expect(await subText(e), 'Привет, мир', reason: 'manual override');
-    }, skip: skip);
+    }, skip: blockedOn(const {'android'}, 'libiconv for SUB-013 (B4a)'));
   });
 
   group('SUB-014 styling', () {
@@ -316,7 +316,7 @@ void subtitlesSuite() {
         slot: SubtitleSlot.secondary,
       );
       expect(await prop(e, 'secondary-sub-pos'), anyOf(5, 5.0, '5'));
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
   });
 }
 

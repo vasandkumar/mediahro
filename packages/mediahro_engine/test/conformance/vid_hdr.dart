@@ -106,8 +106,8 @@ void vidHdrSuite() {
         'VID-032…035 samples',
         () {},
         skip:
-            'Dolby Vision / HDR10+ samples are not in test-media/corpus yet '
-            '(STATUS.md §3 blocker B1-HDR-SAMPLES)',
+            'blocked: STATUS §3 — no Dolby Vision / HDR10+ samples in '
+            'test-media/corpus (VID-032…035)',
       );
     }
   });

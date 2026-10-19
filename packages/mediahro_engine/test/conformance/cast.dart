@@ -47,7 +47,7 @@ void castSuite() {
         final a = s.tracks.firstWhere((t) => t.type == TrackType.audio);
         expect(a.codec, anyOf('aac', 'opus'));
       },
-      skip: skip,
+      skip: blockedOn(appleBootstrap, appleBootstrapBlocker),
       timeout: const Timeout(Duration(minutes: 3)),
     );
 
@@ -70,7 +70,7 @@ void castSuite() {
       }
       expect(t.encoder, castVideoEncoders(EnginePlatform.current).first);
       expect(t.entry, 'index.m3u8');
-    }, skip: skip);
+    }, skip: blockedOn(appleBootstrap, appleBootstrapBlocker));
 
     test('CAST-005 passthrough serves byte ranges', () async {
       final file = File(corpusPath('mp4_h264_aac.mp4'));
