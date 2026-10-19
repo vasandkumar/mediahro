@@ -57,14 +57,14 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: bar/sidebar per window class, last mode restored, platform bar materials, mini-player slot, predictive-back transitions; tested in widget + integration suites. Mode switch < 100 ms is asserted only in profile builds (perf harness), so not ticked yet |
-| CORE-002 | First-run without walls | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) |
+| CORE-002 | First-run without walls | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-006 | Settings model | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: typed SettingKey/SettingsStore (JSON in app support dir, atomic, debounced), registry for other lanes, search, descriptions, Advanced collapsed, reset per section, import/export, managed overlay hook |
-| CORE-007 | Themes | B3 | ☐ | ☐ | ☐ | ⛔ | B3 PR #2: light/dark/system, AMOLED, per-mode + custom accents (contrast-safe), high contrast, Material You (A), glass bars (Apple), Mica-ready shell. W: Mica needs the runner, owned by C4 (see §3) |
+| CORE-006 | Settings model | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: typed SettingKey/SettingsStore (JSON in app support dir, atomic, debounced), registry for other lanes, search, descriptions, Advanced collapsed, reset per section, import/export, managed overlay hook Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
+| CORE-007 | Themes | B3 | ☑ | ☑ | ☑ | ⛔ | B3 PR #2: light/dark/system, AMOLED, per-mode + custom accents (contrast-safe), high contrast, Material You (A), glass bars (Apple), Mica-ready shell. W: Mica needs the runner, owned by C4 (see §3) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: pipeline (fragments, ICU checks, placeholder checks), pseudo-locales en-XA/ar-XB in tests, missing-string report in CI summary, Weblate components, locale formatting helpers. The 12 translations themselves come from Weblate (D5) |
-| CORE-009 | Keyboard shortcuts | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: action catalogue (docs/06 §6.2) with platform defaults, remapping UI, conflict detection, cheat sheet on ? with copyable text; ShortcutScopeWidget for lanes |
+| CORE-009 | Keyboard shortcuts | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: action catalogue (docs/06 §6.2) with platform defaults, remapping UI, conflict detection, cheat sheet on ? with copyable text; ShortcutScopeWidget for lanes Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
