@@ -1,0 +1,122 @@
+# libssh2 (BSD-3-Clause) built with the WinCNG backend by mediahro-deps —
+# NET-004 SFTP on Windows only (ADR-017: OS crypto; Android and Apple use
+# their own SSH stacks behind SftpFacade). Lane C4's Windows SftpFacade
+# drives these bindings; the session runs in blocking mode on a worker
+# isolate. Headers: .deps-cache/headers/libssh2 (ffigen/fetch_headers.py).
+# Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/libssh2.yaml)
+name: Ssh2Bindings
+description: Bindings to the libssh2 session, user-auth and SFTP API.
+output: ../lib/src/libssh2/libssh2_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/libssh2/include/libssh2_sftp.h
+  include-directives:
+    - '**/libssh2.h'
+    - '**/libssh2_sftp.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/libssh2/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - libssh2_init
+    - libssh2_exit
+    - libssh2_version
+    - libssh2_free
+    - libssh2_session_init_ex
+    - libssh2_session_free
+    - libssh2_session_handshake
+    - libssh2_session_disconnect_ex
+    - libssh2_session_set_blocking
+    - libssh2_session_set_timeout
+    - libssh2_session_last_error
+    - libssh2_session_last_errno
+    - libssh2_session_hostkey
+    - libssh2_hostkey_hash
+    - libssh2_keepalive_config
+    - libssh2_keepalive_send
+    - libssh2_userauth_list
+    - libssh2_userauth_authenticated
+    - libssh2_userauth_password_ex
+    - libssh2_userauth_publickey_frommemory
+    - libssh2_sftp_init
+    - libssh2_sftp_shutdown
+    - libssh2_sftp_last_error
+    - libssh2_sftp_open_ex
+    - libssh2_sftp_close_handle
+    - libssh2_sftp_read
+    - libssh2_sftp_write
+    - libssh2_sftp_seek64
+    - libssh2_sftp_tell64
+    - libssh2_sftp_readdir_ex
+    - libssh2_sftp_fstat_ex
+    - libssh2_sftp_stat_ex
+    - libssh2_sftp_rename_ex
+    - libssh2_sftp_unlink_ex
+    - libssh2_sftp_mkdir_ex
+    - libssh2_sftp_rmdir_ex
+    - libssh2_sftp_symlink_ex
+structs:
+  include:
+    - _LIBSSH2_SFTP_ATTRIBUTES
+    - _LIBSSH2_SESSION
+    - _LIBSSH2_SFTP
+    - _LIBSSH2_SFTP_HANDLE
+  rename:
+    '_LIBSSH2_(.*)': 'Ssh2$1'
+typedefs:
+  include:
+    - LIBSSH2_SESSION
+    - LIBSSH2_SFTP
+    - LIBSSH2_SFTP_HANDLE
+    - LIBSSH2_SFTP_ATTRIBUTES
+    - libssh2_socket_t
+macros:
+  include:
+    - LIBSSH2_VERSION_NUM
+    - LIBSSH2_HOSTKEY_HASH_SHA256
+    - LIBSSH2_HOSTKEY_TYPE_.*
+    - LIBSSH2_ERROR_.*
+    - LIBSSH2_FX_.*
+    - LIBSSH2_FXF_.*
+    - LIBSSH2_SFTP_OPENFILE
+    - LIBSSH2_SFTP_OPENDIR
+    - LIBSSH2_SFTP_STAT
+    - LIBSSH2_SFTP_LSTAT
+    - LIBSSH2_SFTP_SETSTAT
+    - LIBSSH2_SFTP_ATTR_.*
+    - LIBSSH2_SFTP_S_IFMT
+    - LIBSSH2_SFTP_S_IFDIR
+    - LIBSSH2_SFTP_S_IFREG
+    - LIBSSH2_SFTP_S_IFLNK
+    - LIBSSH2_SFTP_RENAME_.*
+    - LIBSSH2_SFTP_SYMLINK
+    - LIBSSH2_SFTP_REALPATH
+    - SSH_DISCONNECT_BY_APPLICATION
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field
+# Generated against the POSIX branch of libssh2.h; map the types whose
+# Windows definitions differ to their Windows widths (the only consumer):
+# SOCKET is UINT_PTR, ssize_t is SSIZE_T (LONG_PTR), 64-bit ints are
+# __int64. `unsigned long` stays ABI-specific (32-bit on Windows).
+type-map:
+  typedefs:
+    libssh2_socket_t:
+      lib: ffi
+      c-type: UintPtr
+      dart-type: int
+    ssize_t:
+      lib: ffi
+      c-type: IntPtr
+      dart-type: int
+    libssh2_uint64_t:
+      lib: ffi
+      c-type: Uint64
+      dart-type: int
+    libssh2_int64_t:
+      lib: ffi
+      c-type: Int64
+      dart-type: int

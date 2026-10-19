@@ -24,6 +24,8 @@ export 'src/curl/curl_client.dart'
         sha256ForTesting;
 export 'src/curl/list_parser.dart';
 export 'src/ebur128/loudness_meter.dart';
+// libssh2 + WinCNG, driven by lane C4's Windows SftpFacade (ADR-017).
+export 'src/libssh2/libssh2_bindings.dart';
 export 'src/native/native_library.dart'
     show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
 export 'src/native/posix.dart';
