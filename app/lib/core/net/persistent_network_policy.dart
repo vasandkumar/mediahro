@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/network_policy.dart';
+import 'package:mediahro/core/sources/cloud/cloud_providers.dart';
+import 'package:mediahro/core/sources/source_access.dart' show decodeOptions;
 import 'package:meta/meta.dart';
 
 /// The state of one allow-list endpoint for the privacy dashboard
@@ -74,6 +76,10 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   final Map<String, DateTime> _hostLastUsed = {};
   final Set<String> _userHosts = {};
   final Set<String> _sessionHosts = {};
+
+  /// Cloud drives with a connected account (or signing in now).
+  final Set<CloudProvider> _providers = {};
+  final Set<CloudProvider> _sessionProviders = {};
   Set<String> _forcedOff = const {};
   bool _lan = true;
   Timer? _flush;
@@ -144,6 +150,7 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   bool isUserConfiguredHost(String host) {
     final h = host.toLowerCase();
     if (_userHosts.contains(h) || _sessionHosts.contains(h)) return true;
+    if (_providers.any((p) => cloudHostMatches(p, h))) return true;
     return _lan && isLocalNetworkHost(h);
   }
 
@@ -153,10 +160,24 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
     _sessionHosts.add(host.toLowerCase());
   }
 
+  /// Allows a cloud provider's hosts while the user signs in (NET-007).
+  void allowProviderForSession(CloudProvider provider) {
+    _sessionProviders.add(provider);
+    _providers.add(provider);
+  }
+
   /// Re-reads hosts of saved sources and server accounts.
   Future<void> refreshUserHosts() async {
     final sources = await _db.select(_db.sources).get();
     final servers = await _db.select(_db.serverAccounts).get();
+    _providers
+      ..clear()
+      ..addAll(_sessionProviders)
+      ..addAll([
+        for (final s in sources)
+          if (s.kind == SourceKind.cloud)
+            ?cloudProvider(decodeOptions(s.options)['provider'] ?? ''),
+      ]);
     _userHosts
       ..clear()
       ..addAll([
