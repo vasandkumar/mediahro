@@ -95,6 +95,7 @@ jobs:
           if-no-files-found: ignore
 
   integration-desktop:
+    timeout-minutes: 90
     name: integration (${{ matrix.os }})
     needs: corpus
     strategy:
@@ -120,10 +121,11 @@ jobs:
           if [ -n "${{ matrix.stage }}" ]; then "$PY" packages/mediahro_engine/tool/stage_native.py ${{ matrix.stage }}; fi
           "$PY" packages/mediahro_engine/tool/stage_corpus.py
       - name: Integration tests (render bridge + conformance suites)
-        working-directory: packages/mediahro_engine/example
-        run: flutter test integration_test -d ${{ matrix.device }} --reporter expanded
+        shell: bash
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d ${{ matrix.device }}
 
   integration-ios:
+    timeout-minutes: 120
     needs: corpus
     runs-on: macos-26
     steps:
@@ -145,10 +147,10 @@ jobs:
           xcrun simctl boot "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
       - name: Integration tests (render bridge + conformance suites)
-        working-directory: packages/mediahro_engine/example
-        run: flutter test integration_test -d ${{ steps.sim.outputs.udid }} --reporter expanded
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d ${{ steps.sim.outputs.udid }}
 
   integration-android:
+    timeout-minutes: 120
     needs: corpus
     runs-on: ubuntu-24.04
     steps:
