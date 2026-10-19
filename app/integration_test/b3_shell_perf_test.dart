@@ -9,10 +9,10 @@ import 'package:mediahro/app/services.dart';
 import 'package:mediahro/ui/adaptive_shell.dart';
 
 /// CORE-001: switching between Video, Music and Photos completes within
-/// 100 ms (docs/11 §5). The budget binds profile and release builds, so the
-/// perf job runs this file with `flutter drive --profile` and
-/// `test_driver/integration_test.dart` on each desktop device. Debug runs
-/// (the regular integration jobs) only report the numbers.
+/// 100 ms (docs/11 §5). The budget binds profile and release builds: the
+/// perf-windows CI job runs this file with `flutter drive --profile` and
+/// `test_driver/perf_driver.dart` and posts the report to the job summary.
+/// Debug runs (the regular integration jobs) only report the numbers.
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
