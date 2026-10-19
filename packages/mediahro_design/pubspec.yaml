@@ -9,6 +9,7 @@ environment:
   flutter: ">=3.47.0"
 
 dependencies:
+  cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
   # For package:mediahro_design/testing.dart (golden and a11y harness shared

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -27,31 +28,47 @@ final settingsFileSaverProvider = Provider<SettingsFileSaver>(
   },
 );
 
-enum _Menu { export, import, resetAll }
-
-/// Overflow menu on the settings screen: export, import, reset all
-/// (CORE-006).
+/// "More actions" on the settings screen: export, import, reset all
+/// (CORE-006). Shown in a `KSheet` rather than a popup menu, which keeps the
+/// popup-menu framework code out of the build (ADR-020).
 class SettingsTransferMenu extends ConsumerWidget {
   const SettingsTransferMenu({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    return PopupMenuButton<_Menu>(
-      tooltip: l10n.settingsMoreActions,
-      onSelected: (m) => switch (m) {
-        _Menu.export => _export(context, ref),
-        _Menu.import => _import(context, ref),
-        _Menu.resetAll => _resetAll(context, ref),
-      },
-      itemBuilder: (_) => [
-        PopupMenuItem(value: _Menu.export, child: Text(l10n.settingsExport)),
-        PopupMenuItem(value: _Menu.import, child: Text(l10n.settingsImport)),
-        PopupMenuItem(
-          value: _Menu.resetAll,
-          child: Text(l10n.settingsResetAll),
+    void run(Future<void> Function(BuildContext, WidgetRef) action) {
+      Navigator.of(context).maybePop();
+      unawaited(action(context, ref));
+    }
+
+    return KIconButton(
+      icon: KIcon.more,
+      label: l10n.settingsMoreActions,
+      onPressed: () => KSheet.show<void>(
+        context,
+        title: l10n.settingsMoreActions,
+        builder: (_) => Column(
+          children: [
+            KRow(
+              title: l10n.settingsExport,
+              leading: Icon(KIcon.exportFile.resolve(Theme.of(context).family)),
+              onTap: () => run(_export),
+            ),
+            KRow(
+              title: l10n.settingsImport,
+              leading: Icon(KIcon.importFile.resolve(Theme.of(context).family)),
+              onTap: () => run(_import),
+            ),
+            KRow(
+              title: l10n.settingsResetAll,
+              leading: Icon(KIcon.reset.resolve(Theme.of(context).family)),
+              onTap: () => run(_resetAll),
+            ),
+            const SizedBox(height: KSpacing.s16),
+          ],
         ),
-      ],
+      ),
     );
   }
 
