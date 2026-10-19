@@ -63,6 +63,9 @@ def largest_abi_mb(apk: Path) -> float:
 
 def main() -> int:
     kind, target = sys.argv[1], Path(sys.argv[2])
+    if not target.exists():
+        print(f"size: {target} does not exist; the build artefact is missing", file=sys.stderr)
+        return 1
     key = sys.argv[sys.argv.index("--key") + 1] if "--key" in sys.argv else f"{kind}:{target.name}"
     if kind == "android" and target.suffix == ".apk":
         mb = largest_abi_mb(target)
@@ -78,8 +81,13 @@ def main() -> int:
     baseline_file = ROOT / "tools" / "perf" / "baseline.json"
     if baseline_file.exists():
         base = json.loads(baseline_file.read_text(encoding="utf-8")).get(key)
-        if base and mb > base * 1.05:
-            print(f"size: regression > 5 % against baseline {base:.1f} MB", file=sys.stderr)
+        if isinstance(base, (int, float)) and mb > base * 1.05:
+            print(
+                f"size: {key} grew > 5 % against baseline {base:.1f} MB. If the growth is a doc 04 feature,"
+                " update tools/perf/baseline.json in this PR and justify it with feature IDs (ADR-020);"
+                " otherwise optimise it away.",
+                file=sys.stderr,
+            )
             ok = False
     if mb > budget:
         print(f"size: over budget by {mb - budget:.1f} MB", file=sys.stderr)
