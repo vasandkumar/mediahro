@@ -328,12 +328,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
+| 2026-10-20 | B1 + B4a | All Android cells of PR #3 (install-size budget, docs/11 §5) | APK with all mediahro-deps libraries is 102.3 MB per ABI vs the 40 MB budget | B4a: per-library size table, strip, FFmpeg `--disable-everything` + explicit components, trimmed libvips; B1: no duplicate libraries | None — budget is not relaxed; owner sees the numbers if 40 MB proves impossible |
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
 | 2026-10-19 | B2 | NET-001, NET-002, FILE-004, LIB-014 (chromaprint) — all platforms | Native libraries (libsmb2, libnfs, libarchive, libebur128, chromaprint, uchardet) are not yet published for every platform (Android pinned) as `mediahro-deps` archives; the ffigen bindings and contract tests skip without them | B4: publish and pin the archives; orchestrator: add the `network-env` CI job (PR #1 "Orchestrator changes needed") | Bindings, VFS clients and contract tests written; `packages/mediahro_ffi/test/network` docker-compose env + build_native.sh build them on Linux CI |
 | 2026-10-19 | B2 | LIB-002, FILE-002 (trash/share), CORE-014 (file save), LIB-007 (import/export pickers), LIB-013 (secure storage/biometrics), FILE-005 (Files/USB) — A/I (and M/W pickers) | Native storage, pickers, secure storage, biometrics and auth browser are lane C4's facades | C4: StorageFacade, SecureStorageFacade, BiometricsFacade, AuthBrowser, NetworkStatus, multicast lock | B2 codes against the facades with fakes; `_optional` degrades to "Not available on this device" |
 | 2026-10-19 | B2 | NET-007 MEGA, Proton Drive — all platforms | MEGA uses a proprietary client-side-encrypted protocol with no REST API usable without its SDK; Proton Drive has no public API (doc 04: "where API exists") | Upstream: a documented public API | Not offered in the Add cloud list; the other six providers ship |
-| 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | libssh2 needs a crypto backend and curl's FTPS needs TLS; the NDK has no OS crypto or TLS API, and docs/05 §4.1/§10 exclude OpenSSL/mbedTLS from every binary | ADR (§6): allow one crypto/TLS library on Android only (e.g. mbedTLS, Apache-2.0) for curl + libssh2, or implement SFTP/FTPS on Android in the platform module over JCA/Conscrypt (e.g. sshj, Apache-2.0) | Android archive ships libcurl without TLS (HTTP/HTTPS reach FFmpeg/curl through the app's stream callbacks); libssh2 is pinned but not built for Android |
-| 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | Open Screen libcast builds only with Chromium's GN toolchain and links BoringSSL (OpenSSL-derived) for the Cast TLS channel, which the no-OpenSSL policy excludes | ADR (§6) on the TLS stack of the open Cast sender (BoringSSL inside libcast vs. a CASTv2 sender over the OS TLS stack) | Source pinned by commit in `mediahro-deps/versions.json`; not in any archive yet |
+| 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | ~~libssh2 needs a crypto backend and curl FTPS needs TLS on Android~~ — **resolved by ADR-017** (2026-10-20): SFTP via sshj over JCA behind `SftpFacade`, FTPS over `TlsSocketFacade`; libssh2 is Windows-only (WinCNG) and curl has no TLS backend on Android/Apple (mediahro-deps#2) | Implementation: C4 / B2 per ADR-017 | — |
+| 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | ~~Open Screen libcast needs GN + BoringSSL~~ — **resolved by ADR-017**: openscreen-libcast removed from mediahro-deps (mediahro-deps#2); a Dart CASTv2 sender over `TlsSocketFacade` replaces it | Implementation: C4 per ADR-017 | — |
 
 ## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
 
@@ -378,15 +379,16 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
-| B4a | TLS / crypto for native protocol clients on Android (curl FTPS, libssh2 SFTP): one crypto/TLS library on Android only, or SFTP/FTPS through the Android platform module over JCA (§3) | Open |
-| B4a | TLS stack of the Open Screen Cast sender: libcast requires BoringSSL (§3) | Open |
-| B4a | The Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS. docs/05 §4.1 ("no OpenSSL/mbedTLS ships") and the docs/07 rule 12 encryption inventory should state this exception explicitly | Open |
+| B4a | TLS / crypto for native protocol clients on Android (curl FTPS, libssh2 SFTP): one crypto/TLS library on Android only, or SFTP/FTPS through the Android platform module over JCA (§3) | Resolved by ADR-017 (2026-10-20) |
+| B4a | TLS stack of the Open Screen Cast sender: libcast requires BoringSSL (§3) | Resolved by ADR-017 (2026-10-20) |
+| B4a | The Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS. docs/05 §4.1 ("no OpenSSL/mbedTLS ships") and the docs/07 rule 12 encryption inventory should state this exception explicitly | Resolved by ADR-017 (2026-10-20) |
 
 ## 7. Log
 
 | Date | Event |
 |---|---|
 | 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
+| 2026-10-20 | Found three stalls: my `--no-dds` CI change broke Android integration on every PR (reverted, 6aa7fad); B1's PR #3 had 9 red jobs including a 102 MB Android APK (budget 40 MB) — B1 and B4a briefed. |
 | 2026-10-20 | Owner decided ADR-017: SFTP/FTPS and the open Cast sender use OS crypto only (sshj/JCA, SwiftNIO SSH/CryptoKit, libssh2+WinCNG; OS TLS sockets for FTPS and CASTv2). `TlsSocketFacade` and `SftpFacade` added to app/lib/platform. NET-004 and CAST-001 are unblocked (sequencing: C4 platform modules). |
 | 2026-10-19 | Merged B4a: mediahro-deps#1 (pinned sources, Android build, shared scripts, release workflow) and mediahro#4 (deps.lock → v2026.10.0-android.1, native licence scan: 293 components, 243 binaries, 0 errors). CI hardened: per-file integration timeouts + retry (iOS simulator hangs), licence scan now `--require-native`. Owner decision pending: crypto for SFTP/FTPS (NET-004) and the open Cast sender (CAST-001). |
 | 2026-10-19 | Phase B running: B1 engine, B2 library & sources, B3 design & shell (Mediahro worktrees), B4a Android + shared, B4b Apple, B4c Windows (mediahro-deps worktrees). Six duplicate lane sessions created during the trust retries were deleted. |

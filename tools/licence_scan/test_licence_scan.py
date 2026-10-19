@@ -164,6 +164,18 @@ class LicenceTests(unittest.TestCase):
                            "x264: banned", "FFmpeg built GPL", "OpenSSL", ": x264 ("):
                 self.assertIn(needle, text)
 
+    def test_not_built_by_design_is_not_a_gap(self):
+        with tempfile.TemporaryDirectory() as t:
+            m = self._archive(Path(t), [])
+            data = json.loads(m.read_text(encoding="utf-8"))
+            data["not_built"] = [{"name": "libssh2", "reason": "by design: ADR-017", "by_design": True},
+                                 {"name": "libfoo", "reason": "build failed"}]
+            m.write_text(json.dumps(data), encoding="utf-8")
+            errors: list[str] = []
+            ls.scan_native([m], errors, require_complete=True)
+            self.assertEqual(len(errors), 1)
+            self.assertIn("libfoo", errors[0])
+
     def test_lgpl_marker_is_not_gpl(self):
         with tempfile.TemporaryDirectory() as t:
             m = self._archive(Path(t), [], b"LGPL version 2.1 or later\0LGPL version 3 or later\0x264 - core %d")

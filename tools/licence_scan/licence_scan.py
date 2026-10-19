@@ -540,6 +540,8 @@ def scan_native(manifests: list[Path], errors: list[str], require_complete: bool
             components.append(comp)
         if require_complete:
             for nb in data.get("not_built", []):
+                if nb.get("by_design"):
+                    continue  # decided absence (e.g. ADR-017), not a gap
                 errors.append(f"native:{target}:{nb['name']}: not in the archive ({nb.get('reason', '')})")
     return components
 
