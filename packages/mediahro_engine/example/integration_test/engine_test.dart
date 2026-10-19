@@ -102,16 +102,20 @@ void renderBridgeSuite() {
       );
       expect(engine.current.error, isNull);
 
-      // The composited texture is not black (testsrc2 is colourful).
-      await tester.pump(const Duration(milliseconds: 100));
+      // The composited texture is not black (testsrc2 is colourful). The
+      // compositor may pick up the first shared frame a little later.
       final render =
           boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      final image = await render.toImage();
-      final bytes = await image.toByteData();
-      image.dispose();
       var lit = 0;
-      for (var i = 0; i < bytes!.lengthInBytes; i += 4) {
-        if (bytes.getUint8(i) > 40 || bytes.getUint8(i + 1) > 40) lit++;
+      for (var attempt = 0; attempt < 30 && lit <= 1000; attempt++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        final image = await render.toImage();
+        final bytes = await image.toByteData();
+        image.dispose();
+        lit = 0;
+        for (var i = 0; i < bytes!.lengthInBytes; i += 4) {
+          if (bytes.getUint8(i) > 40 || bytes.getUint8(i + 1) > 40) lit++;
+        }
       }
       expect(lit, greaterThan(1000), reason: 'video pixels composited');
 
