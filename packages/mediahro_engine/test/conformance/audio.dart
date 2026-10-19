@@ -40,16 +40,23 @@ void audioSuite() {
   });
 
   group('AUD-002 gapless', () {
-    // m4a carries its delay and padding only in an iTunSMPB tag.
-    for (final ext in ['flac', 'mp3', 'm4a']) {
-      test('AUD-002 $ext album joins sample-accurately', () async {
+    // m4a carries its delay and padding only in an iTunSMPB tag, framed as
+    // iTunes writes it (whole frames) or as FFmpeg 6.x does (last frame
+    // shortened); either way the padding is trimmed once.
+    for (final (name, prefix, ext) in [
+      ('AUD-002 flac album joins sample-accurately', 'gapless_flac', 'flac'),
+      ('AUD-002 mp3 album joins sample-accurately', 'gapless_mp3', 'mp3'),
+      ('AUD-002 gapless m4a (iTunes framing)', 'gapless_m4a', 'm4a'),
+      ('AUD-002 gapless m4a (FFmpeg framing)', 'gapless_m4a_ff', 'm4a'),
+    ]) {
+      test(name, () async {
         final pcm = await _capture((e) async {
           await e.open(
-            UriSource(Uri.file(corpusPath('gapless_${ext}_1.$ext'))),
+            UriSource(Uri.file(corpusPath('${prefix}_1.$ext'))),
             opts: const OpenOptions(autoplay: false),
           );
           await e.setNext(
-            UriSource(Uri.file(corpusPath('gapless_${ext}_2.$ext'))),
+            UriSource(Uri.file(corpusPath('${prefix}_2.$ext'))),
             sameAlbum: true,
           );
           await e.play();

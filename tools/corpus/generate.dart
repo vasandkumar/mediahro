@@ -966,39 +966,55 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       }
     }
     // The same album as AAC whose encoder delay and padding are carried only
-    // by an iTunSMPB tag (edit lists blanked), as iTunes writes it (AUD-002).
-    for (var i = 0; i < 4; i++) {
-      final name = 'gapless_m4a_${i + 1}.m4a';
-      await item(
-        name,
-        [
-          '-f',
-          'lavfi',
-          '-i',
-          'aevalsrc=sin(2*PI*440*t):s=44100:c=stereo',
-          '-ss',
-          '${i * 2}',
-          '-t',
-          '2',
-          '-c:a',
-          'aac',
-          '-b:a',
-          '192k',
-        ],
-        needs: ['aac'],
-        ids: ['AUD-002'],
-        category: 'gapless',
-        expect: {'video': 0, 'audio': 1, 'gaplessIndex': i, 'itunsmpb': true},
-      );
-      final f = File(p(name));
-      if (f.existsSync()) {
-        final tagged = _withITunSmpb(f.readAsBytesSync(), samples: 88200);
-        if (tagged == null) {
-          f.deleteSync();
-          items.removeWhere((e) => e['file'] == name);
-          skipped.add({'file': name, 'reason': 'moov before mdat'});
-        } else {
-          f.writeAsBytesSync(tagged);
+    // by an iTunSMPB tag (edit lists blanked), framed as iTunes writes it
+    // (gapless_m4a_*) and as FFmpeg 6.x does with the last frame shortened
+    // (gapless_m4a_ff_*) (AUD-002).
+    for (final (prefix, ffmpegFraming) in [
+      ('gapless_m4a', false),
+      ('gapless_m4a_ff', true),
+    ]) {
+      for (var i = 0; i < 4; i++) {
+        final name = '${prefix}_${i + 1}.m4a';
+        await item(
+          name,
+          [
+            '-f',
+            'lavfi',
+            '-i',
+            'aevalsrc=sin(2*PI*440*t):s=44100:c=stereo',
+            '-ss',
+            '${i * 2}',
+            '-t',
+            '2',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '192k',
+          ],
+          needs: ['aac'],
+          ids: ['AUD-002'],
+          category: 'gapless',
+          expect: {
+            'video': 0,
+            'audio': 1,
+            'gaplessIndex': i,
+            'itunsmpb': ffmpegFraming ? 'ffmpeg' : 'itunes',
+          },
+        );
+        final f = File(p(name));
+        if (f.existsSync()) {
+          final tagged = _withITunSmpb(
+            f.readAsBytesSync(),
+            samples: 88200,
+            ffmpegFraming: ffmpegFraming,
+          );
+          if (tagged == null) {
+            f.deleteSync();
+            items.removeWhere((e) => e['file'] == name);
+            skipped.add({'file': name, 'reason': 'moov before mdat'});
+          } else {
+            f.writeAsBytesSync(tagged);
+          }
         }
       }
     }
@@ -1235,57 +1251,74 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
     });
   }
 
-  /// AUD-002: rewrites an FFmpeg MP4 so its gapless info lives only in an
-  /// iTunes `iTunSMPB` tag: edit lists become `free` and a `udta/meta/ilst`
-  /// with the tag is appended to `moov`. Needs `moov` after `mdat` so chunk
-  /// offsets stay valid; returns null otherwise.
-  static List<int>? _withITunSmpb(Uint8List mp4, {required int samples}) {
+  /// AUD-002: rewrites an FFmpeg MP4 so its gapless info is an iTunes
+  /// `iTunSMPB` tag (edit lists become `free`; a `udta/meta/ilst` with the
+  /// tag is appended to `moov`), framed either like iTunes (every AAC frame
+  /// 1024 samples, media duration includes the padding) or like FFmpeg 6.x
+  /// (last frame shortened, media duration ends at priming + samples).
+  /// Needs `moov` after `mdat` so chunk offsets stay valid; returns null
+  /// otherwise.
+  static List<int>? _withITunSmpb(
+    Uint8List mp4, {
+    required int samples,
+    required bool ffmpegFraming,
+  }) {
     final view = ByteData.sublistView(mp4);
-    String tag(int at) => String.fromCharCodes(mp4.sublist(at, at + 4));
+    String tag(Uint8List b, int at) =>
+        String.fromCharCodes(b.sublist(at, at + 4));
     int? moov;
     var mdatSeen = false;
     for (var at = 0; at + 8 <= mp4.length;) {
       final size = view.getUint32(at);
       if (size < 8) return null;
-      if (tag(at + 4) == 'mdat') mdatSeen = true;
-      if (tag(at + 4) == 'moov') moov = at;
+      if (tag(mp4, at + 4) == 'mdat') mdatSeen = true;
+      if (tag(mp4, at + 4) == 'moov') moov = at;
       at += size;
     }
     if (moov == null || !mdatSeen) return null;
     final moovSize = view.getUint32(moov);
     if (moov + moovSize != mp4.length) return null;
-    final body = Uint8List.fromList(mp4.sublist(moov));
+    var body = Uint8List.fromList(mp4.sublist(moov));
     var frames = 0;
-    final bodyView = ByteData.sublistView(body);
-    int? mdhd;
     for (var i = 4; i + 4 <= body.length; i++) {
-      final t = String.fromCharCodes(body.sublist(i, i + 4));
+      final t = tag(body, i);
       if (t == 'edts') body.setRange(i, i + 4, 'free'.codeUnits);
-      if (t == 'stsz' && frames == 0) frames = bodyView.getUint32(i + 12);
-      if (t == 'mdhd') mdhd ??= i;
-      if (t == 'stts') {
-        // iTunes keeps every AAC frame at 1024 samples and carries the
-        // padding only in iTunSMPB; some FFmpeg versions shorten the last
-        // frame instead, which would trim the padding twice.
-        final entries = bodyView.getUint32(i + 8);
-        for (var k = 0; k < entries; k++) {
-          bodyView.setUint32(i + 12 + 8 * k + 4, 1024);
-        }
-      }
-    }
-    if (mdhd != null) {
-      // Media duration in samples: whole frames.
-      final v1 = body[mdhd + 4] == 1;
-      final at = mdhd + 8 + (v1 ? 16 : 8) + 4;
-      if (v1) {
-        bodyView.setUint64(at, frames * 1024);
-      } else {
-        bodyView.setUint32(at, frames * 1024);
+      if (t == 'stsz' && frames == 0) {
+        frames = ByteData.sublistView(body).getUint32(i + 12);
       }
     }
     const priming = 1024;
     final padding = frames * 1024 - priming - samples;
-    if (padding < 0) return null;
+    if (frames < 2 || padding < 0 || padding >= 1024) return null;
+    final mediaEnd = ffmpegFraming ? priming + samples : frames * 1024;
+    // stts: whole frames, or the last one shortened to the real end.
+    final last = mediaEnd - (frames - 1) * 1024;
+    final entries = last == 1024
+        ? [(frames, 1024)]
+        : [(frames - 1, 1024), (1, last)];
+    final stts = ByteData(16 + 8 * entries.length)
+      ..setUint32(0, 16 + 8 * entries.length)
+      ..setUint32(4, 0x73747473) // 'stts'
+      ..setUint32(8, 0)
+      ..setUint32(12, entries.length);
+    for (final (k, (count, delta)) in entries.indexed) {
+      stts
+        ..setUint32(16 + 8 * k, count)
+        ..setUint32(20 + 8 * k, delta);
+    }
+    body = _replaceBox(body, 'stts', stts.buffer.asUint8List()) ?? body;
+    final bodyView = ByteData.sublistView(body);
+    for (var i = 4; i + 4 <= body.length; i++) {
+      if (tag(body, i) != 'mdhd') continue;
+      final v1 = body[i + 4] == 1;
+      final at = i + 8 + (v1 ? 16 : 8) + 4;
+      if (v1) {
+        bodyView.setUint64(at, mediaEnd);
+      } else {
+        bodyView.setUint32(at, mediaEnd);
+      }
+      break;
+    }
     String hex(int v, int width) =>
         v.toRadixString(16).toUpperCase().padLeft(width, '0');
     final text =
@@ -1314,8 +1347,48 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       'udta',
       atom('meta', [...zero4, ...hdlr, ...atom('ilst', freeform)]),
     );
-    ByteData.sublistView(body).setUint32(0, moovSize + udta.length);
+    bodyView.setUint32(0, body.length + udta.length);
     return [...mp4.sublist(0, moov), ...body, ...udta];
+  }
+
+  /// Replaces the first box of [type] inside [moov] (a whole `moov` box)
+  /// with [box] and adjusts the sizes of the boxes that enclose it.
+  static Uint8List? _replaceBox(Uint8List moov, String type, List<int> box) {
+    const containers = {'moov', 'trak', 'mdia', 'minf', 'stbl'};
+    final view = ByteData.sublistView(moov);
+    final parents = <int>[];
+    int? find(int start, int end) {
+      var at = start;
+      while (at + 8 <= end) {
+        final size = view.getUint32(at);
+        if (size < 8 || at + size > end) return null;
+        final t = String.fromCharCodes(moov.sublist(at + 4, at + 8));
+        if (t == type) return at;
+        if (containers.contains(t)) {
+          parents.add(at);
+          final hit = find(at + 8, at + size);
+          if (hit != null) return hit;
+          parents.removeLast();
+        }
+        at += size;
+      }
+      return null;
+    }
+
+    final at = find(8, moov.length);
+    if (at == null) return null;
+    final old = view.getUint32(at);
+    final delta = box.length - old;
+    final out = Uint8List.fromList([
+      ...moov.sublist(0, at),
+      ...box,
+      ...moov.sublist(at + old),
+    ]);
+    final outView = ByteData.sublistView(out);
+    for (final p in [0, ...parents]) {
+      outView.setUint32(p, outView.getUint32(p) + delta);
+    }
+    return out;
   }
 
   /// VID-005: an AVI whose idx1 and OpenDML indexes are blanked to JUNK and
