@@ -9,6 +9,7 @@ Usage: python tools/perf/size_budget.py {android|desktop} PATH [--key NAME]
 from __future__ import annotations
 
 import json
+import struct
 import sys
 import zipfile
 from pathlib import Path
@@ -17,10 +18,32 @@ ROOT = Path(__file__).resolve().parents[2]
 BUDGET_MB = {"android": 40.0, "desktop": 70.0}
 
 
-def size_of(path: Path) -> int:
+def _thin_size(p: Path, arch_index: int | None) -> int:
+    """File size counting only one slice of a universal (fat) Mach-O binary."""
+    size = p.stat().st_size
+    if size < 8:
+        return size
+    with p.open("rb") as f:
+        magic, n = struct.unpack(">II", f.read(8))
+        if magic not in (0xCAFEBABE, 0xCAFEBABF) or n > 16:
+            return size
+        wide = magic == 0xCAFEBABF
+        slices = []
+        for _ in range(n):
+            if wide:
+                _, _, _off, sz, _, _ = struct.unpack(">iiQQII", f.read(32))
+            else:
+                _, _, _off, sz, _ = struct.unpack(">iiIII", f.read(20))
+            slices.append(sz)
+    fat_overhead = size - sum(slices)
+    return fat_overhead + (max(slices) if arch_index is None else slices[min(arch_index, len(slices) - 1)])
+
+
+def size_of(path: Path, thin: bool = False) -> int:
     if path.is_file():
-        return path.stat().st_size
-    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+        return _thin_size(path, None) if thin else path.stat().st_size
+    files = [p for p in path.rglob("*") if p.is_file() and not p.is_symlink()]
+    return sum(_thin_size(p, None) if thin else p.stat().st_size for p in files)
 
 
 def largest_abi_mb(apk: Path) -> float:
@@ -41,9 +64,16 @@ def largest_abi_mb(apk: Path) -> float:
 def main() -> int:
     kind, target = sys.argv[1], Path(sys.argv[2])
     key = sys.argv[sys.argv.index("--key") + 1] if "--key" in sys.argv else f"{kind}:{target.name}"
-    mb = largest_abi_mb(target) if kind == "android" and target.suffix == ".apk" else size_of(target) / 2**20
+    if kind == "android" and target.suffix == ".apk":
+        mb = largest_abi_mb(target)
+    else:
+        # Per-architecture size for universal macOS bundles (ADR-017), like per-ABI on Android.
+        total = size_of(target) / 2**20
+        mb = size_of(target, thin=True) / 2**20
+        if abs(total - mb) > 0.05:
+            print(f"size: {key} universal total {total:.1f} MB (informational)")
     budget = BUDGET_MB[kind]
-    print(f"size: {key} {mb:.1f} MB (budget {budget:.0f} MB)")
+    print(f"size: {key} {mb:.1f} MB per architecture (budget {budget:.0f} MB)")
     ok = mb <= budget
     baseline_file = ROOT / "tools" / "perf" / "baseline.json"
     if baseline_file.exists():

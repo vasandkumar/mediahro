@@ -370,6 +370,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
+| Orchestrator (M0) | ADR-017: measure the ≤ 70 MB desktop install budget per architecture for the universal macOS bundle (bare Flutter shell is 85.9 MB universal at M0) | Proposed — **owner to confirm** |
 
 ## 7. Log
 
