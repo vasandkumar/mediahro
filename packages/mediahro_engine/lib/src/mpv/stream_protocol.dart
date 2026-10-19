@@ -27,6 +27,7 @@ final class MpvStreamProtocol {
   var _nextFile = 1;
   var _nextStream = 1;
   var _shutdown = false;
+  var _disposed = false;
 
   /// Registers the protocol on [client]'s core. Returns null when the shim
   /// is not in this build; `VirtualFileSource`s then fail with
@@ -138,6 +139,8 @@ final class MpvStreamProtocol {
 
   /// Releases native resources. Call after the core is destroyed.
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
     shutdown();
     mhVfsRelease(_vfs);
     _callable.close();

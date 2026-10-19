@@ -1,4 +1,5 @@
 import 'audio.dart';
+import 'cast.dart';
 import 'disc.dart';
 import 'subtitles.dart';
 import 'vid_formats.dart';
@@ -15,4 +16,5 @@ void runConformanceSuites() {
   vidHdrSuite();
   subtitlesSuite();
   audioSuite();
+  castSuite();
 }
