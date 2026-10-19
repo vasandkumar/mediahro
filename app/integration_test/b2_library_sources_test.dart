@@ -11,6 +11,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/backup/backup_service.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/db/sqlite_support.dart';
 import 'package:mediahro/core/files/file_operations.dart';
 import 'package:mediahro/core/files/file_systems.dart';
 import 'package:mediahro/core/index/index_writer.dart';
@@ -109,6 +110,23 @@ void main() {
       'Photos': ItemKind.image,
     });
   });
+
+  testWidgets(
+    'LIB-001/LIB-005 the platform SQLite runs the index (FTS5, JSON, >= 3.30)',
+    (tester) async {
+      // iOS/macOS use the system SQLite (ADR-020); Android/Windows bundle it.
+      final r = await inspectSqlite(db);
+      debugPrint(
+        'LIB-001 sqlite: ${r.version} on ${Platform.operatingSystem}'
+        '${Platform.isIOS || Platform.isMacOS ? ' (system)' : ' (bundled)'}',
+      );
+      report['sqlite_version'] = r.version;
+      expect(r.missing, isEmpty, reason: r.compileOptions.join(' '));
+      if (!Platform.isIOS && !Platform.isMacOS) {
+        expect(r.compileOptions, contains('ENABLE_FTS5'));
+      }
+    },
+  );
 
   testWidgets(
     'LIB-005 prefix search across every field and every filter on the device',

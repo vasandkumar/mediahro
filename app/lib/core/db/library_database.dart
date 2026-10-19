@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:mediahro/core/db/sqlite_support.dart';
 import 'package:mediahro/core/db/tables.dart';
 import 'package:sqlite3/sqlite3.dart' show Database;
 
+export 'sqlite_support.dart' show SqliteFeature, SqliteUnsupported;
 export 'tables.dart';
 
 part 'library_database.g.dart';
@@ -95,6 +97,9 @@ class LibraryDatabase extends _$LibraryDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
+      // Before any schema: a device SQLite without FTS5/JSON fails with
+      // SqliteUnsupported (actionable copy), not a half-created index.
+      await checkSqliteSupport(this);
       await m.createAll();
       await createFts(this);
     },
@@ -102,6 +107,7 @@ class LibraryDatabase extends _$LibraryDatabase {
       // Stepwise migrations: for (var v = from; v < to; v++) { ... }.
     },
     beforeOpen: (details) async {
+      if (!details.wasCreated) await checkSqliteSupport(this);
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );

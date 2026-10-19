@@ -15,6 +15,16 @@
   "libraryCollections": "Collections",
   "libraryCollectionsEmpty": "Nothing to group here yet.",
   "libraryConflict": "Name conflict",
+  "libraryDatabaseUnsupported": "This device's built-in database is missing features the library needs. Update the operating system, then open Mediahro again.",
+  "libraryDatabaseUnsupportedDetail": "SQLite {version}",
+  "@libraryDatabaseUnsupportedDetail": {
+    "description": "Technical detail under the message; the version is a number such as 3.39.5.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "libraryDelete": "Delete",
   "libraryDeletePermanentHint": "This source has no trash. The files are deleted for good.",
   "libraryDeletePermanentTitle": "{count, plural, =1{Delete 1 item permanently?} other{Delete {count} items permanently?}}",

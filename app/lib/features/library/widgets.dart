@@ -153,3 +153,25 @@ class SkeletonList extends StatelessWidget {
     );
   }
 }
+
+/// Shown instead of the library when the device's SQLite cannot run the
+/// index ([SqliteUnsupported], docs/06 §8: what happened and what to do).
+class LibraryUnavailable extends StatelessWidget {
+  const LibraryUnavailable({required this.error, super.key});
+
+  final SqliteUnsupported error;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return EmptyState(
+      message: l10n.libraryDatabaseUnsupported,
+      actions: [
+        Text(
+          l10n.libraryDatabaseUnsupportedDetail(error.version),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
