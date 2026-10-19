@@ -1,6 +1,3 @@
-@Tags(['ffi'])
-library;
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/mpv_options.dart';
@@ -10,21 +7,15 @@ import 'support.dart';
 /// VID-001 containers, VID-002 video codecs, VID-003 audio codecs in video:
 /// every generated corpus file opens, reports the expected tracks and codecs,
 /// renders a first frame and plays.
-void main() {
+void vidFormatsSuite() {
   final skip = ffiSkipReason;
+  prepareCorpus();
 
   Future<void> check(CorpusItem item) async {
     final e = headlessEngine();
     addTearDown(e.dispose);
     await e.open(UriSource(item.uri));
-    final s = await waitFor(
-      e,
-      (s) =>
-          s.status == PlaybackStatus.error ||
-          s.status == PlaybackStatus.ended ||
-          (s.status == PlaybackStatus.playing && s.position > Duration.zero),
-      reason: '$item playing',
-    );
+    final s = await waitPlaying(e, reason: '$item playing');
     expect(s.error, isNull, reason: '$item: ${s.error}');
     int count(TrackType t) => s.tracks.where((x) => x.type == t).length;
     final x = item.expect;

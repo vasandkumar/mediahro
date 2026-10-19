@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -15,6 +16,7 @@ import 'package:mediahro_engine/src/mpv/render_mapping.dart';
 import 'package:mediahro_engine/src/mpv/software_renderer.dart';
 import 'package:mediahro_engine/src/mpv/state_mapping.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
+import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
@@ -120,6 +122,8 @@ final class MpvEngine implements PlaybackEngine {
   var _videoWidth = 0;
   var _videoHeight = 0;
   MediaSource? _next;
+  int _itemSerial = 0;
+  Directory? _tempDir;
 
   VideoOutputMode get _videoMode =>
       config.video ??
@@ -271,7 +275,19 @@ final class MpvEngine implements PlaybackEngine {
       case MpvPropertyChange(:final name, :final value):
         _onProperty(name, value);
       case MpvStartFile():
-        _loading = true;
+        _itemSerial++;
+        if (_next != null) {
+          // Gapless advance (AUD-002): the queued entry starts while audio
+          // keeps flowing; drop the finished entry and keep the status.
+          _source = _next;
+          _next = null;
+          _state = _state.copyWith(nextPrepared: false, item: _itemSerial);
+          final c = _client;
+          if (c != null) unawaited(_quiet(c.command(['playlist-remove', '0'])));
+        } else {
+          _loading = true;
+          _state = _state.copyWith(item: _itemSerial);
+        }
       case MpvFileLoaded():
         _loading = false;
         _eof = false;
@@ -285,10 +301,14 @@ final class MpvEngine implements PlaybackEngine {
           );
           return;
         }
-        if (reason == MpvEndReason.eof) _eof = true;
+        if (reason == MpvEndReason.eof && _next == null) _eof = true;
       case MpvPlaybackRestart():
         _seeking = false;
         unawaited(_afterRestart());
+        if (_seekedSinceRestart) {
+          _seekedSinceRestart = false;
+          unawaited(_refreshExternalBitmapSubs());
+        }
       case MpvSeekStarted():
         _seeking = true;
       case MpvShutdown():
@@ -395,6 +415,31 @@ final class MpvEngine implements PlaybackEngine {
     );
   }
 
+  var _seekedSinceRestart = false;
+
+  /// External PGS (.sup) files are demuxed one segment per packet, so a seek
+  /// can land inside a display set and the caption on screen stays blank
+  /// until the next set. Re-selecting the track makes mpv decode the set
+  /// from its start (SUB-011).
+  Future<void> _refreshExternalBitmapSubs() async {
+    final c = _client;
+    if (c == null) return;
+    for (final (prop, id) in [
+      ('sid', _state.subtitleTrackId),
+      ('secondary-sid', _state.secondarySubtitleTrackId),
+    ]) {
+      if (id == null) continue;
+      final t = _state.tracks
+          .where((t) => t.type == TrackType.subtitle && t.id == id)
+          .firstOrNull;
+      if (t == null || !t.isExternal || t.codec != 'hdmv_pgs_subtitle') {
+        continue;
+      }
+      await _quiet(c.setProperty(prop, 'no'));
+      await _quiet(c.setProperty(prop, '$id'));
+    }
+  }
+
   Future<void> _afterRestart() async {
     final c = _client;
     if (c == null || _hevcChecked || _allowSoftwareHevc) return;
@@ -460,6 +505,7 @@ final class MpvEngine implements PlaybackEngine {
       volume: _state.volume,
       muted: _state.muted,
       rate: _state.rate,
+      item: _itemSerial,
     );
     _emitNow();
     final opened = _opened = Completer<void>();
@@ -577,6 +623,7 @@ final class MpvEngine implements PlaybackEngine {
     final c = await _live();
     if (c == null) return;
     _eof = false;
+    _seekedSinceRestart = true;
     await _quiet(
       c.command([
         'seek',
@@ -691,13 +738,64 @@ final class MpvEngine implements PlaybackEngine {
       TrackType.audio => 'audio-add',
       TrackType.subtitle => 'sub-add',
     };
-    final path = uri.scheme == 'file' ? uri.toFilePath() : uri.toString();
+    var path = uri.scheme == 'file' ? uri.toFilePath() : uri.toString();
+    var trackTitle = title ?? '';
+    if (type == TrackType.subtitle && uri.scheme == 'file') {
+      final converted = await _convertSubtitle(path);
+      if (converted != null) {
+        trackTitle = title ?? uri.pathSegments.last;
+        path = converted;
+      }
+    }
     try {
-      await c.command([cmd, path, 'select', title ?? '', language ?? '']);
+      await c.command([cmd, path, 'select', trackTitle, language ?? '']);
     } on MpvException catch (e) {
       throw EngineException(
         EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
       );
+    }
+  }
+
+  /// Converts TTML/DFXP, LRC and timestamped TXT to SRT (SUB-010); returns
+  /// the converted file or null when mpv reads [path] natively.
+  Future<String?> _convertSubtitle(String path) async {
+    final file = File(path);
+    final ConvertedSubtitle? kind;
+    final String text;
+    try {
+      final bytes = await file.readAsBytes();
+      text = utf8.decode(bytes, allowMalformed: true);
+      kind = conversionFor(
+        path,
+        head: text.substring(0, text.length < 512 ? text.length : 512),
+      );
+    } on FileSystemException {
+      return null;
+    }
+    if (kind == null) return null;
+    final dir = _tempDir ??= await Directory.systemTemp.createTemp('mh-subs');
+    final out = File(
+      '${dir.path}${Platform.pathSeparator}${dir.listSync().length}.srt',
+    );
+    await out.writeAsString(
+      convertToSrt(kind, text, videoFps: _state.video.fps),
+    );
+    return out.path;
+  }
+
+  @override
+  Future<void> setSubtitleCodepage(String? codepage) async {
+    final c = await _live();
+    if (c == null) return;
+    await _quiet(
+      c.setProperty('sub-codepage', codepage == null ? 'auto' : '+$codepage'),
+    );
+    // Reload external subtitles so the new charset applies.
+    final ids = _state.tracks
+        .where((t) => t.type == TrackType.subtitle && t.isExternal)
+        .map((t) => t.id);
+    for (final id in ids) {
+      await _quiet(c.command(['sub-reload', '$id']));
     }
   }
 
@@ -881,6 +979,7 @@ final class MpvEngine implements PlaybackEngine {
     _software?.dispose();
     await client?.destroy();
     await _protocol?.dispose();
+    await _tempDir?.delete(recursive: true).catchError((Object _) => _tempDir!);
     await _controller.close();
   }
 }

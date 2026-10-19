@@ -290,6 +290,14 @@ final class FakePlaybackEngine implements PlaybackEngine {
     _check('setSubtitleStyle');
   }
 
+  String? subtitleCodepage;
+
+  @override
+  Future<void> setSubtitleCodepage(String? codepage) async {
+    _check('setSubtitleCodepage');
+    subtitleCodepage = codepage;
+  }
+
   @override
   Future<void> setSubSpeed(double speed) async {
     _check('setSubSpeed');

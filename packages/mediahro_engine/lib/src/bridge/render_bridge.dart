@@ -95,6 +95,17 @@ final class RenderBridge {
         'height': height,
       });
 
+  /// Frames rendered into [textureId] and the render path (tests, VID-072).
+  Future<({int frames, String backend})> stats(int textureId) async {
+    final r = await _channel.invokeMapMethod<String, Object?>('stats', {
+      'textureId': textureId,
+    });
+    return (
+      frames: (r?['frames'] as int?) ?? 0,
+      backend: (r?['backend'] as String?) ?? 'unknown',
+    );
+  }
+
   /// Releases the surface. Must be called before the mpv core is destroyed.
   Future<void> dispose(int textureId) =>
       _channel.invokeMethod<void>('dispose', {'textureId': textureId});

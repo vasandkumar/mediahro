@@ -207,6 +207,10 @@ abstract class PlaybackState with _$PlaybackState {
     /// True when the next item is preloaded for gapless or crossfade
     /// (AUD-002, AUD-003).
     @Default(false) bool nextPrepared,
+
+    /// Increments each time an item starts, including gapless and crossfade
+    /// advances, so queues can follow transitions.
+    @Default(0) int item,
   }) = _PlaybackState;
 }
 

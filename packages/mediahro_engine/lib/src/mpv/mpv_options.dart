@@ -78,8 +78,10 @@ Map<String, String> defaultMpvOptions({
     // Video (VID-030, VID-031).
     ...switch (video) {
       VideoOutputMode.renderApi => {'vo': 'libmpv'},
+      // The bridge attaches the Surface and switches to gpu-next (native,
+      // synchronous); until then the core runs without a video output.
       VideoOutputMode.androidSurface => {
-        'vo': 'gpu-next',
+        'vo': 'null',
         'gpu-context': 'androidvk,android',
         'gpu-api': 'vulkan,opengl',
       },
@@ -106,7 +108,15 @@ Map<String, String> defaultMpvOptions({
     'embeddedfonts': 'yes',
     'sub-font-provider': 'auto',
     'sub-auto': 'fuzzy',
-    'sub-file-paths': 'Subs:subs:Subtitles:subtitles:Sub:sub',
+    // Path lists use ';' on Windows and ':' elsewhere.
+    'sub-file-paths': [
+      'Subs',
+      'subs',
+      'Subtitles',
+      'subtitles',
+      'Sub',
+      'sub',
+    ].join(platform == EnginePlatform.windows ? ';' : ':'),
     'sub-codepage': 'auto',
     'demuxer-mkv-subtitle-preroll': 'yes',
     // Cache and network (VID-006).

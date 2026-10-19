@@ -84,6 +84,8 @@ final class UnavailableEngine implements PlaybackEngine {
     SubtitleSlot slot = SubtitleSlot.primary,
   }) async {}
   @override
+  Future<void> setSubtitleCodepage(String? codepage) async {}
+  @override
   Future<void> setSubSpeed(double speed) async {}
   @override
   Future<void> setNext(MediaSource? next, {bool sameAlbum = false}) async {}

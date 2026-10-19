@@ -65,6 +65,11 @@ abstract interface class PlaybackEngine {
     SubtitleSlot slot = SubtitleSlot.primary,
   });
 
+  /// Subtitle character set (SUB-013): null for automatic detection
+  /// (uchardet), otherwise an iconv name such as `cp1251` forced for the
+  /// loaded external subtitles, which are reloaded.
+  Future<void> setSubtitleCodepage(String? codepage);
+
   /// Subtitle speed factor, e.g. 25 / 23.976 for frame-rate conversion
   /// (SUB-015). Applies to text subtitles.
   Future<void> setSubSpeed(double speed);

@@ -10,6 +10,7 @@
 // live in test-media/corpus (Git LFS) with their own manifest.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 void main(List<String> args) async {
@@ -155,6 +156,8 @@ final class _Generator {
     await _audio();
     await _subtitles();
     await _edgeCases();
+    await _subtitleScenes();
+    _dsd();
     _playlists();
   }
 
@@ -165,7 +168,7 @@ final class _Generator {
       '2\n00:00:02,500 --> 00:00:04,500\nSecond line\n';
 
   void _subtitleFiles() {
-    File(p('subs.srt')).writeAsStringSync(_srt);
+    File(p('subs.srt')).writeAsStringSync(_Generator._srt);
     File(p('subs.ass')).writeAsStringSync(_ass);
   }
 
@@ -703,7 +706,11 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
   Future<void> _hdr() async {
     const c = 'hdr';
     final av1 = _av1();
+    // setparams tags the frames (lavfi sources are untagged); the output
+    // options then carry the tags into the bitstream and container.
     final hdr10 = [
+      '-vf',
+      'setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc',
       '-color_primaries',
       'bt2020',
       '-color_trc',
@@ -749,6 +756,8 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
         ?av1,
         '-pix_fmt',
         'yuv420p10le',
+        '-vf',
+        'setparams=color_primaries=bt2020:color_trc=arib-std-b67:colorspace=bt2020nc',
         '-color_primaries',
         'bt2020',
         '-color_trc',
@@ -1107,6 +1116,144 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
   }
 }
 
+extension on _Generator {
+  /// Black video for pixel-level subtitle checks plus external-subtitle
+  /// layouts for SUB-012 lookup.
+  Future<void> _subtitleScenes() async {
+    const c = 'subtitle-scenes';
+    await item(
+      'black.mkv',
+      [
+        '-f',
+        'lavfi',
+        '-i',
+        'color=c=black:size=640x360:rate=25',
+        '-f',
+        'lavfi',
+        '-i',
+        'anullsrc=r=48000:cl=stereo',
+        '-t',
+        '10',
+        '-c:v',
+        'mpeg4',
+        '-q:v',
+        '2',
+        '-c:a',
+        'libopus',
+      ],
+      needs: ['mpeg4', 'libopus'],
+      ids: ['SUB-010', 'SUB-014'],
+      category: c,
+      expect: {'video': 1, 'audio': 1},
+    );
+    written(
+      'subs.ttml',
+      utf8.encode(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<tt xmlns="http://www.w3.org/ns/ttml" '
+        'xmlns:ttp="http://www.w3.org/ns/ttml#parameter" ttp:frameRate="25">\n'
+        '<body><div>\n'
+        '<p begin="00:00:00.500" end="00:00:02.000">Hello <span>TTML</span></p>\n'
+        '<p begin="2.5s" dur="2s">Line one<br/>Line two</p>\n'
+        '</div></body></tt>\n',
+      ),
+      category: c,
+      ids: ['SUB-010'],
+      expect: {'subText': 'Hello TTML'},
+    );
+    written(
+      'lyrics.lrc',
+      utf8.encode(
+        '[ar:Mediahro]\n[ti:Corpus]\n[00:00.50]Hello LRC\n'
+        '[00:02.50][00:04.00]Chorus line\n',
+      ),
+      category: c,
+      ids: ['SUB-010'],
+      expect: {'subText': 'Hello LRC'},
+    );
+    written(
+      'timed.txt',
+      utf8.encode('00:00:00.500 Hello TXT\n00:00:02.500 Second|line\n'),
+      category: c,
+      ids: ['SUB-010'],
+      expect: {'subText': 'Hello TXT'},
+    );
+    // SUB-012: same-name, language-suffixed and Subs/ folder subtitles.
+    final dir = Directory(p('ext_subs'))..createSync(recursive: true);
+    Directory('${dir.path}/Subs').createSync(recursive: true);
+    final black = File(p('black.mkv'));
+    if (black.existsSync()) black.copySync('${dir.path}/movie.mkv');
+    File('${dir.path}/movie.srt').writeAsStringSync(_Generator._srt);
+    File('${dir.path}/movie.en.srt').writeAsStringSync(_Generator._srt);
+    File('${dir.path}/Subs/movie.fr.srt').writeAsStringSync(_Generator._srt);
+    File('${dir.path}/unrelated.srt').writeAsStringSync(_Generator._srt);
+  }
+
+  /// DSD64 stereo DSF with a 1 kHz tone from a second-order sigma-delta
+  /// modulator (AUD-001 DSF, AUD-043 PCM conversion).
+  void _dsd() {
+    const fs = 2822400;
+    const seconds = 2;
+    const blockSize = 4096;
+    const samples = fs * seconds;
+    const bytesPerChannel = samples ~/ 8;
+    const blocks = (bytesPerChannel + blockSize - 1) ~/ blockSize;
+    final channel = Uint8List(blocks * blockSize);
+    var i1 = 0.0;
+    var i2 = 0.0;
+    var y = 0.0;
+    for (var n = 0; n < samples; n++) {
+      final x = 0.5 * math.sin(2 * math.pi * 1000 * n / fs);
+      i1 += x - y;
+      i2 += i1 - y;
+      y = i2 >= 0 ? 1.0 : -1.0;
+      if (y > 0) channel[n >> 3] |= 1 << (n & 7); // LSB first
+    }
+    final data = BytesBuilder();
+    for (var b = 0; b < blocks; b++) {
+      for (var ch = 0; ch < 2; ch++) {
+        data.add(
+          Uint8List.sublistView(channel, b * blockSize, (b + 1) * blockSize),
+        );
+      }
+    }
+    final payload = data.takeBytes();
+    final out = BytesBuilder();
+    void u32(int v) => out.add(
+      Uint8List(4)..buffer.asByteData().setUint32(0, v, Endian.little),
+    );
+    void u64(int v) => out.add(
+      Uint8List(8)..buffer.asByteData().setUint64(0, v, Endian.little),
+    );
+    final total = 28 + 52 + 12 + payload.length;
+    out.add(ascii.encode('DSD '));
+    u64(28);
+    u64(total);
+    u64(0);
+    out.add(ascii.encode('fmt '));
+    u64(52);
+    u32(1); // version
+    u32(0); // DSD raw
+    u32(2); // stereo
+    u32(2); // channels
+    u32(fs);
+    u32(1); // bits per sample (LSB first)
+    u64(samples);
+    u32(blockSize);
+    u32(0);
+    out.add(ascii.encode('data'));
+    u64(12 + payload.length);
+    out.add(payload);
+    written(
+      'dsd64.dsf',
+      out.takeBytes(),
+      category: 'audio',
+      ids: ['AUD-001', 'AUD-043'],
+      expect: {'video': 0, 'audio': 1, 'audioCodec': 'dsd_lsbf_planar'},
+    );
+  }
+}
+
 /// Windows-1251 encoder for the Cyrillic test strings.
 List<int> _cp1251(String s) => [
   for (final r in s.runes)
@@ -1166,12 +1313,18 @@ List<int> _modFile() {
 /// a 64×16 white rectangle shown at 0.5 s and cleared at 2 s (SUB-011).
 List<int> _pgs() {
   final out = BytesBuilder();
+  // Segments of one display set get strictly increasing timestamps (one
+  // 90 kHz tick apart) so players that sort packets keep their order.
+  var tick = 0;
+  var lastMs = -1;
   void seg(int ptsMs, int type, List<int> payload) {
-    final pts = ptsMs * 90;
+    tick = ptsMs == lastMs ? tick + 1 : 0;
+    lastMs = ptsMs;
+    final pts = ptsMs * 90 + tick;
     out
       ..add(ascii.encode('PG'))
       ..add(_u32(pts))
-      ..add(_u32(pts))
+      ..add(_u32(0)) // DTS is 0 in real-world .sup files
       ..add([type])
       ..add([payload.length >> 8, payload.length & 0xff])
       ..add(payload);
@@ -1202,6 +1355,15 @@ List<int> _pgs() {
   seg(500, 0x80, const []);
   seg(2000, 0x16, pcs(show: false, number: 1));
   seg(2000, 0x17, [1, 0, ..._u16(288), ..._u16(300), ..._u16(w), ..._u16(h)]);
+  seg(2000, 0x14, [
+    0,
+    1,
+    1,
+    235,
+    128,
+    128,
+    255,
+  ]); // palette again (ffmpeg needs it per set)
   seg(2000, 0x80, const []);
   return out.takeBytes();
 }

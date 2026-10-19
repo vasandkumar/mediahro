@@ -1468,7 +1468,9 @@ mixin _$PlaybackState {
  String? get secondarySubtitleText; VideoStats get video; AudioOutputInfo get audio; EngineError? get error;/// One-time informational notes for the current item (e.g. VID-035).
  Set<EngineNotice> get notices;/// True when the next item is preloaded for gapless or crossfade
 /// (AUD-002, AUD-003).
- bool get nextPrepared;
+ bool get nextPrepared;/// Increments each time an item starts, including gapless and crossfade
+/// advances, so queues can follow transitions.
+ int get item;
 /// Create a copy of PlaybackState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1480,20 +1482,20 @@ $PlaybackStateCopyWith<PlaybackState> get copyWith => _$PlaybackStateCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as PlaybackState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackState&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.position, _this.position) || other.position == _this.position)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.bufferedUntil, _this.bufferedUntil) || other.bufferedUntil == _this.bufferedUntil)&&(identical(other.rate, _this.rate) || other.rate == _this.rate)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted)&&const DeepCollectionEquality().equals(other.tracks, _this.tracks)&&(identical(other.videoTrackId, _this.videoTrackId) || other.videoTrackId == _this.videoTrackId)&&(identical(other.audioTrackId, _this.audioTrackId) || other.audioTrackId == _this.audioTrackId)&&(identical(other.subtitleTrackId, _this.subtitleTrackId) || other.subtitleTrackId == _this.subtitleTrackId)&&(identical(other.secondarySubtitleTrackId, _this.secondarySubtitleTrackId) || other.secondarySubtitleTrackId == _this.secondarySubtitleTrackId)&&const DeepCollectionEquality().equals(other.chapters, _this.chapters)&&(identical(other.audioDelay, _this.audioDelay) || other.audioDelay == _this.audioDelay)&&(identical(other.subtitleDelay, _this.subtitleDelay) || other.subtitleDelay == _this.subtitleDelay)&&(identical(other.secondarySubtitleDelay, _this.secondarySubtitleDelay) || other.secondarySubtitleDelay == _this.secondarySubtitleDelay)&&(identical(other.secondarySubtitleText, _this.secondarySubtitleText) || other.secondarySubtitleText == _this.secondarySubtitleText)&&(identical(other.video, _this.video) || other.video == _this.video)&&(identical(other.audio, _this.audio) || other.audio == _this.audio)&&(identical(other.error, _this.error) || other.error == _this.error)&&const DeepCollectionEquality().equals(other.notices, _this.notices)&&(identical(other.nextPrepared, _this.nextPrepared) || other.nextPrepared == _this.nextPrepared));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackState&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.position, _this.position) || other.position == _this.position)&&(identical(other.duration, _this.duration) || other.duration == _this.duration)&&(identical(other.bufferedUntil, _this.bufferedUntil) || other.bufferedUntil == _this.bufferedUntil)&&(identical(other.rate, _this.rate) || other.rate == _this.rate)&&(identical(other.volume, _this.volume) || other.volume == _this.volume)&&(identical(other.muted, _this.muted) || other.muted == _this.muted)&&const DeepCollectionEquality().equals(other.tracks, _this.tracks)&&(identical(other.videoTrackId, _this.videoTrackId) || other.videoTrackId == _this.videoTrackId)&&(identical(other.audioTrackId, _this.audioTrackId) || other.audioTrackId == _this.audioTrackId)&&(identical(other.subtitleTrackId, _this.subtitleTrackId) || other.subtitleTrackId == _this.subtitleTrackId)&&(identical(other.secondarySubtitleTrackId, _this.secondarySubtitleTrackId) || other.secondarySubtitleTrackId == _this.secondarySubtitleTrackId)&&const DeepCollectionEquality().equals(other.chapters, _this.chapters)&&(identical(other.audioDelay, _this.audioDelay) || other.audioDelay == _this.audioDelay)&&(identical(other.subtitleDelay, _this.subtitleDelay) || other.subtitleDelay == _this.subtitleDelay)&&(identical(other.secondarySubtitleDelay, _this.secondarySubtitleDelay) || other.secondarySubtitleDelay == _this.secondarySubtitleDelay)&&(identical(other.secondarySubtitleText, _this.secondarySubtitleText) || other.secondarySubtitleText == _this.secondarySubtitleText)&&(identical(other.video, _this.video) || other.video == _this.video)&&(identical(other.audio, _this.audio) || other.audio == _this.audio)&&(identical(other.error, _this.error) || other.error == _this.error)&&const DeepCollectionEquality().equals(other.notices, _this.notices)&&(identical(other.nextPrepared, _this.nextPrepared) || other.nextPrepared == _this.nextPrepared)&&(identical(other.item, _this.item) || other.item == _this.item));
 }
 
 
 @override
 int get hashCode {
   final _this = this as PlaybackState;
-  return Object.hashAll([runtimeType,_this.status,_this.position,_this.duration,_this.bufferedUntil,_this.rate,_this.volume,_this.muted,const DeepCollectionEquality().hash(_this.tracks),_this.videoTrackId,_this.audioTrackId,_this.subtitleTrackId,_this.secondarySubtitleTrackId,const DeepCollectionEquality().hash(_this.chapters),_this.audioDelay,_this.subtitleDelay,_this.secondarySubtitleDelay,_this.secondarySubtitleText,_this.video,_this.audio,_this.error,const DeepCollectionEquality().hash(_this.notices),_this.nextPrepared]);
+  return Object.hashAll([runtimeType,_this.status,_this.position,_this.duration,_this.bufferedUntil,_this.rate,_this.volume,_this.muted,const DeepCollectionEquality().hash(_this.tracks),_this.videoTrackId,_this.audioTrackId,_this.subtitleTrackId,_this.secondarySubtitleTrackId,const DeepCollectionEquality().hash(_this.chapters),_this.audioDelay,_this.subtitleDelay,_this.secondarySubtitleDelay,_this.secondarySubtitleText,_this.video,_this.audio,_this.error,const DeepCollectionEquality().hash(_this.notices),_this.nextPrepared,_this.item]);
 }
 
 @override
 String toString() {
   final _this = this as PlaybackState;
-  return 'PlaybackState(status: ${_this.status}, position: ${_this.position}, duration: ${_this.duration}, bufferedUntil: ${_this.bufferedUntil}, rate: ${_this.rate}, volume: ${_this.volume}, muted: ${_this.muted}, tracks: ${_this.tracks}, videoTrackId: ${_this.videoTrackId}, audioTrackId: ${_this.audioTrackId}, subtitleTrackId: ${_this.subtitleTrackId}, secondarySubtitleTrackId: ${_this.secondarySubtitleTrackId}, chapters: ${_this.chapters}, audioDelay: ${_this.audioDelay}, subtitleDelay: ${_this.subtitleDelay}, secondarySubtitleDelay: ${_this.secondarySubtitleDelay}, secondarySubtitleText: ${_this.secondarySubtitleText}, video: ${_this.video}, audio: ${_this.audio}, error: ${_this.error}, notices: ${_this.notices}, nextPrepared: ${_this.nextPrepared})';
+  return 'PlaybackState(status: ${_this.status}, position: ${_this.position}, duration: ${_this.duration}, bufferedUntil: ${_this.bufferedUntil}, rate: ${_this.rate}, volume: ${_this.volume}, muted: ${_this.muted}, tracks: ${_this.tracks}, videoTrackId: ${_this.videoTrackId}, audioTrackId: ${_this.audioTrackId}, subtitleTrackId: ${_this.subtitleTrackId}, secondarySubtitleTrackId: ${_this.secondarySubtitleTrackId}, chapters: ${_this.chapters}, audioDelay: ${_this.audioDelay}, subtitleDelay: ${_this.subtitleDelay}, secondarySubtitleDelay: ${_this.secondarySubtitleDelay}, secondarySubtitleText: ${_this.secondarySubtitleText}, video: ${_this.video}, audio: ${_this.audio}, error: ${_this.error}, notices: ${_this.notices}, nextPrepared: ${_this.nextPrepared}, item: ${_this.item})';
 }
 
 
@@ -1504,7 +1506,7 @@ abstract mixin class $PlaybackStateCopyWith<$Res>  {
   factory $PlaybackStateCopyWith(PlaybackState value, $Res Function(PlaybackState) _then) = _$PlaybackStateCopyWithImpl;
 @useResult
 $Res call({
- PlaybackStatus status, Duration position, Duration? duration, Duration bufferedUntil, double rate, double volume, bool muted, List<Track> tracks, int? videoTrackId, int? audioTrackId, int? subtitleTrackId, int? secondarySubtitleTrackId, List<Chapter> chapters, Duration audioDelay, Duration subtitleDelay, Duration secondarySubtitleDelay, String? secondarySubtitleText, VideoStats video, AudioOutputInfo audio, EngineError? error, Set<EngineNotice> notices, bool nextPrepared
+ PlaybackStatus status, Duration position, Duration? duration, Duration bufferedUntil, double rate, double volume, bool muted, List<Track> tracks, int? videoTrackId, int? audioTrackId, int? subtitleTrackId, int? secondarySubtitleTrackId, List<Chapter> chapters, Duration audioDelay, Duration subtitleDelay, Duration secondarySubtitleDelay, String? secondarySubtitleText, VideoStats video, AudioOutputInfo audio, EngineError? error, Set<EngineNotice> notices, bool nextPrepared, int item
 });
 
 
@@ -1521,7 +1523,7 @@ class _$PlaybackStateCopyWithImpl<$Res>
 
 /// Create a copy of PlaybackState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? position = null,Object? duration = freezed,Object? bufferedUntil = null,Object? rate = null,Object? volume = null,Object? muted = null,Object? tracks = null,Object? videoTrackId = freezed,Object? audioTrackId = freezed,Object? subtitleTrackId = freezed,Object? secondarySubtitleTrackId = freezed,Object? chapters = null,Object? audioDelay = null,Object? subtitleDelay = null,Object? secondarySubtitleDelay = null,Object? secondarySubtitleText = freezed,Object? video = null,Object? audio = null,Object? error = freezed,Object? notices = null,Object? nextPrepared = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? position = null,Object? duration = freezed,Object? bufferedUntil = null,Object? rate = null,Object? volume = null,Object? muted = null,Object? tracks = null,Object? videoTrackId = freezed,Object? audioTrackId = freezed,Object? subtitleTrackId = freezed,Object? secondarySubtitleTrackId = freezed,Object? chapters = null,Object? audioDelay = null,Object? subtitleDelay = null,Object? secondarySubtitleDelay = null,Object? secondarySubtitleText = freezed,Object? video = null,Object? audio = null,Object? error = freezed,Object? notices = null,Object? nextPrepared = null,Object? item = null,}) {
   return _then(PlaybackState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as PlaybackStatus,position: null == position ? _self.position : position // ignore: cast_nullable_to_non_nullable
@@ -1545,7 +1547,8 @@ as VideoStats,audio: null == audio ? _self.audio : audio // ignore: cast_nullabl
 as AudioOutputInfo,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as EngineError?,notices: null == notices ? _self.notices : notices // ignore: cast_nullable_to_non_nullable
 as Set<EngineNotice>,nextPrepared: null == nextPrepared ? _self.nextPrepared : nextPrepared // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,item: null == item ? _self.item : item // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of PlaybackState
@@ -1660,10 +1663,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared,  int item)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PlaybackState() when $default != null:
-return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared);case _:
+return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared,_that.item);case _:
   return orElse();
 
 }
@@ -1681,10 +1684,10 @@ return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared,  int item)  $default,) {final _that = this;
 switch (_that) {
 case _PlaybackState():
-return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared);case _:
+return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared,_that.item);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -1701,10 +1704,10 @@ return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( PlaybackStatus status,  Duration position,  Duration? duration,  Duration bufferedUntil,  double rate,  double volume,  bool muted,  List<Track> tracks,  int? videoTrackId,  int? audioTrackId,  int? subtitleTrackId,  int? secondarySubtitleTrackId,  List<Chapter> chapters,  Duration audioDelay,  Duration subtitleDelay,  Duration secondarySubtitleDelay,  String? secondarySubtitleText,  VideoStats video,  AudioOutputInfo audio,  EngineError? error,  Set<EngineNotice> notices,  bool nextPrepared,  int item)?  $default,) {final _that = this;
 switch (_that) {
 case _PlaybackState() when $default != null:
-return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared);case _:
+return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_that.rate,_that.volume,_that.muted,_that.tracks,_that.videoTrackId,_that.audioTrackId,_that.subtitleTrackId,_that.secondarySubtitleTrackId,_that.chapters,_that.audioDelay,_that.subtitleDelay,_that.secondarySubtitleDelay,_that.secondarySubtitleText,_that.video,_that.audio,_that.error,_that.notices,_that.nextPrepared,_that.item);case _:
   return null;
 
 }
@@ -1716,7 +1719,7 @@ return $default(_that.status,_that.position,_that.duration,_that.bufferedUntil,_
 
 
 class _PlaybackState implements PlaybackState {
-  const _PlaybackState({this.status = PlaybackStatus.idle, this.position = Duration.zero, this.duration, this.bufferedUntil = Duration.zero, this.rate = 1.0, this.volume = 1.0, this.muted = false,  List<Track> tracks = const <Track>[], this.videoTrackId, this.audioTrackId, this.subtitleTrackId, this.secondarySubtitleTrackId,  List<Chapter> chapters = const <Chapter>[], this.audioDelay = Duration.zero, this.subtitleDelay = Duration.zero, this.secondarySubtitleDelay = Duration.zero, this.secondarySubtitleText, this.video = const VideoStats(), this.audio = const AudioOutputInfo(), this.error,  Set<EngineNotice> notices = const <EngineNotice>{}, this.nextPrepared = false}): _tracks = tracks,_chapters = chapters,_notices = notices;
+  const _PlaybackState({this.status = PlaybackStatus.idle, this.position = Duration.zero, this.duration, this.bufferedUntil = Duration.zero, this.rate = 1.0, this.volume = 1.0, this.muted = false,  List<Track> tracks = const <Track>[], this.videoTrackId, this.audioTrackId, this.subtitleTrackId, this.secondarySubtitleTrackId,  List<Chapter> chapters = const <Chapter>[], this.audioDelay = Duration.zero, this.subtitleDelay = Duration.zero, this.secondarySubtitleDelay = Duration.zero, this.secondarySubtitleText, this.video = const VideoStats(), this.audio = const AudioOutputInfo(), this.error,  Set<EngineNotice> notices = const <EngineNotice>{}, this.nextPrepared = false, this.item = 0}): _tracks = tracks,_chapters = chapters,_notices = notices;
   
 
 @override@JsonKey() final  PlaybackStatus status;
@@ -1766,6 +1769,9 @@ class _PlaybackState implements PlaybackState {
 /// True when the next item is preloaded for gapless or crossfade
 /// (AUD-002, AUD-003).
 @override@JsonKey() final  bool nextPrepared;
+/// Increments each time an item starts, including gapless and crossfade
+/// advances, so queues can follow transitions.
+@override@JsonKey() final  int item;
 
 /// Create a copy of PlaybackState
 /// with the given fields replaced by the non-null parameter values.
@@ -1777,18 +1783,18 @@ _$PlaybackStateCopyWith<_PlaybackState> get copyWith => __$PlaybackStateCopyWith
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlaybackState&&(identical(other.status, status) || other.status == status)&&(identical(other.position, position) || other.position == position)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.bufferedUntil, bufferedUntil) || other.bufferedUntil == bufferedUntil)&&(identical(other.rate, rate) || other.rate == rate)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted)&&const DeepCollectionEquality().equals(other.tracks, _tracks)&&(identical(other.videoTrackId, videoTrackId) || other.videoTrackId == videoTrackId)&&(identical(other.audioTrackId, audioTrackId) || other.audioTrackId == audioTrackId)&&(identical(other.subtitleTrackId, subtitleTrackId) || other.subtitleTrackId == subtitleTrackId)&&(identical(other.secondarySubtitleTrackId, secondarySubtitleTrackId) || other.secondarySubtitleTrackId == secondarySubtitleTrackId)&&const DeepCollectionEquality().equals(other.chapters, _chapters)&&(identical(other.audioDelay, audioDelay) || other.audioDelay == audioDelay)&&(identical(other.subtitleDelay, subtitleDelay) || other.subtitleDelay == subtitleDelay)&&(identical(other.secondarySubtitleDelay, secondarySubtitleDelay) || other.secondarySubtitleDelay == secondarySubtitleDelay)&&(identical(other.secondarySubtitleText, secondarySubtitleText) || other.secondarySubtitleText == secondarySubtitleText)&&(identical(other.video, video) || other.video == video)&&(identical(other.audio, audio) || other.audio == audio)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other.notices, _notices)&&(identical(other.nextPrepared, nextPrepared) || other.nextPrepared == nextPrepared));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _PlaybackState&&(identical(other.status, status) || other.status == status)&&(identical(other.position, position) || other.position == position)&&(identical(other.duration, duration) || other.duration == duration)&&(identical(other.bufferedUntil, bufferedUntil) || other.bufferedUntil == bufferedUntil)&&(identical(other.rate, rate) || other.rate == rate)&&(identical(other.volume, volume) || other.volume == volume)&&(identical(other.muted, muted) || other.muted == muted)&&const DeepCollectionEquality().equals(other.tracks, _tracks)&&(identical(other.videoTrackId, videoTrackId) || other.videoTrackId == videoTrackId)&&(identical(other.audioTrackId, audioTrackId) || other.audioTrackId == audioTrackId)&&(identical(other.subtitleTrackId, subtitleTrackId) || other.subtitleTrackId == subtitleTrackId)&&(identical(other.secondarySubtitleTrackId, secondarySubtitleTrackId) || other.secondarySubtitleTrackId == secondarySubtitleTrackId)&&const DeepCollectionEquality().equals(other.chapters, _chapters)&&(identical(other.audioDelay, audioDelay) || other.audioDelay == audioDelay)&&(identical(other.subtitleDelay, subtitleDelay) || other.subtitleDelay == subtitleDelay)&&(identical(other.secondarySubtitleDelay, secondarySubtitleDelay) || other.secondarySubtitleDelay == secondarySubtitleDelay)&&(identical(other.secondarySubtitleText, secondarySubtitleText) || other.secondarySubtitleText == secondarySubtitleText)&&(identical(other.video, video) || other.video == video)&&(identical(other.audio, audio) || other.audio == audio)&&(identical(other.error, error) || other.error == error)&&const DeepCollectionEquality().equals(other.notices, _notices)&&(identical(other.nextPrepared, nextPrepared) || other.nextPrepared == nextPrepared)&&(identical(other.item, item) || other.item == item));
 }
 
 
 @override
 int get hashCode {
-    return Object.hashAll([runtimeType,status,position,duration,bufferedUntil,rate,volume,muted,const DeepCollectionEquality().hash(_tracks),videoTrackId,audioTrackId,subtitleTrackId,secondarySubtitleTrackId,const DeepCollectionEquality().hash(_chapters),audioDelay,subtitleDelay,secondarySubtitleDelay,secondarySubtitleText,video,audio,error,const DeepCollectionEquality().hash(_notices),nextPrepared]);
+    return Object.hashAll([runtimeType,status,position,duration,bufferedUntil,rate,volume,muted,const DeepCollectionEquality().hash(_tracks),videoTrackId,audioTrackId,subtitleTrackId,secondarySubtitleTrackId,const DeepCollectionEquality().hash(_chapters),audioDelay,subtitleDelay,secondarySubtitleDelay,secondarySubtitleText,video,audio,error,const DeepCollectionEquality().hash(_notices),nextPrepared,item]);
 }
 
 @override
 String toString() {
-    return 'PlaybackState(status: $status, position: $position, duration: $duration, bufferedUntil: $bufferedUntil, rate: $rate, volume: $volume, muted: $muted, tracks: $tracks, videoTrackId: $videoTrackId, audioTrackId: $audioTrackId, subtitleTrackId: $subtitleTrackId, secondarySubtitleTrackId: $secondarySubtitleTrackId, chapters: $chapters, audioDelay: $audioDelay, subtitleDelay: $subtitleDelay, secondarySubtitleDelay: $secondarySubtitleDelay, secondarySubtitleText: $secondarySubtitleText, video: $video, audio: $audio, error: $error, notices: $notices, nextPrepared: $nextPrepared)';
+    return 'PlaybackState(status: $status, position: $position, duration: $duration, bufferedUntil: $bufferedUntil, rate: $rate, volume: $volume, muted: $muted, tracks: $tracks, videoTrackId: $videoTrackId, audioTrackId: $audioTrackId, subtitleTrackId: $subtitleTrackId, secondarySubtitleTrackId: $secondarySubtitleTrackId, chapters: $chapters, audioDelay: $audioDelay, subtitleDelay: $subtitleDelay, secondarySubtitleDelay: $secondarySubtitleDelay, secondarySubtitleText: $secondarySubtitleText, video: $video, audio: $audio, error: $error, notices: $notices, nextPrepared: $nextPrepared, item: $item)';
 }
 
 
@@ -1799,7 +1805,7 @@ abstract mixin class _$PlaybackStateCopyWith<$Res> implements $PlaybackStateCopy
   factory _$PlaybackStateCopyWith(_PlaybackState value, $Res Function(_PlaybackState) _then) = __$PlaybackStateCopyWithImpl;
 @override @useResult
 $Res call({
- PlaybackStatus status, Duration position, Duration? duration, Duration bufferedUntil, double rate, double volume, bool muted, List<Track> tracks, int? videoTrackId, int? audioTrackId, int? subtitleTrackId, int? secondarySubtitleTrackId, List<Chapter> chapters, Duration audioDelay, Duration subtitleDelay, Duration secondarySubtitleDelay, String? secondarySubtitleText, VideoStats video, AudioOutputInfo audio, EngineError? error, Set<EngineNotice> notices, bool nextPrepared
+ PlaybackStatus status, Duration position, Duration? duration, Duration bufferedUntil, double rate, double volume, bool muted, List<Track> tracks, int? videoTrackId, int? audioTrackId, int? subtitleTrackId, int? secondarySubtitleTrackId, List<Chapter> chapters, Duration audioDelay, Duration subtitleDelay, Duration secondarySubtitleDelay, String? secondarySubtitleText, VideoStats video, AudioOutputInfo audio, EngineError? error, Set<EngineNotice> notices, bool nextPrepared, int item
 });
 
 
@@ -1816,7 +1822,7 @@ class __$PlaybackStateCopyWithImpl<$Res>
 
 /// Create a copy of PlaybackState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? position = null,Object? duration = freezed,Object? bufferedUntil = null,Object? rate = null,Object? volume = null,Object? muted = null,Object? tracks = null,Object? videoTrackId = freezed,Object? audioTrackId = freezed,Object? subtitleTrackId = freezed,Object? secondarySubtitleTrackId = freezed,Object? chapters = null,Object? audioDelay = null,Object? subtitleDelay = null,Object? secondarySubtitleDelay = null,Object? secondarySubtitleText = freezed,Object? video = null,Object? audio = null,Object? error = freezed,Object? notices = null,Object? nextPrepared = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? position = null,Object? duration = freezed,Object? bufferedUntil = null,Object? rate = null,Object? volume = null,Object? muted = null,Object? tracks = null,Object? videoTrackId = freezed,Object? audioTrackId = freezed,Object? subtitleTrackId = freezed,Object? secondarySubtitleTrackId = freezed,Object? chapters = null,Object? audioDelay = null,Object? subtitleDelay = null,Object? secondarySubtitleDelay = null,Object? secondarySubtitleText = freezed,Object? video = null,Object? audio = null,Object? error = freezed,Object? notices = null,Object? nextPrepared = null,Object? item = null,}) {
   return _then(_PlaybackState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as PlaybackStatus,position: null == position ? _self.position : position // ignore: cast_nullable_to_non_nullable
@@ -1840,7 +1846,8 @@ as VideoStats,audio: null == audio ? _self.audio : audio // ignore: cast_nullabl
 as AudioOutputInfo,error: freezed == error ? _self.error : error // ignore: cast_nullable_to_non_nullable
 as EngineError?,notices: null == notices ? _self._notices : notices // ignore: cast_nullable_to_non_nullable
 as Set<EngineNotice>,nextPrepared: null == nextPrepared ? _self.nextPrepared : nextPrepared // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,item: null == item ? _self.item : item // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

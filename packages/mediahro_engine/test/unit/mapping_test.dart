@@ -27,7 +27,11 @@ void main() {
         expect(o['hdr-compute-peak'], 'yes');
         expect(o['hwdec'], 'auto-safe');
       }
-      expect(opts(EnginePlatform.android)['vo'], 'gpu-next');
+      expect(
+        opts(EnginePlatform.android)['vo'],
+        'null',
+        reason: 'the bridge switches to gpu-next once the Surface exists',
+      );
       expect(
         opts(EnginePlatform.android)['gpu-context'],
         'androidvk,android',
