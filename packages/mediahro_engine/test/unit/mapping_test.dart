@@ -81,6 +81,7 @@ void main() {
       expect(o['sub-auto'], 'fuzzy');
       expect(o['sub-file-paths'], contains('Subs'));
       expect(o['sub-codepage'], 'auto', reason: 'SUB-013 uchardet');
+      expect(o['image-subs-hdr-peak'], 'video', reason: 'SUB-011 HDR PGS');
     });
 
     test('PRIV-004 no scripting, config files or youtube-dl network', () {

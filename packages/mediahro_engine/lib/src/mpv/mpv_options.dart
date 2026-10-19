@@ -119,6 +119,9 @@ Map<String, String> defaultMpvOptions({
     ].join(platform == EnginePlatform.windows ? ';' : ':'),
     'sub-codepage': 'auto',
     'demuxer-mkv-subtitle-preroll': 'yes',
+    // HDR PGS (SUB-011): image subtitles follow the video's HDR metadata
+    // so they are tone-mapped with the picture, not blown out.
+    'image-subs-hdr-peak': 'video',
     // Cache and network (VID-006).
     'cache': 'yes',
     'demuxer-max-bytes': '${cacheBytes(platform: platform, isNetwork: false)}',
