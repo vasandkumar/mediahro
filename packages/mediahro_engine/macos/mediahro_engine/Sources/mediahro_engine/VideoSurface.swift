@@ -5,10 +5,13 @@
 // Vulkan), so frames are rendered with OpenGL (ES on iOS) into
 // IOSurface-backed CVPixelBuffers that Flutter (Impeller/Metal) samples as
 // external textures without a CPU copy. Recorded as an ADR request in
-// STATUS.md §6.
+// STATUS.md §6. Where the CoreVideo GL texture cache is unavailable (the
+// iOS Simulator), mpv renders into plain GL textures that are read back
+// into the pixel buffers ("opengl-readback").
 //
 // Licence: AGPL-3.0-or-later or the Mediahro commercial licence.
 
+import Accelerate
 import CoreVideo
 import Foundation
 
@@ -89,6 +92,9 @@ private let GL_COLOR_ATTACHMENT0_: UInt32 = 0x8CE0
 private let GL_RGBA_: Int32 = 0x1908
 private let GL_BGRA_: UInt32 = 0x80E1
 private let GL_UNSIGNED_BYTE_: UInt32 = 0x1401
+private let GL_TEXTURE_MIN_FILTER_: UInt32 = 0x2801
+private let GL_TEXTURE_MAG_FILTER_: UInt32 = 0x2800
+private let GL_LINEAR_: Int32 = 0x2601
 
 /// One video surface: an mpv render context drawing into double-buffered
 /// IOSurface pixel buffers registered as a Flutter texture.
@@ -96,10 +102,12 @@ final class VideoSurface: NSObject, FlutterTexture {
   private struct Target {
     let pixelBuffer: CVPixelBuffer
     #if os(iOS)
-    let texture: CVOpenGLESTexture
+    let texture: CVOpenGLESTexture?
     #else
-    let texture: CVOpenGLTexture
+    let texture: CVOpenGLTexture?
     #endif
+    /// Plain GL texture in readback mode (0 when zero-copy).
+    let glTexture: UInt32
     var fbo: UInt32
   }
 
@@ -124,7 +132,11 @@ final class VideoSurface: NSObject, FlutterTexture {
   private(set) var frames: Int64 = 0
   private(set) var textureId: Int64 = -1
 
-  static let backend = "opengl-iosurface"
+  /// Zero-copy IOSurface textures, or GL readback where the texture
+  /// cache is unavailable.
+  private(set) var readback = false
+  private var scratch: [UInt8] = []
+  var backend: String { readback ? "opengl-readback" : "opengl-iosurface" }
   /// Why the last init failed, for the bridge error (VID-030 diagnostics).
   static var lastFailure = ""
 
@@ -242,6 +254,8 @@ final class VideoSurface: NSObject, FlutterTexture {
     for t in targets {
       var fbo = t.fbo
       glDeleteFramebuffers(1, &fbo)
+      var tex = t.glTexture
+      if tex != 0 { glDeleteTextures(1, &tex) }
     }
     targets.removeAll()
     guard let cache else { return false }
@@ -260,34 +274,66 @@ final class VideoSurface: NSObject, FlutterTexture {
     ]
     for _ in 0..<2 {
       var pb: CVPixelBuffer?
-      guard CVPixelBufferCreate(
+      let created = CVPixelBufferCreate(
         kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA,
-        attributes as CFDictionary, &pb) == kCVReturnSuccess, let pb
-      else { return false }
+        attributes as CFDictionary, &pb)
+      guard created == kCVReturnSuccess, let pb else {
+        Self.lastFailure = "CVPixelBufferCreate returned \(created)"
+        return false
+      }
+      var target = GLenum(GL_TEXTURE_2D_)
+      var name: GLuint = 0
+      var glTexture: GLuint = 0
       #if os(iOS)
       var tex: CVOpenGLESTexture?
-      guard CVOpenGLESTextureCacheCreateTextureFromImage(
-        kCFAllocatorDefault, cache, pb, nil, GLenum(GL_TEXTURE_2D_), GL_RGBA_,
-        GLsizei(width), GLsizei(height), GLenum(GL_BGRA_), GLenum(GL_UNSIGNED_BYTE_), 0, &tex)
-        == kCVReturnSuccess, let tex
-      else { return false }
-      let target = CVOpenGLESTextureGetTarget(tex)
-      let name = CVOpenGLESTextureGetName(tex)
+      if !readback {
+        let rc = CVOpenGLESTextureCacheCreateTextureFromImage(
+          kCFAllocatorDefault, cache, pb, nil, GLenum(GL_TEXTURE_2D_), GL_RGBA_,
+          GLsizei(width), GLsizei(height), GLenum(GL_BGRA_), GLenum(GL_UNSIGNED_BYTE_), 0, &tex)
+        if rc == kCVReturnSuccess, let tex {
+          target = CVOpenGLESTextureGetTarget(tex)
+          name = CVOpenGLESTextureGetName(tex)
+        } else if targets.isEmpty {
+          readback = true
+        } else {
+          Self.lastFailure = "CVOpenGLESTextureCacheCreateTextureFromImage returned \(rc)"
+          return false
+        }
+      }
       #else
       var tex: CVOpenGLTexture?
-      guard CVOpenGLTextureCacheCreateTextureFromImage(
-        kCFAllocatorDefault, cache, pb, nil, &tex) == kCVReturnSuccess, let tex
-      else { return false }
-      let target = CVOpenGLTextureGetTarget(tex)
-      let name = CVOpenGLTextureGetName(tex)
+      if !readback {
+        let rc = CVOpenGLTextureCacheCreateTextureFromImage(
+          kCFAllocatorDefault, cache, pb, nil, &tex)
+        if rc == kCVReturnSuccess, let tex {
+          target = CVOpenGLTextureGetTarget(tex)
+          name = CVOpenGLTextureGetName(tex)
+        } else if targets.isEmpty {
+          readback = true
+        } else {
+          Self.lastFailure = "CVOpenGLTextureCacheCreateTextureFromImage returned \(rc)"
+          return false
+        }
+      }
       #endif
+      if readback {
+        glGenTextures(1, &glTexture)
+        glBindTexture(GLenum(GL_TEXTURE_2D_), glTexture)
+        glTexParameteri(GLenum(GL_TEXTURE_2D_), GLenum(GL_TEXTURE_MIN_FILTER_), GL_LINEAR_)
+        glTexParameteri(GLenum(GL_TEXTURE_2D_), GLenum(GL_TEXTURE_MAG_FILTER_), GL_LINEAR_)
+        glTexImage2D(
+          GLenum(GL_TEXTURE_2D_), 0, GL_RGBA_, GLsizei(width), GLsizei(height), 0,
+          GLenum(GL_RGBA_), GLenum(GL_UNSIGNED_BYTE_), nil)
+        target = GLenum(GL_TEXTURE_2D_)
+        name = glTexture
+      }
       var fbo: GLuint = 0
       glGenFramebuffers(1, &fbo)
       glBindFramebuffer(GLenum(GL_FRAMEBUFFER_), fbo)
       glBindTexture(target, name)
       glFramebufferTexture2D(
         GLenum(GL_FRAMEBUFFER_), GLenum(GL_COLOR_ATTACHMENT0_), target, name, 0)
-      targets.append(Target(pixelBuffer: pb, texture: tex, fbo: fbo))
+      targets.append(Target(pixelBuffer: pb, texture: tex, glTexture: glTexture, fbo: fbo))
     }
     glBindFramebuffer(GLenum(GL_FRAMEBUFFER_), 0)
     front = 0
@@ -328,7 +374,11 @@ final class VideoSurface: NSObject, FlutterTexture {
     ])
     defer { params.deallocate() }
     guard Mpv.render!(ctx, params) >= 0 else { return }
-    glFinish()
+    if readback {
+      readBack(targets[back])
+    } else {
+      glFinish()
+    }
     lock.lock()
     front = back
     frames += 1
@@ -338,6 +388,34 @@ final class VideoSurface: NSObject, FlutterTexture {
       self?.registry.textureFrameAvailable(id)
     }
     Mpv.reportSwap!(ctx)
+  }
+
+  /// Copies a readback target's GL texture into its pixel buffer (RGBA from
+  /// GL, BGRA for Flutter). mpv renders top row first, as glReadPixels reads.
+  private func readBack(_ t: Target) {
+    glBindFramebuffer(GLenum(GL_FRAMEBUFFER_), t.fbo)
+    let rowBytes = width * 4
+    if scratch.count != rowBytes * height {
+      scratch = [UInt8](repeating: 0, count: rowBytes * height)
+    }
+    let w = width
+    let h = height
+    scratch.withUnsafeMutableBytes { raw in
+      glReadPixels(
+        0, 0, GLsizei(w), GLsizei(h), GLenum(GL_RGBA_), GLenum(GL_UNSIGNED_BYTE_),
+        raw.baseAddress)
+      CVPixelBufferLockBaseAddress(t.pixelBuffer, [])
+      defer { CVPixelBufferUnlockBaseAddress(t.pixelBuffer, []) }
+      var src = vImage_Buffer(
+        data: raw.baseAddress, height: vImagePixelCount(h), width: vImagePixelCount(w),
+        rowBytes: rowBytes)
+      var dst = vImage_Buffer(
+        data: CVPixelBufferGetBaseAddress(t.pixelBuffer), height: vImagePixelCount(h),
+        width: vImagePixelCount(w), rowBytes: CVPixelBufferGetBytesPerRow(t.pixelBuffer))
+      let map: [UInt8] = [2, 1, 0, 3]
+      _ = vImagePermuteChannels_ARGB8888(&src, &dst, map, vImage_Flags(kvImageNoFlags))
+    }
+    glBindFramebuffer(GLenum(GL_FRAMEBUFFER_), 0)
   }
 
   func resize(width w: Int, height h: Int) {
@@ -375,6 +453,8 @@ final class VideoSurface: NSObject, FlutterTexture {
       for t in targets {
         var fbo = t.fbo
         glDeleteFramebuffers(1, &fbo)
+        var tex = t.glTexture
+        if tex != 0 { glDeleteTextures(1, &tex) }
       }
     }
     registry.unregisterTexture(textureId)

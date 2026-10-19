@@ -90,7 +90,7 @@ public class MediahroEnginePlugin: NSObject, FlutterPlugin {
         return
       }
       surfaces[surface.textureId] = surface
-      result(["textureId": surface.textureId, "backend": VideoSurface.backend])
+      result(["textureId": surface.textureId, "backend": surface.backend])
     case "resize":
       if let id = (args["textureId"] as? NSNumber)?.int64Value,
         let w = (args["width"] as? NSNumber)?.intValue,
@@ -101,7 +101,7 @@ public class MediahroEnginePlugin: NSObject, FlutterPlugin {
       result(nil)
     case "stats":
       if let id = (args["textureId"] as? NSNumber)?.int64Value, let s = surfaces[id] {
-        result(["frames": s.frames, "backend": VideoSurface.backend])
+        result(["frames": s.frames, "backend": s.backend])
       } else {
         result(nil)
       }
