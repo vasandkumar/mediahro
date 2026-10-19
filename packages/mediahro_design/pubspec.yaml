@@ -11,8 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  meta: ^1.19.0
-
-dev_dependencies:
+  # For package:mediahro_design/testing.dart (golden and a11y harness shared
+  # with app tests); never imported from lib/mediahro_design.dart.
   flutter_test:
     sdk: flutter
+  meta: ^1.19.0
