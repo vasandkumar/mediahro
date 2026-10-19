@@ -1,3 +1,4 @@
+import 'audio.dart';
 import 'subtitles.dart';
 import 'vid_formats.dart';
 import 'vid_hdr.dart';
@@ -11,4 +12,5 @@ void runConformanceSuites() {
   vidPlaybackSuite();
   vidHdrSuite();
   subtitlesSuite();
+  audioSuite();
 }

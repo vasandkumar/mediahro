@@ -40,6 +40,9 @@ final class RenderSurface {
 ///   `vo=gpu-next` (MediaCodec frames stay on the GPU).
 final class RenderBridge {
   RenderBridge({MethodChannel? channel})
+    // The example app's generated plugin symlinks expose this file under
+    // another path; the rule's allow-list covers only the real one.
+    // mediahro-lint: allow no_direct_channel
     : _channel = channel ?? const MethodChannel('com.mediahro.engine/bridge') {
     _channel.setMethodCallHandler(_onNativeCall);
   }

@@ -8,9 +8,7 @@ buildscript {
         mavenCentral()
     }
 
-    tasks.named("preBuild") { dependsOn(stageLibmpv) }
-
-dependencies {
+    dependencies {
         classpath("com.android.tools.build:gradle:9.1.0")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }

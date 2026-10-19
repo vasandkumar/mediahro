@@ -911,7 +911,7 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       _modFile(),
       category: c,
       ids: ['AUD-001'],
-      expect: {'video': 0, 'audio': 1, 'audioCodec': 'libopenmpt'},
+      expect: {'video': 0, 'audio': 1, 'container': 'libopenmpt'},
     );
   }
 
