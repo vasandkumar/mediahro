@@ -567,6 +567,11 @@ final class MpvEngine implements PlaybackEngine {
             .map((e) => '${e.key}: ${e.value}')
             .join(','),
       if (src case UriSource(:final userAgent?)) 'user-agent': userAgent,
+      if (o.loudnessGainDb != null && _dsp.loudness != LoudnessMode.off)
+        'replaygain-fallback': dspProperties(
+          _dsp,
+          scannedGainDb: o.loudnessGainDb,
+        )['replaygain-fallback']!,
     };
     try {
       await c.command([

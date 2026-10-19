@@ -231,6 +231,11 @@ abstract class OpenOptions with _$OpenOptions {
     /// Chapters known from outside the container (disc IFO/MPLS, VID-007);
     /// used when the stream itself has none.
     @Default(<Chapter>[]) List<Chapter> chapters,
+
+    /// Gain from the library's background EBU R128 scan for items without
+    /// ReplayGain tags (AUD-004, `LoudnessScanner`); applied when loudness
+    /// normalisation is on.
+    double? loudnessGainDb,
   }) = _OpenOptions;
 }
 

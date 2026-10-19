@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine/src/mpv/audio_dsp.dart' show loudnessGainDb;
 
 import 'support.dart';
 
@@ -178,6 +179,43 @@ void audioSuite() {
   });
 
   group('AUD-004 loudness', () {
+    test('AUD-004 background R128 scan measures untagged files', () async {
+      final m = await LoudnessScanner.measure(
+        UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))),
+        libmpvPath: env.libmpvPath,
+      );
+      expect(m, isNotNull);
+      // A full-scale stereo sine is about 0 LUFS with a 0 dBTP peak.
+      expect(m!.integratedLufs, inInclusiveRange(-4, 1));
+      expect(m.truePeakDbtp, inInclusiveRange(-1.5, 1.5));
+      final gain = loudnessGainDb(
+        integratedLufs: m.integratedLufs,
+        targetLufs: -18,
+        truePeakDbtp: m.truePeakDbtp,
+      );
+      Future<double> level({double? scanned}) async {
+        final pcm = await _capture((e) async {
+          await e.setAudioDsp(
+            const AudioDspChain(loudness: LoudnessMode.ebuR128),
+          );
+          await e.open(
+            UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))),
+            opts: OpenOptions(loudnessGainDb: scanned),
+          );
+          await waitFor(
+            e,
+            (s) => s.status == PlaybackStatus.ended,
+            timeout: const Duration(seconds: 20),
+          );
+        });
+        return pcm.rmsDb(channel: 0);
+      }
+
+      final before = await level();
+      final after = await level(scanned: gain);
+      expect(after - before, closeTo(gain, 0.6));
+    }, skip: skip);
+
     test('AUD-004 ReplayGain track gain lowers the level by the tag', () async {
       Future<double> rms(LoudnessMode mode) async {
         final pcm = await _capture((e) async {

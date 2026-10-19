@@ -12,6 +12,7 @@ export 'src/cast/cast_transcoder.dart';
 export 'src/cast/webvtt.dart';
 export 'src/disc/disc_reader.dart';
 export 'src/mpv/crossfading_engine.dart';
+export 'src/mpv/loudness_scanner.dart';
 export 'src/mpv/mpv_engine.dart' show MpvEngine, MpvEngineConfig;
 export 'src/mpv/mpv_options.dart' show EnginePlatform, VideoOutputMode;
 export 'src/session/checkpointer.dart';
