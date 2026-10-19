@@ -1,0 +1,83 @@
+# Network test environment (docs/11 §2) for lane B2: SMB2/3 (+guest,
+# encryption, DFS), WebDAV (Apache mod_dav Basic/Digest, Nextcloud),
+# FTP/explicit FTPS, implicit FTPS, SFTP (password + key), DLNA
+# (MiniDLNA). NFS runs on the Linux runner itself (nfs_host.sh): kernel
+# nfsd cannot run in a container without host modules.
+#
+#   (cd packages/mediahro_ffi && dart run test/network/seed.dart test/network/data)
+#   docker compose -f packages/mediahro_ffi/test/network/docker-compose.yml up -d --build --wait
+#
+# Credentials are test-only (user `test`, password `testpass`).
+name: mediahro-net
+services:
+  samba:
+    build: ./samba
+    ports: ["${SMB_PORT:-445}:445"]
+    volumes: ["./data/media:/srv/media", "./data/dfs:/srv/dfs"]
+    healthcheck:
+      test: ["CMD", "smbclient", "-N", "-L", "localhost"]
+      interval: 2s
+      retries: 30
+
+  webdav:
+    build: ./webdav
+    ports: ["8080:80"]
+    volumes: ["./data/media:/srv/media"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/health"]
+      interval: 2s
+      retries: 30
+
+  nextcloud:
+    image: nextcloud:30.0.16-apache
+    ports: ["8081:80"]
+    environment:
+      SQLITE_DATABASE: nextcloud
+      NEXTCLOUD_ADMIN_USER: test
+      NEXTCLOUD_ADMIN_PASSWORD: testpass-Nextcloud-1
+      NEXTCLOUD_TRUSTED_DOMAINS: "127.0.0.1 localhost"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost/status.php | grep -q installed.:true"]
+      interval: 5s
+      retries: 60
+      start_period: 30s
+
+  ftp:
+    build: ./vsftpd
+    ports: ["21:21", "21100-21110:21100-21110"]
+    volumes: ["./data/media:/srv/media"]
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "21"]
+      interval: 2s
+      retries: 30
+
+  ftps-implicit:
+    build: ./vsftpd
+    command: ["/usr/sbin/vsftpd", "/etc/vsftpd/implicit.conf"]
+    ports: ["990:990", "21111-21120:21111-21120"]
+    volumes: ["./data/media:/srv/media"]
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "990"]
+      interval: 2s
+      retries: 30
+
+  sftp:
+    build: ./sftp
+    ports: ["2222:22"]
+    volumes:
+      - "./data/media:/srv/media"
+      - "./data/ssh/authorized_keys:/home/test/.ssh/authorized_keys:ro"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "22"]
+      interval: 2s
+      retries: 30
+
+  dlna:
+    build: ./minidlna
+    # SSDP multicast must reach the test process on the runner (Linux).
+    network_mode: host
+    volumes: ["./data/media:/srv/media"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8200/rootDesc.xml"]
+      interval: 2s
+      retries: 30
