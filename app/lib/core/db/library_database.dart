@@ -113,11 +113,19 @@ class LibraryDatabase extends _$LibraryDatabase {
   }
 }
 
-/// The FTS5 index over searchable text (LIB-005). `rowid` is `items.id`.
+/// The FTS5 index over searchable text (LIB-005). `rowid` is `item.id`.
 /// Prefix indexes on 2 and 3 characters keep prefix queries under budget.
-Future<void> createFts(GeneratedDatabase db) => db.customStatement('''
+/// `IndexWriter.refreshFts` maintains the rows; a trigger drops them with
+/// their item.
+Future<void> createFts(GeneratedDatabase db) async {
+  await db.customStatement('''
 CREATE VIRTUAL TABLE IF NOT EXISTS item_fts USING fts5(
   title, name, tags, artist, album, people, places,
   tokenize = 'unicode61 remove_diacritics 2',
   prefix = '2 3'
 )''');
+  await db.customStatement('''
+CREATE TRIGGER IF NOT EXISTS item_fts_delete AFTER DELETE ON item BEGIN
+  DELETE FROM item_fts WHERE rowid = old.id;
+END''');
+}

@@ -16,8 +16,11 @@ int xxh3(Uint8List input) {
 }
 
 /// Lower-case, zero-padded hex of [xxh3].
-String xxh3Hex(Uint8List input) =>
-    xxh3(input).toUnsigned(64).toRadixString(16).padLeft(16, '0');
+String xxh3Hex(Uint8List input) {
+  final h = xxh3(input);
+  return (h >>> 32).toRadixString(16).padLeft(8, '0') +
+      (h & 0xFFFFFFFF).toRadixString(16).padLeft(8, '0');
+}
 
 const int _p32_1 = 0x9E3779B1;
 const int _p32_2 = 0x85EBCA77;

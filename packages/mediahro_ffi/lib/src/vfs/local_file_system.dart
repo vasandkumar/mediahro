@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro_ffi/src/vfs/virtual_file.dart';
+import 'package:mediahro_ffi/src/vfs/win32_find.dart';
 
 /// [VirtualFileSystem] for `file:` URIs backed by `dart:io`.
 ///
@@ -52,6 +53,26 @@ final class LocalFileSystem implements VirtualFileSystem {
   @override
   Stream<VirtualEntry> list(Uri directory) async* {
     final dir = Directory.fromUri(directory);
+    // One FindFirstFileExW pass returns sizes and mtimes (no per-file stat).
+    final fast = win32ListDirectory(dir.path);
+    if (fast != null) {
+      for (final e in fast) {
+        // Links and junctions are never followed (same as followLinks: false).
+        if (e.isReparsePoint) continue;
+        final base = dir.path.endsWith(Platform.pathSeparator)
+            ? dir.path.substring(0, dir.path.length - 1)
+            : dir.path;
+        final path = '$base${Platform.pathSeparator}${e.name}';
+        yield VirtualEntry(
+          uri: e.isDirectory ? Directory(path).uri : File(path).uri,
+          name: e.name,
+          isDirectory: e.isDirectory,
+          size: e.isDirectory ? null : e.size,
+          modified: DateTime.fromMillisecondsSinceEpoch(e.modifiedMs),
+        );
+      }
+      return;
+    }
     try {
       await for (final entity in dir.list(followLinks: false)) {
         // Async on purpose: callers may be on the UI isolate (docs/05 §7).

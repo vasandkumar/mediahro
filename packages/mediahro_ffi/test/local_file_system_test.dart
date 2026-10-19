@@ -72,4 +72,22 @@ void main() {
     );
     await expectLater(fs.stat(uri), throwsA(isA<VirtualFileException>()));
   });
+
+  test(
+    'LIB-003 Windows fast listing matches dart:io sizes and mtimes',
+    () async {
+      final viaFind = await fs.list(tmp.uri).toList();
+      final a = viaFind.firstWhere((e) => e.name == 'a.bin');
+      final s = File('${tmp.path}${Platform.pathSeparator}a.bin').statSync();
+      expect(a.size, s.size);
+      expect(
+        a.modified!.millisecondsSinceEpoch ~/ 1000,
+        s.modified.millisecondsSinceEpoch ~/ 1000,
+      );
+      expect(a.uri, File('${tmp.path}${Platform.pathSeparator}a.bin').uri);
+      final sub = viaFind.firstWhere((e) => e.name == 'sub');
+      expect(sub.uri.path, endsWith('/sub/'));
+    },
+    skip: Platform.isWindows ? null : 'Windows only',
+  );
 }
