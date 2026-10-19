@@ -3,8 +3,9 @@
 Downloads each requested target from tool/bootstrap_libmpv.json, verifies its
 SHA-256, and lays it out under .deps-cache/bootstrap/<target>/ with the same
 lib/ / Frameworks/ structure as the mediahro-deps archives, so the plugin
-builds and tests look in one place. Once deps.lock pins a mediahro-deps
-release, .deps-cache/<target>/ wins and this script is unused.
+builds and tests look in one place. For the Android and xcframework targets,
+once deps.lock pins a mediahro-deps archive this script fetches that archive
+(tools/deps/fetch.py) into .deps-cache/<target>/ instead.
 
 Usage: python packages/mediahro_engine/tool/fetch_libmpv.py <target> [...]
        python packages/mediahro_engine/tool/fetch_libmpv.py --print-path <target>
@@ -26,6 +27,27 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 DEST = ROOT / ".deps-cache" / "bootstrap"
+# Plugin builds read .deps-cache/<target> before the bootstrap; these targets
+# switch to the mediahro-deps archive as soon as deps.lock pins one (ADR-004).
+DEPS_TARGETS = {
+    "android-arm64-v8a",
+    "android-armeabi-v7a",
+    "android-x86_64",
+    "ios-xcframeworks",
+    "macos-xcframeworks",
+}
+
+
+def pinned(target: str) -> bool:
+    lock = json.loads((ROOT / "deps.lock").read_text(encoding="utf-8"))
+    return (target in DEPS_TARGETS and bool(lock.get("release"))
+            and bool((lock.get("archives") or {}).get(target)))
+
+
+def fetch_pinned(target: str) -> Path:
+    subprocess.run([sys.executable, str(ROOT / "tools" / "deps" / "fetch.py"), "--target", target],
+                   check=True)
+    return ROOT / ".deps-cache" / target
 
 
 def _extract(archive: Path, into: Path) -> None:
@@ -87,7 +109,7 @@ def main(argv: list[str]) -> int:
         if name not in targets:
             print(f"unknown target {name}", file=sys.stderr)
             return 2
-        path = fetch(name, targets[name])
+        path = fetch_pinned(name) if pinned(name) else fetch(name, targets[name])
         if print_path:
             print(path)
     return 0

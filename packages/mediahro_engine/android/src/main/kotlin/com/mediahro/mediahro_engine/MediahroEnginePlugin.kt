@@ -96,6 +96,7 @@ class MediahroEnginePlugin :
     private val surfaces = mutableMapOf<Long, VideoSurface>()
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        FontConfig.prepare(binding.applicationContext)
         channel = MethodChannel(binding.binaryMessenger, "com.mediahro.engine/bridge")
         channel.setMethodCallHandler(this)
         textures = binding.textureRegistry
