@@ -11,6 +11,10 @@ import 'package:mediahro_design/mediahro_design.dart';
 /// "medium", SYS-011).
 const double kSidebarBreakpoint = 600;
 
+/// Stable key of a destination in the bottom bar or sidebar, independent of
+/// form factor and language (tests, UI automation, screenshots).
+Key destinationKey(AppDestination d) => ValueKey('nav.${d.name}');
+
 /// Three-mode shell (CORE-001): bottom bar on phones, sidebar on tablets and
 /// desktop, each mode with its own accent (docs/03 §3.3). Bars use the
 /// platform material (glass on Apple, Mica on Windows, solid Material 3 on
@@ -101,6 +105,7 @@ class AdaptiveShell extends ConsumerWidget {
                   destinations: [
                     for (final d in bar)
                       NavigationDestination(
+                        key: destinationKey(d),
                         icon: Icon(icon(d).resolve(family)),
                         label: label(d),
                       ),
@@ -126,6 +131,7 @@ class AdaptiveShell extends ConsumerWidget {
               items: [
                 for (final d in AppDestination.values)
                   KSidebarItem(
+                    key: destinationKey(d),
                     icon: icon(d),
                     label: label(d),
                     dividerBefore: d == AppDestination.search,

@@ -11,10 +11,14 @@ final class KSidebarItem {
     required this.icon,
     required this.label,
     this.dividerBefore = false,
+    this.key,
   });
 
   final KIcon icon;
   final String label;
+
+  /// Key of the destination's tile, for tests and automation.
+  final Key? key;
 
   /// Starts a new group (e.g. Sources and Settings below the three modes).
   final bool dividerBefore;
@@ -75,12 +79,14 @@ class KSidebar extends StatelessWidget {
                     ),
                   if (!ext && material)
                     _RailTile(
+                      key: item.key,
                       item: item,
                       selected: i == selectedIndex,
                       onTap: () => onSelected(i),
                     )
                   else
                     _SidebarTile(
+                      key: item.key,
                       item: item,
                       selected: i == selectedIndex,
                       extended: ext,
@@ -102,6 +108,7 @@ class _RailTile extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    super.key,
   });
 
   final KSidebarItem item;
@@ -172,6 +179,7 @@ class _SidebarTile extends StatelessWidget {
     required this.selected,
     required this.extended,
     required this.onTap,
+    super.key,
   });
 
   final KSidebarItem item;
