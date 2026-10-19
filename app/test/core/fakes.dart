@@ -74,6 +74,10 @@ final class MemoryFileSystem implements VirtualFileSystem {
   Future<VirtualEntry> stat(Uri uri) async {
     final r = rel(uri);
     final f = _files[r];
+    if (f == null &&
+        (r.isEmpty || _files.keys.any((k) => k.startsWith('$r/')))) {
+      return VirtualEntry(uri: uri, name: r.split('/').last, isDirectory: true);
+    }
     if (f == null) throw VirtualFileException(VirtualFileError.notFound, uri);
     return VirtualEntry(
       uri: uri,

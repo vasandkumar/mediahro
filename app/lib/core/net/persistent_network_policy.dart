@@ -25,10 +25,22 @@ final class EndpointState {
 /// * hosts of sources and servers the user added are allowed for them;
 /// * LAN discovery (SSDP, mDNS description fetches) may reach private and
 ///   link-local addresses when [lanDiscovery] is on.
-final class PersistentNetworkPolicy implements NetworkPolicy {
-  PersistentNetworkPolicy._(this._db, this._toggles, this._lastUsed);
+///
+/// The toggles may live elsewhere: pass `isToggledOn` to [load] (the B3 settings
+/// store's `privacy.endpoint.<id>` keys, wired in main.dart) and call
+/// [notifyTogglesChanged] when they change; [setEnabled] is then unused.
+final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
+  PersistentNetworkPolicy._(
+    this._db,
+    this._toggles,
+    this._lastUsed,
+    this._isToggledOn,
+  );
 
-  static Future<PersistentNetworkPolicy> load(LibraryDatabase db) async {
+  static Future<PersistentNetworkPolicy> load(
+    LibraryDatabase db, {
+    bool Function(String endpointId)? isToggledOn,
+  }) async {
     final rows = await (db.select(
       db.settingsTable,
     )..where((s) => s.key.like('privacy.%'))).get();
@@ -45,7 +57,8 @@ final class PersistentNetworkPolicy implements NetworkPolicy {
         lan = r.value == 'on';
       }
     }
-    final p = PersistentNetworkPolicy._(db, toggles, used).._lan = lan;
+    final p = PersistentNetworkPolicy._(db, toggles, used, isToggledOn)
+      .._lan = lan;
     await p.refreshUserHosts();
     return p;
   }
@@ -57,6 +70,8 @@ final class PersistentNetworkPolicy implements NetworkPolicy {
   final LibraryDatabase _db;
   final Map<String, bool> _toggles;
   final Map<String, DateTime> _lastUsed;
+  final bool Function(String endpointId)? _isToggledOn;
+  final Map<String, DateTime> _hostLastUsed = {};
   final Set<String> _userHosts = {};
   final Set<String> _sessionHosts = {};
   Set<String> _forcedOff = const {};
@@ -77,7 +92,32 @@ final class PersistentNetworkPolicy implements NetworkPolicy {
 
   @override
   bool isEnabled(NetworkEndpoint endpoint) =>
-      !_forcedOff.contains(endpoint.id) && (_toggles[endpoint.id] ?? false);
+      !_forcedOff.contains(endpoint.id) &&
+      (_isToggledOn?.call(endpoint.id) ?? _toggles[endpoint.id] ?? false);
+
+  /// Managed configuration forces [endpoint] off (the dashboard shows the
+  /// toggle locked).
+  bool isForcedOff(NetworkEndpoint endpoint) =>
+      _forcedOff.contains(endpoint.id);
+
+  /// Last time a request to [endpoint] left the device (CORE-015).
+  DateTime? lastUsed(NetworkEndpoint endpoint) => _lastUsed[endpoint.id];
+
+  /// Hosts of sources and servers the user added, sorted (CORE-015).
+  List<String> userConfiguredHosts() => (_userHosts.toList()..sort());
+
+  /// Last request to a user-added host, if any.
+  DateTime? hostLastUsed(String host) => _hostLastUsed[host.toLowerCase()];
+
+  /// Records a request to a user-added host (NetworkGateway calls this).
+  @override
+  void recordHostUse(String host, DateTime at) {
+    _hostLastUsed[host.toLowerCase()] = at;
+    _changes.add(null);
+  }
+
+  /// Call when the injected toggles changed so listeners refresh.
+  void notifyTogglesChanged() => _changes.add(null);
 
   Future<void> setEnabled(
     NetworkEndpoint endpoint, {

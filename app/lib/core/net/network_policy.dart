@@ -169,6 +169,11 @@ abstract interface class NetworkPolicy {
   void recordUse(NetworkEndpoint endpoint, DateTime at);
 }
 
+/// Optional: policies that also track user-added hosts for the dashboard.
+abstract interface class HostUseRecorder {
+  void recordHostUse(String host, DateTime at);
+}
+
 final class NetworkBlocked implements Exception {
   const NetworkBlocked(this.host, this.reason);
 
@@ -247,7 +252,10 @@ final class NetworkGateway implements HttpTransport {
         return e;
       }
     }
-    if (_policy.isUserConfiguredHost(host)) return null;
+    if (_policy.isUserConfiguredHost(host)) {
+      if (_policy case final HostUseRecorder r) r.recordHostUse(host, _clock());
+      return null;
+    }
     throw NetworkBlocked(host, 'host is not on the allow-list');
   }
 

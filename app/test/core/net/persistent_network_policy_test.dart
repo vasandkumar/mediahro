@@ -60,6 +60,43 @@ void main() {
     await p.dispose();
   });
 
+  test('CORE-015 dashboard API: injected toggles, last use per endpoint and per user host, change signal', () async {
+    await db
+        .into(db.sources)
+        .insert(
+          SourcesCompanion.insert(
+            kind: SourceKind.smb,
+            name: 'NAS',
+            rootUri: 'smb://nas.local/media/',
+            addedAt: DateTime.utc(2026),
+          ),
+        );
+    final on = <String>{'tmdb'};
+    final p = await PersistentNetworkPolicy.load(db, isToggledOn: on.contains);
+    expect(p.isEnabled(Endpoints.tmdb), isTrue);
+    expect(p.isEnabled(Endpoints.lrclib), isFalse);
+    var changes = 0;
+    final sub = p.changes.listen((_) => changes++);
+    on.add('lrclib');
+    p.notifyTogglesChanged();
+    expect(p.isEnabled(Endpoints.lrclib), isTrue);
+    expect(p.userConfiguredHosts(), ['nas.local']);
+    final at = DateTime.utc(2026, 10, 19, 9);
+    final gw = NetworkGateway(p, clock: () => at)
+      ..authorize(Uri.parse('https://api.themoviedb.org/3/x'))
+      ..authorize(Uri.parse('http://nas.local/x'));
+    expect(p.lastUsed(Endpoints.tmdb), at);
+    expect(p.hostLastUsed('NAS.local'), at);
+    await Future<void>.delayed(Duration.zero);
+    expect(changes, greaterThanOrEqualTo(3));
+    p.applyManagedOverlay({'tmdb'});
+    expect(p.isForcedOff(Endpoints.tmdb), isTrue);
+    expect(p.isEnabled(Endpoints.tmdb), isFalse);
+    gw.close();
+    await sub.cancel();
+    await p.dispose();
+  });
+
   group('NET-006 gateway', () {
     late HttpServer server;
     late NetworkGateway gw;
