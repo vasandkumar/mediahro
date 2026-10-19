@@ -54,6 +54,8 @@ Version 1.0 · 2026-10-19 · Every acceptance criterion in doc 04 maps to at lea
 
 ## 5. Performance budgets (CI-enforced; fail on > 5 % regression)
 
+Size ceilings follow the measured full-feature build and never justify cutting a doc 04 feature (ADR-020); growth above 5 % must raise `tools/perf/baseline.json` in the same PR with feature-ID justification. Speed and memory budgets are never relaxed.
+
 | Metric | Mobile (2022 mid-range) | Desktop |
 |---|---|---|
 | Cold start to interactive | ≤ 1.5 s | ≤ 1.0 s |
