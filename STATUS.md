@@ -11,7 +11,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 | Phase / milestone | Lanes | State | Exit criteria (docs/10 §3, §8) |
 |---|---|---|---|
 | **A — Skeleton (M0)** | orchestrator | ☑ done 2026-10-19 (deps archives → B4 per Phase B exit) | Shell builds on all platforms; stubs compile; CI green; deps archives published with SHA-256; licence scan passes |
-| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | waiting to start (owner: trust repositories in Claude Desktop) | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
+| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | in progress | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
 | **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4 Servers, casting, platform modules · C5 Supporter, privacy, B2B, store metadata | not started | Each lane's IDs ☑ on every platform; integration branch builds daily |
 | **D — Hardening (M8)** | D1 Android · D2 iOS/iPadOS · D3 macOS · D4 Windows · D5 Localisation · D6 Store submission packs | not started | All doc 11 §7 release gates pass; 1.0 tagged |
 
@@ -376,6 +376,6 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Date | Event |
 |---|---|
 | 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
-| 2026-10-19 | Phase B: lane sessions B1, B2, B3 (Mediahro worktrees) and B4a/b/c (mediahro-deps) created but **not started** — waiting for the owner to trust both repositories in Claude Desktop. |
+| 2026-10-19 | Phase B running: B1 engine, B2 library & sources, B3 design & shell (Mediahro worktrees), B4a Android + shared, B4b Apple, B4c Windows (mediahro-deps worktrees). Six duplicate lane sessions created during the trust retries were deleted. |
 | 2026-10-19 | Repos published (public): github.com/vasandkumar/mediahro, github.com/vasandkumar/mediahro-deps. First CI runs fixed (exec bits, ARB merge order, size-measurement symlink bug); CI fully green on all 16 jobs. **Phase A exit met.** |
 | 2026-10-19 | M0 skeleton committed: workspace, 5 packages, app shell, interface stubs, tooling, CI workflows, `mediahro-deps` skeleton. Local proof: `tools/check` green (analyze, lints, l10n, status, manifests, 61 tests); Windows debug build + 3 integration tests pass; Android `foss` APK builds. ADR-011…016 recorded in docs/05 §12. |
