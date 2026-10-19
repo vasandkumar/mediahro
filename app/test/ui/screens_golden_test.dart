@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/app_strings.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
+import 'package:mediahro/app/router.dart';
 import 'package:mediahro/app/shortcuts/cheat_sheet.dart';
 import 'package:mediahro/features/onboarding/first_run_panel.dart';
 import 'package:mediahro/features/settings/privacy/privacy_dashboard.dart';
@@ -29,8 +31,51 @@ void main() {
     ),
   };
 
+  const shells = {'shell_phone': (360.0, 4), 'shell_tablet': (760.0, 2)};
+  const platforms = {
+    PlatformFamily.material: TargetPlatform.android,
+    PlatformFamily.apple: TargetPlatform.iOS,
+    PlatformFamily.fluent: TargetPlatform.windows,
+  };
+
   for (final family in PlatformFamily.values) {
     for (final brightness in Brightness.values) {
+      for (final MapEntry(key: name, value: (width, columns))
+          in shells.entries) {
+        testWidgets('CORE-001 $name ${family.name}/${brightness.name}', (
+          tester,
+        ) async {
+          final store = await tester.runAsync(
+            () => SettingsStore.open(MemorySettingsPersistence(), null),
+          );
+          debugDefaultTargetPlatformOverride = platforms[family];
+          try {
+            await expectGoldenMatrix(
+              tester,
+              name: name,
+              family: family,
+              brightness: brightness,
+              cellWidth: width,
+              columns: columns,
+              cellHeight: 640,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              stringsBuilder: (c) => AppKStrings(AppLocalizations.of(c)),
+              builder: (_) => SizedBox(
+                height: 640,
+                child: ProviderScope(
+                  overrides: [settingsStoreProvider.overrideWithValue(store!)],
+                  child: Router.withConfig(
+                    config: buildRouter(initialLocation: '/music'),
+                  ),
+                ),
+              ),
+            );
+          } finally {
+            debugDefaultTargetPlatformOverride = null;
+          }
+        });
+      }
       group(
         'CORE-006/007/009/015 screens ${family.name}/${brightness.name}',
         () {

@@ -132,6 +132,7 @@ Widget kVariantScope({
   required Widget child,
   KStrings strings = const KTestStrings(),
   KStrings Function(BuildContext context)? stringsBuilder,
+  Size? size,
 }) => Builder(
   builder: (context) => Theme(
     data: theme,
@@ -139,6 +140,7 @@ Widget kVariantScope({
       data: MediaQuery.of(context).copyWith(
         textScaler: TextScaler.linear(variant.textScale),
         disableAnimations: variant.reduced,
+        size: size,
       ),
       child: Directionality(
         textDirection: variant.direction,
@@ -218,6 +220,7 @@ Future<void> expectGoldenMatrix(
   required WidgetBuilder builder,
   double cellWidth = 360,
   int columns = 4,
+  double cellHeight = 800,
   MediaMode mode = MediaMode.video,
   Iterable<LocalizationsDelegate<Object?>>? localizationsDelegates,
   Iterable<Locale> supportedLocales = const [Locale('en')],
@@ -255,6 +258,8 @@ Future<void> expectGoldenMatrix(
                         theme: theme,
                         variant: v,
                         stringsBuilder: stringsBuilder,
+                        // Window-class layouts see the cell as the window.
+                        size: Size(cellWidth, cellHeight),
                         child: Builder(builder: builder),
                       ),
                     ),
