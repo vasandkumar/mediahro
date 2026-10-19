@@ -66,7 +66,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: pipeline (fragments, ICU checks, placeholder checks), pseudo-locales en-XA/ar-XB in tests, missing-string report in CI summary, Weblate components, locale formatting helpers. The 12 translations themselves come from Weblate (D5) |
 | CORE-009 | Keyboard shortcuts | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: action catalogue (docs/06 §6.2) with platform defaults, remapping UI, conflict detection, cheat sheet on ? with copyable text; ShortcutScopeWidget for lanes Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
-| CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☑ | ☑ | M W ☑ engine run 39299903436 |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
@@ -107,24 +107,24 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| VID-001 | Containers | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-002 | Video codecs | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-003 | Audio codecs in video | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-004 | Audio passthrough | B1 | ☐ | — | ☐ | ☐ |  |
+| VID-001 | Containers | B1 | ⛔ | ⛔ | ⛔ | ☐ | A I M ⛔ bootstrap gaps (§3) |
+| VID-002 | Video codecs | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ VC-1/VVC samples; A I M bootstrap gaps (§3) |
+| VID-003 | Audio codecs in video | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ DTS-HD MA/HRA/DTS:X samples (§3) |
+| VID-004 | Audio passthrough | B1 | ⛔ | — | ⛔ | ⛔ | ⛔ needs HDMI/SPDIF device lab (§3) |
 | VID-005 | Playback edge cases | B1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-006 | Network playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-007 | DVD/Blu-ray folder playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-007 | DVD/Blu-ray folder playback | B1 | ☐ | ☐ | ☑ | ☑ | M W ☑ engine run 39299903436 |
 
 ### 4.2 Rendering, HDR, quality
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | VID-030 | GPU renderer | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-031 | HDR10 / HLG | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-032 | HDR10+ | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-034 | Dolby Vision profile 5 | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-031 | HDR10 / HLG | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native HDR: Flutter textures are 8-bit (§3); tone mapping passes W |
+| VID-032 | HDR10+ | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no HDR10+ samples (§3) |
+| VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
+| VID-034 | Dolby Vision profile 5 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples, libdovi (§3) |
+| VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
 | VID-036 | Auto frame-rate and resolution matching | C1 | ☐ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) |
 | VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -157,13 +157,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| SUB-010 | Text formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-011 | Image formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-010 | Text formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
+| SUB-011 | Image formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
+| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ☐ | ☐ | ☐ | W engine side passes (engine run 39299903436); UI → C1 |
 | SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -176,18 +176,18 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| AUD-001 | Formats | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-002 | Gapless | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-003 | Crossfade | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-004 | Loudness | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-005 | DSP chain | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-006 | Output quality indicator | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-040 | Bit-perfect Android | B1 | ☐ | — | — | — |  |
-| AUD-041 | Bit-perfect Apple | B1 | — | ☐ | ☐ | — |  |
-| AUD-042 | Bit-perfect Windows | B1 | — | — | — | ☐ |  |
-| AUD-043 | DSD | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-044 | Bluetooth | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-045 | Audio focus and interruptions | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-001 | Formats | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ APE/TAK/MPC/SACD/MIDI samples; A I M bootstrap gaps (§3) |
+| AUD-002 | Gapless | B1 | ⛔ | ⛔ | ⛔ | ☐ | W: iTunSMPB test pending. A I M ⛔ bootstrap gaps |
+| AUD-003 | Crossfade | B1 | ☐ | ☐ | ☑ | ☑ | M W ☑ engine run 39299903436 |
+| AUD-004 | Loudness | B1 | ⛔ | ⛔ | ⛔ | ☑ | W ☑ engine run 39299903436; A I M ⛔ bootstrap gaps |
+| AUD-005 | DSP chain | B1 | ⛔ | ⛔ | ⛔ | ☑ | W ☑ engine run 39299903436; A I M ⛔ bootstrap gaps |
+| AUD-006 | Output quality indicator | B1 | ☐ | ☐ | ☑ | ☑ | M W ☑ engine run 39299903436 |
+| AUD-040 | Bit-perfect Android | B1 | ⛔ | — | — | — | ⛔ USB DAC device lab (§3) |
+| AUD-041 | Bit-perfect Apple | B1 | — | ⛔ | ⛔ | — | ⛔ device lab (§3) |
+| AUD-042 | Bit-perfect Windows | B1 | — | — | — | ⛔ | ⛔ ASIO licence; exclusive mode needs device lab (§3) |
+| AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W |
+| AUD-044 | Bluetooth | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) |
+| AUD-045 | Audio focus and interruptions | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) |
 | AUD-046 | Visualiser | C2 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 6.2 Music library and player UI
