@@ -99,7 +99,9 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" > /dev/null
       - name: Build ${{ matrix.flavor }} ${{ matrix.artefact }}
         working-directory: app
-        run: flutter build ${{ matrix.artefact }} --release --flavor ${{ matrix.flavor }} --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+        run: flutter build ${{ matrix.artefact }} --release --flavor ${{ matrix.flavor }} --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }} --split-debug-info=build/symbols --obfuscate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'android-symbols-${{ matrix.flavor }}', path: app/build/symbols, retention-days: 90 }
       - name: 16 KB page alignment (docs/07 §1 rule 4)
         if: matrix.artefact == 'apk'
         run: |
@@ -134,7 +136,9 @@ jobs:
       - run: tools/bootstrap
       - name: Device build (store, unsigned)
         working-directory: app
-        run: flutter build ios --release --no-codesign --dart-define=MEDIAHRO_FLAVOR=store
+        run: flutter build ios --release --no-codesign --dart-define=MEDIAHRO_FLAVOR=store --split-debug-info=build/symbols --obfuscate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'ios-symbols', path: app/build/symbols, retention-days: 90 }
       - name: Simulator build (runnable artefact)
         working-directory: app
         run: flutter build ios --simulator --debug --dart-define=MEDIAHRO_FLAVOR=store
@@ -156,7 +160,9 @@ jobs:
       - run: tools/bootstrap
       - name: Build ${{ matrix.flavor }}
         working-directory: app
-        run: flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+        run: flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }} --split-debug-info=build/symbols --obfuscate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'macos-symbols-${{ matrix.flavor }}', path: app/build/symbols, retention-days: 90 }
       - name: Install size budget (≤ 70 MB, docs/11 §5)
         run: python3 tools/perf/size_budget.py desktop app/build/macos/Build/Products/Release/Mediahro.app
       - name: Package
@@ -179,7 +185,9 @@ jobs:
       - run: tools/bootstrap
       - name: Build ${{ matrix.flavor }}
         working-directory: app
-        run: flutter build windows --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+        run: flutter build windows --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }} --split-debug-info=build/symbols --obfuscate
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'windows-symbols-${{ matrix.flavor }}', path: app/build/symbols, retention-days: 90 }
       - name: Install size budget (≤ 70 MB, docs/11 §5)
         run: python tools/perf/size_budget.py desktop app/build/windows/x64/runner/Release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
