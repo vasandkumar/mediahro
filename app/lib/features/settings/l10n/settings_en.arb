@@ -618,5 +618,9 @@
   "settingsPrivacyServiceIntroDb": "IntroDB",
   "@settingsPrivacyServiceIntroDb": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceTrakt": "Trakt",
+  "@settingsPrivacyServiceTrakt": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   }
 }

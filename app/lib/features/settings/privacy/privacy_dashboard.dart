@@ -177,5 +177,6 @@ String privacyServiceName(NetworkEndpoint e, AppLocalizations l10n) =>
       'librefm' => l10n.settingsPrivacyServiceLibreFm,
       'maptiles' => l10n.settingsPrivacyServiceMapTiles,
       'introdb' => l10n.settingsPrivacyServiceIntroDb,
+      'trakt' => l10n.settingsPrivacyServiceTrakt,
       _ => e.id,
     };
