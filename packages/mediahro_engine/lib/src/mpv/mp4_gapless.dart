@@ -14,11 +14,25 @@ import 'package:mediahro_ffi/mediahro_ffi.dart';
 /// `priming + samples` (FFmpeg 6.x output tagged afterwards): their padding is
 /// trimmed twice and the album loses that many samples at every join.
 ///
-/// For those files the container duration wins: [smpbRemainderToIgnore]
-/// finds the tag's remainder field, and [Mp4GaplessFile] serves the file with
-/// that field read as zero, so the demuxer ends the track at the container
-/// duration and still applies the tag's priming.
-Future<int?> smpbRemainderToIgnore(VirtualFile file) async {
+/// FFmpeg releases also differ: some apply only the tag's priming and never
+/// trim the padding at all.
+///
+/// [inspectSmpb] therefore gives two corrections: the exact end of the
+/// content ([SmpbFix.end], seconds after priming, for mpv's per-file `end`,
+/// which cuts sample-accurately whatever the demuxer does), and, for the
+/// double-trimmed framing, the tag's remainder field ([SmpbFix.blankAt]) that
+/// [Mp4GaplessFile] reads as zero so the demuxer cannot cut before that end.
+final class SmpbFix {
+  const SmpbFix({required this.end, this.blankAt});
+
+  /// Content end in seconds on mpv's timeline, as its per-file `end`.
+  final String end;
+
+  /// Absolute offset of the remainder field to read as zero, when needed.
+  final int? blankAt;
+}
+
+Future<SmpbFix?> inspectSmpb(VirtualFile file) async {
   final length = await file.length();
   if (length == null || length < 16) return null;
   final head = await file.read(0, 8);
@@ -71,14 +85,23 @@ Future<int?> smpbRemainderToIgnore(VirtualFile file) async {
   final samples = int.parse(tokens[3].group(0)!, radix: 16);
   // FFmpeg reads the tag in media time units; only the common case where
   // they are samples (timescale = sample rate) is corrected.
-  if (found.timescale != found.sampleRate) return null;
+  final rate = found.sampleRate;
+  if (rate == null || rate <= 0 || found.timescale != rate) return null;
+  if (samples <= 0) return null;
+  // Without an edit list the timeline starts at the first packet, priming
+  // included; an edit list shifts it so the content starts at 0.
+  final offset = (found.editMediaTime ?? 0) > 0 ? 0 : priming;
+  final end = ((offset + samples) / rate).toStringAsFixed(9);
   final duration = found.duration!;
-  final ffmpegEnd = duration - remainder;
-  final contentEnd = priming + samples;
-  if (remainder <= 0 || samples <= 0) return null;
-  if (duration <= remainder || duration <= samples) return null;
-  if (ffmpegEnd >= contentEnd) return null;
-  return moovAt + smpb + tokens[2].start;
+  final doubleTrim =
+      remainder > 0 &&
+      duration > remainder &&
+      duration > samples &&
+      duration - remainder < priming + samples;
+  return SmpbFix(
+    end: end,
+    blankAt: doubleTrim ? moovAt + smpb + tokens[2].start : null,
+  );
 }
 
 String _type(Uint8List b, int at) =>
@@ -89,15 +112,18 @@ final class _Scan {
   int? timescale;
   int? duration;
   int? sampleRate;
+  int? editMediaTime;
   int? smpbText;
   int? smpbEnd;
   bool _soundTrack = false;
   int? _trackTimescale;
   int? _trackDuration;
+  int? _trackEditMediaTime;
   bool _freeformIsSmpb = false;
 
   static const _containers = {
     'trak',
+    'edts',
     'mdia',
     'minf',
     'stbl',
@@ -126,10 +152,20 @@ final class _Scan {
           _soundTrack = false;
           _trackTimescale = null;
           _trackDuration = null;
+          _trackEditMediaTime = null;
           walk(b, body, at + size);
           if (_soundTrack && timescale == null) {
             timescale = _trackTimescale;
             duration = _trackDuration;
+            editMediaTime = _trackEditMediaTime;
+          }
+        case 'elst':
+          // First entry's media time (signed): version 1 has 64-bit fields.
+          final v1 = b[body] == 1;
+          if (view.getUint32(body + 4) > 0) {
+            _trackEditMediaTime = v1
+                ? view.getInt64(body + 16)
+                : view.getInt32(body + 12);
           }
         case 'mdhd':
           final v1 = b[body] == 1;
@@ -170,8 +206,7 @@ final class _Scan {
 }
 
 /// A [VirtualFile] that reads [inner] with the 8 bytes at [blankAt] replaced
-/// by ASCII zeros (the iTunSMPB remainder field, see
-/// [smpbRemainderToIgnore]).
+/// by ASCII zeros (the iTunSMPB remainder field, see [inspectSmpb]).
 final class Mp4GaplessFile implements VirtualFile {
   Mp4GaplessFile(this.inner, this.blankAt);
 

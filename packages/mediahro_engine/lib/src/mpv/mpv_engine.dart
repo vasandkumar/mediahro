@@ -189,6 +189,10 @@ final class MpvEngine implements PlaybackEngine {
   /// Render path of the current surface (stats overlay, VID-072).
   String? get renderBackend => _surface?.backend;
 
+  /// Why the render bridge gave no surface, if it failed (diagnostics).
+  String? get surfaceError => _surfaceError;
+  String? _surfaceError;
+
   // ---------------------------------------------------------------- core --
 
   Future<MpvClient?> _core() => _ready ??= _create();
@@ -262,6 +266,7 @@ final class MpvEngine implements PlaybackEngine {
     } on Object catch (e) {
       // No surface: playback continues (audio, screenshots) and the UI shows
       // the decode-failed copy for the video area.
+      _surfaceError = '$e';
       _state = _state.copyWith(
         video: _state.video.copyWith(subtitleRenderer: 'no surface: $e'),
       );
@@ -295,11 +300,12 @@ final class MpvEngine implements PlaybackEngine {
     }
   }
 
-  /// AUD-002: MP4/M4A files whose container already ends before the
-  /// iTunSMPB padding play through [Mp4GaplessFile], so the padding is
-  /// trimmed once (see [smpbRemainderToIgnore]).
-  Future<MediaSource> _oneGaplessTrim(MediaSource src) async {
-    if (_protocol == null) return src;
+  /// AUD-002: MP4/M4A files with an iTunSMPB tag end exactly at their last
+  /// real sample (mpv's per-file `end`), and the double-trimmed framing plays
+  /// through [Mp4GaplessFile] (see [inspectSmpb]). Other files are returned
+  /// unchanged and open directly.
+  Future<(MediaSource, String?)> _oneGaplessTrim(MediaSource src) async {
+    if (_protocol == null) return (src, null);
     final VirtualFile file;
     var owned = false;
     switch (src) {
@@ -309,20 +315,24 @@ final class MpvEngine implements PlaybackEngine {
       case VirtualFileSource(file: final f):
         file = f;
       default:
-        return src;
+        return (src, null);
     }
-    int? blankAt;
+    SmpbFix? fix;
     try {
-      blankAt = await smpbRemainderToIgnore(file);
+      fix = await inspectSmpb(file);
     } on Object {
-      blankAt = null;
+      fix = null;
     }
+    final blankAt = fix?.blankAt;
     if (blankAt == null) {
       if (owned) await file.close();
-      return src;
+      return (src, fix?.end);
     }
     if (owned) _ownedFiles.add(file);
-    return VirtualFileSource(Mp4GaplessFile(file, blankAt), title: src.title);
+    return (
+      VirtualFileSource(Mp4GaplessFile(file, blankAt), title: src.title),
+      fix!.end,
+    );
   }
 
   Future<void> _quiet(Future<Object?> f) async {
@@ -661,7 +671,7 @@ final class MpvEngine implements PlaybackEngine {
         }
       }),
     );
-    final played = await _oneGaplessTrim(src);
+    final (played, gaplessEnd) = await _oneGaplessTrim(src);
     if (gen != _generation) return;
     String url;
     var rest = const <String>[];
@@ -691,6 +701,7 @@ final class MpvEngine implements PlaybackEngine {
     final perFile = <String, String>{
       'pause': o.autoplay ? 'no' : 'yes',
       if (o.start != null) 'start': secondsValue(o.start!),
+      'end': ?gaplessEnd,
       if (o.audioOnly || role == EngineRole.music) 'vid': 'no',
       if (o.preferredAudioLanguages.isNotEmpty)
         'alang': o.preferredAudioLanguages.join(','),
@@ -1091,13 +1102,21 @@ final class MpvEngine implements PlaybackEngine {
     if (_next != null) await _quiet(c.command(['playlist-clear']));
     _next = next;
     if (next != null) {
-      final played = await _oneGaplessTrim(next);
+      final (played, gaplessEnd) = await _oneGaplessTrim(next);
       final url = switch (played) {
         UriSource(:final uri) =>
           uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
         VirtualFileSource(:final file) => _protocol!.urlFor(file),
       };
-      await _quiet(c.loadfile(url, flags: 'append'));
+      await _quiet(
+        c.loadfile(
+          url,
+          flags: 'append',
+          options: gaplessEnd == null
+              ? null
+              : encodeOptions({'end': gaplessEnd}),
+        ),
+      );
     }
     _state = _state.copyWith(nextPrepared: next != null);
     _scheduleEmit();
