@@ -155,18 +155,18 @@ class LicenceTests(unittest.TestCase):
                 {"name": "ffmpeg", "version": "8", "license": "LGPL-2.1-or-later", "linking": "static-or-dynamic",
                  "configure": ["--enable-gpl"], "gpl_only_sources": ["libavfilter/vf_foo.c"]},
                 {"name": "x264", "version": "1", "license": "MIT", "linking": "any", "configure": []},
-            ], b"GPL version 2 or later\0OpenSSL 3.0.13")
+            ], b"GPL version 2 or later\0OpenSSL 3.0.13\0x264_encoder_open_164")
             errors: list[str] = []
             ls.scan_native([m], errors)
             ls.scan_native_binaries([m.parent], errors)
             text = "\n".join(errors)
             for needle in ("LGPL must be dynamically linked", "configured with --enable-gpl", "GPL-only source compiled in",
-                           "x264: banned", "FFmpeg built GPL", "OpenSSL"):
+                           "x264: banned", "FFmpeg built GPL", "OpenSSL", ": x264 ("):
                 self.assertIn(needle, text)
 
     def test_lgpl_marker_is_not_gpl(self):
         with tempfile.TemporaryDirectory() as t:
-            m = self._archive(Path(t), [], b"LGPL version 2.1 or later\0LGPL version 3 or later")
+            m = self._archive(Path(t), [], b"LGPL version 2.1 or later\0LGPL version 3 or later\0x264 - core %d")
             errors: list[str] = []
             ls.scan_native_binaries([m.parent], errors)
             self.assertEqual(errors, [])

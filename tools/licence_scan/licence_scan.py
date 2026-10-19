@@ -466,8 +466,9 @@ BINARY_MARKERS: list[tuple[str, re.Pattern[bytes]]] = [
     ("FFmpeg built nonfree", re.compile(rb"nonfree and unredistributable")),
     ("configured with --enable-gpl / --enable-nonfree", re.compile(rb"--enable-(?:gpl|nonfree)\b")),
     ("mpv built with -Dgpl=true", re.compile(rb"-Dgpl=true")),
-    ("x264", re.compile(rb"x264 - core \d+|libx264\.so")),
-    ("x265", re.compile(rb"x265 \(build|libx265\.so")),
+    # Encoder APIs only: FFmpeg's H.264/HEVC decoders legitimately parse "x264 - core" SEI strings.
+    ("x264", re.compile(rb"x264_encoder_open|libx264\.so")),
+    ("x265", re.compile(rb"x265_encoder_open|libx265\.so")),
     ("rubberband", re.compile(rb"RubberBandStretcher|librubberband")),
     ("libdvdcss", re.compile(rb"libdvdcss")),
     ("Exiv2", re.compile(rb"Exiv2::")),
