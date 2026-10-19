@@ -1075,12 +1075,15 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
     final text = {
       'utf8bom': ('Привет, мир', <int>[0xEF, 0xBB, 0xBF]),
       'cp1251': ('Привет, мир', <int>[]),
+      'sjis': ('こんにちは、世界', <int>[]),
     };
     for (final MapEntry(key: name, value: (s, bom)) in text.entries) {
       final body = '1\n00:00:00,500 --> 00:00:03,000\n$s\n';
-      final bytes = name == 'cp1251'
-          ? _cp1251(body)
-          : [...bom, ...utf8.encode(body)];
+      final bytes = switch (name) {
+        'cp1251' => _cp1251(body),
+        'sjis' => _shiftJis(body),
+        _ => [...bom, ...utf8.encode(body)],
+      };
       written(
         'subs_$name.srt',
         bytes,
@@ -1750,6 +1753,24 @@ extension on _Generator {
       expect: {'video': 0, 'audio': 1, 'audioCodec': 'dsd_lsbf_planar'},
     );
   }
+}
+
+/// Shift_JIS encoder for the Japanese test string (SUB-013).
+List<int> _shiftJis(String s) {
+  const table = {
+    'こ': [0x82, 0xB1],
+    'ん': [0x82, 0xF1],
+    'に': [0x82, 0xC9],
+    'ち': [0x82, 0xBF],
+    'は': [0x82, 0xCD],
+    '、': [0x81, 0x41],
+    '世': [0x90, 0xA2],
+    '界': [0x8A, 0x45],
+  };
+  return [
+    for (final r in s.runes)
+      ...(r < 0x80 ? [r] : table[String.fromCharCode(r)] ?? [0x3F]),
+  ];
 }
 
 /// Windows-1251 encoder for the Cyrillic test strings.

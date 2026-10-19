@@ -200,18 +200,23 @@ void subtitlesSuite() {
       expect(await subText(e), 'Привет, мир');
     }, skip: skip);
 
-    test('SUB-013 Windows-1251 detected or forced', () async {
-      final e = await scene('subs_cp1251.srt');
-      var text = await subText(e);
-      if (text != 'Привет, мир') {
-        // Builds without uchardet need the manual override.
-        await e.setSubtitleCodepage('cp1251');
-        text = await subText(e);
-      }
-      expect(text, 'Привет, мир');
-      await e.setSubtitleCodepage('cp1251');
-      expect(await subText(e), 'Привет, мир', reason: 'manual override');
-    }, skip: blockedOn(const {'android'}, 'libiconv for SUB-013 (B4a)'));
+    for (final (label, file, codepage, expected) in [
+      ('Windows-1251', 'subs_cp1251.srt', 'cp1251', 'Привет, мир'),
+      ('Shift-JIS', 'subs_sjis.srt', 'shift_jis', 'こんにちは、世界'),
+    ]) {
+      test('SUB-013 $label detected or forced', () async {
+        final e = await scene(file);
+        var text = await subText(e);
+        if (text != expected) {
+          // Short samples can defeat detection; the override must work.
+          await e.setSubtitleCodepage(codepage);
+          text = await subText(e);
+        }
+        expect(text, expected);
+        await e.setSubtitleCodepage(codepage);
+        expect(await subText(e), expected, reason: 'manual override');
+      }, skip: blockedOn(const {'android'}, 'libiconv for SUB-013 (B4a)'));
+    }
   });
 
   group('SUB-014 styling', () {
