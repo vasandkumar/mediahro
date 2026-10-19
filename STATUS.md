@@ -56,21 +56,21 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-002 | First-run without walls | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: bar/sidebar per window class, last mode restored, platform bar materials, mini-player slot, predictive-back transitions; tested in widget + integration suites. Mode switch < 100 ms is asserted only in profile builds (perf harness), so not ticked yet |
+| CORE-002 | First-run without walls | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL validation, headers/UA, history of 50, Open URL dialog. Playback hand-off is the `openUrlActionProvider` seam (C1 wires it). |
-| CORE-006 | Settings model | B3 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-007 | Themes | B3 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-009 | Keyboard shortcuts | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-006 | Settings model | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: typed SettingKey/SettingsStore (JSON in app support dir, atomic, debounced), registry for other lanes, search, descriptions, Advanced collapsed, reset per section, import/export, managed overlay hook Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
+| CORE-007 | Themes | B3 | ☑ | ☑ | ☑ | ⛔ | B3 PR #2: light/dark/system, AMOLED, per-mode + custom accents (contrast-safe), high contrast, Material You (A), glass bars (Apple), Mica-ready shell. W: Mica needs the runner, owned by C4 (see §3) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
+| CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: pipeline (fragments, ICU checks, placeholder checks), pseudo-locales en-XA/ar-XB in tests, missing-string report in CI summary, Weblate components, locale formatting helpers. The 12 translations themselves come from Weblate (D5) |
+| CORE-009 | Keyboard shortcuts | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: action catalogue (docs/06 §6.2) with platform defaults, remapping UI, conflict detection, cheat sheet on ? with copyable text; ShortcutScopeWidget for lanes Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
-| CORE-015 | Privacy dashboard | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-015 | Privacy dashboard | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: dashboard lists every Endpoints.all entry with toggle (privacy.endpoint.<id>) and last-used time, plus user hosts; needs the B2 usage recorder wired to PrivacyUsage (orchestrator) |
 
 ### 2. LIB — Library, indexing, search
 
@@ -329,6 +329,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
 | 2026-10-20 | B1 + B4a | All Android cells of PR #3 (install-size budget, docs/11 §5) | APK with all mediahro-deps libraries is 102.3 MB per ABI vs the 40 MB budget | B4a: per-library size table, strip, FFmpeg `--disable-everything` + explicit components, trimmed libvips; B1: no duplicate libraries | None — budget is not relaxed; owner sees the numbers if 40 MB proves impossible |
+| 2026-10-19 | B3 | CORE-001 A (API 33–35) | Predictive back below API 36 needs `android:enableOnBackInvokedCallback="true"` in the manifest (app/android, lane C4). API 36 has it by default; the shell does not intercept back | Owner: lane C4 (Phase C): manifest flag | Theme already uses predictive-back page transitions |
+| 2026-10-19 | B3 | CORE-007 W | Mica needs the Windows runner to set `DWMWA_SYSTEMBACKDROP_TYPE` and extend the frame (app/windows, lane C4) | Owner: lane C4 (Phase C): runner change, then report it through `platformAppearanceProvider.micaActive` | Shell and sidebar are transparent when Mica is reported; solid surfaces until then |
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
 | 2026-10-19 | B2 | NET-001, NET-002, FILE-004, LIB-014 (chromaprint) — all platforms | Native libraries (libsmb2, libnfs, libarchive, libebur128, chromaprint, uchardet; libssh2 for Windows) are not yet published for every platform (Android pinned) as `mediahro-deps` archives; the ffigen bindings and contract tests skip without them | B4: publish and pin the archives; orchestrator: add the `network-env` CI job (PR #1 "Orchestrator changes needed") | Bindings, VFS clients and contract tests written; `packages/mediahro_ffi/test/network` docker-compose env + build_native.sh build them on Linux CI |
 | 2026-10-19 | B2 | LIB-002, FILE-002 (trash/share), CORE-014 (file save), LIB-007 (import/export pickers), LIB-013 (secure storage/biometrics), FILE-005 (Files/USB) — A/I (and M/W pickers) | Native storage, pickers, secure storage, biometrics and auth browser are lane C4's facades | C4: StorageFacade, SecureStorageFacade, BiometricsFacade, AuthBrowser, NetworkStatus, multicast lock | B2 codes against the facades with fakes; `_optional` degrades to "Not available on this device" |
@@ -387,6 +389,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | **Merged B2** (PR #1, library index, scanner, search, sources, file browser; 16/16 CI green on 9971a48) and **B3** (PR #2, design system, shell, settings, themes, l10n tooling, shortcuts, privacy dashboard; 16/16 green on 24d9404). First verified cells: 15 (B3). Bookkeeping (STATUS, CHANGELOG, size baseline) is now orchestrator-only; CI cut to 2 macOS jobs per PR. |
 | 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
 | 2026-10-20 | Found three stalls: my `--no-dds` CI change broke Android integration on every PR (reverted, 6aa7fad); B1's PR #3 had 9 red jobs including a 102 MB Android APK (budget 40 MB) — B1 and B4a briefed. |
 | 2026-10-20 | Owner decided ADR-017: SFTP/FTPS and the open Cast sender use OS crypto only (sshj/JCA, SwiftNIO SSH/CryptoKit, libssh2+WinCNG; OS TLS sockets for FTPS and CASTv2). `TlsSocketFacade` and `SftpFacade` added to app/lib/platform. NET-004 and CAST-001 are unblocked (sequencing: C4 platform modules). |

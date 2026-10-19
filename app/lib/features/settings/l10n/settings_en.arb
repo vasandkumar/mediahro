@@ -1,0 +1,626 @@
+{
+  "@@locale": "en",
+  "settingsSectionPlayback": "Playback",
+  "@settingsSectionPlayback": {
+    "description": "Settings section title."
+  },
+  "settingsSectionPlaybackDescription": "Speed, seeking, resume and what plays next",
+  "@settingsSectionPlaybackDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionVideo": "Video",
+  "@settingsSectionVideo": {
+    "description": "Settings section title."
+  },
+  "settingsSectionVideoDescription": "Picture, hardware decoding and HDR",
+  "@settingsSectionVideoDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionAudio": "Audio",
+  "@settingsSectionAudio": {
+    "description": "Settings section title."
+  },
+  "settingsSectionAudioDescription": "Output, equaliser, volume and passthrough",
+  "@settingsSectionAudioDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionSubtitles": "Subtitles",
+  "@settingsSectionSubtitles": {
+    "description": "Settings section title."
+  },
+  "settingsSectionSubtitlesDescription": "Languages, style, timing and downloads",
+  "@settingsSectionSubtitlesDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionPhotos": "Photos",
+  "@settingsSectionPhotos": {
+    "description": "Settings section title."
+  },
+  "settingsSectionPhotosDescription": "Viewer, editing and slideshows",
+  "@settingsSectionPhotosDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionLibrary": "Library",
+  "@settingsSectionLibrary": {
+    "description": "Settings section title."
+  },
+  "settingsSectionLibraryDescription": "Scanning, metadata and organisation",
+  "@settingsSectionLibraryDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionSources": "Sources",
+  "@settingsSectionSources": {
+    "description": "Settings section title."
+  },
+  "settingsSectionSourcesDescription": "Folders, network shares and servers",
+  "@settingsSectionSourcesDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionAppearance": "Appearance",
+  "@settingsSectionAppearance": {
+    "description": "Settings section title."
+  },
+  "settingsSectionAppearanceDescription": "Theme, colours, language and motion",
+  "@settingsSectionAppearanceDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionShortcuts": "Keyboard shortcuts",
+  "@settingsSectionShortcuts": {
+    "description": "Settings section title."
+  },
+  "settingsSectionShortcutsDescription": "View and change keys for every action",
+  "@settingsSectionShortcutsDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionPrivacy": "Privacy",
+  "@settingsSectionPrivacy": {
+    "description": "Settings section title."
+  },
+  "settingsSectionPrivacyDescription": "Every connection the app can make, and its switch",
+  "@settingsSectionPrivacyDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionSupport": "Support Mediahro",
+  "@settingsSectionSupport": {
+    "description": "Settings section title."
+  },
+  "settingsSectionSupportDescription": "Help keep Mediahro free",
+  "@settingsSectionSupportDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionAbout": "About",
+  "@settingsSectionAbout": {
+    "description": "Settings section title."
+  },
+  "settingsSectionAboutDescription": "Version, licences and policies",
+  "@settingsSectionAboutDescription": {
+    "description": "One-line description under a settings section title."
+  },
+  "settingsSectionEmpty": "Nothing to set here yet.",
+  "@settingsSectionEmpty": {
+    "description": "Shown for a settings section without options."
+  },
+  "settingsSearchHint": "Search settings",
+  "@settingsSearchHint": {
+    "description": "Placeholder in the settings search field."
+  },
+  "settingsSearchClear": "Clear search",
+  "@settingsSearchClear": {
+    "description": "Clears the settings search field."
+  },
+  "settingsSearchNoResults": "No settings match “{query}”.",
+  "@settingsSearchNoResults": {
+    "description": "Shown when settings search finds nothing.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsSearchResults": "{count, plural, =1{1 result} other{{count} results}}",
+  "@settingsSearchResults": {
+    "description": "Announced number of settings search results.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsMoreActions": "More actions",
+  "@settingsMoreActions": {
+    "description": "Tooltip of the settings overflow menu."
+  },
+  "settingsExport": "Export settings",
+  "@settingsExport": {
+    "description": "Menu action and sheet title: save settings as a JSON file."
+  },
+  "settingsExportDescription": "Save your settings to a file to use on another device. Sign-in details are never included.",
+  "@settingsExportDescription": {
+    "description": "Explains settings export."
+  },
+  "settingsExportSave": "Save to file",
+  "@settingsExportSave": {
+    "description": "Saves exported settings to a file."
+  },
+  "settingsExportSaved": "Saved to {path}",
+  "@settingsExportSaved": {
+    "description": "Confirmation with the file path after exporting settings.",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsExportCopy": "Copy",
+  "@settingsExportCopy": {
+    "description": "Copies exported settings as text."
+  },
+  "settingsExportCopied": "Settings copied",
+  "@settingsExportCopied": {
+    "description": "Confirmation after copying exported settings."
+  },
+  "settingsImport": "Import settings",
+  "@settingsImport": {
+    "description": "Menu action, dialog title and button: load settings from JSON."
+  },
+  "settingsImportDescription": "Paste settings exported from Mediahro. They replace your current settings.",
+  "@settingsImportDescription": {
+    "description": "Explains settings import."
+  },
+  "settingsImportField": "Settings file contents",
+  "@settingsImportField": {
+    "description": "Label of the text field for pasted settings."
+  },
+  "settingsImportPaste": "Paste",
+  "@settingsImportPaste": {
+    "description": "Pastes clipboard text into the import field."
+  },
+  "settingsImportDone": "Settings imported: {imported}. Skipped: {skipped}.",
+  "@settingsImportDone": {
+    "description": "Result of a settings import: how many values were applied and how many were skipped (locked by the organisation or not valid).",
+    "placeholders": {
+      "imported": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsImportNotSettings": "This isn't a Mediahro settings file.",
+  "@settingsImportNotSettings": {
+    "description": "Import error for unrelated text or files."
+  },
+  "settingsImportNewer": "These settings come from a newer version of Mediahro. Update the app, then try again.",
+  "@settingsImportNewer": {
+    "description": "Import error for a newer settings format."
+  },
+  "settingsResetAll": "Reset all settings",
+  "@settingsResetAll": {
+    "description": "Menu action that restores every default."
+  },
+  "settingsResetAllTitle": "Reset all settings?",
+  "@settingsResetAllTitle": {
+    "description": "Confirmation dialog title."
+  },
+  "settingsResetAllBody": "Every option goes back to its default. Your library, playlists and sources are not affected.",
+  "@settingsResetAllBody": {
+    "description": "Confirmation dialog body for resetting all settings."
+  },
+  "settingsResetSection": "Reset section",
+  "@settingsResetSection": {
+    "description": "Restores the defaults of one settings section."
+  },
+  "settingsResetSectionTitle": "Reset {section}?",
+  "@settingsResetSectionTitle": {
+    "description": "Confirmation dialog title for resetting one section.",
+    "placeholders": {
+      "section": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsResetSectionBody": "All options in this section go back to their defaults.",
+  "@settingsResetSectionBody": {
+    "description": "Confirmation dialog body for resetting one section."
+  },
+  "settingsReset": "Reset",
+  "@settingsReset": {
+    "description": "Confirms a reset."
+  },
+  "settingsCancel": "Cancel",
+  "@settingsCancel": {
+    "description": "Cancels a dialog."
+  },
+  "settingsOn": "On",
+  "@settingsOn": {
+    "description": "Setting value: on."
+  },
+  "settingsOff": "Off",
+  "@settingsOff": {
+    "description": "Setting value: off."
+  },
+  "settingsFollowSystem": "Follow system",
+  "@settingsFollowSystem": {
+    "description": "Setting value: use the operating system's preference."
+  },
+  "settingsTheme": "Theme",
+  "@settingsTheme": {
+    "description": "Setting: light or dark appearance."
+  },
+  "settingsThemeDescription": "Light, dark, or the same as your device.",
+  "@settingsThemeDescription": {
+    "description": "One-line description of the theme setting."
+  },
+  "settingsThemeKeywords": "dark mode light mode night appearance",
+  "@settingsThemeKeywords": {
+    "description": "Extra search terms for the theme setting; not shown."
+  },
+  "settingsThemeLight": "Light",
+  "@settingsThemeLight": {
+    "description": "Theme option."
+  },
+  "settingsThemeDark": "Dark",
+  "@settingsThemeDark": {
+    "description": "Theme option."
+  },
+  "settingsAmoled": "Pure black",
+  "@settingsAmoled": {
+    "description": "Setting: true-black (AMOLED) dark theme."
+  },
+  "settingsAmoledDescription": "Use black backgrounds in the dark theme. Saves power on OLED screens.",
+  "@settingsAmoledDescription": {
+    "description": "One-line description of the AMOLED setting."
+  },
+  "settingsHighContrast": "Higher contrast",
+  "@settingsHighContrast": {
+    "description": "Setting: high-contrast colours."
+  },
+  "settingsHighContrastDescription": "Stronger text and outline colours for easier reading.",
+  "@settingsHighContrastDescription": {
+    "description": "One-line description of the high contrast setting."
+  },
+  "settingsDynamicColor": "Colours from wallpaper",
+  "@settingsDynamicColor": {
+    "description": "Setting (Android): Material You dynamic colour."
+  },
+  "settingsDynamicColorDescription": "Use your wallpaper's colours instead of each mode's own colour.",
+  "@settingsDynamicColorDescription": {
+    "description": "One-line description of dynamic colour."
+  },
+  "settingsModeAccents": "Colour per mode",
+  "@settingsModeAccents": {
+    "description": "Setting: Video, Music and Photos each have their own accent colour."
+  },
+  "settingsModeAccentsDescription": "Video, Music and Photos each use their own colour.",
+  "@settingsModeAccentsDescription": {
+    "description": "One-line description of per-mode accents."
+  },
+  "settingsAccentVideo": "Video colour",
+  "@settingsAccentVideo": {
+    "description": "Setting: accent colour of the Video mode."
+  },
+  "settingsAccentMusic": "Music colour",
+  "@settingsAccentMusic": {
+    "description": "Setting: accent colour of the Music mode."
+  },
+  "settingsAccentPhotos": "Photos colour",
+  "@settingsAccentPhotos": {
+    "description": "Setting: accent colour of the Photos mode."
+  },
+  "settingsAccentDescription": "The accent used for buttons and highlights in this mode.",
+  "@settingsAccentDescription": {
+    "description": "One-line description of a mode accent setting."
+  },
+  "settingsAccentKeywords": "accent colour color tint",
+  "@settingsAccentKeywords": {
+    "description": "Extra search terms for accent settings; not shown."
+  },
+  "settingsAccentBrand": "Mediahro default",
+  "@settingsAccentBrand": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentBlue": "Blue",
+  "@settingsAccentBlue": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentViolet": "Violet",
+  "@settingsAccentViolet": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentPink": "Pink",
+  "@settingsAccentPink": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentRed": "Red",
+  "@settingsAccentRed": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentCoral": "Coral",
+  "@settingsAccentCoral": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentAmber": "Amber",
+  "@settingsAccentAmber": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentGreen": "Green",
+  "@settingsAccentGreen": {
+    "description": "Accent colour option."
+  },
+  "settingsAccentTeal": "Teal",
+  "@settingsAccentTeal": {
+    "description": "Accent colour option."
+  },
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "description": "Setting: app language."
+  },
+  "settingsLanguageDescription": "The language of Mediahro's menus and messages.",
+  "@settingsLanguageDescription": {
+    "description": "One-line description of the language setting."
+  },
+  "settingsLanguageKeywords": "language locale translation",
+  "@settingsLanguageKeywords": {
+    "description": "Extra search terms for the language setting; not shown."
+  },
+  "settingsRestoreLastMode": "Open where you left off",
+  "@settingsRestoreLastMode": {
+    "description": "Setting: start in the last used mode (Video, Music or Photos)."
+  },
+  "settingsRestoreLastModeDescription": "Start in Video, Music or Photos, whichever you used last.",
+  "@settingsRestoreLastModeDescription": {
+    "description": "One-line description of restoring the last mode."
+  },
+  "settingsReduceMotion": "Reduce motion",
+  "@settingsReduceMotion": {
+    "description": "Setting: replace movement with fades."
+  },
+  "settingsReduceMotionDescription": "Use fades instead of sliding and zooming animations.",
+  "@settingsReduceMotionDescription": {
+    "description": "One-line description of reduce motion."
+  },
+  "settingsReduceTransparency": "Reduce transparency",
+  "@settingsReduceTransparency": {
+    "description": "Setting: opaque bars and sheets."
+  },
+  "settingsReduceTransparencyDescription": "Make bars, sheets and player controls solid instead of see-through.",
+  "@settingsReduceTransparencyDescription": {
+    "description": "One-line description of reduce transparency."
+  },
+  "settingsShortcutsKeywords": "keyboard keys hotkeys remap cheat sheet",
+  "@settingsShortcutsKeywords": {
+    "description": "Extra search terms for keyboard shortcuts; not shown."
+  },
+  "settingsShortcutsResetAll": "Restore all defaults",
+  "@settingsShortcutsResetAll": {
+    "description": "Restores every keyboard shortcut."
+  },
+  "settingsShortcutsConflicts": "{count, plural, =1{1 key is used by more than one action.} other{{count} keys are used by more than one action.}}",
+  "@settingsShortcutsConflicts": {
+    "description": "Warning about shortcut conflicts.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsShortcutDefault": "Default",
+  "@settingsShortcutDefault": {
+    "description": "Secondary text: the shortcut uses its default key."
+  },
+  "settingsShortcutCustom": "Changed",
+  "@settingsShortcutCustom": {
+    "description": "Secondary text: the user changed this shortcut."
+  },
+  "settingsShortcutPress": "Press the new key combination.",
+  "@settingsShortcutPress": {
+    "description": "Instruction in the shortcut capture dialog."
+  },
+  "settingsShortcutWaiting": "Waiting for a key…",
+  "@settingsShortcutWaiting": {
+    "description": "Shown until a key is pressed in the capture dialog."
+  },
+  "settingsShortcutTaken": "Already used by {actions}. Replacing removes it there.",
+  "@settingsShortcutTaken": {
+    "description": "Conflict warning in the capture dialog.",
+    "placeholders": {
+      "actions": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsShortcutAssign": "Use this key",
+  "@settingsShortcutAssign": {
+    "description": "Confirms a new shortcut."
+  },
+  "settingsShortcutReplace": "Replace",
+  "@settingsShortcutReplace": {
+    "description": "Confirms a shortcut that takes the key from another action."
+  },
+  "settingsShortcutRemove": "Remove key",
+  "@settingsShortcutRemove": {
+    "description": "Unbinds a shortcut."
+  },
+  "settingsShortcutRestore": "Restore default",
+  "@settingsShortcutRestore": {
+    "description": "Restores one shortcut's default key."
+  },
+  "settingsPrivacyDashboard": "Privacy dashboard",
+  "@settingsPrivacyDashboard": {
+    "description": "Title of the list of every network connection the app can make."
+  },
+  "settingsPrivacyKeywords": "network internet connections telemetry crash analytics tracking",
+  "@settingsPrivacyKeywords": {
+    "description": "Extra search terms for the privacy dashboard; not shown."
+  },
+  "settingsPrivacyIntro": "Mediahro only connects to the services below when you turn them on. Sources and servers you add are always reachable.",
+  "@settingsPrivacyIntro": {
+    "description": "Introduction at the top of the privacy dashboard."
+  },
+  "settingsPrivacyTelemetryHeader": "Off unless you turn them on",
+  "@settingsPrivacyTelemetryHeader": {
+    "description": "Heading above the crash report, usage statistics and update check switches."
+  },
+  "settingsPrivacyTelemetryExplainer": "Crash reports and usage statistics are anonymous and go to Mediahro's own servers. Update checks only exist in builds outside the app stores.",
+  "@settingsPrivacyTelemetryExplainer": {
+    "description": "Explains the three telemetry switches (PRIV-001)."
+  },
+  "settingsPrivacyUpdateCheck": "Check for updates",
+  "@settingsPrivacyUpdateCheck": {
+    "description": "Switch: let the app check for new versions."
+  },
+  "settingsPrivacyUpdateCheckDescription": "Look for a new version once a day.",
+  "@settingsPrivacyUpdateCheckDescription": {
+    "description": "One-line description of the update check switch."
+  },
+  "settingsPrivacyUpdateCheckStore": "Your app store handles updates for this build.",
+  "@settingsPrivacyUpdateCheckStore": {
+    "description": "Shown instead of the switch in store builds."
+  },
+  "settingsPrivacyServicesHeader": "Online services",
+  "@settingsPrivacyServicesHeader": {
+    "description": "Heading above the list of third-party services."
+  },
+  "settingsPrivacyUserHostsHeader": "Your sources and servers",
+  "@settingsPrivacyUserHostsHeader": {
+    "description": "Heading above hosts the user added."
+  },
+  "settingsPrivacyUserHostsExplainer": "Mediahro connects to these because you added them. Remove a source to stop.",
+  "@settingsPrivacyUserHostsExplainer": {
+    "description": "Explains user-configured hosts."
+  },
+  "settingsPrivacyNoUserHosts": "You haven't added any network sources.",
+  "@settingsPrivacyNoUserHosts": {
+    "description": "Shown when there are no user hosts."
+  },
+  "settingsPrivacyNeverUsed": "Never used",
+  "@settingsPrivacyNeverUsed": {
+    "description": "Last-used time of an endpoint that was never contacted."
+  },
+  "settingsPrivacyLastUsed": "Last used {when}",
+  "@settingsPrivacyLastUsed": {
+    "description": "Last-used time of an endpoint; when is a formatted date and time.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPrivacyPurposeConfiguration": "Remote settings",
+  "@settingsPrivacyPurposeConfiguration": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeCrashReports": "Crash reports",
+  "@settingsPrivacyPurposeCrashReports": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeAnalytics": "Usage statistics",
+  "@settingsPrivacyPurposeAnalytics": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeSubtitles": "Subtitle downloads",
+  "@settingsPrivacyPurposeSubtitles": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeMetadata": "Film and series details",
+  "@settingsPrivacyPurposeMetadata": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeLyrics": "Lyrics",
+  "@settingsPrivacyPurposeLyrics": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeArtwork": "Album art and tags",
+  "@settingsPrivacyPurposeArtwork": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeFingerprinting": "Song recognition",
+  "@settingsPrivacyPurposeFingerprinting": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeScrobbling": "Listening history",
+  "@settingsPrivacyPurposeScrobbling": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeMaps": "Map tiles",
+  "@settingsPrivacyPurposeMaps": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeSkipMarkers": "Skip intro markers",
+  "@settingsPrivacyPurposeSkipMarkers": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyPurposeUserConfigured": "Added by you",
+  "@settingsPrivacyPurposeUserConfigured": {
+    "description": "What a network service is used for, shown in the privacy dashboard."
+  },
+  "settingsPrivacyServiceConfig": "Mediahro configuration",
+  "@settingsPrivacyServiceConfig": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceCrash": "Mediahro crash reports",
+  "@settingsPrivacyServiceCrash": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceAnalytics": "Mediahro usage statistics",
+  "@settingsPrivacyServiceAnalytics": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceOpenSubtitles": "OpenSubtitles",
+  "@settingsPrivacyServiceOpenSubtitles": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServicePodnapisi": "Podnapisi",
+  "@settingsPrivacyServicePodnapisi": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceSubdl": "SubDL",
+  "@settingsPrivacyServiceSubdl": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceTmdb": "TMDB",
+  "@settingsPrivacyServiceTmdb": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceTvdb": "TheTVDB",
+  "@settingsPrivacyServiceTvdb": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceLrclib": "LRCLIB",
+  "@settingsPrivacyServiceLrclib": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceMusicBrainz": "MusicBrainz",
+  "@settingsPrivacyServiceMusicBrainz": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceAcoustId": "AcoustID",
+  "@settingsPrivacyServiceAcoustId": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceListenBrainz": "ListenBrainz",
+  "@settingsPrivacyServiceListenBrainz": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceLastFm": "Last.fm",
+  "@settingsPrivacyServiceLastFm": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceLibreFm": "Libre.fm",
+  "@settingsPrivacyServiceLibreFm": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceMapTiles": "Map tiles",
+  "@settingsPrivacyServiceMapTiles": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceIntroDb": "IntroDB",
+  "@settingsPrivacyServiceIntroDb": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  },
+  "settingsPrivacyServiceTrakt": "Trakt",
+  "@settingsPrivacyServiceTrakt": {
+    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
+  }
+}

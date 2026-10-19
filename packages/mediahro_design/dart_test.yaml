@@ -1,0 +1,4 @@
+tags:
+  # Golden matrices (docs/11 §1). Run alone with `flutter test --tags golden`;
+  # re-record intentionally with `--update-goldens`.
+  golden:
