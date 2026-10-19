@@ -20,7 +20,8 @@ import 'tls_fakes.dart';
 final bool _enabled = Platform.environment['MEDIAHRO_NET_ENV'] == '1';
 final String? _skip = _enabled
     ? null
-    : 'set MEDIAHRO_NET_ENV=1 with the docker environment running';
+    : 'blocked: STATUS §3 — network-env CI job (orchestrator); locally set '
+          'MEDIAHRO_NET_ENV=1 with the docker environment running';
 final String _host = Platform.environment['MEDIAHRO_NET_HOST'] ?? '127.0.0.1';
 
 int seedByte(int i) => (i * 131 + 7) & 0xff;

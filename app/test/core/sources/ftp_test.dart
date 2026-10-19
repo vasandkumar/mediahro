@@ -189,7 +189,9 @@ void main() {
 
   test('NET-004 explicit FTPS: untrusted certificate reports its fingerprint, the pinned one works over PROT P', () async {
     final ctx = tls;
-    if (ctx == null) return markTestSkipped('openssl not installed');
+    if (ctx == null) {
+      return markTestSkipped('environment: openssl not installed');
+    }
     final s = await TestFtpServer.start(
       root,
       options: TestFtpOptions(context: ctx, requireTls: true),
@@ -259,7 +261,9 @@ void main() {
     'NET-004 implicit FTPS through the OS TLS facade on its own port',
     () async {
       final ctx = tls;
-      if (ctx == null) return markTestSkipped('openssl not installed');
+      if (ctx == null) {
+        return markTestSkipped('environment: openssl not installed');
+      }
       final s = await TestFtpServer.start(
         root,
         options: TestFtpOptions(context: ctx, implicitTls: true),

@@ -24,8 +24,10 @@ DynamicLibrary? _open() {
 
 void main() {
   final lib = _open();
-  final skip = lib == null
-      ? 'libssh2 is built for Windows only and is not in this build'
+  final skip = !Platform.isWindows
+      ? 'Windows only: Android and Apple SFTP use the OS SSH stack (ADR-017)'
+      : lib == null
+      ? 'blocked: STATUS §3 — mediahro-deps libssh2 for Windows (B4c)'
       : null;
 
   test('NET-004 SFTP attribute layout matches the Windows ABI', () {

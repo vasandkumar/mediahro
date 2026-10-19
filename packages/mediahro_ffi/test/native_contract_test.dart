@@ -11,7 +11,8 @@ import 'package:test/test.dart';
 
 String? _skip(NativeLibrary lib) => NativeLibraries.isAvailable(lib)
     ? null
-    : '${lib.baseName} not in this build';
+    : 'blocked: STATUS §3 — mediahro-deps lib${lib.baseName} for this '
+          'platform (B4)';
 
 /// Minimal ZIP writer (stored entries) for archive tests.
 Uint8List zipStored(Map<String, List<int>> files) {

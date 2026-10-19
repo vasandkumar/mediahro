@@ -16,7 +16,9 @@ void main() {
 
   bool missing(NativeLibrary lib) {
     if (NativeLibraries.isAvailable(lib)) return false;
-    markTestSkipped('${lib.baseName} is not in this build (deps.lock)');
+    markTestSkipped(
+      'blocked: STATUS §3 — mediahro-deps lib${lib.baseName} for this platform (B4)',
+    );
     return true;
   }
 
@@ -104,13 +106,16 @@ void main() {
 
   // The protocol clients run on their own isolate; a refused connection
   // proves the library loaded there and its connect path ran.
-  for (final (id, lib, fs)
-      in <(String, NativeLibrary, VirtualFileSystem Function())>[
+  final smbRoot = Uri.parse('smb://127.0.0.1:1/share/');
+  final nfsRoot = Uri.parse('nfs://127.0.0.1/export/');
+  for (final (id, lib, root, fs)
+      in <(String, NativeLibrary, Uri, VirtualFileSystem Function())>[
         (
           'NET-001 libsmb2',
           NativeLibrary.smb2,
+          smbRoot,
           () => smbFileSystem(
-            Uri.parse('smb://127.0.0.1:1/share/'),
+            smbRoot,
             const SmbOptions(
               server: '127.0.0.1',
               share: 'share',
@@ -123,21 +128,10 @@ void main() {
         (
           'NET-002 libnfs',
           NativeLibrary.nfs,
+          nfsRoot,
           () => nfsFileSystem(
-            Uri.parse('nfs://127.0.0.1/export/'),
+            nfsRoot,
             const NfsOptions(server: '127.0.0.1', export: '/export'),
-          ),
-        ),
-        (
-          'NET-004 libcurl',
-          NativeLibrary.curl,
-          () => curlFileSystem(
-            Uri.parse('ftp://127.0.0.1:1/'),
-            const CurlOptions(
-              protocol: CurlProtocol.ftp,
-              host: '127.0.0.1',
-              port: 1,
-            ),
           ),
         ),
       ]) {
@@ -147,16 +141,7 @@ void main() {
       if (missing(lib)) return;
       final f = fs();
       await expectLater(
-        f
-            .list(
-              f.schemes.contains('smb')
-                  ? Uri.parse('smb://127.0.0.1:1/share/')
-                  : f.schemes.contains('nfs')
-                  ? Uri.parse('nfs://127.0.0.1/export/')
-                  : Uri.parse('ftp://127.0.0.1:1/'),
-            )
-            .toList()
-            .timeout(const Duration(seconds: 60)),
+        f.list(root).toList().timeout(const Duration(seconds: 60)),
         throwsA(isA<VirtualFileException>()),
       );
       if (f case final IsolateFileSystem i) await i.close();

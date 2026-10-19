@@ -13,7 +13,8 @@ import 'seed.dart' show seedByte;
 final bool _enabled = Platform.environment['MEDIAHRO_NET_ENV'] == '1';
 final String? _skip = _enabled
     ? null
-    : 'set MEDIAHRO_NET_ENV=1 with the docker environment running';
+    : 'blocked: STATUS §3 — network-env CI job (orchestrator); locally set '
+          'MEDIAHRO_NET_ENV=1 with the docker environment running';
 final String _host = Platform.environment['MEDIAHRO_NET_HOST'] ?? '127.0.0.1';
 final int? _smbPort = int.tryParse(Platform.environment['SMB_PORT'] ?? '');
 final String _data =
@@ -191,9 +192,7 @@ void main() {
         final p = await arch.open(Uri.parse('archive:///page%2001.jpg'));
         expect(await p.read(10, 3), [seedByte(10), seedByte(11), seedByte(12)]);
       },
-      skip: NativeLibraries.isAvailable(NativeLibrary.archive)
-          ? null
-          : 'libarchive missing',
+      skip: NativeLibraries.isAvailable(NativeLibrary.archive) ? null : 'blocked: STATUS §3 — mediahro-deps libarchive for this platform (B4)',
     );
   }, skip: _skip);
 
