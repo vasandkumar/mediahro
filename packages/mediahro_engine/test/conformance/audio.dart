@@ -427,6 +427,17 @@ Future<_Pcm> _capture(Future<void> Function(MpvEngine e) body) async {
   );
   try {
     await body(e);
+    // ao_pcm writes from its own thread; let it drain before the core goes.
+    var last = -1;
+    var stable = 0;
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (stable < 3 && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final f = File(file);
+      final size = f.existsSync() ? f.lengthSync() : 0;
+      stable = size == last ? stable + 1 : 0;
+      last = size;
+    }
   } finally {
     await e.dispose();
   }
