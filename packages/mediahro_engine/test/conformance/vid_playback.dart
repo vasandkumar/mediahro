@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine/src/mpv/mpv_options.dart' show cacheBytes;
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 import 'support.dart';
@@ -28,6 +29,24 @@ void vidPlaybackSuite() {
       );
       expect(end.error, isNull, reason: 'no error state for a broken tail');
       expect(end.status, PlaybackStatus.ended);
+    }, skip: skip);
+
+    test('VID-005 AVI without an index plays and seeks', () async {
+      final e = await openItem('avi_noindex.avi');
+      final s = await waitPlaying(e, reason: 'index-less avi playing');
+      expect(s.error, isNull);
+      expect(s.duration, isNotNull);
+      for (final target in const [Duration(seconds: 4), Duration(seconds: 1)]) {
+        await e.seek(target);
+        final after = await waitFor(
+          e,
+          (s) =>
+              s.status != PlaybackStatus.buffering &&
+              (s.position - target).inMilliseconds.abs() < 1000,
+          reason: 'seek to $target in an index-less avi',
+        );
+        expect(after.error, isNull);
+      }
     }, skip: skip);
 
     test('VID-005 content is detected regardless of extension', () async {
@@ -183,6 +202,103 @@ void vidPlaybackSuite() {
       // reads and the seek landed.
       expect(file.reads, greaterThanOrEqualTo(readsBefore));
       expect(file.reads, greaterThan(0));
+    }, skip: skip);
+
+    test('VID-006 read-ahead cache is sized to the bitrate', () async {
+      final source = File(corpusPath('mkv_multitrack.mkv'));
+      final e = headlessEngine();
+      addTearDown(e.dispose);
+      await e.open(VirtualFileSource(_CountingFile(source)));
+      final s = await waitPlaying(e, reason: 'network file playing');
+      final duration = s.duration ?? Duration.zero;
+      expect(duration, greaterThan(Duration.zero));
+      final bitrate =
+          (await source.length() * 8 * 1000 / duration.inMilliseconds).round();
+      final wanted = cacheBytes(
+        platform: e.platform,
+        isNetwork: true,
+        bitrate: bitrate,
+      );
+      // The default network budget applies until the bitrate is known.
+      expect(wanted, isNot(cacheBytes(platform: e.platform, isNetwork: true)));
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      Object? actual;
+      while (DateTime.now().isBefore(deadline)) {
+        actual = await prop(e, 'demuxer-max-bytes');
+        // Within 1 %: duration in state is rounded to milliseconds.
+        if (actual is int && (actual - wanted).abs() <= wanted ~/ 100) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(actual, isA<int>());
+      expect(
+        ((actual! as int) - wanted).abs(),
+        lessThanOrEqualTo(wanted ~/ 100),
+      );
+    }, skip: skip);
+
+    test('VID-006 HTTP sources seek with range requests', () async {
+      final source = File(corpusPath('mkv_multitrack.mkv'));
+      final bytes = await source.readAsBytes();
+      final ranges = <int>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((req) async {
+        final res = req.response
+          ..headers.set(HttpHeaders.acceptRangesHeader, 'bytes')
+          ..headers.contentType = ContentType('video', 'x-matroska');
+        final m = RegExp(r'bytes=(\d+)-(\d*)')
+            .firstMatch(req.headers.value(HttpHeaders.rangeHeader) ?? '');
+        var start = 0;
+        var end = bytes.length - 1;
+        if (m != null) {
+          start = int.parse(m.group(1)!);
+          if (m.group(2)!.isNotEmpty) end = int.parse(m.group(2)!);
+          ranges.add(start);
+          res
+            ..statusCode = HttpStatus.partialContent
+            ..headers.set(
+              HttpHeaders.contentRangeHeader,
+              'bytes $start-$end/${bytes.length}',
+            );
+        }
+        res.contentLength = end - start + 1;
+        if (req.method != 'HEAD') res.add(bytes.sublist(start, end + 1));
+        await res.close();
+      });
+      final e = headlessEngine(
+        extraOptions: {'cache': 'no', 'demuxer-max-back-bytes': '0'},
+      );
+      addTearDown(e.dispose);
+      await e.open(
+        UriSource(
+          Uri.parse('http://127.0.0.1:${server.port}/mkv_multitrack.mkv'),
+        ),
+        // A small cache so the seek has to go back to the server.
+        opts: const OpenOptions(cacheBytes: 64 * 1024),
+      );
+      await waitPlaying(e, reason: 'http source playing');
+      await e.seek(const Duration(seconds: 5), mode: SeekMode.exact);
+      await waitFor(
+        e,
+        (s) => s.position >= const Duration(milliseconds: 4900),
+        reason: 'seek forward on http source',
+      );
+      // Seeking back past the (disabled) back buffer must reopen the
+      // stream at an offset.
+      await e.seek(const Duration(seconds: 1), mode: SeekMode.exact);
+      final s = await waitFor(
+        e,
+        (s) =>
+            s.position >= const Duration(milliseconds: 900) &&
+            s.position < const Duration(seconds: 3),
+        reason: 'seek back on http source',
+      );
+      expect(s.error, isNull);
+      expect(
+        ranges.where((r) => r > 0),
+        isNotEmpty,
+        reason: 'the seek was served by a range request',
+      );
     }, skip: skip);
 
     test('VID-006 playback survives a stalled source (Wi-Fi drop)', () async {

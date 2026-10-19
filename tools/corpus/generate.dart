@@ -525,6 +525,76 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       category: c,
       expect: {'video': 1, 'audio': 0, 'videoCodec': 'rv20'},
     );
+    // Same codecs as above in the remaining VID-001 containers and
+    // extensions (DVD VOB, AVCHD MTS, ASF, RMVB, OGM).
+    for (final (name, format, args, needs, codec) in [
+      (
+        'vob_mpeg2_ac3.vob',
+        'vob',
+        ['-c:v', 'mpeg2video', '-b:v', '2M', '-c:a', 'ac3'],
+        ['mpeg2video', 'ac3'],
+        'mpeg2video',
+      ),
+      (
+        'mts_mpeg2_ac3.mts',
+        'mpegts',
+        [
+          '-c:v',
+          'mpeg2video',
+          '-b:v',
+          '2M',
+          '-c:a',
+          'ac3',
+          '-mpegts_m2ts_mode',
+          '1',
+        ],
+        ['mpeg2video', 'ac3'],
+        'mpeg2video',
+      ),
+      (
+        'asf_wmv2_wma.asf',
+        'asf',
+        ['-c:v', 'wmv2', '-b:v', '1M', '-c:a', 'wmav2'],
+        ['wmv2', 'wmav2'],
+        'wmv2',
+      ),
+      (
+        'ogm_theora_vorbis.ogm',
+        'ogg',
+        ['-c:v', 'libtheora', '-q:v', '5', '-c:a', 'libvorbis'],
+        ['libtheora', 'libvorbis'],
+        'theora',
+      ),
+    ]) {
+      await item(
+        name,
+        [..._video, ..._tone, '-t', '5', ...args, '-f', format],
+        needs: needs,
+        ids: ['VID-001'],
+        category: c,
+        expect: {'video': 1, 'audio': 1, 'videoCodec': codec},
+      );
+    }
+    await item(
+      'rmvb_rv20.rmvb',
+      [
+        ..._video,
+        '-t',
+        '5',
+        '-s',
+        '352x288',
+        '-c:v',
+        'rv20',
+        '-b:v',
+        '1M',
+        '-f',
+        'rm',
+      ],
+      needs: ['rv20'],
+      ids: ['VID-001'],
+      category: c,
+      expect: {'video': 1, 'audio': 0, 'videoCodec': 'rv20'},
+    );
     await item(
       'mxf_mpeg2.mxf',
       [
@@ -1128,6 +1198,36 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
     });
   }
 
+  /// VID-005: an AVI whose idx1 and OpenDML indexes are blanked to JUNK and
+  /// whose header no longer claims an index, so players must rebuild it.
+  static List<int> _withoutAviIndex(Uint8List bytes) {
+    final out = Uint8List.fromList(bytes);
+    final view = ByteData.sublistView(out);
+    const junk = [0x4A, 0x55, 0x4E, 0x4B];
+    bool at(int i, String tag) {
+      for (var k = 0; k < 4; k++) {
+        if (out[i + k] != tag.codeUnitAt(k)) return false;
+      }
+      return true;
+    }
+
+    for (var i = 0; i + 8 <= out.length; i++) {
+      if (at(i, 'idx1') || at(i, 'indx') || at(i, 'ix00') || at(i, 'ix01')) {
+        out.setRange(i, i + 4, junk);
+      } else if (at(i, 'avih')) {
+        // dwFlags follows dwMicroSecPerFrame, dwMaxBytesPerSec and
+        // dwPaddingGranularity; clear AVIF_HASINDEX and AVIF_MUSTUSEINDEX.
+        final flags = i + 8 + 12;
+        view.setUint32(
+          flags,
+          view.getUint32(flags, Endian.little) & ~0x30,
+          Endian.little,
+        );
+      }
+    }
+    return out;
+  }
+
   // ----------------------------------------------------------- edge cases --
 
   Future<void> _edgeCases() async {
@@ -1141,6 +1241,16 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
         category: c,
         ids: ['VID-005'],
         expect: {'video': 1, 'truncated': true},
+      );
+    }
+    final indexed = File(p('avi_mpeg4_mp3.avi'));
+    if (indexed.existsSync()) {
+      written(
+        'avi_noindex.avi',
+        _withoutAviIndex(indexed.readAsBytesSync()),
+        category: c,
+        ids: ['VID-005'],
+        expect: {'video': 1, 'audio': 1, 'noIndex': true},
       );
     }
     written(
