@@ -494,6 +494,14 @@
   "@settingsPrivacyNoUserHosts": {
     "description": "Shown when there are no user hosts."
   },
+  "settingsPrivacyLanDiscovery": "Find shares and servers nearby",
+  "@settingsPrivacyLanDiscovery": {
+    "description": "Switch: look for network shares and media servers on the local network (nothing leaves the local network)."
+  },
+  "settingsPrivacyLanDiscoveryDescription": "Look for shares and media servers on your home network. Nothing leaves your network.",
+  "@settingsPrivacyLanDiscoveryDescription": {
+    "description": "One-line description of the local network discovery switch."
+  },
   "settingsPrivacyNeverUsed": "Never used",
   "@settingsPrivacyNeverUsed": {
     "description": "Last-used time of an endpoint that was never contacted."

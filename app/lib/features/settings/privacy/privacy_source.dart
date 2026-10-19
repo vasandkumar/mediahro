@@ -15,12 +15,20 @@ final class UserConfiguredHost {
 }
 
 /// What the privacy dashboard (CORE-015) reads besides the toggles: last
-/// use per endpoint and the user-configured hosts. Lane B2's
-/// `NetworkPolicy` implementation records both; the orchestrator wires an
-/// adapter over it with `privacyUsageProvider.overrideWith(...)`.
+/// use per endpoint, the user-configured hosts, endpoints that managed
+/// configuration forces off, and LAN discovery. In the app this is
+/// `PolicyPrivacyUsage` over lane B2's `PersistentNetworkPolicy`.
 abstract interface class PrivacyUsage implements Listenable {
   DateTime? lastUsed(NetworkEndpoint endpoint);
   List<UserConfiguredHost> userConfiguredHosts();
+
+  /// Managed configuration (B2B-001) forces [endpoint] off.
+  bool isForcedOff(NetworkEndpoint endpoint);
+
+  /// Local-network discovery of shares and servers (NET-001); null when the
+  /// policy does not offer the switch.
+  bool? get lanDiscovery;
+  Future<void> setLanDiscovery({required bool enabled});
 }
 
 /// Used until B2's recorder is wired: nothing recorded yet.
@@ -30,6 +38,15 @@ final class NoPrivacyUsage extends ChangeNotifier implements PrivacyUsage {
 
   @override
   List<UserConfiguredHost> userConfiguredHosts() => const [];
+
+  @override
+  bool isForcedOff(NetworkEndpoint endpoint) => false;
+
+  @override
+  bool? get lanDiscovery => null;
+
+  @override
+  Future<void> setLanDiscovery({required bool enabled}) async {}
 }
 
 /// In-memory recorder: a ready-made [PrivacyUsage] that B2's policy can
@@ -38,6 +55,20 @@ final class RecordingPrivacyUsage extends ChangeNotifier
     implements PrivacyUsage {
   final Map<String, DateTime> _endpoints = {};
   final Map<String, DateTime?> _hosts = {};
+  final Set<String> forcedOff = {};
+  bool? _lan;
+
+  @override
+  bool isForcedOff(NetworkEndpoint endpoint) => forcedOff.contains(endpoint.id);
+
+  @override
+  bool? get lanDiscovery => _lan;
+
+  @override
+  Future<void> setLanDiscovery({required bool enabled}) async {
+    _lan = enabled;
+    notifyListeners();
+  }
 
   void record(NetworkEndpoint endpoint, DateTime at) {
     _endpoints[endpoint.id] = at;
