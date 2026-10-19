@@ -66,24 +66,27 @@ void main() {
     late PersistentNetworkPolicy policy;
 
     setUp(() async {
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((r) async {
-        switch (r.uri.path) {
-          case '/bytes':
-            final range = r.headers.value('range');
-            r.response.statusCode = range == null ? 200 : 206;
-            r.response.write(range == null ? 'abcdef' : 'cd');
-          case '/hop':
-            r.response.statusCode = 302;
-            r.response.headers.set('location', 'https://tracker.example.com/x');
-          case '/local':
-            r.response.statusCode = 301;
-            r.response.headers.set('location', '/bytes');
-          case '/ua':
-            r.response.write(r.headers.value('user-agent'));
-        }
-        await r.response.close();
-      });
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0)
+        ..listen((r) async {
+          switch (r.uri.path) {
+            case '/bytes':
+              final range = r.headers.value('range');
+              r.response.statusCode = range == null ? 200 : 206;
+              r.response.write(range == null ? 'abcdef' : 'cd');
+            case '/hop':
+              r.response.statusCode = 302;
+              r.response.headers.set(
+                'location',
+                'https://tracker.example.com/x',
+              );
+            case '/local':
+              r.response.statusCode = 301;
+              r.response.headers.set('location', '/bytes');
+            case '/ua':
+              r.response.write(r.headers.value('user-agent'));
+          }
+          await r.response.close();
+        });
       policy = await PersistentNetworkPolicy.load(db);
       gw = NetworkGateway(policy);
     });

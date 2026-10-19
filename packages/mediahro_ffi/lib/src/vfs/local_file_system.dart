@@ -8,7 +8,7 @@ import 'package:mediahro_ffi/src/vfs/win32_find.dart';
 ///
 /// Platform-scoped access (SAF trees, security-scoped bookmarks) is resolved
 /// by the storage facade before a `file:` URI reaches this class.
-final class LocalFileSystem implements VirtualFileSystem {
+final class LocalFileSystem implements MutableFileSystem {
   const LocalFileSystem();
 
   @override
@@ -100,12 +100,126 @@ final class LocalFileSystem implements VirtualFileSystem {
     return i < 0 ? trimmed : trimmed.substring(i + 1);
   }
 
+  @override
+  Future<Uri> createDirectory(Uri parent, String name) async {
+    _checkName(name);
+    final d = Directory(_join(Directory.fromUri(parent).path, name));
+    if (d.existsSync()) {
+      throw VirtualFileException(VirtualFileError.alreadyExists, d.uri);
+    }
+    return await _guard(d.uri, () async => (await d.create()).uri);
+  }
+
+  @override
+  Future<Uri> rename(Uri uri, String newName) async {
+    _checkName(newName);
+    final e = _entity(uri);
+    final target = _join(e.parent.path, newName);
+    return await _moveTo(e, target);
+  }
+
+  @override
+  Future<Uri> move(Uri uri, Uri directory) async {
+    final e = _entity(uri);
+    final target = _join(Directory.fromUri(directory).path, _basename(e.path));
+    return await _moveTo(e, target);
+  }
+
+  @override
+  Future<void> delete(Uri uri, {bool recursive = false}) async {
+    final e = _entity(uri);
+    await _guard(uri, () => e.delete(recursive: recursive));
+  }
+
+  @override
+  Future<VirtualFileWriter> create(Uri uri) async {
+    final f = File.fromUri(uri);
+    final part = File(
+      '${f.parent.path}${Platform.pathSeparator}.${_basename(f.path)}.part',
+    );
+    final sink = await _guard(uri, () => part.open(mode: FileMode.write));
+    return _LocalWriter(uri, f, part, sink);
+  }
+
+  FileSystemEntity _entity(Uri uri) {
+    final path = uri.toFilePath();
+    final type = FileSystemEntity.typeSync(path, followLinks: false);
+    return switch (type) {
+      FileSystemEntityType.directory => Directory(path),
+      FileSystemEntityType.notFound => throw VirtualFileException(
+        VirtualFileError.notFound,
+        uri,
+      ),
+      _ => File(path),
+    };
+  }
+
+  Future<Uri> _moveTo(FileSystemEntity e, String target) async {
+    if (FileSystemEntity.typeSync(target, followLinks: false) !=
+            FileSystemEntityType.notFound &&
+        !_samePath(target, e.path)) {
+      throw VirtualFileException(
+        VirtualFileError.alreadyExists,
+        File(target).uri,
+      );
+    }
+    return await _guard(e.uri, () async {
+      try {
+        return (await e.rename(target)).uri;
+      } on FileSystemException catch (err) {
+        // EXDEV / ERROR_NOT_SAME_DEVICE: copy then delete.
+        final code = err.osError?.errorCode;
+        if (e is! File || (code != 18 && code != 17)) rethrow;
+        await e.copy(target);
+        await e.delete();
+        return File(target).uri;
+      }
+    });
+  }
+
+  static bool _samePath(String a, String b) =>
+      Platform.isWindows || Platform.isMacOS
+      ? a.toLowerCase() == b.toLowerCase()
+      : a == b;
+
+  static void _checkName(String name) {
+    if (name.isEmpty ||
+        name == '.' ||
+        name == '..' ||
+        name.contains('/') ||
+        name.contains(r'\') ||
+        name.contains('\u0000')) {
+      throw ArgumentError.value(name, 'name', 'not a valid file name');
+    }
+  }
+
+  static String _join(String dir, String name) {
+    final d = dir.endsWith(Platform.pathSeparator)
+        ? dir.substring(0, dir.length - 1)
+        : dir;
+    return '$d${Platform.pathSeparator}$name';
+  }
+
+  static Future<T> _guard<T>(Uri uri, Future<T> Function() op) async {
+    try {
+      return await op();
+    } on FileSystemException catch (e) {
+      throw VirtualFileException(_map(e), uri, e.message);
+    }
+  }
+
   static VirtualFileError _map(FileSystemException e) {
     final code = e.osError?.errorCode;
     // ENOENT (2) on POSIX and ERROR_FILE_NOT_FOUND/ERROR_PATH_NOT_FOUND (2/3) on Windows.
     if (code == 2 || code == 3) return VirtualFileError.notFound;
     // EACCES (13) / ERROR_ACCESS_DENIED (5).
     if (code == 13 || code == 5) return VirtualFileError.permissionDenied;
+    // EEXIST (17) / ERROR_ALREADY_EXISTS (183) / ERROR_FILE_EXISTS (80).
+    if (code == 17 || code == 183 || code == 80) {
+      return VirtualFileError.alreadyExists;
+    }
+    // ENOSPC (28) / ERROR_DISK_FULL (112).
+    if (code == 28 || code == 112) return VirtualFileError.noSpace;
     return VirtualFileError.io;
   }
 }
@@ -152,4 +266,35 @@ final class _LocalVirtualFile implements VirtualFile {
     _raf = null;
     await raf?.close();
   });
+}
+
+final class _LocalWriter implements VirtualFileWriter {
+  _LocalWriter(this.uri, this._target, this._part, this._sink);
+
+  @override
+  final Uri uri;
+  final File _target;
+  final File _part;
+  final RandomAccessFile _sink;
+  Future<void> _tail = Future.value();
+
+  @override
+  Future<void> write(List<int> bytes) =>
+      _tail = _tail.then((_) => _sink.writeFrom(bytes));
+
+  @override
+  Future<void> close() async {
+    await _tail;
+    await _sink.flush();
+    await _sink.close();
+    if (_target.existsSync()) await _target.delete();
+    await _part.rename(_target.path);
+  }
+
+  @override
+  Future<void> abort() async {
+    await _tail.catchError((Object _) {});
+    await _sink.close();
+    if (_part.existsSync()) await _part.delete();
+  }
 }

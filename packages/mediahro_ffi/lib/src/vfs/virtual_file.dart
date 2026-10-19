@@ -89,6 +89,38 @@ abstract interface class VirtualFileSystem {
   Stream<VirtualEntry> list(Uri directory);
 }
 
+/// Sequential writer returned by [MutableFileSystem.create].
+abstract interface class VirtualFileWriter {
+  Uri get uri;
+  Future<void> write(List<int> bytes);
+
+  /// Commits the file. Implementations write to a temporary name and rename
+  /// on close where the protocol allows, so readers never see partial files.
+  Future<void> close();
+
+  /// Drops a partial file.
+  Future<void> abort();
+}
+
+/// A file system that can change (FILE-002, FILE-003, FILE-005, NET-018).
+/// Capabilities in [VirtualFileSystem.capabilities] say which calls work.
+abstract interface class MutableFileSystem implements VirtualFileSystem {
+  Future<Uri> createDirectory(Uri parent, String name);
+
+  /// Renames in place; throws [VirtualFileError.alreadyExists] on clashes.
+  Future<Uri> rename(Uri uri, String newName);
+
+  /// Moves into [directory] (same file system).
+  Future<Uri> move(Uri uri, Uri directory);
+
+  /// Permanent delete. User-facing deletes go to the OS trash first
+  /// (StorageFacade.moveToTrash); this is for network shares without trash.
+  Future<void> delete(Uri uri, {bool recursive = false});
+
+  /// Creates or replaces [uri] for writing.
+  Future<VirtualFileWriter> create(Uri uri);
+}
+
 /// Failure categories mapped to user-facing copy (docs/06 §8).
 enum VirtualFileError {
   notFound,
@@ -99,6 +131,15 @@ enum VirtualFileError {
   closed,
   io,
   unsupported,
+
+  /// The target name is taken (rename/move/copy/create).
+  alreadyExists,
+
+  /// The server or disk is full.
+  noSpace,
+
+  /// The server presented an untrusted TLS certificate (docs/05 §9).
+  untrustedCertificate,
 }
 
 final class VirtualFileException implements Exception {

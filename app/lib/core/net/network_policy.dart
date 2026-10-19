@@ -284,12 +284,18 @@ final class NetworkGateway implements HttpTransport {
   /// Like [send] without buffering the body (downloads, NET-018; range
   /// reads, docs/05 §9). Redirects are followed only to hosts that pass
   /// [authorize] too.
+  ///
+  /// [bodyStream] (with [contentLength]) uploads without buffering; it can
+  /// be consumed once, so redirects are not followed for it.
   Future<HttpStreamResponse> sendStreamed(
     HttpRequestData request, {
     int maxRedirects = 5,
+    Stream<List<int>>? bodyStream,
+    int? contentLength,
   }) async {
     var uri = request.uri;
     var method = request.method;
+    final redirects = bodyStream == null ? maxRedirects : 0;
     for (var hop = 0; ; hop++) {
       authorize(uri);
       final HttpClientResponse res;
@@ -297,7 +303,12 @@ final class NetworkGateway implements HttpTransport {
         final req = await _client.openUrl(method, uri);
         req.followRedirects = false;
         request.headers.forEach(req.headers.set);
-        if (request.body != null && method != 'GET') req.add(request.body!);
+        if (bodyStream != null) {
+          if (contentLength != null) req.contentLength = contentLength;
+          await req.addStream(bodyStream);
+        } else if (request.body != null && method != 'GET') {
+          req.add(request.body!);
+        }
         res = await req.close();
       } on HandshakeException {
         final r = _rejected.remove(uri.host.toLowerCase());
@@ -306,7 +317,7 @@ final class NetworkGateway implements HttpTransport {
         }
         rethrow;
       }
-      if (res.isRedirect && hop < maxRedirects) {
+      if (res.isRedirect && hop < redirects) {
         final loc = res.headers.value(HttpHeaders.locationHeader);
         await res.drain<void>();
         if (loc == null) break;
