@@ -177,6 +177,7 @@ jobs:
 
   integration-android:
     runs-on: ubuntu-24.04
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Enable KVM
@@ -204,6 +205,7 @@ jobs:
 
   integration-ios:
     runs-on: macos-26
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -217,11 +219,11 @@ jobs:
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
       - name: Integration tests
         working-directory: app
-        # One launch per file: relaunching inside one invocation fails on desktop.
-        run: for f in integration_test/*_test.dart; do flutter test "$f" -d ${{ steps.sim.outputs.udid }} --dart-define=MEDIAHRO_FLAVOR=store || exit 1; done
+        run: ../tools/ci/run_integration.sh -d ${{ steps.sim.outputs.udid }} --dart-define=MEDIAHRO_FLAVOR=store
 
   integration-macos:
     runs-on: macos-26
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -229,11 +231,11 @@ jobs:
       - run: tools/bootstrap
       - name: Integration tests
         working-directory: app
-        # One launch per file: relaunching inside one invocation fails on desktop.
-        run: for f in integration_test/*_test.dart; do flutter test "$f" -d macos --dart-define=MEDIAHRO_FLAVOR=direct || exit 1; done
+        run: ../tools/ci/run_integration.sh -d macos --dart-define=MEDIAHRO_FLAVOR=direct
 
   integration-windows:
     runs-on: windows-2025
+    timeout-minutes: 75
     defaults:
       run: { shell: bash }
     steps:
@@ -243,5 +245,4 @@ jobs:
       - run: tools/bootstrap
       - name: Integration tests
         working-directory: app
-        # One launch per file: relaunching inside one invocation fails on desktop.
-        run: for f in integration_test/*_test.dart; do flutter test "$f" -d windows --dart-define=MEDIAHRO_FLAVOR=direct || exit 1; done
+        run: ../tools/ci/run_integration.sh -d windows --dart-define=MEDIAHRO_FLAVOR=direct
