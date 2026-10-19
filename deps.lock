@@ -1,19 +1,19 @@
 {
   "comment": "Pinned mediahro-deps release (docs/05 \u00a73, \u00a710). Written by lane B4 when archives are published; tools/deps/fetch.py verifies every SHA-256 before use.",
   "repository": "vasandkumar/mediahro-deps",
-  "release": "v2026.10.0-android.1",
+  "release": "v2026.10.2-android.3",
   "archives": {
     "android-arm64-v8a": {
-      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.0-android.1/mediahro-deps-android-arm64-v8a.tar.gz",
-      "sha256": "c28ddc9162a61e24f7ad1aa359282e72400e6d49b5b80092bee82bbffdeaaf7b"
+      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.2-android.3/mediahro-deps-android-arm64-v8a.tar.gz",
+      "sha256": "d52f03756c8b6cb4b48cc78db7c5e220318cba59f551baffa18a8c2b341d0c2e"
     },
     "android-armeabi-v7a": {
-      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.0-android.1/mediahro-deps-android-armeabi-v7a.tar.gz",
-      "sha256": "7808697fb45fbfa64c4fec664081667ddccbfd3bd8eedc4a46ee3ba09d3d5acc"
+      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.2-android.3/mediahro-deps-android-armeabi-v7a.tar.gz",
+      "sha256": "0a1b2f8ca397481ca684c3aaa2a09463e972d7db7e91915911d8481f54bdacce"
     },
     "android-x86_64": {
-      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.0-android.1/mediahro-deps-android-x86_64.tar.gz",
-      "sha256": "0b73406aace1ba25370ce4e37101a4d273106a7e2a61891e097bf7860daebf18"
+      "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.2-android.3/mediahro-deps-android-x86_64.tar.gz",
+      "sha256": "27b23e4fd56d8c964c9ac3942b8f63e462ca9f30770a079fd37f8cb38500c14f"
     },
     "ios-xcframeworks": null,
     "macos-xcframeworks": null,
@@ -21,7 +21,7 @@
     "windows-arm64": null
   },
   "sources": {
-    "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.0-android.1/mediahro-deps-sources.tar",
-    "sha256": "04fee0a44ec5d6020384e17be2c26725c6421e2b324f389ac4048bdd44d2f05c"
+    "url": "https://github.com/vasandkumar/mediahro-deps/releases/download/v2026.10.2-android.3/mediahro-deps-sources.tar",
+    "sha256": "284ae872ef151eac09450008414d7a45af60de16cbd1873135dc1ce9788c6ead"
   }
 }
