@@ -1256,11 +1256,31 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
     if (moov + moovSize != mp4.length) return null;
     final body = Uint8List.fromList(mp4.sublist(moov));
     var frames = 0;
+    final bodyView = ByteData.sublistView(body);
+    int? mdhd;
     for (var i = 4; i + 4 <= body.length; i++) {
       final t = String.fromCharCodes(body.sublist(i, i + 4));
       if (t == 'edts') body.setRange(i, i + 4, 'free'.codeUnits);
-      if (t == 'stsz' && frames == 0) {
-        frames = ByteData.sublistView(body).getUint32(i + 12);
+      if (t == 'stsz' && frames == 0) frames = bodyView.getUint32(i + 12);
+      if (t == 'mdhd') mdhd ??= i;
+      if (t == 'stts') {
+        // iTunes keeps every AAC frame at 1024 samples and carries the
+        // padding only in iTunSMPB; some FFmpeg versions shorten the last
+        // frame instead, which would trim the padding twice.
+        final entries = bodyView.getUint32(i + 8);
+        for (var k = 0; k < entries; k++) {
+          bodyView.setUint32(i + 12 + 8 * k + 4, 1024);
+        }
+      }
+    }
+    if (mdhd != null) {
+      // Media duration in samples: whole frames.
+      final v1 = body[mdhd + 4] == 1;
+      final at = mdhd + 8 + (v1 ? 16 : 8) + 4;
+      if (v1) {
+        bodyView.setUint64(at, frames * 1024);
+      } else {
+        bodyView.setUint32(at, frames * 1024);
       }
     }
     const priming = 1024;
