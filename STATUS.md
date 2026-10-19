@@ -329,6 +329,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
+| 2026-10-20 | B4c Native deps (Windows) | CAST-001 (W, FOSS desktop Cast sender) | `openscreen-libcast` cannot be built for Windows. Upstream Open Screen has no Windows platform layer: `platform/impl` covers only POSIX, Linux and macOS. Its TLS connection and Cast device-auth certificate checks are built on BoringSSL, which the no-OpenSSL / OS-crypto-only rule (docs/07 rule 12) excludes. The rest of `versions.json` builds for windows-x64 and windows-arm64 (mediahro-deps `windows/`). | Orchestrator decision (ADR), one of two options: (a) a mediahro-deps port of Open Screen's platform layer to Winsock, with TLS and certificate verification on Schannel/CNG; or (b) the casting lane implements the Cast v2 sender channel in Dart over the OS TLS stack and drops libcast on Windows | None for Cast on Windows; DLNA and the local HTTP cast server are unaffected |
 
 ## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
 
