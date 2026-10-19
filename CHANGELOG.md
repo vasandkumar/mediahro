@@ -5,6 +5,8 @@ All notable changes are grouped by feature area and reference feature IDs from `
 ## [Unreleased]
 
 ### Added
+- The library checks at start-up that the device's database engine supports full-text search, and explains what to do if it doesn't (LIB-001).
+- iOS and macOS use the system's SQLite, which keeps the app smaller (LIB-001, LIB-005).
 - Design system (lane B3, SYS-008, SYS-011): component library (`KButton`, `KSeekBar`, `KSheet`, `KGrid`, `KRow`, `KChip`, `KSidebar`, `KPlayerChrome`, `KMiniPlayer`, `KCompareView`, `KTimelineScrubber`, settings rows, skeletons, empty and error states) with semantics, platform target sizes, focus rings, reduced motion and transparency, 200 % text and RTL; window size classes, list-detail and tabletop layouts; golden matrix per platform family.
 - Shell (CORE-001): sidebar per window class, last mode restored on launch, glass/Mica/solid bar materials, mini-player slot.
 - First run (CORE-002): actions routed to the owning lanes; note that crash reports, usage statistics and update checks are off (PRIV-001).

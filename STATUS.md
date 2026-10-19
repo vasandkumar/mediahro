@@ -80,17 +80,17 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ | B2: local sources via StorageFacade grants (fakes in tests); Win32 fast path. ⛔ C4 StorageFacade (SAF/MediaStore, bookmarks, pickers). |
 | LIB-003 | Scan performance | B2 | ☐ | ☐ | ☐ | ☐ | B2: 10 k files 1.0–2.5 s initial / 0.2–0.55 s incremental (desktop); pause/resume/cancel; manual/on-open/watch. Phone budget: device lab. |
 | LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ | B2: folder browser + `ViewModeToggle` persisted per mode; C1–C3 place them in each mode. |
-| LIB-005 | Search | B2 | ☐ | ☐ | ☐ | ☐ | B2: FTS5 prefix search, bm25, all doc 04 filters; 50 k items median 9.5 ms (desktop CI). |
+| LIB-005 | Search | B2 | ☑ | ☑ | ☑ | ☑ | B2: FTS5 prefix search, bm25, all doc 04 filters; 50 k items median 9.5 ms (desktop CI). Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ | B2: `HomeRow` continue/recently added/played/unwatched queries + widgets; C1–C3 place them; resume thumbnails from B1/C3. |
 | LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ | B2: manual + smart playlists (rule builder, AND/OR, limit, sort), M3U/M3U8/PLS/XSPF/CUE parse (isolate, limits) and export. File import/export pickers → C4. |
-| LIB-008 | Multiple queues | B2 | ☐ | ☐ | ☐ | ☐ | B2: named audio queues + one video queue, persisted, repeat/shuffle; queues screen. |
-| LIB-009 | Tags and labels | B2 | ☐ | ☐ | ☐ | ☐ | B2: tags, colour labels, bulk apply; tag editor sheet. |
+| LIB-008 | Multiple queues | B2 | ☑ | ☑ | ☑ | ☑ | B2: named audio queues + one video queue, persisted, repeat/shuffle; queues screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
+| LIB-009 | Tags and labels | B2 | ☑ | ☑ | ☑ | ☑ | B2: tags, colour labels, bulk apply; tag editor sheet. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ | B2: per-item progress/watched; `ProgressSyncTarget` seam for Jellyfin/Emby/Plex (C4 servers) and Trakt (needs owner client ID). |
 | LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ | B2: filename parser, TMDB/TVDB clients through NetworkGateway, NFO, artwork cache, manual match. Live tests need owner API keys (§4). |
 | LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ | B2: series/season, albums/artists/genres/years/composers, TMDB collections; photo people/places come from C3. |
 | LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ | B2: PBKDF2 PIN (isolate), lockout, biometrics, locked sources/folders, hidden items excluded. Needs C4 SecureStorage/Biometrics facades on device. |
 | LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ | B2: exact hash, pHash (images), duration+size (video), chromaprint (audio) review UI; never deletes. ⛔ chromaprint native lib (B4). |
-| LIB-015 | Statistics | B2 | ☐ | ☐ | ☐ | ☐ | B2: play counts, time played, top items, storage by type/source; statistics screen. |
+| LIB-015 | Statistics | B2 | ☑ | ☑ | ☑ | ☑ | B2: play counts, time played, top items, storage by type/source; statistics screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 
 ### 3. FILE — File browser and management
 
