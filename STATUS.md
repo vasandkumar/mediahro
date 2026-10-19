@@ -329,6 +329,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
+| 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | libssh2 needs a crypto backend and curl's FTPS needs TLS; the NDK has no OS crypto or TLS API, and docs/05 §4.1/§10 exclude OpenSSL/mbedTLS from every binary | ADR (§6): allow one crypto/TLS library on Android only (e.g. mbedTLS, Apache-2.0) for curl + libssh2, or implement SFTP/FTPS on Android in the platform module over JCA/Conscrypt (e.g. sshj, Apache-2.0) | Android archive ships libcurl without TLS (HTTP/HTTPS reach FFmpeg/curl through the app's stream callbacks); libssh2 is pinned but not built for Android |
+| 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | Open Screen libcast builds only with Chromium's GN toolchain and links BoringSSL (OpenSSL-derived) for the Cast TLS channel, which the no-OpenSSL policy excludes | ADR (§6) on the TLS stack of the open Cast sender (BoringSSL inside libcast vs. a CASTv2 sender over the OS TLS stack) | Source pinned by commit in `mediahro-deps/versions.json`; not in any archive yet |
 
 ## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
 
@@ -370,6 +372,9 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
+| B4a | TLS / crypto for native protocol clients on Android (curl FTPS, libssh2 SFTP): one crypto/TLS library on Android only, or SFTP/FTPS through the Android platform module over JCA (§3) | Open |
+| B4a | TLS stack of the Open Screen Cast sender: libcast requires BoringSSL (§3) | Open |
+| B4a | The Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS. docs/05 §4.1 ("no OpenSSL/mbedTLS ships") and the docs/07 rule 12 encryption inventory should state this exception explicitly | Open |
 
 ## 7. Log
 
