@@ -6,12 +6,10 @@ import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
-/// Appearance inputs that come from the platform rather than settings.
-/// Defaults are conservative; the orchestrator overrides
-/// [platformAppearanceProvider] in main.dart with:
-/// - Android Material You schemes (`dynamic_color` package, CORE-007),
-/// - whether the Windows runner applied Mica to the window,
-/// - the platform "reduce transparency" preference (Apple, Windows).
+/// Appearance inputs that come from the platform rather than settings,
+/// overridden in main.dart: Android Material You schemes (`dynamic_color`,
+/// CORE-007) today; lane C4 adds whether the Windows runner applied Mica
+/// and the platform "reduce transparency" preference.
 @immutable
 final class PlatformAppearance {
   const PlatformAppearance({
@@ -25,6 +23,18 @@ final class PlatformAppearance {
   final ColorScheme? dynamicDark;
   final bool micaActive;
   final bool reduceTransparency;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlatformAppearance &&
+      other.dynamicLight == dynamicLight &&
+      other.dynamicDark == dynamicDark &&
+      other.micaActive == micaActive &&
+      other.reduceTransparency == reduceTransparency;
+
+  @override
+  int get hashCode =>
+      Object.hash(dynamicLight, dynamicDark, micaActive, reduceTransparency);
 }
 
 final platformAppearanceProvider = Provider<PlatformAppearance>(
