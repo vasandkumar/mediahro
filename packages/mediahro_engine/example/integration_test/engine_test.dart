@@ -1,0 +1,107 @@
+import 'dart:io';
+
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine_example/main.dart';
+
+// The conformance suites live with the engine's own tests so desktop FFI
+// runs and device runs share every test body.
+import '../../test/conformance/suites.dart';
+import '../../test/conformance/support.dart';
+import 'corpus_manifest.dart';
+
+/// Engine proof on Android, iOS, macOS and Windows (docs/10 §8 rule 4):
+/// the render bridge delivers frames to a Flutter texture, and every
+/// conformance suite passes against the platform's libmpv.
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final dir = '${Directory.systemTemp.path}/mediahro_corpus';
+  ConformanceEnv.current = ConformanceEnv(
+    corpusDir: dir,
+    manifestJson: corpusManifest.isEmpty ? null : corpusManifest,
+    prepare: () => _copyCorpus(dir),
+    platformName: Platform.operatingSystem,
+  );
+
+  renderBridgeSuite();
+  runConformanceSuites();
+}
+
+Future<void> _copyCorpus(String dir) async {
+  final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+  const prefix = 'assets/corpus/';
+  for (final key in manifest.listAssets()) {
+    if (!key.startsWith(prefix) || key.endsWith('.keep')) continue;
+    final out = File('$dir/${key.substring(prefix.length)}');
+    if (out.existsSync()) continue;
+    out.parent.createSync(recursive: true);
+    final data = await rootBundle.load(key);
+    out.writeAsBytesSync(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+  }
+}
+
+void renderBridgeSuite() {
+  final skip = ffiSkipReason;
+  prepareCorpus();
+
+  group('VID-030 render bridge', () {
+    testWidgets('VID-030 frames reach a Flutter texture', (tester) async {
+      final bridge = RenderBridge();
+      final engine = MpvEngine(
+        EngineRole.video,
+        config: MpvEngineConfig(renderBridge: bridge, nullAudio: true),
+      );
+      final boundary = GlobalKey();
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: RepaintBoundary(
+            key: boundary,
+            child: ColoredBox(
+              color: const Color(0xFF000000),
+              child: EnginePlayer(file: '', engine: engine),
+            ),
+          ),
+        ),
+      );
+      await engine.open(UriSource(Uri.file(corpusPath('mkv_multitrack.mkv'))));
+      final id = engine.textureId;
+      expect(id, isNotNull, reason: 'bridge created a texture');
+      expect(engine.renderBackend, isNot('unknown'));
+
+      var frames = 0;
+      for (var i = 0; i < 100 && frames < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        frames = (await bridge.stats(id!)).frames;
+      }
+      expect(
+        frames,
+        greaterThanOrEqualTo(5),
+        reason: 'frames rendered natively',
+      );
+      expect(engine.current.error, isNull);
+
+      // The composited texture is not black (testsrc2 is colourful).
+      await tester.pump(const Duration(milliseconds: 100));
+      final render =
+          boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = await render.toImage();
+      final bytes = await image.toByteData();
+      image.dispose();
+      var lit = 0;
+      for (var i = 0; i < bytes!.lengthInBytes; i += 4) {
+        if (bytes.getUint8(i) > 40 || bytes.getUint8(i + 1) > 40) lit++;
+      }
+      expect(lit, greaterThan(1000), reason: 'video pixels composited');
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await engine.dispose();
+    }, skip: skip != null);
+  });
+}

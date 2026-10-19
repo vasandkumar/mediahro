@@ -16,6 +16,7 @@ A new Flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'mediahro_engine/Sources/mediahro_engine/**/*.swift'
   # libmpv xcframeworks staged by tool/stage_native.py (LGPL, dynamic).
+  s.frameworks = 'OpenGL', 'CoreVideo', 'IOSurface'
   s.vendored_frameworks = 'mediahro_engine/Frameworks/*.xcframework'
   s.resource_bundles = {'mediahro_engine_privacy' => ['mediahro_engine/Sources/mediahro_engine/PrivacyInfo.xcprivacy']}
 
@@ -26,7 +27,7 @@ A new Flutter plugin project.
 
   s.dependency 'FlutterMacOS'
 
-  s.platform = :osx, '10.11'
+  s.platform = :osx, '12.0'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
   s.swift_version = '5.0'
 end

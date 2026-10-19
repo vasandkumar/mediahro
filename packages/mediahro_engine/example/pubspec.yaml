@@ -26,3 +26,5 @@ flutter:
   # Filled by tool/stage_corpus.py before device builds (CI); empty otherwise.
   assets:
     - assets/corpus/
+    - assets/corpus/ext_subs/
+    - assets/corpus/ext_subs/Subs/
