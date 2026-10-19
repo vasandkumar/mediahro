@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart'
     show isLocalNetworkHost;
 import 'package:mediahro/core/sources/dlna/dlna_file_system.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
+import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
 import 'package:mediahro/core/sources/http/http_auth.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/http/webdav_file_system.dart';
@@ -31,38 +34,68 @@ final class SourceOnlyPolicy implements NetworkPolicy {
 /// File system builders per protocol for [DefaultSourceResolver]. Each runs
 /// wherever the scan runs (a worker isolate), so it captures only the
 /// sendable [SourceSpec] and creates its own gateway for that host.
+///
+/// [nativeCurl] is false on Apple, where libcurl has no TLS backend and no
+/// libssh2 ships (mediahro-deps): FTP/FTPS then use [FtpFileSystem] and
+/// SFTP reports `unsupported` until an SSH fallback lands (STATUS §3).
 Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
   String? keyDirectory,
-}) => {
-  SourceKind.local: (_) => const LocalFileSystem(),
-  SourceKind.smb: (s) => smbFileSystem(
-    s.root,
-    smbOptionsFromUri(
+  bool? nativeCurl,
+}) {
+  final curl = nativeCurl ?? !(Platform.isIOS || Platform.isMacOS);
+  return {
+    SourceKind.local: (_) => const LocalFileSystem(),
+    SourceKind.smb: (s) => smbFileSystem(
       s.root,
-      user: s.userName,
-      password: s.secret,
-      guest: s.options['guest'] == 'true',
-    ).withOptions(s.options),
-  ),
-  SourceKind.nfs: (s) => nfsFileSystem(
-    s.root,
-    NfsOptions(
-      server: s.root.host,
-      export: s.options['export'] ?? s.root.path,
-      version: int.tryParse(s.options['version'] ?? '') ?? 3,
+      smbOptionsFromUri(
+        s.root,
+        user: s.userName,
+        password: s.secret,
+        guest: s.options['guest'] == 'true',
+      ).withOptions(s.options),
     ),
-  ),
-  SourceKind.webdav: (s) => WebDavFileSystem(_session(s)),
-  SourceKind.ftp: (s) => curlFileSystem(s.root, _curl(s, keyDirectory)),
-  SourceKind.sftp: (s) => curlFileSystem(s.root, _curl(s, keyDirectory)),
-  SourceKind.dlna: (s) => DlnaFileSystem(
-    _session(s, extraHosts: [Uri.parse(s.options['controlUrl'] ?? '').host]),
-    UpnpService(
-      serviceType: '${UpnpDevice.contentDirectory}1',
-      controlUrl: Uri.parse(s.options['controlUrl'] ?? ''),
+    SourceKind.nfs: (s) => nfsFileSystem(
+      s.root,
+      NfsOptions(
+        server: s.root.host,
+        export: s.options['export'] ?? s.root.path,
+        version: int.tryParse(s.options['version'] ?? '') ?? 3,
+      ),
     ),
-  ),
-};
+    SourceKind.webdav: (s) => WebDavFileSystem(_session(s)),
+    SourceKind.ftp: (s) => curl
+        ? curlFileSystem(s.root, _curl(s, keyDirectory))
+        : FtpFileSystem(_ftp(s), SourceOnlyPolicy([s.root.host])),
+    SourceKind.sftp: (s) => curl
+        ? curlFileSystem(s.root, _curl(s, keyDirectory))
+        : throw VirtualFileException(
+            VirtualFileError.unsupported,
+            s.root,
+            'SFTP needs libssh2, which mediahro-deps does not build for Apple',
+          ),
+    SourceKind.dlna: (s) => DlnaFileSystem(
+      _session(s, extraHosts: [Uri.parse(s.options['controlUrl'] ?? '').host]),
+      UpnpService(
+        serviceType: '${UpnpDevice.contentDirectory}1',
+        controlUrl: Uri.parse(s.options['controlUrl'] ?? ''),
+      ),
+    ),
+  };
+}
+
+FtpOptions _ftp(SourceSpec s) => FtpOptions(
+  host: s.root.host,
+  port: s.root.hasPort ? s.root.port : null,
+  security: switch (s.root.scheme) {
+    'ftps' => FtpSecurity.implicit,
+    'ftpes' => FtpSecurity.explicit,
+    _ =>
+      s.options['tls'] == 'explicit' ? FtpSecurity.explicit : FtpSecurity.none,
+  },
+  user: s.userName,
+  password: s.secret,
+  certSha256: s.options['certSha256'],
+);
 
 HttpSession _session(SourceSpec s, {List<String> extraHosts = const []}) {
   final wire = WebDavFileSystem.wire(s.root);

@@ -6,9 +6,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/sources/discovery/lan_discovery.dart';
-import 'package:mediahro/core/sources/dlna/dlna_discovery.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
-import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
 import 'package:mediahro/features/sources/errors.dart';
@@ -46,6 +44,9 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
   bool _testOk = false;
   bool _busy = false;
 
+  /// Pins the user confirmed for this server (certificate or SSH host key).
+  final Map<String, String> _trust = {};
+
   @override
   void initState() {
     super.initState();
@@ -56,18 +57,21 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
     setState(() => _searching = true);
     unawaited(_discovery?.cancel());
     if (widget.dlna) {
-      final session = HttpSession(ref.read(networkGatewayProvider));
-      _discovery = discoverMediaServers(session).listen(
-        (d) => setState(() => _servers.add(d)),
-        onDone: () => mounted ? setState(() => _searching = false) : null,
-        onError: (Object _) {},
-      );
+      _discovery = ref
+          .read(mediaServerDiscoveryProvider)()
+          .listen(
+            (d) => setState(() => _servers.add(d)),
+            onDone: () => mounted ? setState(() => _searching = false) : null,
+            onError: (Object _) {},
+          );
     } else {
-      _discovery = discoverShares().listen(
-        (s) => setState(() => _found.add(s)),
-        onDone: () => mounted ? setState(() => _searching = false) : null,
-        onError: (Object _) {},
-      );
+      _discovery = ref
+          .read(shareDiscoveryProvider)()
+          .listen(
+            (s) => setState(() => _found.add(s)),
+            onDone: () => mounted ? setState(() => _searching = false) : null,
+            onError: (Object _) {},
+          );
     }
   }
 
@@ -81,6 +85,7 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
   }
 
   void _pick(DiscoveredShare s) => setState(() {
+    _trust.clear();
     _kind = s.kind;
     _host.text = s.host;
     _port.text = s.port?.toString() ?? '';
@@ -119,6 +124,7 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
       if (_guest) 'guest': 'true',
       if (_kind == SourceKind.nfs)
         'export': '/${_path.text.trim().replaceAll(RegExp('^/+'), '')}',
+      ..._trust,
     },
   );
 
@@ -138,9 +144,62 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
         _testOk = false;
         _testResult = fileErrorMessage(l10n, e.error);
       });
+      if (e.error == VirtualFileError.untrustedCertificate &&
+          mounted &&
+          await _confirmTrust(e.detail)) {
+        if (mounted) setState(() => _busy = false);
+        return await _test();
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// docs/05 §9: a self-signed certificate or a new SSH host key is used
+  /// only after the user compares and accepts its fingerprint.
+  Future<bool> _confirmTrust(String? detail) async {
+    final l10n = AppLocalizations.of(context);
+    final fingerprint =
+        detail != null &&
+            RegExp(r'^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$').hasMatch(detail)
+        ? detail
+        : null;
+    final hostKey = _kind == SourceKind.sftp ? detail : null;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(l10n.sourcesTrustTitle),
+        content: SelectableText(
+          hostKey != null
+              ? l10n.sourcesTrustHostKey(hostKey)
+              : fingerprint != null
+              ? l10n.sourcesTrustCertificate(fingerprint)
+              : l10n.sourcesTrustUnverified,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: Text(l10n.sourcesCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(c).pop(true),
+            child: Text(l10n.sourcesTrust),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    setState(() {
+      if (hostKey != null) {
+        _trust['hostKeySha256'] = hostKey;
+      } else if (fingerprint != null) {
+        _trust['certSha256'] = fingerprint;
+      } else {
+        // libcurl FTPS reports no fingerprint: record the explicit consent.
+        _trust['allowUntrustedTls'] = 'true';
+      }
+    });
+    return true;
   }
 
   Future<void> _save() async {
@@ -240,12 +299,16 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
                           child: Text(l10n.sourcesProtocolName(k.name)),
                         ),
                     ],
-                    onChanged: (k) => setState(() => _kind = k ?? _kind),
+                    onChanged: (k) => setState(() {
+                      _kind = k ?? _kind;
+                      _trust.clear();
+                    }),
                   ),
                   TextFormField(
                     controller: _host,
                     decoration: InputDecoration(labelText: l10n.sourcesHost),
                     keyboardType: TextInputType.url,
+                    onChanged: (_) => _trust.clear(),
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? l10n.sourcesHostRequired
                         : null,
@@ -271,7 +334,10 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
                       contentPadding: EdgeInsets.zero,
                       title: Text(l10n.sourcesUseTls),
                       value: _tls,
-                      onChanged: (v) => setState(() => _tls = v),
+                      onChanged: (v) => setState(() {
+                        _tls = v;
+                        _trust.clear();
+                      }),
                     ),
                   if (_kind == SourceKind.smb)
                     SwitchListTile(

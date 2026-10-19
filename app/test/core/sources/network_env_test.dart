@@ -8,6 +8,7 @@ import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/sources/dlna/dlna_discovery.dart';
 import 'package:mediahro/core/sources/dlna/dlna_file_system.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
+import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
 import 'package:mediahro/core/sources/http/http_auth.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/http/webdav_file_system.dart';
@@ -33,10 +34,13 @@ final class _Lan implements NetworkPolicy {
 }
 
 Future<void> _webdavContract(
-  WebDavFileSystem fs,
+  MutableFileSystem fs,
   Uri root, {
   String films = 'Films',
 }) async {
+  Uri child(Uri dir, String name) => dir.replace(
+    pathSegments: [...dir.pathSegments.where((s) => s.isNotEmpty), name],
+  );
   final top = await fs.list(root).toList();
   expect(top.map((e) => e.name), contains(films));
   final dir = top.firstWhere((e) => e.name == films);
@@ -54,13 +58,13 @@ Future<void> _webdavContract(
     root,
     'mediahro-${DateTime.now().microsecondsSinceEpoch}',
   );
-  final w = await fs.create(tmp.resolve('up.txt'));
+  final w = await fs.create(child(tmp, 'up.txt'));
   await w.write(utf8.encode('dav upload'));
   await w.close();
-  final back = await fs.open(tmp.resolve('up.txt'));
+  final back = await fs.open(child(tmp, 'up.txt'));
   expect(utf8.decode(await back.read(0, 100)), 'dav upload');
   await back.close();
-  await fs.rename(tmp.resolve('up.txt'), 'moved.txt');
+  await fs.rename(child(tmp, 'up.txt'), 'moved.txt');
   await fs.delete(tmp, recursive: true);
 }
 
@@ -151,5 +155,63 @@ void main() {
       ]);
       await f.close();
     });
+  }, skip: _skip);
+
+  group('NET-004 Dart FTP client (Apple fallback) against vsftpd', () {
+    Uri root(String scheme, int port) =>
+        Uri(scheme: scheme, host: _host, port: port, path: '/');
+
+    Future<void> extra(FtpFileSystem fs, Uri r) async {
+      final big = await fs.open(r.replace(path: '/Large/sparse-5g.bin'));
+      expect(await big.length(), 5 << 30);
+      expect(await big.read((5 << 30) - 1, 1), [0x5A], reason: '64-bit REST');
+      await big.close();
+      final names = await fs.list(r).map((e) => e.name).toList();
+      expect(names, contains('Spaces & Ünïcode'));
+      await fs.close();
+    }
+
+    Future<String> fingerprint(FtpOptions o, Uri r) async {
+      try {
+        await FtpFileSystem(o, _Lan()).stat(r);
+      } on VirtualFileException catch (e) {
+        expect(e.error, VirtualFileError.untrustedCertificate);
+        return e.detail!;
+      }
+      fail('the self-signed certificate was accepted without a pin');
+    }
+
+    test('plain FTP', () async {
+      final r = root('ftp', 21);
+      final fs = FtpFileSystem(
+        FtpOptions(host: _host, user: 'test', password: 'testpass'),
+        _Lan(),
+      );
+      await _webdavContract(fs, r);
+      await extra(fs, r);
+    });
+
+    for (final (name, scheme, port, security) in [
+      ('explicit FTPS (AUTH TLS)', 'ftpes', 21, FtpSecurity.explicit),
+      ('implicit FTPS on 990', 'ftps', 990, FtpSecurity.implicit),
+    ]) {
+      test('$name with a pinned self-signed certificate', () async {
+        final r = root(scheme, port);
+        FtpOptions options([String? pin]) => FtpOptions(
+          host: _host,
+          port: port,
+          security: security,
+          user: 'test',
+          password: 'testpass',
+          certSha256: pin,
+        );
+        final fs = FtpFileSystem(
+          options(await fingerprint(options(), r)),
+          _Lan(),
+        );
+        await _webdavContract(fs, r);
+        await extra(fs, r);
+      });
+    }
   }, skip: _skip);
 }

@@ -19,7 +19,11 @@ import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart';
 import 'package:mediahro/core/scanner/scan_service.dart';
 import 'package:mediahro/core/search/library_search.dart';
+import 'package:mediahro/core/sources/discovery/lan_discovery.dart';
+import 'package:mediahro/core/sources/dlna/dlna_discovery.dart';
+import 'package:mediahro/core/sources/dlna/upnp.dart';
 import 'package:mediahro/core/sources/downloads.dart';
+import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/core/sources/source_builders.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
@@ -61,6 +65,16 @@ T? _optional<T>(T Function() read) {
     rethrow;
   }
 }
+
+/// LAN discovery (NET-001, NET-005). C4 may wrap these to hold the Android
+/// multicast lock while they run; tests replace them.
+final shareDiscoveryProvider = Provider<Stream<DiscoveredShare> Function()>(
+  (ref) => discoverShares,
+);
+final mediaServerDiscoveryProvider = Provider<Stream<UpnpDevice> Function()>(
+  (ref) =>
+      () => discoverMediaServers(HttpSession(ref.read(networkGatewayProvider))),
+);
 
 final mountsProvider = Provider<MountedFileSystems>(
   (ref) => MountedFileSystems(),

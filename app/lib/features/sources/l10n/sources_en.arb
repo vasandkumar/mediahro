@@ -229,6 +229,25 @@
   "sourcesTransferQr": "QR code with the transfer address",
   "sourcesTransferUpload": "Upload",
   "sourcesTransferUploaded": "Uploaded",
+  "sourcesTrust": "Trust",
+  "sourcesTrustCertificate": "This server's certificate is not signed by an authority this device trusts. Continue only if this fingerprint matches the one your server shows:\n{fingerprint}",
+  "@sourcesTrustCertificate": {
+    "placeholders": {
+      "fingerprint": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesTrustHostKey": "This is the first connection to this server. Continue only if this host key matches the one your server shows:\n{fingerprint}",
+  "@sourcesTrustHostKey": {
+    "placeholders": {
+      "fingerprint": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesTrustTitle": "Trust this server?",
+  "sourcesTrustUnverified": "This server's certificate is not signed by an authority this device trusts, and its fingerprint is not available. Continue only if you set up this server yourself.",
   "sourcesUnavailableSince": "Unavailable, last seen {date}",
   "@sourcesUnavailableSince": {
     "placeholders": {

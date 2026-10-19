@@ -18,4 +18,5 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - Archive browsing through libarchive (FILE-004); Wi-Fi transfer page with a QR code (FILE-005).
 - Network sources: SMB, NFS, WebDAV, FTP, FTPS, SFTP and DLNA, with LAN discovery and an opt-in renderer (NET-001 to NET-005).
 - Open URL with headers, user agent and history (CORE-005, NET-006); cloud drives over OAuth PKCE and REST (NET-007).
+- FTP and FTPS on iOS and macOS through a built-in client, and a prompt to trust a server's self-signed certificate or SSH host key after comparing its fingerprint (NET-003, NET-004).
 - Offline downloads (NET-018), connection health (NET-019) and an encrypted backup and restore (CORE-014).
