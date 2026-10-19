@@ -1,0 +1,36 @@
+name: mediahro_engine
+description: Mediahro Engine - the reusable playback core (PlaybackEngine API, libmpv implementation, render bridge). AGPL-3.0 or commercial licence.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  freezed_annotation: ^3.1.0
+  mediahro_ffi:
+    path: ../mediahro_ffi
+  meta: ^1.19.0
+
+dev_dependencies:
+  build_runner: ^2.16.1
+  flutter_test:
+    sdk: flutter
+  freezed: ^4.0.1
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.mediahro.mediahro_engine
+        pluginClass: MediahroEnginePlugin
+      ios:
+        pluginClass: MediahroEnginePlugin
+      macos:
+        pluginClass: MediahroEnginePlugin
+      windows:
+        pluginClass: MediahroEnginePluginCApi

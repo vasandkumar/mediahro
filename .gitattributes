@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ttf binary
+*.otf binary
+# Test corpus lives in Git LFS (docs/11 §2).
+test-media/corpus/** filter=lfs diff=lfs merge=lfs -text

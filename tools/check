@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Everything the `analyze` and `test-unit` CI jobs run, for use before pushing.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+FLUTTER="${FLUTTER:-flutter}"
+DART="${DART:-dart}"
+# python3 can be a Windows Store stub; pick the first interpreter that runs.
+PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
+
+echo "== format"
+git ls-files -z '*.dart' | grep -zvE '\.(g|freezed|pigeon)\.dart$|_bindings\.dart$' | xargs -0 "$DART" format --output=none --set-exit-if-changed
+echo "== analyze"
+"$DART" analyze --fatal-infos
+echo "== project rules"
+"$DART" run tools/lints/check_rules.dart
+echo "== l10n"
+"$DART" run tools/l10n/merge_arb.dart --check
+echo "== status"
+"$PY" tools/status/check_status.py
+echo "== manifests"
+"$PY" tools/compliance/check_manifests.py
+echo "== tests"
+for p in packages/mediahro_ffi packages/mediahro_servers packages/mediahro_subtitles; do (cd "$p" && "$DART" test); done
+for p in packages/mediahro_design packages/mediahro_engine app; do (cd "$p" && "$FLUTTER" test); done

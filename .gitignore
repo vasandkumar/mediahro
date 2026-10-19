@@ -1,0 +1,43 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec_overrides.yaml
+coverage/
+*.iml
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# FVM
+.fvm/flutter_sdk
+.fvm/versions
+
+# Generated localisation (merged from per-lane ARB fragments by tools/l10n/merge_arb.dart)
+app/lib/app/l10n/arb/
+app/lib/app/l10n/gen/
+
+# Native dependency archives fetched by tools/deps/fetch (pinned in deps.lock)
+.deps-cache/
+
+# Platform build outputs
+**/android/.gradle/
+**/android/local.properties
+**/android/app/.cxx/
+**/ios/Pods/
+**/macos/Pods/
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/*.xcworkspace/xcuserdata/
+DerivedData/
+
+# Secrets never live in the repo (docs/13 §6.2)
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+key.properties
+.env

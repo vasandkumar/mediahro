@@ -1,0 +1,18 @@
+# Dart pub workspace for the Mediahro monorepo (docs/05 §3).
+name: mediahro_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+workspace:
+  - app
+  - packages/mediahro_design
+  - packages/mediahro_engine
+  - packages/mediahro_ffi
+  - packages/mediahro_servers
+  - packages/mediahro_subtitles
+  - tools
+
+dev_dependencies:
+  very_good_analysis: ^11.0.0

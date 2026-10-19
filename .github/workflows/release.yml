@@ -1,0 +1,41 @@
+# Tag → artefacts, checksums, SBOM, GitHub Release (docs/10 §5–6). Store
+# uploads, signing and winget/Homebrew/F-Droid PRs run in the `release`
+# environment, which requires the owner's approval and holds every secret.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: STATUS.md must show every 1.0 cell done before a 1.x tag
+        if: startsWith(github.ref_name, 'v1.')
+        run: |
+          python3 tools/status/check_status.py | tee status.txt
+          if grep -qE '^\| [A-Z0-9]+-[0-9]{3} .*\| ☐ ' STATUS.md; then echo "::error::open 1.0 cells in STATUS.md"; exit 1; fi
+
+  ci:
+    needs: gate
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { path: dist }
+      - name: Checksums
+        run: cd dist && find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+      - name: GitHub Release (draft; the owner publishes)
+        run: gh release create "$GITHUB_REF_NAME" --draft --repo "$GITHUB_REPOSITORY" --notes-file CHANGELOG.md dist/SHA256SUMS
+        env: { GH_TOKEN: '${{ github.token }}' }

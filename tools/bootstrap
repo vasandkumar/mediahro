@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# One-time (and post-pull) setup: dependencies, merged ARB files, generated
+# localisations, pinned native deps. Safe to re-run.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+FLUTTER="${FLUTTER:-flutter}"
+DART="${DART:-dart}"
+"$FLUTTER" pub get
+"$DART" run tools/l10n/merge_arb.dart
+(cd app && "$FLUTTER" gen-l10n)
+PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
+"$PY" tools/deps/fetch.py

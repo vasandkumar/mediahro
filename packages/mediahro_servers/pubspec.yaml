@@ -1,0 +1,12 @@
+name: mediahro_servers
+description: Media server clients for Mediahro (Jellyfin, Emby, Plex, Subsonic family, Immich, Nextcloud, Audiobookshelf, Mediahro-to-Mediahro) behind the ServerLibrary interface.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+dependencies:
+  meta: ^1.19.0
+dev_dependencies:
+  test: ^1.31.1

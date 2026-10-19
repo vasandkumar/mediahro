@@ -1,0 +1,236 @@
+# CI matrix (docs/10 §5). Every PR runs every job; a feature is proven on a
+# platform only by these jobs (docs/10 §8 rule 4).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PUB_CACHE: ${{ github.workspace }}/.pub-cache
+
+jobs:
+  analyze:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Format
+        run: git ls-files -z '*.dart' | grep -zvE '\.(g|freezed|pigeon)\.dart$|_bindings\.dart$' | xargs -0 dart format --output=none --set-exit-if-changed
+      - name: Analyze
+        run: dart analyze --fatal-infos
+      - name: Project rules (no MethodChannel, no direct HTTP, no UI literals, no dynamic, no telemetry SDKs)
+        run: dart run tools/lints/check_rules.dart
+      - name: Localisation fragments
+        run: dart run tools/l10n/merge_arb.dart --check --report
+      - name: STATUS.md tracks every doc 04 ID
+        run: python3 tools/status/check_status.py
+      - name: Store-policy manifest guard
+        run: python3 tools/compliance/check_manifests.py
+
+  test-unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Dart packages
+        run: |
+          for p in packages/mediahro_ffi packages/mediahro_servers packages/mediahro_subtitles; do
+            (cd "$p" && dart test --reporter github)
+          done
+      - name: Flutter packages and app (unit, widget, golden)
+        run: |
+          for p in packages/mediahro_design packages/mediahro_engine app; do
+            (cd "$p" && flutter test --coverage)
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: coverage, path: '**/coverage/lcov.info', if-no-files-found: ignore }
+
+  licence-sbom:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Licence scan, configure-flag verification, SBOM
+        run: python3 tools/licence_scan/licence_scan.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: sbom, path: build/sbom.cdx.json }
+
+  build-android:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { flavor: store, artefact: appbundle }
+          - { flavor: foss, artefact: apk }
+          - { flavor: direct, artefact: apk }
+          - { flavor: enterprise, artefact: apk }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with: { distribution: temurin, java-version: '21' }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Install NDK r28
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" > /dev/null
+      - name: Build ${{ matrix.flavor }} ${{ matrix.artefact }}
+        working-directory: app
+        run: flutter build ${{ matrix.artefact }} --release --flavor ${{ matrix.flavor }} --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+      - name: 16 KB page alignment (docs/07 §1 rule 4)
+        if: matrix.artefact == 'apk'
+        run: |
+          ZIPALIGN=$(ls "$ANDROID_HOME"/build-tools/*/zipalign | sort -V | tail -1)
+          for apk in app/build/app/outputs/flutter-apk/*.apk; do "$ZIPALIGN" -c -P 16 -v 4 "$apk" > /dev/null && echo "aligned: $apk"; done
+      - name: Install size budget (≤ 40 MB per ABI, docs/11 §5)
+        if: matrix.artefact == 'apk'
+        run: python3 tools/perf/size_budget.py android app/build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-${{ matrix.flavor }}
+          path: |
+            app/build/app/outputs/flutter-apk/*.apk
+            app/build/app/outputs/bundle/**/*.aab
+
+  build-ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Device build (store, unsigned)
+        working-directory: app
+        run: flutter build ios --release --no-codesign --dart-define=MEDIAHRO_FLAVOR=store
+      - name: Simulator build (runnable artefact)
+        working-directory: app
+        run: flutter build ios --simulator --debug --dart-define=MEDIAHRO_FLAVOR=store
+      - name: Package
+        run: cd app/build/ios/iphonesimulator && zip -qr ../../../../mediahro-ios-simulator.zip Runner.app
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: ios-simulator, path: mediahro-ios-simulator.zip }
+
+  build-macos:
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [store, direct]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Build ${{ matrix.flavor }}
+        working-directory: app
+        run: flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+      - name: Install size budget (≤ 70 MB, docs/11 §5)
+        run: python3 tools/perf/size_budget.py desktop app/build/macos/Build/Products/Release/Mediahro.app
+      - name: Package
+        run: cd app/build/macos/Build/Products/Release && ditto -c -k --keepParent Mediahro.app ../../../../../../mediahro-macos-${{ matrix.flavor }}.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'macos-${{ matrix.flavor }}', path: 'mediahro-macos-${{ matrix.flavor }}.zip' }
+
+  build-windows:
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [store, direct]
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Build ${{ matrix.flavor }}
+        working-directory: app
+        run: flutter build windows --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }}
+      - name: Install size budget (≤ 70 MB, docs/11 §5)
+        run: python tools/perf/size_budget.py desktop app/build/windows/x64/runner/Release
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'windows-${{ matrix.flavor }}', path: app/build/windows/x64/runner/Release }
+
+  integration-android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with: { distribution: temurin, java-version: '21' }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Install NDK r28
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" > /dev/null
+      - name: Integration tests on API 36 (16 KB page-size image)
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis_ps16k
+          arch: x86_64
+          disable-animations: true
+          script: cd app && flutter test integration_test --flavor foss --dart-define=MEDIAHRO_FLAVOR=foss
+
+  integration-ios:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Boot simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: Integration tests
+        working-directory: app
+        run: flutter test integration_test -d ${{ steps.sim.outputs.udid }} --dart-define=MEDIAHRO_FLAVOR=store
+
+  integration-macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Integration tests
+        working-directory: app
+        run: flutter test integration_test -d macos --dart-define=MEDIAHRO_FLAVOR=direct
+
+  integration-windows:
+    runs-on: windows-2025
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Integration tests
+        working-directory: app
+        run: flutter test integration_test -d windows --dart-define=MEDIAHRO_FLAVOR=direct

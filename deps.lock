@@ -1,0 +1,14 @@
+{
+  "comment": "Pinned mediahro-deps release (docs/05 §3, §10). Written by lane B4 when archives are published; tools/deps/fetch.py verifies every SHA-256 before use.",
+  "repository": "mediahro-deps",
+  "release": null,
+  "archives": {
+    "android-arm64-v8a": null,
+    "android-armeabi-v7a": null,
+    "android-x86_64": null,
+    "ios-xcframeworks": null,
+    "macos-xcframeworks": null,
+    "windows-x64": null,
+    "windows-arm64": null
+  }
+}

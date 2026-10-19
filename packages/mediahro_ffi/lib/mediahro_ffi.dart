@@ -1,0 +1,11 @@
+/// ffigen bindings for Mediahro's native libraries and the `VirtualFile`
+/// abstraction shared by the engine, the scanner and the image pipeline.
+///
+/// Bindings live under `lib/src/<library>/` and are generated from the
+/// headers in the pinned `mediahro-deps` release (`ffigen/<library>.yaml`).
+library;
+
+export 'src/native/native_library.dart'
+    show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
+export 'src/vfs/local_file_system.dart';
+export 'src/vfs/virtual_file.dart';

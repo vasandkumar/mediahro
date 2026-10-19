@@ -1,0 +1,379 @@
+# Mediahro — STATUS
+
+The single progress view for the owner. Every PR updates the rows it touches. Generated once from `docs/04` by `tools/status/gen_status.py`; CI (`tools/status/check_status.py`) fails if a doc 04 ID is missing or a 1.0 platform cell is narrowed.
+
+**Legend:** ☐ to do · ☑ done (AC verified on that platform through the CI matrix) · ⛔ blocked (see Blockers) · — not applicable on that platform (doc 04) · 1.1/1.2 later release per doc 04 · Platforms: A Android · I iOS/iPadOS · M macOS · W Windows.
+
+_Last updated: 2026-10-19 by the orchestrator._
+
+## 1. Phase and milestone gates
+
+| Phase / milestone | Lanes | State | Exit criteria (docs/10 §3, §8) |
+|---|---|---|---|
+| **A — Skeleton (M0)** | orchestrator | in progress | Shell builds on all platforms; stubs compile; CI green; deps archives published with SHA-256; licence scan passes |
+| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | not started | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
+| **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4 Servers, casting, platform modules · C5 Supporter, privacy, B2B, store metadata | not started | Each lane's IDs ☑ on every platform; integration branch builds daily |
+| **D — Hardening (M8)** | D1 Android · D2 iOS/iPadOS · D3 macOS · D4 Windows · D5 Localisation · D6 Store submission packs | not started | All doc 11 §7 release gates pass; 1.0 tagged |
+
+### Phase A (M0) deliverables
+
+| Deliverable | State | Evidence |
+|---|---|---|
+| Repo layout per docs/05 §3 (`app/`, `packages/mediahro_{design,engine,ffi,servers,subtitles}`, `tools/`, `test-media/`, `fastlane/`, `.github/workflows/`, licence/policy files) | ☑ | Dart pub workspace (`pubspec.yaml`) |
+| Toolchain pins (`.fvmrc` Flutter 3.47.7, NDK r28c, API 36/min 29) | ☑ | `TOOLCHAIN.md` |
+| Flavours `store/direct/foss/enterprise` + `Capabilities` service | ☑ Android Gradle + dart-define; Apple Xcode configurations → C4 (ADR-015) | `app/lib/app/capabilities.dart`, tests |
+| Design tokens + theme builders per platform family | ☑ | `packages/mediahro_design`, 23 tests |
+| l10n pipeline (ARB fragments → merge → gen-l10n; 12 launch locales + ar/he) | ☑ | `tools/l10n/merge_arb.dart`, ADR-013 |
+| Interface stubs: `PlaybackEngine`, `ImagePipeline`, `ServerLibrary`, `VirtualFile`, 14 platform facades, `NetworkGateway` | ☑ | `packages/mediahro_engine/lib/src/api`, `app/lib/images`, `packages/mediahro_servers`, `packages/mediahro_ffi/lib/src/vfs`, `app/lib/platform`, `app/lib/core/net` |
+| Custom lint rules, licence scan + SBOM, manifest guard, status guard, size budget | ☑ | `tools/lints`, `tools/licence_scan`, `tools/compliance`, `tools/status`, `tools/perf` |
+| CI matrix (analyze, unit/widget, licence-sbom, build A/I/M/W per flavour, integration A/I/M/W, nightly fuzz/corpus, release) | ☑ written | `.github/workflows/` |
+| `mediahro-deps` skeleton (versions, exact flags, verify, package, CI) | ☑ | `../mediahro-deps` |
+| Shell builds locally: Windows | ☑ debug build + integration tests pass | local |
+| Shell builds locally: Android | ☑ `foss` debug APK builds (API 36, NDK r28c) | local |
+| Shell builds: iOS, macOS | ⛔ needs CI (no Mac here) | Blockers |
+| CI green on GitHub | ⛔ needs a GitHub remote | Blockers |
+
+### Lane ownership (folders; lanes never edit each other's folders)
+
+| Lane | Folders owned |
+|---|---|
+| B1 Engine | `app/lib/engine`, `packages/mediahro_engine` (whole package in Phase B, incl. bundling the `mediahro-deps` libraries into the plugin's Gradle/podspec/CMake builds), `packages/mediahro_ffi` (mpv part: `lib/src/mpv/`, `ffigen/mpv.yaml`) |
+| B2 Library & sources | `app/lib/core`, `app/lib/features/sources`, `app/lib/features/library`, `packages/mediahro_ffi` (smb2/nfs/curl/archive/ebur128/chromaprint/uchardet parts, `lib/src/vfs/`) |
+| B3 Design system & shell | `packages/mediahro_design`, `app/lib/app`, `app/lib/ui`, `app/lib/features/settings`, `app/lib/features/onboarding`, `tools/l10n` |
+| B4 Native deps | `../mediahro-deps` (sub-lanes `android/`, `apple/`, `windows/`), `deps.lock`, `tools/deps`, `tools/licence_scan` |
+| C1 Video & subtitles | `app/lib/features/video`, `packages/mediahro_subtitles`, `packages/mediahro_engine/lib/src/mpv/` + `lib/src/bridge/` + the plugin's native folders (Phase C: video/subtitle engine features) |
+| C2 Music & podcasts | `app/lib/features/music` |
+| C3 Photos | `app/lib/features/photos`, `app/lib/images`, `packages/mediahro_ffi` (vips/jxl/avif/raw parts) |
+| C4 Servers, casting, platform | `packages/mediahro_servers`, `app/lib/features/servers`, `app/lib/features/cast`, `app/lib/platform`, `app/pigeons`, `app/android`, `app/ios`, `app/macos`, `app/windows` |
+| C5 Supporter, privacy, B2B, store | `app/lib/features/supporter`, `app/lib/features/b2b`, `app/lib/features/privacy` (telemetry opt-in, app lock; the dashboard screen CORE-015 is B3's), `packages/mediahro_engine/sdk/` and `capi/` (Phase C: SDK packaging, C/Kotlin/Swift APIs, samples), `fastlane/` |
+
+Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §12` via ADR PRs, `app/pubspec.yaml`, `app/lib/main.dart` via the orchestrator) are merged by the orchestrator. Each lane keeps its UI strings in its own ARB fragment `<owned folder>/l10n/<module>_<locale>.arb`; `tools/l10n/merge_arb.dart` merges fragments before `gen-l10n`.
+
+## 2. Feature checklist (every doc 04 ID)
+
+### 1. CORE — App shell, settings, onboarding
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-002 | First-run without walls | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
+| CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-006 | Settings model | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-007 | Themes | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-009 | Keyboard shortcuts | B3 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
+| CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-015 | Privacy dashboard | B3 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 2. LIB — Library, indexing, search
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| LIB-001 | Unified index | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-003 | Scan performance | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-005 | Search | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-008 | Multiple queues | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-009 | Tags and labels | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-015 | Statistics | B2 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 3. FILE — File browser and management
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| FILE-001 | Browser | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-002 | Operations | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-003 | Batch operations | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-004 | Archives | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-005 | Transfer | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-006 | Subtitle/audio sidecars | B2 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 4.1 Formats and decoding
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| VID-001 | Containers | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-002 | Video codecs | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-003 | Audio codecs in video | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-004 | Audio passthrough | B1 | ☐ | — | ☐ | ☐ |  |
+| VID-005 | Playback edge cases | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-006 | Network playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-007 | DVD/Blu-ray folder playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 4.2 Rendering, HDR, quality
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| VID-030 | GPU renderer | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-031 | HDR10 / HLG | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-032 | HDR10+ | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-034 | Dolby Vision profile 5 | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-036 | Auto frame-rate and resolution matching | C1 | ☐ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) |
+| VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-039 | Frame interpolation | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-040 | ICC / display calibration | C1 | — | — | ☐ | ☐ |  |
+| VID-041 | 3D and 360° | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-042 | Screenshot, GIF and clip export | C1 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 4.3 Controls and ergonomics
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| VID-060 | Gesture set | C1 | ☐ | ☐ | — | — |  |
+| VID-061 | Seek bar | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-062 | Speed | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-063 | Frame step, A-B loop, chapters, bookmarks | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-064 | Resume and post-playback | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-065 | Audio/subtitle track switching | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-066 | Audio delay and volume | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-067 | Picture-in-Picture | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-068 | Background and audio-only playback | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-069 | Sleep timer and auto-off | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-070 | Orientation and display | C1 | ☐ | ☐ | — | — |  |
+| VID-071 | Second screen / external display | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-072 | Info overlay | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-073 | Skip intro/credits | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-074 | Remote control | C1 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 5. SUB — Subtitles
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| SUB-010 | Text formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-011 | Image formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-040 | Text-to-speech | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-050 | Auto-sync (audio-based) | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-051 | OCR of image subtitles | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-052 | Auto-captions (speech-to-text) | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-053 | Translation | C1 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 6.1 Formats and output
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| AUD-001 | Formats | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-002 | Gapless | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-003 | Crossfade | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-004 | Loudness | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-005 | DSP chain | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-006 | Output quality indicator | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-040 | Bit-perfect Android | B1 | ☐ | — | — | — |  |
+| AUD-041 | Bit-perfect Apple | B1 | — | ☐ | ☐ | — |  |
+| AUD-042 | Bit-perfect Windows | B1 | — | — | — | ☐ |  |
+| AUD-043 | DSD | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-044 | Bluetooth | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-045 | Audio focus and interruptions | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-046 | Visualiser | C2 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 6.2 Music library and player UI
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| MUS-001 | Library views | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-002 | Tag reading | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-003 | Tag editing | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-004 | Art | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-005 | Lyrics | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-006 | Now Playing | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-007 | Queues | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-008 | Smart playlists | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-010 | Fingerprinting | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-011 | Sleep timer and alarms | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-012 | Widgets and quick controls | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-013 | Car | C2 | ☐ | ☐ | — | — |  |
+| MUS-014 | Internet radio | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-015 | Watch companion | C2 | 1.1 | 1.1 | — | — | Rel. 1.1 |
+
+### 6.3 Podcasts and audiobooks
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| POD-001 | Audiobook/podcast mode | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| POD-002 | Podcast feeds | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| POD-003 | Audiobookshelf client | C2 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 7. IMG — Images and gallery
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| IMG-001 | Formats | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-002 | HDR images | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-003 | Gallery performance | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-004 | Viewer | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-005 | Organisation | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-006 | Metadata | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-007 | Map | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-008 | Compare | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-009 | Editing | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-010 | Batch | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-011 | Vault | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-012 | Slideshow | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-013 | Duplicates | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-014 | Trash | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-015 | Sharing and output | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-016 | Sources | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-017 | Archives | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-018 | Screensaver / ambient | C3 | 1.1 | — | ☐ | ☐ |  |
+
+### 8. NET — Sources, protocols, servers
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| NET-001 | SMB2/3 | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-002 | NFS v3/v4 | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-003 | WebDAV | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-004 | FTP/FTPS/SFTP | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-007 | Cloud drives | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-010 | Jellyfin | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-011 | Emby | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-012 | Plex | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-013 | Subsonic/OpenSubsonic/Navidrome/Airsonic/Gonic | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-014 | Immich | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-015 | Nextcloud | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-016 | Audiobookshelf | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-017 | Mediahro-to-Mediahro | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-018 | Offline downloads | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-019 | Connection health | B2 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 9. CAST — Casting and external playback
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| CAST-001 | Google Cast | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CAST-002 | AirPlay | C4 | — | ☐ | ☐ | — |  |
+| CAST-003 | DLNA renderer push | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CAST-004 | External display | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CAST-005 | Local transcoding | B1 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 10. SYS — Platform integration
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| SYS-001 | Media session | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-002 | Notifications/lock screen | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-005 | File provider / Files integration | C4 | — | ☐ | 1.1 | 1.1 |  |
+| SYS-006 | Foreground service & battery | C4 | ☐ | — | — | — |  |
+| SYS-007 | Storage access | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-008 | Accessibility services | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-009 | Input | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-010 | TV mode | C4 | 1.1 | — | — | — | Rel. 1.1 |
+| SYS-011 | Foldables/large screens | C4 | ☐ | ☐ | — | — |  |
+
+### 11. SUP — Supporter programme (free app; nothing gated)
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| SUP-001 | Support page | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-002 | Store rails | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-003 | Web rail | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-004 | Perks (cosmetic only) | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-005 | Ask policy | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-006 | Transparency | C5 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 12. PRIV — Privacy and security
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| PRIV-001 | Zero telemetry by default | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-002 | Opt-in crash reports | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-003 | Opt-in usage analytics | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-005 | Parsing safety | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-006 | Credentials | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-007 | Vault | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-008 | App lock | C5 | ☐ | ☐ | ☐ | ☐ |  |
+
+### 13. B2B — Managed deployment, kiosk, engine
+
+| ID | Feature | Lane | A | I | M | W | Notes |
+|---|---|---|:-:|:-:|:-:|:-:|---|
+| B2B-001 | Managed configuration | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| B2B-002 | Kiosk/signage mode | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| B2B-003 | Headless control API | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| B2B-004 | Mediahro Engine SDK | C5 | ☐ | ☐ | ☐ | ☐ | Rel. 1.0 (docs/samples 1.1) |
+| B2B-005 | Audit and compliance | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| B2B-006 | White-label hooks | C5 | ☐ | ☐ | ☐ | ☐ |  |
+
+## 3. Blockers
+
+| Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
+|---|---|---|---|---|---|
+| 2026-10-19 | Orchestrator (M0) | All, CI proof for I and M | No GitHub remote yet, so the CI matrix (the only proof for iOS/macOS, docs/10 §8 rule 4) has not run | Owner: approve creating the GitHub repositories `mediahro` and `mediahro-deps` and pushing (public is free for macOS runners; private bills macOS minutes) | Windows and Android verified locally; Apple jobs written and waiting for the first CI run |
+| 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
+
+## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
+
+| Task | Needed by | Blocks | State |
+|---|---|---|---|
+| Professional trademark clearance and USPTO ITU filing (classes 9, 42), then EUIPO/UK | Before public beta | Store listings under the name | Open |
+| Entity formation; store developer accounts in the entity name (Apple, Google Play incl. D-U-N-S, Microsoft Partner Center); name reservations | Before M7 | All store submissions, IAP products | Open |
+| Signing certificates and secrets: Apple distribution + Developer ID (G2 Sub-CA), Fastlane `match` repo, Play upload key, Azure Artifact Signing / OV cert, Sparkle EdDSA key, F-Droid key registration; add to GitHub environments | Before M7 | Signed CI artefacts, TestFlight, notarisation | Open |
+| Apple entitlement requests: multicast networking (SSDP/DLNA), CarPlay audio | M1 (request early) | NET-005, CAST-003 on iOS; MUS-013 on iOS | Open |
+| Third-party API keys and terms acceptance: OpenSubtitles.com, TMDB, TVDB, AcoustID, Last.fm, ListenBrainz, Libre.fm, OSM tile provider, IntroDB, Google Cast receiver app ID | Before beta | SUB-020, LIB-011, MUS-009/010, IMG-007, VID-073, CAST-001 live tests | Open |
+| MDM test tenant (Android Enterprise, Apple MDM, Intune) | M7 | B2B-001/002 manual verification | Open |
+| Device lab per docs/11 §3 (HDR panels, DACs, receivers, car head units, foldables) | M8 | Manual release checklists | Open |
+| Self-hosted Sentry/GlitchTip and Aptabase instances (EU VPS) and their hostnames | M7 | PRIV-002/003 live endpoint | Open |
+| Domain `mediahro.com` (site, `/support`, `/privacy`, downloads) and merchant of record (Paddle/Polar), GitHub Sponsors, Liberapay | M7 | SUP-003, PRIV policy URLs | Open |
+| Android developer verification registration incl. F-Droid signing key | Before 2027 | Sideload/F-Droid installs in enforced regions | Open |
+| EU DSA trader information; export-compliance answers in App Store Connect | Before submission | EU availability, App Store submission | Open |
+| Play closed test: recruit 12 testers for 14 continuous days | M7 | Play production access | Open |
+| Beta programme recruitment (≥ 500 users across platforms) | M8 | Release gate 5 | Open |
+| Final store submissions (agents prepare packs; owner presses submit) and human sign-off at each milestone gate | Each gate / M8 | Release gate 12 | Open |
+
+## 5. Release gates (docs/11 §7)
+
+| # | Gate | State |
+|---|---|---|
+| 1 | All doc 04 `1.0` AC tests green on all listed platforms | ☐ |
+| 2 | Media corpus 100 % pass (nightly report attached) | ☐ |
+| 3 | Performance budgets met on reference devices | ☐ |
+| 4 | Zero P0/P1 open | ☐ |
+| 5 | Crash-free sessions ≥ 99.5 % over beta (≥ 500 beta users) | ☐ (needs owner: beta programme) |
+| 6 | Accessibility audit complete; conformance report updated | ☐ |
+| 7 | Licence scan and SBOM clean; configure flags verified | ☐ |
+| 8 | Store checklists (doc 07 §7) complete; metadata and screenshots reviewed | ☐ |
+| 9 | Localisation complete for 12 launch languages | ☐ |
+| 10 | Security review of network/parsing code; fuzz targets stable | ☐ |
+| 11 | Release notes written; rollback plan noted | ☐ |
+| 12 | Human owner sign-off | ☐ (owner) |
+
+## 6. ADR requests (resolved by the orchestrator into docs/05 §12)
+
+| Requested by | Topic | State |
+|---|---|---|
+
+## 7. Log
+
+| Date | Event |
+|---|---|
+| 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
+| 2026-10-19 | M0 skeleton committed: workspace, 5 packages, app shell, interface stubs, tooling, CI workflows, `mediahro-deps` skeleton. Local proof: `tools/check` green (analyze, lints, l10n, status, manifests, 61 tests); Windows debug build + 3 integration tests pass; Android `foss` APK builds. ADR-011…016 recorded in docs/05 §12. |

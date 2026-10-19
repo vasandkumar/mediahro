@@ -1,0 +1,27 @@
+{
+  "@@locale": "en",
+  "appTitle": "Mediahro",
+  "@appTitle": {"description": "Product name. Not translated."},
+  "appNavVideo": "Video",
+  "@appNavVideo": {"description": "Navigation destination for the video mode."},
+  "appNavMusic": "Music",
+  "@appNavMusic": {"description": "Navigation destination for the music mode."},
+  "appNavPhotos": "Photos",
+  "@appNavPhotos": {"description": "Navigation destination for the photos mode."},
+  "appNavSearch": "Search",
+  "@appNavSearch": {"description": "Navigation destination for global search."},
+  "appNavSettings": "Settings",
+  "@appNavSettings": {"description": "Navigation destination for settings."},
+  "appNavSources": "Sources",
+  "@appNavSources": {"description": "Navigation destination for managing folders, shares and servers."},
+  "appComingInMilestone": "{feature} arrives in milestone {milestone}.",
+  "@appComingInMilestone": {
+    "description": "Development-build placeholder shown on screens whose lane has not landed yet. Removed before 1.0.",
+    "placeholders": {"feature": {"type": "String"}, "milestone": {"type": "String"}}
+  },
+  "appItemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@appItemCount": {
+    "description": "Number of items in a list.",
+    "placeholders": {"count": {"type": "int"}}
+  }
+}

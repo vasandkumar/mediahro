@@ -1,0 +1,13 @@
+{
+  "@@locale": "en",
+  "onboardingTagline": "Every file. Every screen. Nothing in the way.",
+  "@onboardingTagline": {"description": "Tagline on the first-run screen (docs/01 §5)."},
+  "onboardingOpenFile": "Open a file",
+  "@onboardingOpenFile": {"description": "First-run button: pick a single media file to play or view."},
+  "onboardingAddFolder": "Add a folder",
+  "@onboardingAddFolder": {"description": "First-run button: add a local folder to the library."},
+  "onboardingAddServer": "Add a server",
+  "@onboardingAddServer": {"description": "First-run button: add a network share or media server."},
+  "onboardingPrivacyNote": "Privacy: nothing leaves this device unless you turn it on",
+  "@onboardingPrivacyNote": {"description": "First-run line linking to the privacy dashboard."}
+}
