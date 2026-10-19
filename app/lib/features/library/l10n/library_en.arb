@@ -1,0 +1,230 @@
+{
+  "@@locale": "en",
+  "libraryAddCondition": "Add condition",
+  "libraryBatchRenamePreview": "Check the new names",
+  "libraryBatchRenameTitle": "Rename with a pattern",
+  "libraryChangePin": "Change PIN",
+  "libraryCollectionKind": "{kind, select, series{Series} seasons{Seasons} movieCollections{Collections} albums{Albums} artists{Artists} genres{Genres} years{Years} composers{Composers} photoAlbums{Albums} people{People} places{Places} other{Groups}}",
+  "@libraryCollectionKind": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryCollections": "Collections",
+  "libraryCollectionsEmpty": "Nothing to group here yet.",
+  "libraryConflict": "Name conflict",
+  "libraryDelete": "Delete",
+  "libraryDeletePermanentHint": "This source has no trash. The files are deleted for good.",
+  "libraryDeletePermanentTitle": "{count, plural, =1{Delete 1 item permanently?} other{Delete {count} items permanently?}}",
+  "@libraryDeletePermanentTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryDescending": "Descending",
+  "libraryDuplicateGroup": "{count} copies · {kind}",
+  "@libraryDuplicateGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDuplicateKind": "{kind, select, exact{Identical files} perceptualImage{Similar photos} acousticAudio{Same recording} videoDurationSize{Same video} other{Duplicates}}",
+  "@libraryDuplicateKind": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryDuplicates": "Duplicates",
+  "libraryDuplicatesIntro": "Find copies across your sources. Nothing is deleted until you choose.",
+  "libraryFilterHdr": "HDR",
+  "libraryFilterRated": "Rated",
+  "libraryFilterResolution": "{resolution, select, sd{SD} hd{720p} fullHd{1080p} qhd{1440p} uhd{4K} uhd8k{8K} other{Resolution}}",
+  "@libraryFilterResolution": {
+    "placeholders": {
+      "resolution": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryFilterUnplayed": "Unplayed",
+  "libraryFindDuplicates": "Find duplicates",
+  "libraryFolderEmpty": "This folder is empty.",
+  "libraryGridView": "Grid view",
+  "libraryHomeRow": "{row, select, continueWatching{Continue watching} recentlyAdded{Recently added} recentlyPlayed{Recently played} unwatched{Unwatched} other{More}}",
+  "@libraryHomeRow": {
+    "placeholders": {
+      "row": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryKeepSuggestion": "Suggested to keep",
+  "libraryKindLabel": "{kind, select, video{Video} audio{Music} image{Photos} playlist{Playlist} subtitle{Subtitles} archive{Archive} other{File}}",
+  "@libraryKindLabel": {
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryLabel": "Colour label",
+  "libraryLabelColor": "{color, select, red{Red} orange{Orange} yellow{Yellow} green{Green} blue{Blue} purple{Purple} grey{Grey} other{Colour}}",
+  "@libraryLabelColor": {
+    "placeholders": {
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryLabelNone": "No label",
+  "libraryLimit": "Limit",
+  "libraryLimitUnit": "{unit, select, items{items} minutes{minutes} megabytes{MB} other{items}}",
+  "@libraryLimitUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryListView": "List view",
+  "libraryLock": "Lock now",
+  "libraryLockSourceHint": "Needs the PIN to show in search and rows",
+  "libraryManualPlaylist": "Playlist",
+  "libraryMatchAll": "Match all",
+  "libraryMatchAny": "Match any",
+  "libraryMovedToTrash": "{count, plural, =1{Moved 1 item to the trash} other{Moved {count} items to the trash}}",
+  "@libraryMovedToTrash": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryName": "Name",
+  "libraryNewFolder": "New folder",
+  "libraryNewPlaylist": "New playlist",
+  "libraryNewQueue": "New queue",
+  "libraryNewSmartPlaylist": "New smart playlist",
+  "libraryNewTag": "Add a tag",
+  "libraryNoDuplicates": "No duplicates found.",
+  "libraryNoPlaylists": "No playlists yet.",
+  "libraryNoQueues": "No queues yet.",
+  "libraryOk": "OK",
+  "libraryParental": "Parental controls",
+  "libraryParentalIntro": "Hide chosen sources and folders behind a PIN. Hidden items stay out of search and home rows.",
+  "libraryParentalUnavailable": "Parental controls need secure storage, which this build does not have yet.",
+  "libraryPatternError": "Unknown token in the pattern: {token}",
+  "@libraryPatternError": {
+    "placeholders": {
+      "token": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryPin": "PIN",
+  "libraryPinInvalid": "Use 4 to 12 digits.",
+  "libraryPinSet": "PIN saved.",
+  "libraryPlaylistEmpty": "This playlist is empty.",
+  "libraryPlaylists": "Playlists",
+  "libraryQueueRepeat": "{mode, select, off{Repeat off} one{Repeat one} all{Repeat all} other{Repeat}}",
+  "@libraryQueueRepeat": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryQueues": "Queues",
+  "libraryRemoveCondition": "Remove condition",
+  "libraryRemoveFromPlaylist": "Remove from playlist",
+  "libraryRename": "Rename",
+  "libraryResumeProgress": "{percent} percent watched",
+  "@libraryResumeProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryRuleField": "{field, select, title{Title} fileName{File name} path{Path} folder{Folder} extension{File type} kind{Kind} source{Source} size{Size} durationMs{Duration (ms)} width{Width} height{Height} videoCodec{Video codec} audioCodec{Audio codec} hdrType{HDR} audioLayout{Channels} audioTracks{Audio tracks} subtitleTracks{Subtitle tracks} playCount{Play count} lastPlayed{Last played} dateAdded{Date added} dateModified{Date modified} dateTaken{Date taken} rating{Rating} tag{Tag} label{Label} watched{Watched} inProgress{In progress} artist{Artist} albumArtist{Album artist} album{Album} genre{Genre} composer{Composer} year{Year} trackNumber{Track} discNumber{Disc} season{Season} episode{Episode} camera{Camera} favourite{Favourite} person{Person} place{Place} other{Field}}",
+  "@libraryRuleField": {
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRuleOp": "{op, select, equals{is} notEquals{is not} contains{contains} notContains{does not contain} startsWith{starts with} endsWith{ends with} greaterThan{more than} atLeast{at least} lessThan{less than} atMost{at most} between{between} inLastDays{in the last (days)} notInLastDays{not in the last (days)} isSet{is set} isNotSet{is not set} anyOf{is one of} isTrue{yes} isFalse{no} other{is}}",
+  "@libraryRuleOp": {
+    "placeholders": {
+      "op": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryRuleValue": "Value",
+  "librarySearchClear": "Clear",
+  "librarySearchHint": "Search titles, artists, tags, people…",
+  "librarySearchNoResults": "Nothing matches. Try fewer words or fewer filters.",
+  "librarySearchPrompt": "Start typing to search every source.",
+  "librarySelected": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@librarySelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "librarySetPin": "Set PIN",
+  "librarySmartPlaylist": "Smart playlist",
+  "librarySort": "Sort",
+  "librarySortBy": "{sort, select, name{Name} modified{Date} size{Size} fileType{Type} other{Name}}",
+  "@librarySortBy": {
+    "placeholders": {
+      "sort": {
+        "type": "String"
+      }
+    }
+  },
+  "librarySortRandom": "Random",
+  "libraryStatPlays": "Plays",
+  "libraryStatStorage": "Storage by type",
+  "libraryStatTime": "Time played",
+  "libraryStatTop": "Most played",
+  "libraryStatistics": "Statistics",
+  "libraryTagsFor": "{count, plural, =1{Tags for 1 item} other{Tags for {count} items}}",
+  "@libraryTagsFor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "libraryTools": "Library",
+  "libraryTryAgain": "Try again",
+  "libraryUndo": "Undo",
+  "libraryUnlock": "Unlock",
+  "libraryUnlockFirst": "Unlock with the PIN first.",
+  "libraryUnlockReason": "Show locked sources",
+  "libraryUnlockResult": "{result, select, unlocked{Unlocked} wrongPin{Wrong PIN} lockedOut{Too many tries. Wait a little and try again.} noPin{Set a PIN first} cancelled{Cancelled} other{Done}}",
+  "@libraryUnlockResult": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      }
+    }
+  },
+  "libraryViewFolders": "Folders",
+  "libraryViewLibrary": "Library"
+}

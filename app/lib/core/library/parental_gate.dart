@@ -11,6 +11,18 @@ import 'package:mediahro/platform/security.dart';
 
 enum UnlockResult { unlocked, wrongPin, lockedOut, noPin, cancelled }
 
+/// Why a parental-gate change was refused; the UI maps it to copy.
+enum ParentalGateRefusal { invalidPin, locked, noPin }
+
+final class ParentalGateException implements Exception {
+  const ParentalGateException(this.reason);
+
+  final ParentalGateRefusal reason;
+
+  @override
+  String toString() => 'ParentalGateException(${reason.name})';
+}
+
 /// Parental PIN / biometric gate for chosen sources and folders, and
 /// hidden items (LIB-013). Locked content is excluded from search and rows
 /// through [visibility] until the gate is opened for the session.
@@ -62,10 +74,10 @@ final class ParentalGate {
   /// Sets or replaces the PIN (4–12 digits). Replacing needs an open gate.
   Future<void> setPin(String pin) async {
     if (!RegExp(r'^\d{4,12}$').hasMatch(pin)) {
-      throw ArgumentError.value('***', 'pin', 'must be 4–12 digits');
+      throw const ParentalGateException(ParentalGateRefusal.invalidPin);
     }
     if (await hasPin && !isUnlocked) {
-      throw StateError('unlock before changing the PIN');
+      throw const ParentalGateException(ParentalGateRefusal.locked);
     }
     final salt = List<int>.generate(16, (_) => _random.nextInt(256));
     await secureStorage.write(
@@ -80,7 +92,9 @@ final class ParentalGate {
 
   /// Removes the PIN and every lock (needs an open gate).
   Future<void> removePin() async {
-    if (!isUnlocked) throw StateError('unlock before removing the PIN');
+    if (!isUnlocked) {
+      throw const ParentalGateException(ParentalGateRefusal.locked);
+    }
     await secureStorage.delete(_pinKey);
     await db.transaction(() async {
       await db
@@ -170,7 +184,7 @@ final class ParentalGate {
   /// Hidden items never show in search or rows (no PIN needed to hide).
   Future<void> setHidden(Iterable<int> itemIds, {required bool hidden}) async {
     if (!hidden && !isUnlocked && await hasPin) {
-      throw StateError('unlock before unhiding');
+      throw const ParentalGateException(ParentalGateRefusal.locked);
     }
     await (db.update(db.items)..where((i) => i.id.isIn(itemIds))).write(
       ItemsCompanion(hidden: Value(hidden)),
@@ -187,8 +201,12 @@ final class ParentalGate {
   }
 
   Future<void> _requirePinAndOpenForRelease(bool locking) async {
-    if (!await hasPin) throw StateError('set a PIN first');
-    if (!locking && !isUnlocked) throw StateError('unlock first');
+    if (!await hasPin) {
+      throw const ParentalGateException(ParentalGateRefusal.noPin);
+    }
+    if (!locking && !isUnlocked) {
+      throw const ParentalGateException(ParentalGateRefusal.locked);
+    }
   }
 
   static const _iterations = 100000;

@@ -1,0 +1,257 @@
+{
+  "@@locale": "en",
+  "sourcesAdd": "Add source",
+  "sourcesAddCloud": "Cloud drive",
+  "sourcesAddCloudHint": "Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk",
+  "sourcesAddDlna": "Media server on this network",
+  "sourcesAddDlnaHint": "DLNA and UPnP servers, TVs and NAS boxes",
+  "sourcesAddFolder": "Add a folder",
+  "sourcesAddFolderHint": "A folder on this device, an SD card or a USB drive",
+  "sourcesAddServer": "Add a server",
+  "sourcesAddServerHint": "Jellyfin, Emby, Plex, Subsonic, Immich and more",
+  "sourcesAddShare": "Add a network share",
+  "sourcesAddShareHint": "SMB, NFS, WebDAV, FTP or SFTP",
+  "sourcesBackup": "Backup and restore",
+  "sourcesBackupCredentials": "Include saved passwords",
+  "sourcesBackupCredentialsHint": "They are stored inside the encrypted file. Leave this off to type them again after restoring.",
+  "sourcesBackupDone": "Backup saved to {folder}.",
+  "@sourcesBackupDone": {
+    "placeholders": {
+      "folder": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesBackupExport": "Back up",
+  "sourcesBackupIntro": "Save playback positions, playlists, ratings, tags and settings to one encrypted file. Restore it on any device.",
+  "sourcesBackupInvalid": "This file is not a Mediahro backup.",
+  "sourcesBackupPass": "Passphrase",
+  "sourcesBackupPassMismatch": "The passphrases do not match.",
+  "sourcesBackupPassRepeat": "Repeat passphrase",
+  "sourcesBackupPassShort": "Use at least 8 characters.",
+  "sourcesBackupRestore": "Restore",
+  "sourcesBackupWrongPass": "Wrong passphrase, or the file is damaged.",
+  "sourcesBrowse": "Browse files",
+  "sourcesCancel": "Cancel",
+  "sourcesCredentialsNote": "Passwords are kept in this device's secure storage, never in the library file.",
+  "sourcesDiscoveredVia": "{protocol} · {host}",
+  "@sourcesDiscoveredVia": {
+    "placeholders": {
+      "protocol": {
+        "type": "String"
+      },
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesDownloadState": "{state, select, queued{Waiting} running{Downloading} paused{Paused} done{Ready offline} failed{Couldn't download} expired{Expired} other{Waiting}}",
+  "@sourcesDownloadState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesDownloads": "Downloads",
+  "sourcesDownloadsEmpty": "No downloads. Save items from servers or shares to watch offline.",
+  "sourcesDownloadsUsed": "{used} of {quota} used",
+  "@sourcesDownloadsUsed": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "quota": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesEmpty": "Add a folder, a network share or a server to start your library.",
+  "sourcesEnabled": "Use this source",
+  "sourcesErrorAuth": "The user name or password was not accepted.",
+  "sourcesErrorCertificate": "This server's certificate is not trusted. Check it before connecting.",
+  "sourcesErrorExists": "Something with that name is already there.",
+  "sourcesErrorIo": "Couldn't read from this source. Try again.",
+  "sourcesErrorNoSpace": "There is no space left on this source.",
+  "sourcesErrorNotFound": "Couldn't find this. It may have been moved or deleted.",
+  "sourcesErrorPermission": "You don't have permission to do that here.",
+  "sourcesErrorTimeout": "The server took too long to answer.",
+  "sourcesErrorUnreachable": "Couldn't reach the server. Check that it is on and on the same network.",
+  "sourcesErrorUnsupported": "This source can't do that.",
+  "sourcesFolderPickerUnavailable": "The folder picker is not available in this build yet.",
+  "sourcesGuest": "Connect as guest",
+  "sourcesHeaders": "Headers",
+  "sourcesHeadersHelp": "One per line, as Name: value",
+  "sourcesHealth": "{state, select, ok{Reachable} unreachable{Unavailable} unknown{Not scanned yet} disabled{Turned off} other{Unknown}}",
+  "@sourcesHealth": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesHealthResult": "{latency} ms · {mbps} Mbit/s · suggested cache {cache} MB",
+  "@sourcesHealthResult": {
+    "placeholders": {
+      "latency": {
+        "type": "int"
+      },
+      "mbps": {
+        "type": "int"
+      },
+      "cache": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcesHealthTest": "Test the connection",
+  "sourcesHealthTestHint": "Measures response time and speed",
+  "sourcesHealthTesting": "Testing…",
+  "sourcesHealthWarning": "{warning, select, metered{This is a metered connection. Streaming uses your data plan.} slowForHd{Too slow for HD video.} slowFor4k{Too slow for 4K remuxes; lower-bitrate files play fine.} highLatency{Slow responses: seeking may take a moment.} other{Check the connection.}}",
+  "@sourcesHealthWarning": {
+    "placeholders": {
+      "warning": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesHost": "Server",
+  "sourcesHostRequired": "Enter a server name or address.",
+  "sourcesIncludeMusic": "Show in Music",
+  "sourcesIncludePhotos": "Show in Photos",
+  "sourcesIncludeVideo": "Show in Video",
+  "sourcesItemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@sourcesItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcesLastScan": "Last scan {time}",
+  "@sourcesLastScan": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesLoadError": "Couldn't load your sources.",
+  "sourcesMore": "More",
+  "sourcesName": "Name (optional)",
+  "sourcesNothingFound": "Nothing found yet. You can enter the address below.",
+  "sourcesOnThisNetwork": "On this network",
+  "sourcesOpen": "Open",
+  "sourcesOpenUrl": "Open URL",
+  "sourcesOpenUrlHint": "A stream or file address",
+  "sourcesPassword": "Password",
+  "sourcesPath": "Folder",
+  "sourcesPause": "Pause",
+  "sourcesPort": "Port",
+  "sourcesPortHelp": "Leave empty for the default",
+  "sourcesProtocol": "Type",
+  "sourcesProtocolName": "{protocol, select, smb{Windows share (SMB)} nfs{NFS} webdav{WebDAV} ftp{FTP} sftp{SFTP} other{Share}}",
+  "@sourcesProtocolName": {
+    "placeholders": {
+      "protocol": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesRemove": "Remove",
+  "sourcesRemoveHint": "Removes the source and its library entries. Your files are not touched.",
+  "sourcesRemoveTitle": "Remove {name}?",
+  "@sourcesRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesRestoreDone": "Restored {matched} items and {playlists} playlists. {unmatched} items were not found on this device yet.",
+  "@sourcesRestoreDone": {
+    "placeholders": {
+      "matched": {
+        "type": "int"
+      },
+      "playlists": {
+        "type": "int"
+      },
+      "unmatched": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcesResume": "Resume",
+  "sourcesSave": "Save",
+  "sourcesScan": "Scan",
+  "sourcesScanIdle": "Up to date",
+  "sourcesScanNow": "Scan now",
+  "sourcesScanProgress": "{files} files in {folders} folders",
+  "@sourcesScanProgress": {
+    "placeholders": {
+      "files": {
+        "type": "int"
+      },
+      "folders": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcesSchedule": "When to scan",
+  "sourcesScheduleName": "{schedule, select, manual{Manually} onOpen{On app open} watch{Watch for changes} other{Manually}}",
+  "@sourcesScheduleName": {
+    "placeholders": {
+      "schedule": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesScrape": "Look up movie and series details",
+  "sourcesScrapeHint": "Uses TMDB or TVDB when turned on in Privacy",
+  "sourcesSearchAgain": "Search again",
+  "sourcesShare": "Share name",
+  "sourcesTestConnection": "Test connection",
+  "sourcesTestOk": "{count, plural, =0{Connected. The folder is empty.} =1{Connected. 1 item at the top level.} other{Connected. {count} items at the top level.}}",
+  "@sourcesTestOk": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sourcesTransferEmpty": "No files yet",
+  "sourcesTransferFiles": "Files",
+  "sourcesTransferHint": "Open the address below in a browser on the same Wi-Fi to send or fetch files.",
+  "sourcesTransferOn": "Wi-Fi transfer",
+  "sourcesTransferPageTitle": "Send to Mediahro",
+  "sourcesTransferPrivacy": "Only someone with this exact address can connect. It stops when you leave this screen or after 15 minutes without use.",
+  "sourcesTransferQr": "QR code with the transfer address",
+  "sourcesTransferUpload": "Upload",
+  "sourcesTransferUploaded": "Uploaded",
+  "sourcesUnavailableSince": "Unavailable, last seen {date}",
+  "@sourcesUnavailableSince": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesUrl": "Address",
+  "sourcesUrlAdvanced": "Headers and user agent",
+  "sourcesUrlForget": "Remove from history",
+  "sourcesUrlHint": "https://, rtsp://, smb://…",
+  "sourcesUrlHistory": "Recent",
+  "sourcesUrlRejected": "{reason, select, empty{Enter an address.} malformed{This is not a valid address.} unsupportedScheme{This kind of address is not supported.} missingHost{The address needs a server name.} badHeader{A header is not valid.} other{This address is not valid.}}",
+  "@sourcesUrlRejected": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesUseTls": "Use a secure connection",
+  "sourcesUser": "User name",
+  "sourcesUserAgent": "User agent",
+  "sourcesWifiTransfer": "Wi-Fi transfer"
+}

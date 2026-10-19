@@ -359,7 +359,16 @@ void main() {
       expect(await gate.unlock(pin: '1234'), UnlockResult.lockedOut);
       now = now.add(const Duration(seconds: 31));
       expect(await gate.unlock(pin: '1234'), UnlockResult.unlocked);
-      expect(() => gate.setPin('12'), throwsArgumentError);
+      expect(
+        () => gate.setPin('12'),
+        throwsA(
+          isA<ParentalGateException>().having(
+            (e) => e.reason,
+            'reason',
+            ParentalGateRefusal.invalidPin,
+          ),
+        ),
+      );
       await gate.dispose();
     });
 
@@ -378,7 +387,10 @@ void main() {
         await LibrarySearch(db).search(const SearchRequest('hide')),
         isEmpty,
       );
-      expect(() => gate.setHidden([a], hidden: false), throwsStateError);
+      expect(
+        () => gate.setHidden([a], hidden: false),
+        throwsA(isA<ParentalGateException>()),
+      );
       expect(await gate.unlock(), UnlockResult.unlocked);
       expect(bio.prompts, 1);
       await gate.setHidden([a], hidden: false);
