@@ -5,7 +5,9 @@ name: ci
 on:
   push:
     branches: [main]
+    paths: ['**', '!docs/**', '!**/*.md', 'STATUS.md']
   pull_request:
+    paths: ['**', '!docs/**', '!**/*.md', 'STATUS.md']
   workflow_dispatch:
   workflow_call:
 
@@ -127,48 +129,35 @@ jobs:
             app/build/app/outputs/flutter-apk/*.apk
             app/build/app/outputs/bundle/**/*.aab
 
-  build-ios:
+  # iOS and both macOS flavours in one job: macOS runners are the scarcest
+  # resource, so one setup and one queue slot per PR instead of three.
+  build-apple:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: .fvmrc, cache: true }
       - run: tools/bootstrap
-      - name: Device build (store, unsigned)
+      - name: iOS device build (store, unsigned)
         working-directory: app
-        run: flutter build ios --release --no-codesign --dart-define=MEDIAHRO_FLAVOR=store --split-debug-info=build/symbols --obfuscate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'ios-symbols', path: app/build/symbols, retention-days: 90 }
-      - name: Simulator build (runnable artefact)
+        run: flutter build ios --release --no-codesign --dart-define=MEDIAHRO_FLAVOR=store --split-debug-info=build/symbols/ios --obfuscate
+      - name: iOS simulator build (runnable artefact)
         working-directory: app
-        run: flutter build ios --simulator --debug --dart-define=MEDIAHRO_FLAVOR=store
-      - name: Package
-        run: cd app/build/ios/iphonesimulator && zip -qr ../../../../mediahro-ios-simulator.zip Runner.app
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: ios-simulator, path: mediahro-ios-simulator.zip }
-
-  build-macos:
-    runs-on: macos-26
-    strategy:
-      fail-fast: false
-      matrix:
-        flavor: [store, direct]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with: { flutter-version-file: .fvmrc, cache: true }
-      - run: tools/bootstrap
-      - name: Build ${{ matrix.flavor }}
+        run: |
+          flutter build ios --simulator --debug --dart-define=MEDIAHRO_FLAVOR=store
+          cd build/ios/iphonesimulator && zip -qr ../../../../mediahro-ios-simulator.zip Runner.app
+      - name: macOS builds (store, direct) with size budget
         working-directory: app
-        run: flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=${{ matrix.flavor }} --split-debug-info=build/symbols --obfuscate
+        run: |
+          for flavor in store direct; do
+            flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=$flavor --split-debug-info=build/symbols/macos-$flavor --obfuscate
+            python3 ../tools/perf/size_budget.py desktop build/macos/Build/Products/Release/Mediahro.app
+            (cd build/macos/Build/Products/Release && ditto -c -k --keepParent Mediahro.app "$GITHUB_WORKSPACE/mediahro-macos-$flavor.zip")
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'macos-symbols-${{ matrix.flavor }}', path: app/build/symbols, retention-days: 90 }
-      - name: Install size budget (≤ 70 MB, docs/11 §5)
-        run: python3 tools/perf/size_budget.py desktop app/build/macos/Build/Products/Release/Mediahro.app
-      - name: Package
-        run: cd app/build/macos/Build/Products/Release && ditto -c -k --keepParent Mediahro.app ../../../../../../mediahro-macos-${{ matrix.flavor }}.zip
+        with: { name: apple-symbols, path: app/build/symbols, retention-days: 90 }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'macos-${{ matrix.flavor }}', path: 'mediahro-macos-${{ matrix.flavor }}.zip' }
+        with: { name: apple-builds, path: 'mediahro-*.zip' }
 
   build-windows:
     runs-on: windows-2025
@@ -221,9 +210,10 @@ jobs:
         if: always()
         with: { name: android-logcat, path: build/logcat.txt, if-no-files-found: ignore }
 
-  integration-ios:
+  # iOS simulator and macOS integration in one job (one macOS queue slot).
+  integration-apple:
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -235,19 +225,11 @@ jobs:
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
           xcrun simctl boot "$UDID"
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
-      - name: Integration tests
+      - name: iOS integration tests
         working-directory: app
         run: ../tools/ci/run_integration.sh -d ${{ steps.sim.outputs.udid }} --dart-define=MEDIAHRO_FLAVOR=store
-
-  integration-macos:
-    runs-on: macos-26
-    timeout-minutes: 75
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with: { flutter-version-file: .fvmrc, cache: true }
-      - run: tools/bootstrap
-      - name: Integration tests
+      - name: macOS integration tests
+        if: success() || failure()
         working-directory: app
         run: ../tools/ci/run_integration.sh -d macos --dart-define=MEDIAHRO_FLAVOR=direct
 
