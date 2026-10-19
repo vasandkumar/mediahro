@@ -47,6 +47,9 @@ final class FakePlaybackEngine implements PlaybackEngine {
   AudioDspChain dsp = const AudioDspChain();
   AudioOutputConfig output = const AudioOutputConfig();
   (Duration?, Duration?, int?) abLoop = (null, null, null);
+  double subSpeed = 1;
+  MediaSource? nextSource;
+  TransitionConfig transition = const TransitionConfig();
 
   final _controller = StreamController<PlaybackState>.broadcast();
   PlaybackState _state = const PlaybackState();
@@ -285,6 +288,35 @@ final class FakePlaybackEngine implements PlaybackEngine {
     SubtitleSlot slot = SubtitleSlot.primary,
   }) async {
     _check('setSubtitleStyle');
+  }
+
+  @override
+  Future<void> setSubSpeed(double speed) async {
+    _check('setSubSpeed');
+    subSpeed = speed;
+  }
+
+  @override
+  Future<void> setNext(MediaSource? next, {bool sameAlbum = false}) async {
+    _check('setNext');
+    nextSource = next;
+    _emit(_state.copyWith(nextPrepared: next != null));
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    _check('skipToNext');
+    final next = nextSource;
+    if (next == null) return;
+    nextSource = null;
+    await open(next);
+    calls.removeLast();
+  }
+
+  @override
+  Future<void> setTransition(TransitionConfig config) async {
+    _check('setTransition');
+    transition = config;
   }
 
   @override

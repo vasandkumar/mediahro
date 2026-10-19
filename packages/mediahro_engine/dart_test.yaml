@@ -1,0 +1,5 @@
+# FFI contract tests need libmpv and the generated corpus (docs/11 §1); they
+# skip themselves when either is missing.
+tags:
+  ffi:
+    timeout: 3x

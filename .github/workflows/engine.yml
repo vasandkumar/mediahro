@@ -1,0 +1,93 @@
+# Engine proof (lane B1, docs/10 §8 rule 4; docs/11 §1): FFI contract tests
+# and the media corpus driving MpvEngine on real libmpv per platform, plus the
+# engine example app's integration tests on A/I/M/W.
+#
+# libmpv comes from .deps-cache/<target> once deps.lock pins a mediahro-deps
+# release; until then from the ADR-004 bootstrap
+# (packages/mediahro_engine/tool/bootstrap_libmpv.json, SHA-256 pinned).
+name: engine
+
+on:
+  pull_request:
+    paths:
+      - 'packages/mediahro_engine/**'
+      - 'packages/mediahro_ffi/lib/src/mpv/**'
+      - 'packages/mediahro_ffi/ffigen/mpv.yaml'
+      - 'app/lib/engine/**'
+      - 'tools/corpus/**'
+      - 'test-media/**'
+      - 'deps.lock'
+      - '.github/workflows/engine.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mediahro_engine/**'
+      - 'packages/mediahro_ffi/lib/src/mpv/**'
+      - 'app/lib/engine/**'
+      - 'tools/corpus/**'
+      - 'deps.lock'
+      - '.github/workflows/engine.yml'
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: engine-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PUB_CACHE: ${{ github.workspace }}/.pub-cache
+
+jobs:
+  corpus:
+    name: corpus (generate)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - name: Install ffmpeg (test-media generation only; nothing generated ships)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+      - run: dart run tools/corpus/generate.dart --ffmpeg ffmpeg --out test-media/generated
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: engine-corpus, path: test-media/generated, retention-days: 7 }
+
+  ffi:
+    name: ffi + corpus (${{ matrix.os }})
+    needs: corpus
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows, runner: windows-2025, target: windows-x64, lib: lib/libmpv-2.dll }
+          - { os: macos, runner: macos-26, target: macos-dylibs, lib: lib/libmpv.dylib }
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: engine-corpus, path: test-media/generated }
+      - name: libmpv (deps.lock archive, else ADR-004 bootstrap)
+        id: mpv
+        run: |
+          PY=python3; "$PY" --version >/dev/null 2>&1 || PY=python
+          dir=$("$PY" packages/mediahro_engine/tool/fetch_libmpv.py --print-path ${{ matrix.target }} | tail -1)
+          echo "MEDIAHRO_LIBMPV=$dir/${{ matrix.lib }}" >> "$GITHUB_ENV"
+          echo "DYLD_FALLBACK_LIBRARY_PATH=$dir/lib" >> "$GITHUB_ENV"
+      - name: Engine tests (unit + FFI contract + corpus)
+        working-directory: packages/mediahro_engine
+        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-${{ matrix.os }}.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: engine-report-${{ matrix.os }}
+          path: |
+            build/engine-tests-*.json
+            build/corpus-report.json
+          if-no-files-found: ignore

@@ -65,6 +65,22 @@ abstract interface class PlaybackEngine {
     SubtitleSlot slot = SubtitleSlot.primary,
   });
 
+  /// Subtitle speed factor, e.g. 25 / 23.976 for frame-rate conversion
+  /// (SUB-015). Applies to text subtitles.
+  Future<void> setSubSpeed(double speed);
+
+  /// Preloads [next] so it starts sample-accurately when the current item
+  /// ends (gapless, AUD-002) or crossfades per [setTransition] (AUD-003).
+  /// `null` clears it. [sameAlbum] marks consecutive tracks of one album for
+  /// the gapless-album rule.
+  Future<void> setNext(MediaSource? next, {bool sameAlbum = false});
+
+  /// Starts the prepared next item now, crossfading per the manual-skip rule.
+  Future<void> skipToNext();
+
+  /// Crossfade rules for natural ends and manual skips (AUD-003).
+  Future<void> setTransition(TransitionConfig config);
+
   /// A-B loop (VID-063); both null clears it.
   Future<void> setAbLoop(Duration? a, Duration? b, {int? count});
 
