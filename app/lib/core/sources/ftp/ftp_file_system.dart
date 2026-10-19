@@ -9,10 +9,10 @@ import 'package:mediahro_ffi/mediahro_ffi.dart';
 /// FTP, explicit FTPS (AUTH TLS) and implicit FTPS (NET-004) over dart:io
 /// sockets and the platform TLS of the Dart runtime.
 ///
-/// This is the Apple fallback: libcurl ≥ 8.15 has no TLS backend on Apple
-/// and the mediahro-deps Apple archives ship no libssh2 (docs/05 §2, ADR
-/// request in STATUS §6). Other platforms use libcurl through
-/// [curlFileSystem]; both implement the same [MutableFileSystem] contract.
+/// The fallback where the mediahro-deps libcurl has no TLS: Android (no NDK
+/// TLS API) and Apple (curl ≥ 8.15 dropped SecureTransport); ADR request in
+/// STATUS §6. Windows uses libcurl with Schannel through [curlFileSystem];
+/// both implement the same [MutableFileSystem] contract.
 enum FtpSecurity { none, explicit, implicit }
 
 final class FtpOptions {

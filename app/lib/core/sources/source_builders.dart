@@ -35,14 +35,17 @@ final class SourceOnlyPolicy implements NetworkPolicy {
 /// wherever the scan runs (a worker isolate), so it captures only the
 /// sendable [SourceSpec] and creates its own gateway for that host.
 ///
-/// [nativeCurl] is false on Apple, where libcurl has no TLS backend and no
-/// libssh2 ships (mediahro-deps): FTP/FTPS then use [FtpFileSystem] and
-/// SFTP reports `unsupported` until an SSH fallback lands (STATUS §3).
+/// [nativeCurl] is false on Android and Apple, where the mediahro-deps
+/// libcurl has no TLS backend and no libssh2 ships (no OS crypto API usable
+/// from C, and OpenSSL/mbedTLS are excluded): FTP/FTPS then use
+/// [FtpFileSystem] and SFTP reports `unsupported` until an SSH fallback
+/// lands (STATUS §3). Windows libcurl uses Schannel and WinCNG.
 Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
   String? keyDirectory,
   bool? nativeCurl,
 }) {
-  final curl = nativeCurl ?? !(Platform.isIOS || Platform.isMacOS);
+  final curl =
+      nativeCurl ?? !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
   return {
     SourceKind.local: (_) => const LocalFileSystem(),
     SourceKind.smb: (s) => smbFileSystem(
@@ -71,7 +74,7 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
         : throw VirtualFileException(
             VirtualFileError.unsupported,
             s.root,
-            'SFTP needs libssh2, which mediahro-deps does not build for Apple',
+            'SFTP needs libssh2, which mediahro-deps builds only for Windows',
           ),
     SourceKind.dlna: (s) => DlnaFileSystem(
       _session(s, extraHosts: [Uri.parse(s.options['controlUrl'] ?? '').host]),

@@ -358,7 +358,7 @@ void main() {
     expect(File('${root.path}/partial.bin').existsSync(), isFalse);
   });
 
-  test('NET-004 Apple builders use the Dart FTP/FTPS client; SFTP reports unsupported', () async {
+  test('NET-004 Android/Apple builders use the Dart FTP/FTPS client; SFTP reports unsupported', () async {
     final b = defaultFileSystemBuilders(nativeCurl: false);
     final s = await TestFtpServer.start(root);
     addTearDown(s.close);
