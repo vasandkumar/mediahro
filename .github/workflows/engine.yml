@@ -51,6 +51,8 @@ jobs:
       - name: Install ffmpeg (test-media generation only; nothing generated ships)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
       - run: dart run tools/corpus/generate.dart --ffmpeg ffmpeg --out test-media/generated
+      - name: UDF disc images (pycdlib, test media only)
+        run: python3 -m pip install --quiet pycdlib==1.22.0 && python3 tools/corpus/make_iso.py test-media/generated
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: engine-corpus, path: test-media/generated, retention-days: 7 }
 

@@ -9,11 +9,13 @@
 /// Encrypted discs are detected and refused (no AACS/CSS).
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
+import 'package:mediahro_engine/src/disc/udf.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 import 'package:meta/meta.dart';
 
@@ -87,81 +89,209 @@ final class DiscFormatException implements Exception {
   String toString() => 'DiscFormatException: $message';
 }
 
-/// Reads disc folders.
+/// A file or folder of a disc: a local path or an entry of a UDF image.
+abstract interface class _Node {
+  String get name;
+  bool get isDirectory;
+
+  /// Local path when the node is on the file system (EDL playback).
+  String? get path;
+  Future<List<_Node>> children();
+  Future<int> length();
+  VirtualFile open();
+}
+
+final class _FsNode implements _Node {
+  _FsNode(this.entity);
+  final FileSystemEntity entity;
+
+  @override
+  String get name =>
+      entity.uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? '';
+
+  @override
+  bool get isDirectory => entity is Directory;
+
+  @override
+  String? get path => entity.path;
+
+  @override
+  Future<List<_Node>> children() async {
+    final d = entity;
+    if (d is! Directory || !d.existsSync()) return const [];
+    return [for (final e in d.listSync()) _FsNode(e)];
+  }
+
+  @override
+  Future<int> length() => (entity as File).length();
+
+  @override
+  VirtualFile open() => _LocalFile(entity as File);
+}
+
+final class _UdfNode implements _Node {
+  _UdfNode(this.entry);
+  final UdfEntry entry;
+
+  @override
+  String get name => entry.name;
+
+  @override
+  bool get isDirectory => entry.isDirectory;
+
+  @override
+  String? get path => null;
+
+  @override
+  Future<List<_Node>> children() async => [
+    for (final c in await entry.children()) _UdfNode(c),
+  ];
+
+  @override
+  Future<int> length() async => entry.size;
+
+  @override
+  VirtualFile open() => entry.open();
+}
+
+/// A local file as a [VirtualFile] (one handle, serialised reads).
+final class _LocalFile implements VirtualFile {
+  _LocalFile(this._file);
+  final File _file;
+  RandomAccessFile? _raf;
+  Future<void> _lock = Future.value();
+
+  @override
+  Uri get uri => _file.uri;
+
+  @override
+  bool get isSeekable => true;
+
+  @override
+  Future<int?> length() => _file.length();
+
+  @override
+  Future<Uint8List> read(int offset, int length) async {
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
+    try {
+      final raf = _raf ??= await _file.open();
+      await raf.setPosition(offset);
+      return await raf.read(length);
+    } finally {
+      done.complete();
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _raf?.close();
+    _raf = null;
+  }
+}
+
+/// Reads disc folders and disc images.
 abstract final class DiscReader {
   /// Maximum structure file size read (parser limit, docs/13).
   static const int maxStructureBytes = 16 * 1024 * 1024;
 
   /// Whether [dir] is (or contains) a `VIDEO_TS` or `BDMV` folder.
-  static bool isDiscFolder(Directory dir) => _locate(dir) != null;
+  static bool isDiscFolder(Directory dir) {
+    bool has(Directory d, String child, {bool folder = false}) =>
+        d.existsSync() &&
+        d.listSync().any(
+          (e) =>
+              (folder ? e is Directory : e is File) &&
+              _FsNode(e).name.toUpperCase() == child,
+        );
+    final name = _FsNode(dir).name.toUpperCase();
+    if (name == 'VIDEO_TS' && has(dir, 'VIDEO_TS.IFO')) return true;
+    if (name == 'BDMV' && has(dir, 'PLAYLIST', folder: true)) return true;
+    return has(dir, 'VIDEO_TS', folder: true) || has(dir, 'BDMV', folder: true);
+  }
 
   /// Reads the disc at [dir] (the disc root or the VIDEO_TS/BDMV folder),
   /// or returns null when [dir] is not a disc folder.
   static Future<DiscInfo?> read(Directory dir) async {
-    final found = _locate(dir);
+    final found = await _locate(_FsNode(dir));
     if (found == null) return null;
-    final (kind, folder) = found;
-    return await switch (kind) {
-      DiscKind.dvd => _readDvd(folder),
-      DiscKind.bluray => _readBluray(folder),
-    };
+    return await _read(found.$1, found.$2, dir.parent);
   }
 
-  static (DiscKind, Directory)? _locate(Directory dir) {
-    final name = dir.uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull;
-    if (name?.toUpperCase() == 'VIDEO_TS' &&
-        _child(dir, 'VIDEO_TS.IFO') != null) {
+  /// Reads a UDF disc image (`.iso`) from any source (VID-001), or returns
+  /// null when it holds no DVD-Video or Blu-ray structure.
+  static Future<DiscInfo?> readImage(
+    VirtualFile image, {
+    Directory? root,
+  }) async {
+    if (!await UdfImage.isUdf(image)) return null;
+    final udf = await UdfImage.open(image);
+    final found = await _locate(_UdfNode(udf.root));
+    if (found == null) return null;
+    return await _read(found.$1, found.$2, root ?? Directory.systemTemp);
+  }
+
+  static Future<DiscInfo> _read(DiscKind kind, _Node folder, Directory root) =>
+      switch (kind) {
+        DiscKind.dvd => _readDvd(folder, root),
+        DiscKind.bluray => _readBluray(folder, root),
+      };
+
+  static Future<(DiscKind, _Node)?> _locate(_Node dir) async {
+    final name = dir.name.toUpperCase();
+    if (name == 'VIDEO_TS' && await _child(dir, 'VIDEO_TS.IFO') != null) {
       return (DiscKind.dvd, dir);
     }
-    if (name?.toUpperCase() == 'BDMV' && _childDir(dir, 'PLAYLIST') != null) {
+    if (name == 'BDMV' && await _childDir(dir, 'PLAYLIST') != null) {
       return (DiscKind.bluray, dir);
     }
-    final dvd = _childDir(dir, 'VIDEO_TS');
-    if (dvd != null && _child(dvd, 'VIDEO_TS.IFO') != null) {
+    final dvd = await _childDir(dir, 'VIDEO_TS');
+    if (dvd != null && await _child(dvd, 'VIDEO_TS.IFO') != null) {
       return (DiscKind.dvd, dvd);
     }
-    final bd = _childDir(dir, 'BDMV');
-    if (bd != null && _childDir(bd, 'PLAYLIST') != null) {
+    final bd = await _childDir(dir, 'BDMV');
+    if (bd != null && await _childDir(bd, 'PLAYLIST') != null) {
       return (DiscKind.bluray, bd);
     }
     return null;
   }
 
   /// Case-insensitive child lookup (discs use upper case; copies may not).
-  static File? _child(Directory dir, String name) {
-    if (!dir.existsSync()) return null;
-    for (final e in dir.listSync()) {
-      if (e is File && e.uri.pathSegments.last.toUpperCase() == name) return e;
+  static Future<_Node?> _child(_Node dir, String name) async {
+    for (final e in await dir.children()) {
+      if (!e.isDirectory && e.name.toUpperCase() == name) return e;
     }
     return null;
   }
 
-  static Directory? _childDir(Directory dir, String name) {
-    if (!dir.existsSync()) return null;
-    for (final e in dir.listSync()) {
-      if (e is Directory &&
-          e.uri.pathSegments.where((s) => s.isNotEmpty).last.toUpperCase() ==
-              name) {
-        return e;
-      }
+  static Future<_Node?> _childDir(_Node dir, String name) async {
+    for (final e in await dir.children()) {
+      if (e.isDirectory && e.name.toUpperCase() == name) return e;
     }
     return null;
   }
 
-  static Future<Uint8List> _bytes(File f) async {
+  static Future<Uint8List> _bytes(_Node f) async {
     final len = await f.length();
     if (len > maxStructureBytes) {
-      throw DiscFormatException('${f.path} is too large');
+      throw DiscFormatException('${f.name} is too large');
     }
-    return await f.readAsBytes();
+    final v = f.open();
+    try {
+      return await v.read(0, len);
+    } finally {
+      await v.close();
+    }
   }
 
   // ------------------------------------------------------------------ DVD --
 
   static const _sector = 2048;
 
-  static Future<DiscInfo> _readDvd(Directory videoTs) async {
-    final vmg = await _bytes(_child(videoTs, 'VIDEO_TS.IFO')!);
+  static Future<DiscInfo> _readDvd(_Node videoTs, Directory root) async {
+    final vmg = await _bytes((await _child(videoTs, 'VIDEO_TS.IFO'))!);
     if (vmg.length < 0x100 ||
         String.fromCharCodes(vmg, 0, 12) != 'DVDVIDEO-VMG') {
       throw const DiscFormatException('VIDEO_TS.IFO: bad signature');
@@ -191,7 +321,7 @@ abstract final class DiscReader {
           subtitles: vts.subtitles,
           angles: angles == 0 ? 1 : angles,
           source: VirtualFileSource(
-            DvdTitleFile(vts.vobs, pgc.ranges, number: t + 1),
+            DvdTitleFile(vts.vobs, vts.vobSizes, pgc.ranges, number: t + 1),
             title: 'Title ${t + 1}',
           ),
         ),
@@ -199,7 +329,7 @@ abstract final class DiscReader {
     }
     return DiscInfo(
       kind: DiscKind.dvd,
-      root: videoTs.parent,
+      root: root,
       titles: titles,
       encrypted: encrypted,
     );
@@ -207,46 +337,53 @@ abstract final class DiscReader {
 
   // -------------------------------------------------------------- Blu-ray --
 
-  static Future<DiscInfo> _readBluray(Directory bdmv) async {
-    final playlists = _childDir(bdmv, 'PLAYLIST')!;
-    final clipinf = _childDir(bdmv, 'CLIPINF');
-    final stream = _childDir(bdmv, 'STREAM');
+  static Future<DiscInfo> _readBluray(_Node bdmv, Directory root) async {
+    final playlists = (await _childDir(bdmv, 'PLAYLIST'))!;
+    final clipinf = await _childDir(bdmv, 'CLIPINF');
+    final stream = await _childDir(bdmv, 'STREAM');
     final aacs =
-        _childDir(bdmv.parent, 'AACS') != null ||
-        _childDir(bdmv, 'AACS') != null;
+        await _childDir(bdmv, 'AACS') != null ||
+        (bdmv.path != null &&
+            Directory('${Directory(bdmv.path!).parent.path}/AACS')
+                .existsSync());
     final titles = <DiscTitle>[];
     final files =
-        playlists
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.toLowerCase().endsWith('.mpls'))
+        (await playlists.children())
+            .where(
+              (f) => !f.isDirectory && f.name.toLowerCase().endsWith('.mpls'),
+            )
             .toList()
-          ..sort((a, b) => a.path.compareTo(b.path));
+          ..sort((a, b) => a.name.compareTo(b.name));
     for (final f in files) {
       final mpls = _Mpls.parse(await _bytes(f));
       if (mpls == null || mpls.items.isEmpty || stream == null) continue;
       final segments = <String>[];
+      final clips = <VirtualFile>[];
       var total = 0;
       final starts = <int>[];
       var missing = false;
       for (final item in mpls.items) {
-        final m2ts = _child(stream, '${item.clip}.M2TS');
+        final m2ts = await _child(stream, '${item.clip}.M2TS');
         if (m2ts == null) {
           missing = true;
           break;
         }
         final clpi = clipinf == null
             ? null
-            : _child(clipinf, '${item.clip}.CLPI');
+            : await _child(clipinf, '${item.clip}.CLPI');
         final clipStart = clpi == null
             ? item.inTime
             : (_clipStart(await _bytes(clpi)) ?? item.inTime);
         starts.add(total);
         final len = item.outTime - item.inTime;
-        segments.add(
-          '${_edlQuote(m2ts.path)},'
-          '${_seconds(item.inTime - clipStart)},${_seconds(len)}',
-        );
+        final path = m2ts.path;
+        if (path != null) {
+          segments.add(
+            '${_edlQuote(path)},'
+            '${_seconds(item.inTime - clipStart)},${_seconds(len)}',
+          );
+        }
+        clips.add(m2ts.open());
         total += len;
       }
       if (missing) continue;
@@ -257,18 +394,27 @@ abstract final class DiscReader {
         if (t < 0 || t > total) continue;
         chapters.add(Chapter(start: _duration(t)));
       }
-      final number =
-          int.tryParse(f.uri.pathSegments.last.split('.').first) ??
-          titles.length;
-      // An EDL file (not an edl:// URI) keeps mpv's %len% path quoting
-      // intact on every platform.
-      final edl = File(
-        '${(await _edlDir()).path}${Platform.pathSeparator}'
-        '${bdmv.path.hashCode.toUnsigned(32)}_$number.edl',
-      );
-      await edl.writeAsString(
-        '# mpv EDL v0\n!no_chapters\n${segments.join('\n')}\n',
-      );
+      final number = int.tryParse(f.name.split('.').first) ?? titles.length;
+      final MediaSource source;
+      if (segments.length == clips.length) {
+        // An EDL file (not an edl:// URI) keeps mpv's %len% path quoting
+        // intact on every platform.
+        final edl = File(
+          '${(await _edlDir()).path}${Platform.pathSeparator}'
+          '${bdmv.path.hashCode.toUnsigned(32)}_$number.edl',
+        );
+        await edl.writeAsString(
+          '# mpv EDL v0\n!no_chapters\n${segments.join('\n')}\n',
+        );
+        source = UriSource(Uri.file(edl.path), title: 'Playlist $number');
+      } else {
+        // Inside an image: the playlist's clips back to back (transport
+        // streams concatenate; mpv follows the timestamp discontinuities).
+        source = VirtualFileSource(
+          ConcatenatedFile(clips, name: 'playlist-$number.m2ts'),
+          title: 'Playlist $number',
+        );
+      }
       titles.add(
         DiscTitle(
           number: number,
@@ -276,13 +422,13 @@ abstract final class DiscReader {
           chapters: chapters,
           audio: mpls.audio,
           subtitles: mpls.subtitles,
-          source: UriSource(Uri.file(edl.path), title: 'Playlist $number'),
+          source: source,
         ),
       );
     }
     return DiscInfo(
       kind: DiscKind.bluray,
-      root: bdmv.parent,
+      root: root,
       titles: titles,
       encrypted: aacs,
     );
@@ -372,6 +518,7 @@ final class _Pgc {
 final class _Vts {
   _Vts(
     this.vobs,
+    this.vobSizes,
     this.audio,
     this.subtitles,
     this._ifo,
@@ -379,16 +526,19 @@ final class _Vts {
     this._pgci,
   );
 
-  final List<File> vobs;
+  final List<VirtualFile> vobs;
+
+  /// Sizes in sectors, one per VOB.
+  final List<int> vobSizes;
   final List<DiscStream> audio;
   final List<DiscStream> subtitles;
   final Uint8List _ifo;
   final int _pttSrpt;
   final int _pgci;
 
-  static Future<_Vts> read(Directory videoTs, int n) async {
+  static Future<_Vts> read(_Node videoTs, int n) async {
     final name = 'VTS_${n.toString().padLeft(2, '0')}';
-    final ifoFile = DiscReader._child(videoTs, '${name}_0.IFO');
+    final ifoFile = await DiscReader._child(videoTs, '${name}_0.IFO');
     if (ifoFile == null) throw DiscFormatException('$name: IFO missing');
     final ifo = await DiscReader._bytes(ifoFile);
     if (ifo.length < 0x400 ||
@@ -396,11 +546,13 @@ final class _Vts {
       throw DiscFormatException('$name: bad signature');
     }
     final r = _Be(ifo);
-    final vobs = <File>[];
+    final vobs = <VirtualFile>[];
+    final sizes = <int>[];
     for (var i = 1; i <= 9; i++) {
-      final f = DiscReader._child(videoTs, '${name}_$i.VOB');
+      final f = await DiscReader._child(videoTs, '${name}_$i.VOB');
       if (f == null) break;
-      vobs.add(f);
+      vobs.add(f.open());
+      sizes.add(await f.length() ~/ DiscReader._sector);
     }
     final audioCount = r.u16(0x202).clamp(0, 8);
     final audio = [
@@ -416,6 +568,7 @@ final class _Vts {
     ];
     return _Vts(
       vobs,
+      sizes,
       audio,
       subs,
       ifo,
@@ -518,9 +671,8 @@ final class _Vts {
   Future<bool> looksEncrypted() async {
     if (_encrypted != null) return _encrypted!;
     if (vobs.isEmpty) return _encrypted = false;
-    final raf = await vobs.first.open();
-    try {
-      final head = await raf.read(256 * 1024);
+    {
+      final head = await vobs.first.read(0, 256 * 1024);
       for (var i = 0; i + 7 < head.length; i++) {
         if (head[i] == 0 && head[i + 1] == 0 && head[i + 2] == 1) {
           final id = head[i + 3];
@@ -532,8 +684,6 @@ final class _Vts {
         }
       }
       return _encrypted = false;
-    } finally {
-      await raf.close();
     }
   }
 }
@@ -541,17 +691,21 @@ final class _Vts {
 /// A DVD title's cells across the title set's VOB files, as one seekable
 /// [VirtualFile] (mpv reads it through the `mhvf://` stream protocol).
 final class DvdTitleFile implements VirtualFile {
-  DvdTitleFile(this._vobs, this._ranges, {required this.number});
+  DvdTitleFile(this._vobs, this._sizes, this._ranges, {required this.number});
 
-  final List<File> _vobs;
+  final List<VirtualFile> _vobs;
+
+  /// VOB sizes in sectors.
+  final List<int> _sizes;
   final List<(int, int)> _ranges;
   final int number;
-  List<int>? _vobSectors;
-  final Map<int, RandomAccessFile> _open = {};
 
   @override
-  Uri get uri =>
-      Uri(scheme: 'dvdtitle', path: '${_vobs.firstOrNull?.path}#$number');
+  Uri get uri => Uri(
+    scheme: 'dvdtitle',
+    path: _vobs.firstOrNull?.uri.path ?? '',
+    fragment: '$number',
+  );
 
   @override
   bool get isSeekable => true;
@@ -562,13 +716,8 @@ final class DvdTitleFile implements VirtualFile {
     (a, r) => a + (r.$2 - r.$1 + 1) * DiscReader._sector,
   );
 
-  Future<List<int>> _sizes() async => _vobSectors ??= [
-    for (final v in _vobs) (await v.length()) ~/ DiscReader._sector,
-  ];
-
   @override
   Future<Uint8List> read(int offset, int length) async {
-    final sizes = await _sizes();
     final out = BytesBuilder(copy: false);
     var pos = offset;
     var remaining = length;
@@ -582,17 +731,15 @@ final class DvdTitleFile implements VirtualFile {
         while (take > 0) {
           var vob = 0;
           var vobStart = 0;
-          while (vob < sizes.length &&
-              abs >= vobStart + sizes[vob] * DiscReader._sector) {
-            vobStart += sizes[vob] * DiscReader._sector;
+          while (vob < _sizes.length &&
+              abs >= vobStart + _sizes[vob] * DiscReader._sector) {
+            vobStart += _sizes[vob] * DiscReader._sector;
             vob++;
           }
-          if (vob >= sizes.length) break;
+          if (vob >= _sizes.length) break;
           final inVob = abs - vobStart;
-          final n = (sizes[vob] * DiscReader._sector - inVob).clamp(0, take);
-          final raf = _open[vob] ??= await _vobs[vob].open();
-          await raf.setPosition(inVob);
-          final chunk = await raf.read(n);
+          final n = (_sizes[vob] * DiscReader._sector - inVob).clamp(0, take);
+          final chunk = await _vobs[vob].read(inVob, n);
           if (chunk.isEmpty) break;
           out.add(chunk);
           abs += chunk.length;
@@ -609,10 +756,63 @@ final class DvdTitleFile implements VirtualFile {
 
   @override
   Future<void> close() async {
-    for (final f in _open.values) {
-      await f.close();
+    for (final v in _vobs) {
+      await v.close();
     }
-    _open.clear();
+  }
+}
+
+/// Files played back to back as one stream (Blu-ray playlist clips inside a
+/// disc image).
+final class ConcatenatedFile implements VirtualFile {
+  ConcatenatedFile(this._parts, {required this.name});
+
+  final List<VirtualFile> _parts;
+  final String name;
+  List<int>? _sizes;
+
+  @override
+  Uri get uri => Uri(scheme: 'concat', path: name);
+
+  @override
+  bool get isSeekable => _parts.every((p) => p.isSeekable);
+
+  Future<List<int>> _lengths() async =>
+      _sizes ??= [for (final p in _parts) await p.length() ?? 0];
+
+  @override
+  Future<int?> length() async =>
+      (await _lengths()).fold<int>(0, (a, b) => a + b);
+
+  @override
+  Future<Uint8List> read(int offset, int length) async {
+    final sizes = await _lengths();
+    final out = BytesBuilder(copy: false);
+    var pos = offset;
+    var left = length;
+    var base = 0;
+    for (var i = 0; i < _parts.length && left > 0; i++) {
+      final size = sizes[i];
+      if (pos < base + size) {
+        final chunk = await _parts[i].read(
+          pos - base,
+          (base + size - pos).clamp(0, left),
+        );
+        out.add(chunk);
+        pos += chunk.length;
+        left -= chunk.length;
+        if (chunk.isEmpty) break;
+      }
+      base += size;
+    }
+    return out.takeBytes();
+  }
+
+  @override
+  Future<void> close() async {
+    for (final p in _parts) {
+      await p.close();
+    }
   }
 }
 

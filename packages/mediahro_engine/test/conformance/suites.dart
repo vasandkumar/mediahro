@@ -13,6 +13,7 @@ void runConformanceSuites() {
   vidFormatsSuite();
   vidPlaybackSuite();
   discSuite();
+  discImageSuite();
   vidHdrSuite();
   subtitlesSuite();
   audioSuite();

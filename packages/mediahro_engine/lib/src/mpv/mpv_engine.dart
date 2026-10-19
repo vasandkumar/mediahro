@@ -8,6 +8,7 @@ import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
 import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
+import 'package:mediahro_engine/src/disc/disc_reader.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
@@ -548,6 +549,25 @@ final class MpvEngine implements PlaybackEngine {
   Future<void> open(MediaSource src, {OpenOptions? opts}) async {
     final c = await _live();
     if (c == null) return;
+    final disc = await _discFor(src);
+    if (disc != null) {
+      final title = disc.mainTitle;
+      if (disc.encrypted || title == null) {
+        _state = _state.copyWith(
+          notices: {if (disc.encrypted) EngineNotice.encryptedDisc},
+        );
+        _fail(
+          EngineErrorCode.unsupportedFormat,
+          disc.encrypted ? 'encrypted disc' : 'disc without titles',
+        );
+        return;
+      }
+      // VID-001/VID-007: a disc image or folder opens its main title.
+      return await open(
+        title.source,
+        opts: title.openOptions(opts ?? const OpenOptions()),
+      );
+    }
     final o = opts ?? const OpenOptions();
     final gen = ++_generation;
     _source = src;
@@ -624,6 +644,33 @@ final class MpvEngine implements PlaybackEngine {
     await opened.future;
     if (gen != _generation) return;
     _scheduleEmit();
+  }
+
+  /// Disc images (`.iso`) and VIDEO_TS/BDMV folders, read as discs.
+  Future<DiscInfo?> _discFor(MediaSource src) async {
+    try {
+      switch (src) {
+        case UriSource(:final uri) when uri.scheme == 'file':
+          final path = uri.toFilePath();
+          if (path.toLowerCase().endsWith('.iso')) {
+            return await DiscReader.readImage(
+              await const LocalFileSystem().open(uri),
+            );
+          }
+          if (FileSystemEntity.isDirectorySync(path) &&
+              DiscReader.isDiscFolder(Directory(path))) {
+            return await DiscReader.read(Directory(path));
+          }
+        case VirtualFileSource(:final file)
+            when file.uri.path.toLowerCase().endsWith('.iso'):
+          return await DiscReader.readImage(file);
+        default:
+          break;
+      }
+    } on Object {
+      // Not a readable disc: let mpv try the file as it is.
+    }
+    return null;
   }
 
   Future<List<String>> _expandPlaylist(Uri uri) async {
