@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +10,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/appearance.dart';
 import 'package:mediahro/app/root.dart';
+import 'package:mediahro/app/services.dart';
 import 'package:mediahro/app/shortcuts/cheat_sheet.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
@@ -174,5 +177,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(row, findsOneWidget, reason: e.id);
     }
+  });
+
+  testWidgets('CORE-015 dashboard reads the live network policy', (
+    tester,
+  ) async {
+    final dir = await Directory.systemTemp.createTemp('mediahro-b3-');
+    final services = await AppServices.open(directory: dir);
+    addTearDown(() async {
+      await services.close();
+      await dir.delete(recursive: true);
+    });
+    await tester.pumpWidget(
+      mediahroRoot(services.settings, overrides: services.overrides),
+    );
+    await tester.pumpAndSettle();
+    await go(tester, '/settings/privacy');
+
+    // PRIV-004: off until switched on in the dashboard.
+    final gateway = NetworkGateway(services.networkPolicy);
+    addTearDown(gateway.close);
+    final uri = Uri.parse('https://lrclib.net/api/get');
+    expect(() => gateway.authorize(uri), throwsA(isA<NetworkBlocked>()));
+    final row = find.byKey(const ValueKey('privacy.lrclib'));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    expect(gateway.authorize(uri), Endpoints.lrclib);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: row, matching: find.textContaining('Last used')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('privacy.lanDiscovery')), findsOneWidget);
   });
 }
