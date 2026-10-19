@@ -86,6 +86,32 @@ void audioSuite() {
       }, skip: skip);
     }
 
+    test('AUD-002 only double-trimmed m4a files use the stream protocol, '
+        'within the open budget (docs/11 §5)', () async {
+      final e = headlessEngine(role: EngineRole.music);
+      addTearDown(e.dispose);
+      // Warm core: the budget is open → first audio, not core start-up.
+      await e.open(UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))));
+      await waitPlaying(e);
+      final budget = EnginePlatform.current.isMobile ? 500 : 300;
+      for (final (file, viaProtocol) in [
+        ('gapless_m4a_1.m4a', false),
+        ('gapless_m4a_ff_1.m4a', true),
+      ]) {
+        final sw = Stopwatch()..start();
+        await e.open(UriSource(Uri.file(corpusPath(file))));
+        await waitPlaying(e, reason: '$file playing');
+        final ms = sw.elapsedMilliseconds;
+        final path = '${await prop(e, 'path')}';
+        expect(
+          path.startsWith('mhvf://'),
+          viaProtocol,
+          reason: '$file opened as $path',
+        );
+        expect(ms, lessThan(budget), reason: '$file open → playing');
+      }
+    }, skip: skip);
+
     test(
       'AUD-002 queue advances without an ended state between items',
       () async {
