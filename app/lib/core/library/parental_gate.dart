@@ -3,9 +3,6 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:math';
 
-// `crypto` is resolved through the workspace until the orchestrator adds it
-// to app/pubspec.yaml (PR "Orchestrator changes needed").
-// ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';

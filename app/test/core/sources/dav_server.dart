@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-// ignore: depend_on_referenced_packages, test-only digest verification
 import 'package:crypto/crypto.dart';
 
 /// A minimal WebDAV server over an in-memory tree for client tests:

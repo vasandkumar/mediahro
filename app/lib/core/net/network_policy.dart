@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-// `crypto` is resolved through the workspace until the orchestrator adds it
-// to app/pubspec.yaml (PR "Orchestrator changes needed").
-// ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 import 'package:mediahro_servers/mediahro_servers.dart';
 import 'package:meta/meta.dart';

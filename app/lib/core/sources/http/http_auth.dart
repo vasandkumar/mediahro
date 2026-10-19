@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
 
-// `crypto` is resolved through the workspace until the orchestrator adds it
-// to app/pubspec.yaml (PR "Orchestrator changes needed").
-// ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 
 /// HTTP authentication for user-added servers: Basic (HTTPS only, unless
