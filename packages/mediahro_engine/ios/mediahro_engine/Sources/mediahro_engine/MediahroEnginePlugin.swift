@@ -86,7 +86,7 @@ public class MediahroEnginePlugin: NSObject, FlutterPlugin {
         return
       }
       guard let surface = VideoSurface(mpvHandle: handle, registry: textures) else {
-        result(FlutterError(code: "surface", message: "OpenGL render context failed", details: nil))
+        result(FlutterError(code: "surface", message: VideoSurface.lastFailure, details: nil))
         return
       }
       surfaces[surface.textureId] = surface

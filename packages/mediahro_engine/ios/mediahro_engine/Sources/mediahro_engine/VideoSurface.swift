@@ -125,12 +125,18 @@ final class VideoSurface: NSObject, FlutterTexture {
   private(set) var textureId: Int64 = -1
 
   static let backend = "opengl-iosurface"
+  /// Why the last init failed, for the bridge error (VID-030 diagnostics).
+  static var lastFailure = ""
 
   init?(mpvHandle: OpaquePointer, registry: FlutterTextureRegistry) {
-    guard Mpv.available else { return nil }
+    guard Mpv.available else {
+      Self.lastFailure = "libmpv render API symbols not found"
+      return nil
+    }
     self.registry = registry
     #if os(iOS)
     guard let context = EAGLContext(api: .openGLES3) ?? EAGLContext(api: .openGLES2) else {
+      Self.lastFailure = "no OpenGL ES context"
       return nil
     }
     gl = context
@@ -150,10 +156,16 @@ final class VideoSurface: NSObject, FlutterTexture {
       ]
       CGLChoosePixelFormat(&attrs, &format, &count)
     }
-    guard let format else { return nil }
+    guard let format else {
+      Self.lastFailure = "no OpenGL pixel format"
+      return nil
+    }
     var context: CGLContextObj?
     CGLCreateContext(format, nil, &context)
-    guard let context else { return nil }
+    guard let context else {
+      Self.lastFailure = "no OpenGL context"
+      return nil
+    }
     pixelFormat = format
     gl = context
     #endif
@@ -179,11 +191,17 @@ final class VideoSurface: NSObject, FlutterTexture {
     #if os(iOS)
     guard CVOpenGLESTextureCacheCreate(kCFAllocatorDefault, nil, gl, nil, &cache)
       == kCVReturnSuccess
-    else { return false }
+    else {
+      Self.lastFailure = "CVOpenGLESTextureCacheCreate failed"
+      return false
+    }
     #else
     guard CVOpenGLTextureCacheCreate(kCFAllocatorDefault, nil, gl, pixelFormat, nil, &cache)
       == kCVReturnSuccess
-    else { return false }
+    else {
+      Self.lastFailure = "CVOpenGLTextureCacheCreate failed"
+      return false
+    }
     #endif
     let api = strdup("opengl")!
     defer { free(api) }
@@ -198,7 +216,11 @@ final class VideoSurface: NSObject, FlutterTexture {
     ])
     defer { params.deallocate() }
     var ctx: OpaquePointer?
-    guard Mpv.create!(&ctx, mpvHandle, params) >= 0, let ctx else { return false }
+    let rc = Mpv.create!(&ctx, mpvHandle, params)
+    guard rc >= 0, let ctx else {
+      Self.lastFailure = "mpv_render_context_create returned \(rc)"
+      return false
+    }
     renderContext = ctx
     return createTargets()
   }

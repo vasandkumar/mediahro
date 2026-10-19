@@ -87,7 +87,12 @@ void renderBridgeSuite() {
       );
       await engine.open(UriSource(Uri.file(corpusPath('mkv_multitrack.mkv'))));
       final id = engine.textureId;
-      expect(id, isNotNull, reason: 'bridge created a texture');
+      expect(
+        id,
+        isNotNull,
+        reason:
+            'bridge created a texture (${engine.current.video.subtitleRenderer})',
+      );
       expect(engine.renderBackend, isNot('unknown'));
 
       var frames = 0;
