@@ -109,7 +109,7 @@ mediahro/                              (this repo, AGPL-3.0)
 | `video-sync` | `display-resample` desktop; `audio` mobile | VID-039 |
 | scripting | Lua/JS **disabled** in LGPL build | Sandbox + licence |
 
-Build: `-Dgpl=false`, FFmpeg configured without `--enable-gpl`/`--enable-nonfree`, no x264/x265/rubberband/postproc/smbclient/libdvdcss; with `libdav1d`, `libvpx`, `libopus`, `libass`, `libplacebo`, `vvdec` (optional, BSD-3-Clear), `libopenmpt`; TLS via OS (custom AVIO over platform HTTP stacks) so no OpenSSL/mbedTLS ships (export-compliance simplification, doc 07).
+Build: `-Dgpl=false`, FFmpeg configured without `--enable-gpl`/`--enable-nonfree`, no x264/x265/rubberband/postproc/smbclient/libdvdcss; with `libdav1d`, `libvpx`, `libopus`, `libass`, `libplacebo`, `vvdec` (optional, BSD-3-Clear), `libopenmpt`; TLS via OS (custom AVIO over platform HTTP stacks) so no OpenSSL/mbedTLS ships in our native libraries (export-compliance simplification, doc 07). Exception, stated explicitly: the Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS (used by `NetworkGateway`); it is listed in the encryption inventory (ADR-017).
 
 ### 4.2 `PlaybackEngine` interface (Dart)
 

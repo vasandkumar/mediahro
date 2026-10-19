@@ -16,9 +16,23 @@ abstract interface class TlsSocketFacade {
     String? pinnedSha256,
     List<String> alpn = const [],
     Duration timeout = const Duration(seconds: 15),
+
+    /// Reuses the TLS session of an existing socket (FTPS data channels;
+    /// vsftpd, FileZilla Server and ProFTPD require session reuse).
+    String? resumeSessionOf,
   });
 
-  /// Upgrades an existing plain connection (FTPS explicit `AUTH TLS`).
+  /// Opens a plain TCP connection owned by the platform, for protocols that
+  /// start in clear text and switch to TLS (FTPS explicit `AUTH TLS`). Pass
+  /// its [TlsSocket.id] to [upgrade].
+  Future<TlsSocket> connectPlain(
+    String host,
+    int port, {
+    Duration timeout = const Duration(seconds: 15),
+  });
+
+  /// Upgrades a plain connection from [connectPlain] in place (FTPS explicit
+  /// `AUTH TLS`).
   Future<TlsSocket> upgrade(
     String connectionId, {
     String? serverName,
@@ -30,7 +44,11 @@ abstract interface class TlsSocket {
   /// Opaque id, also accepted by [TlsSocketFacade.upgrade] for data channels.
   String get id;
 
-  /// SHA-256 of the peer certificate, shown for trust-on-first-use prompts.
+  /// False for a [TlsSocketFacade.connectPlain] socket not yet upgraded.
+  bool get isTls;
+
+  /// SHA-256 of the peer certificate, shown for trust-on-first-use prompts;
+  /// empty while [isTls] is false.
   String get peerCertificateSha256;
   Stream<Uint8List> get input;
   Future<void> write(Uint8List data);
@@ -63,6 +81,7 @@ final class SftpEndpoint {
     this.port = 22,
     this.passwordSecretRef,
     this.privateKeySecretRef,
+    this.keyPassphraseSecretRef,
     this.knownHostKeySha256,
   });
 
@@ -73,6 +92,9 @@ final class SftpEndpoint {
   /// Keys into `SecureStorageFacade` (PRIV-006); secrets never cross as values.
   final String? passwordSecretRef;
   final String? privateKeySecretRef;
+
+  /// Passphrase of an encrypted private key, also a secure-storage ref.
+  final String? keyPassphraseSecretRef;
 
   /// Host key the user confirmed; null on first connect.
   final String? knownHostKeySha256;
@@ -102,5 +124,19 @@ abstract interface class SftpSession {
   Future<Uint8List> read(String path, int offset, int length);
   Future<void> rename(String from, String to);
   Future<void> delete(String path);
+  Future<void> mkdir(String path);
+
+  /// Streams a new or replaced file (FILE-002 copy/move, FILE-005 upload).
+  Future<SftpWriteSink> openWrite(String path, {bool truncate = true});
   Future<void> close();
+}
+
+abstract interface class SftpWriteSink {
+  Future<void> write(Uint8List data);
+
+  /// Flushes and closes; the file is complete only after this resolves.
+  Future<void> close();
+
+  /// Closes and removes the partial file.
+  Future<void> abort();
 }

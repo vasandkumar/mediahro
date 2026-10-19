@@ -17,7 +17,7 @@ Version 1.0 · 2026-10-19 · Synthesises `research/03`. Policy text was checked 
 | 9 | Microsoft Store packaging | MSIX preferred; unpackaged Win32 allowed with silent install, all PEs signed by a trusted-root cert, versioned immutable URL; privacy policy always required for Win32; IARC rating mandatory | MSIX for Store; signed installer + winget for direct |
 | 10 | No GPL on Apple stores (and practically on all stores) | FSF/GNU Go and VLC precedents | ADR-002: FFmpeg/libmpv LGPL build, dynamic linking, notices, no Exiv2/x264/x265/libdvdcss |
 | 11 | Android developer verification | Enforced from 30 Sep 2026 in BR/ID/SG/TH, global 2027; register package and all signing keys incl. F-Droid's | Doc 03 §4 step 9 |
-| 12 | Export compliance | `ITSAppUsesNonExemptEncryption=NO` only if OS crypto alone is used | FFmpeg/libcurl built with OS TLS backends; vault uses OS crypto APIs (CryptoKit/Keystore/CNG) → exempt; keep an encryption inventory |
+| 12 | Export compliance | `ITSAppUsesNonExemptEncryption=NO` only if OS crypto alone is used | FFmpeg/libcurl built with OS TLS backends; SFTP/FTPS and the open Cast sender use OS SSH/TLS (ADR-017); vault uses OS crypto APIs (CryptoKit/Keystore/CNG). The encryption inventory must also list BoringSSL inside the Flutter engine (`dart:io` HTTPS); counsel confirms the resulting `ITSAppUsesNonExemptEncryption` answer and any self-classification before submission (owner task, STATUS.md §4) |
 
 ## 2. Apple (iOS/iPadOS, Mac App Store, direct macOS)
 
