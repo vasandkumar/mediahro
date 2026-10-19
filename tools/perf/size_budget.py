@@ -67,13 +67,13 @@ def main() -> int:
     if kind == "android" and target.suffix == ".apk":
         mb = largest_abi_mb(target)
     else:
-        # Per-architecture size for universal macOS bundles (ADR-017), like per-ABI on Android.
-        total = size_of(target) / 2**20
-        mb = size_of(target, thin=True) / 2**20
-        if abs(total - mb) > 0.05:
-            print(f"size: {key} universal total {total:.1f} MB (informational)")
+        # Desktop budget applies to the whole (universal) bundle; symlinks are not double-counted.
+        mb = size_of(target) / 2**20
+        thin = size_of(target, thin=True) / 2**20
+        if abs(thin - mb) > 0.05:
+            print(f"size: {key} largest single architecture {thin:.1f} MB (informational)")
     budget = BUDGET_MB[kind]
-    print(f"size: {key} {mb:.1f} MB per architecture (budget {budget:.0f} MB)")
+    print(f"size: {key} {mb:.1f} MB (budget {budget:.0f} MB)")
     ok = mb <= budget
     baseline_file = ROOT / "tools" / "perf" / "baseline.json"
     if baseline_file.exists():

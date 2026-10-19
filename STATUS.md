@@ -10,8 +10,8 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Phase / milestone | Lanes | State | Exit criteria (docs/10 §3, §8) |
 |---|---|---|---|
-| **A — Skeleton (M0)** | orchestrator | in progress | Shell builds on all platforms; stubs compile; CI green; deps archives published with SHA-256; licence scan passes |
-| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | not started | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
+| **A — Skeleton (M0)** | orchestrator | ☑ done 2026-10-19 (deps archives → B4 per Phase B exit) | Shell builds on all platforms; stubs compile; CI green; deps archives published with SHA-256; licence scan passes |
+| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | launching | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
 | **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4 Servers, casting, platform modules · C5 Supporter, privacy, B2B, store metadata | not started | Each lane's IDs ☑ on every platform; integration branch builds daily |
 | **D — Hardening (M8)** | D1 Android · D2 iOS/iPadOS · D3 macOS · D4 Windows · D5 Localisation · D6 Store submission packs | not started | All doc 11 §7 release gates pass; 1.0 tagged |
 
@@ -30,8 +30,9 @@ _Last updated: 2026-10-19 by the orchestrator._
 | `mediahro-deps` skeleton (versions, exact flags, verify, package, CI) | ☑ | `../mediahro-deps` |
 | Shell builds locally: Windows | ☑ debug build + integration tests pass | local |
 | Shell builds locally: Android | ☑ `foss` debug APK builds (API 36, NDK r28c) | local |
-| Shell builds: iOS, macOS | ⛔ needs CI (no Mac here) | Blockers |
-| CI green on GitHub | ⛔ needs a GitHub remote | Blockers |
+| Shell builds: iOS, macOS | ☑ CI: iOS device + simulator builds, macOS store/direct builds, integration tests on iOS simulator and macOS | `ci` run 39260124066 |
+| CI green on GitHub (16 jobs: analyze, unit, licence/SBOM, 4 Android flavours, iOS, 2 macOS, 2 Windows, integration A/I/M/W) | ☑ | [run 39260124066](https://github.com/vasandkumar/mediahro/actions/runs/39260124066) |
+| Size budgets at M0 | ☑ Android 19.7 MB/ABI, macOS 43.6 MB universal, Windows 28.2 MB; 16 KB alignment verified | CI logs |
 
 ### Lane ownership (folders; lanes never edit each other's folders)
 
@@ -327,7 +328,6 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
-| 2026-10-19 | Orchestrator (M0) | All, CI proof for I and M | No GitHub remote yet, so the CI matrix (the only proof for iOS/macOS, docs/10 §8 rule 4) has not run | Owner: approve creating the GitHub repositories `mediahro` and `mediahro-deps` and pushing (public is free for macOS runners; private bills macOS minutes) | Windows and Android verified locally; Apple jobs written and waiting for the first CI run |
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
 
 ## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
@@ -370,11 +370,11 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
-| Orchestrator (M0) | ADR-017: measure the ≤ 70 MB desktop install budget per architecture for the universal macOS bundle (bare Flutter shell is 85.9 MB universal at M0) | Proposed — **owner to confirm** |
 
 ## 7. Log
 
 | Date | Event |
 |---|---|
 | 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
+| 2026-10-19 | Repos published (public): github.com/vasandkumar/mediahro, github.com/vasandkumar/mediahro-deps. First CI runs fixed (exec bits, ARB merge order, size-measurement symlink bug); CI fully green on all 16 jobs. **Phase A exit met.** |
 | 2026-10-19 | M0 skeleton committed: workspace, 5 packages, app shell, interface stubs, tooling, CI workflows, `mediahro-deps` skeleton. Local proof: `tools/check` green (analyze, lints, l10n, status, manifests, 61 tests); Windows debug build + 3 integration tests pass; Android `foss` APK builds. ADR-011…016 recorded in docs/05 §12. |
