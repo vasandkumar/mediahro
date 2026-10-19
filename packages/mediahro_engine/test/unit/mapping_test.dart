@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine/src/mpv/mpv_client.dart' show parseMpvVersion;
 import 'package:mediahro_engine/src/mpv/mpv_engine.dart' show encodeOptions;
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/mpv_options.dart';
@@ -299,5 +300,11 @@ void main() {
       'start=%2%10,http-header-fields=%9%A: 1,B: 2',
     );
     expect(encodeOptions({'t': 'é'}), 't=%2%é');
+  });
+
+  test('mpv versions parse from release and git builds', () {
+    expect(parseMpvVersion('mpv 0.41.0 Copyright'), (0, 41));
+    expect(parseMpvVersion('mpv v0.36.0-549-g78d43740f5-dirty'), (0, 36));
+    expect(parseMpvVersion('mpv 20261019-git-6a262d11f6'), (1, 0));
   });
 }

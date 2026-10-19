@@ -241,6 +241,30 @@ final class MpvClient {
     return _track(id, rc, 'command ${args.first}');
   }
 
+  /// mpv release as (major, minor), e.g. (0, 41); git builds report the
+  /// release they descend from.
+  late final (int, int) mpvVersion = parseMpvVersion(
+    getPropertyStringSync('mpv-version') ?? '',
+  );
+
+  /// `loadfile` with per-file [options], in the argument order of the loaded
+  /// mpv: 0.38 added an insertion index before the options.
+  Future<Object?> loadfile(
+    String url, {
+    String flags = 'replace',
+    String? options,
+  }) {
+    final (major, minor) = mpvVersion;
+    final hasIndex = major > 0 || minor >= 38;
+    return command([
+      'loadfile',
+      url,
+      flags,
+      if (options != null && hasIndex) '-1',
+      ?options,
+    ]);
+  }
+
   /// Sets a property from its string form (as on the command line).
   Future<void> setProperty(String name, String value) {
     _checkAlive();
@@ -414,4 +438,12 @@ MpvEvent? _convert(MpvBindings b, mpv_event ev, Map<int, String> names) {
     default:
       return null;
   }
+}
+
+/// Parses `mpv-version` ("mpv 0.41.0", "mpv v0.36.0-549-g78d4374") into
+/// (major, minor); unknown strings count as the newest API.
+(int, int) parseMpvVersion(String v) {
+  final m = RegExp(r'v?(\d+)\.(\d+)').firstMatch(v);
+  if (m == null) return (1, 0);
+  return (int.parse(m.group(1)!), int.parse(m.group(2)!));
 }

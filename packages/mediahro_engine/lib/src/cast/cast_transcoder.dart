@@ -179,7 +179,7 @@ final class CastTranscoder {
             ? throw StateError('stream shim missing')
             : protocol.urlFor(file),
     };
-    await client.command(['loadfile', url]);
+    await client.loadfile(url);
     return t;
   }
 
@@ -272,7 +272,7 @@ Future<List<Cue>> extractSubtitleCues(
         uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
       VirtualFileSource(:final file) => protocol!.urlFor(file),
     };
-    await client.command(['loadfile', url, 'replace', '-1', 'sid=$trackId']);
+    await client.loadfile(url, options: 'sid=$trackId');
     await done.future.timeout(timeout);
   } finally {
     protocol?.shutdown();

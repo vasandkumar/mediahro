@@ -83,7 +83,7 @@ abstract final class LoudnessScanner {
               ? throw StateError('stream shim missing')
               : protocol.urlFor(file),
       };
-      await client.command(['loadfile', url]);
+      await client.loadfile(url);
       final ok = await done.future.timeout(timeout);
       if (!ok) return null;
       final meta = await client.getProperty('af-metadata/r128');

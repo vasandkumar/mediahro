@@ -574,15 +574,9 @@ final class MpvEngine implements PlaybackEngine {
         )['replaygain-fallback']!,
     };
     try {
-      await c.command([
-        'loadfile',
-        url,
-        'replace',
-        '-1',
-        encodeOptions(perFile),
-      ]);
+      await c.loadfile(url, options: encodeOptions(perFile));
       for (final entry in rest) {
-        await c.command(['loadfile', entry, 'append']);
+        await c.loadfile(entry, flags: 'append');
       }
     } on MpvException catch (e) {
       _fail(EngineErrorCode.invalidArgument, '$e');
@@ -825,7 +819,15 @@ final class MpvEngine implements PlaybackEngine {
 
   Future<void> _setAll(MpvClient c, Map<String, String> props) async {
     for (final MapEntry(:key, :value) in props.entries) {
-      await _quiet(c.setProperty(key, value));
+      try {
+        await c.setProperty(key, value);
+      } on MpvException catch (e) {
+        // Builds before mpv 0.38 know some options by older names.
+        final legacy = legacyPropertyNames[key];
+        if (legacy != null && e.code == MpvError.propertyNotFound) {
+          await _quiet(c.setProperty(legacy, value));
+        }
+      }
     }
   }
 
@@ -920,7 +922,7 @@ final class MpvEngine implements PlaybackEngine {
           uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
         VirtualFileSource(:final file) => _protocol!.urlFor(file),
       };
-      await _quiet(c.command(['loadfile', url, 'append']));
+      await _quiet(c.loadfile(url, flags: 'append'));
     }
     _state = _state.copyWith(nextPrepared: next != null);
     _scheduleEmit();
@@ -1040,3 +1042,10 @@ int _utf8Length(String s) {
   }
   return n;
 }
+
+/// Option names renamed in mpv 0.38 → their earlier names, for older
+/// libmpv builds (bootstrap prebuilts).
+const Map<String, String> legacyPropertyNames = {
+  'sub-outline-size': 'sub-border-size',
+  'sub-outline-color': 'sub-border-color',
+};
