@@ -131,7 +131,12 @@ final class DefaultSourceResolver implements SourceResolver {
 /// A credential as stored in SecureStorageFacade under `sources.credentialKey`.
 @immutable
 final class StoredCredential {
-  const StoredCredential({this.userName, this.secret, this.kind = 'password'});
+  const StoredCredential({
+    this.userName,
+    this.secret,
+    this.kind = 'password',
+    this.passphrase,
+  });
 
   factory StoredCredential.decode(String raw) {
     final m = jsonDecode(raw) as Map<String, Object?>;
@@ -139,6 +144,7 @@ final class StoredCredential {
       userName: m['user'] as String?,
       secret: m['secret'] as String?,
       kind: m['kind'] as String? ?? 'password',
+      passphrase: m['passphrase'] as String?,
     );
   }
 
@@ -150,8 +156,15 @@ final class StoredCredential {
   /// `password`, `sshKey`, `oauth`, `guest`.
   final String kind;
 
-  String encode() =>
-      jsonEncode({'user': userName, 'secret': secret, 'kind': kind});
+  /// Passphrase of an encrypted SSH private key.
+  final String? passphrase;
+
+  String encode() => jsonEncode({
+    'user': userName,
+    'secret': secret,
+    'kind': kind,
+    if (passphrase != null) 'passphrase': passphrase,
+  });
 }
 
 Map<String, String> decodeOptions(String json) {

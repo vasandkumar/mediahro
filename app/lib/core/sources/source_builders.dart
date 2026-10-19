@@ -67,7 +67,8 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
     SourceKind.ftp: (s) => FtpFileSystem(
       _ftp(s),
       SourceOnlyPolicy([s.root.host]),
-      transport: tls == null
+      // Plain FTP stays on dart:io; FTPS is entirely the OS TLS stack.
+      transport: tls == null || _ftp(s).security == FtpSecurity.none
           ? const SocketFtpTransport()
           : FacadeFtpTransport(tls),
     ),
@@ -108,6 +109,10 @@ SftpEndpoint sftpEndpoint(SourceSpec s) {
     privateKeySecretRef: key == null || !keyAuth
         ? null
         : SftpSecretRefs(key).privateKey,
+    // For key auth always; an absent entry means the key is not encrypted.
+    keyPassphraseSecretRef: key == null || !keyAuth
+        ? null
+        : SftpSecretRefs(key).keyPassphrase,
     knownHostKeySha256: s.options['hostKeySha256'],
   );
 }

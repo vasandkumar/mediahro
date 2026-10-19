@@ -4,11 +4,11 @@ import 'dart:typed_data';
 
 import 'package:mediahro/core/net/network_policy.dart'
     show certificateFingerprint;
-import 'package:mediahro/core/sources/ftp/ftp_transport.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 
-// Test stand-ins for the operating system's TLS (ADR-017). Production TLS
-// comes from TlsSocketFacade (C4); these use dart:io only inside tests.
+// A stand-in for the operating system's TLS (ADR-017). Production TLS comes
+// from TlsSocketFacade (C4: SSLSocket, Network.framework, SChannel); this
+// fake uses dart:io inside tests only.
 
 Future<SecureSocket> _secure(
   String host,
@@ -27,9 +27,21 @@ Future<SecureSocket> _secure(
   }
 }
 
-/// A [TlsSocketFacade] as C4 will provide it, minus the upgrade path.
+/// A [TlsSocketFacade] as C4 provides it: plain sockets it can upgrade in
+/// place, pinned TLS connections and session-reuse requests (recorded).
 final class FakeTlsSocketFacade implements TlsSocketFacade {
   final List<(String, int, String?)> connects = [];
+  final List<String> plainConnects = [];
+  final List<String> upgrades = [];
+  final List<String?> resumed = [];
+  final Map<String, _FakeTlsSocket> _sockets = {};
+  var _ids = 0;
+
+  _FakeTlsSocket _register(Socket s, {required bool tls}) {
+    final f = _FakeTlsSocket(s, 'sock-${++_ids}', isTls: tls);
+    _sockets[f.id] = f;
+    return f;
+  }
 
   @override
   Future<TlsSocket> connect(
@@ -39,8 +51,10 @@ final class FakeTlsSocketFacade implements TlsSocketFacade {
     String? pinnedSha256,
     List<String> alpn = const [],
     Duration timeout = const Duration(seconds: 15),
+    String? resumeSessionOf,
   }) async {
     connects.add((host, port, pinnedSha256));
+    resumed.add(resumeSessionOf);
     final s = await _secure(
       host,
       pinnedSha256,
@@ -51,7 +65,20 @@ final class FakeTlsSocketFacade implements TlsSocketFacade {
         timeout: timeout,
       ),
     );
-    return _FakeTlsSocket(s, 'tls-${connects.length}');
+    return _register(s, tls: true);
+  }
+
+  @override
+  Future<TlsSocket> connectPlain(
+    String host,
+    int port, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    plainConnects.add('$host:$port');
+    return _register(
+      await Socket.connect(host, port, timeout: timeout),
+      tls: false,
+    );
   }
 
   @override
@@ -59,21 +86,40 @@ final class FakeTlsSocketFacade implements TlsSocketFacade {
     String connectionId, {
     String? serverName,
     String? pinnedSha256,
-  }) => throw UnimplementedError('no plain facade connections');
+  }) async {
+    upgrades.add(connectionId);
+    final plain = _sockets.remove(connectionId);
+    if (plain == null || plain.isTls) {
+      throw StateError('no plain socket $connectionId');
+    }
+    final host = serverName ?? plain._s.remoteAddress.address;
+    final s = await _secure(
+      host,
+      pinnedSha256,
+      (onBad) =>
+          SecureSocket.secure(plain._s, host: host, onBadCertificate: onBad),
+    );
+    return _register(s, tls: true);
+  }
 }
 
 final class _FakeTlsSocket implements TlsSocket {
-  _FakeTlsSocket(this._s, this.id);
+  _FakeTlsSocket(this._s, this.id, {required this.isTls});
 
-  final SecureSocket _s;
+  final Socket _s;
 
   @override
   final String id;
 
   @override
-  String get peerCertificateSha256 => _s.peerCertificate == null
-      ? ''
-      : certificateFingerprint(_s.peerCertificate!.der);
+  final bool isTls;
+
+  @override
+  String get peerCertificateSha256 => switch (_s) {
+    final SecureSocket t when t.peerCertificate != null =>
+      certificateFingerprint(t.peerCertificate!.der),
+    _ => '',
+  };
 
   @override
   Stream<Uint8List> get input => _s;
@@ -86,51 +132,4 @@ final class _FakeTlsSocket implements TlsSocket {
 
   @override
   Future<void> close() => _s.close();
-}
-
-/// A transport that can also upgrade (explicit FTPS), standing in for the
-/// facade once it offers plain connections; exercises the protocol logic.
-final class StandInTlsTransport implements FtpTransport {
-  const StandInTlsTransport();
-
-  @override
-  Future<FtpStream> connect(
-    String host,
-    int port, {
-    required Duration timeout,
-    bool tls = false,
-    String? pin,
-    FtpStream? sessionOf,
-  }) async => SocketFtpStream(
-    tls
-        ? await _secure(
-            host,
-            pin,
-            (onBad) => SecureSocket.connect(
-              host,
-              port,
-              onBadCertificate: onBad,
-              timeout: timeout,
-            ),
-          )
-        : await Socket.connect(host, port, timeout: timeout),
-  );
-
-  @override
-  Future<FtpStream> startTls(
-    FtpStream plain, {
-    required String host,
-    required Duration timeout,
-    String? pin,
-  }) async => SocketFtpStream(
-    await _secure(
-      host,
-      pin,
-      (onBad) => SecureSocket.secure(
-        (plain as SocketFtpStream).socket,
-        host: host,
-        onBadCertificate: onBad,
-      ).timeout(timeout),
-    ),
-  );
 }

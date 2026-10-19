@@ -102,7 +102,9 @@ final class SocketFtpTransport implements FtpTransport {
   }) => Future.error(const FtpTlsUnavailable('no TLS socket facade'));
 }
 
-/// TLS through the operating system's stack (ADR-017).
+/// FTPS through the operating system's TLS (ADR-017): every connection of
+/// an FTPS source is a platform socket, so the explicit `AUTH TLS` upgrade
+/// happens in place and data channels resume the control session.
 final class FacadeFtpTransport implements FtpTransport {
   const FacadeFtpTransport(this.tls);
 
@@ -116,29 +118,39 @@ final class FacadeFtpTransport implements FtpTransport {
     bool tls = false,
     String? pin,
     FtpStream? sessionOf,
-  }) async {
-    if (!tls) return await _plain(host, port, timeout);
-    final s = await this.tls.connect(
-      host,
-      port,
-      serverName: host,
-      pinnedSha256: pin,
-      timeout: timeout,
-    );
-    return TlsFtpStream(s);
-  }
+  }) async => TlsFtpStream(
+    tls
+        ? await this.tls.connect(
+            host,
+            port,
+            serverName: host,
+            pinnedSha256: pin,
+            timeout: timeout,
+            resumeSessionOf: sessionOf is TlsFtpStream && sessionOf.socket.isTls
+                ? sessionOf.socket.id
+                : null,
+          )
+        : await this.tls.connectPlain(host, port, timeout: timeout),
+  );
 
-  // The facade can upgrade only connections it opened itself; it has no
-  // plain connect yet (interface request in PR #1), so explicit FTPS waits.
   @override
   Future<FtpStream> startTls(
     FtpStream plain, {
     required String host,
     required Duration timeout,
     String? pin,
-  }) => Future.error(
-    const FtpTlsUnavailable('explicit FTPS needs a plain facade connection'),
-  );
+  }) async {
+    if (plain is! TlsFtpStream) {
+      throw const FtpTlsUnavailable(
+        'control connection is not a platform socket',
+      );
+    }
+    return TlsFtpStream(
+      await tls
+          .upgrade(plain.socket.id, serverName: host, pinnedSha256: pin)
+          .timeout(timeout),
+    );
+  }
 }
 
 final class TlsFtpStream implements FtpStream {

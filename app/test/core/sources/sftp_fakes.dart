@@ -95,5 +95,34 @@ final class _Session implements SftpSession {
   }
 
   @override
+  Future<void> mkdir(String path) async {
+    if (f.tree.containsKey(path)) throw Exception('exists');
+    f.tree[path] = null;
+  }
+
+  @override
+  Future<SftpWriteSink> openWrite(String path, {bool truncate = true}) async =>
+      _Sink(f, path);
+
+  @override
   Future<void> close() async => f.open--;
+}
+
+final class _Sink implements SftpWriteSink {
+  _Sink(this.f, this.path) {
+    f.tree[path] = Uint8List(0);
+  }
+
+  final FakeSftp f;
+  final String path;
+  final BytesBuilder _b = BytesBuilder();
+
+  @override
+  Future<void> write(Uint8List data) async => _b.add(data);
+
+  @override
+  Future<void> close() async => f.tree[path] = _b.takeBytes();
+
+  @override
+  Future<void> abort() async => f.tree.remove(path);
 }

@@ -98,16 +98,31 @@ void main() {
       server.tree.keys.where((k) => k.startsWith('/media/Films')),
       isEmpty,
     );
+    final dir = await fs.createDirectory(u('/media'), 'Up');
+    expect(dir, u('/media/Up'));
     await expectLater(
-      fs.createDirectory(u('/media'), 'x'),
+      fs.createDirectory(u('/media'), 'Up'),
       throwsA(
         isA<VirtualFileException>().having(
           (e) => e.error,
           'error',
-          VirtualFileError.unsupported,
+          VirtualFileError.alreadyExists,
         ),
       ),
     );
+    final w = await fs.create(u('/media/Up/note.txt'));
+    await w.write([1, 2]);
+    await w.write([3]);
+    await w.close();
+    expect(server.tree['/media/Up/note.txt'], [1, 2, 3]);
+    await expectLater(
+      fs.create(u('/media/Up/note.txt')),
+      throwsA(isA<VirtualFileException>()),
+    );
+    final partial = await fs.create(u('/media/Up/partial.bin'));
+    await partial.write([9]);
+    await partial.abort();
+    expect(server.tree.containsKey('/media/Up/partial.bin'), isFalse);
     await fs.close();
     expect(server.open, 0);
   });

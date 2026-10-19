@@ -195,6 +195,7 @@ void main() {
       options: TestFtpOptions(context: ctx, requireTls: true),
     );
     addTearDown(s.close);
+    final facade = FakeTlsSocketFacade();
     String? fp;
     try {
       await FtpFileSystem(
@@ -206,7 +207,7 @@ void main() {
           password: 'testpass',
         ),
         lan,
-        transport: const StandInTlsTransport(),
+        transport: FacadeFtpTransport(facade),
       ).list(at(s, '/', scheme: 'ftpes')).toList();
       fail('expected an untrusted certificate');
     } on VirtualFileException catch (e) {
@@ -230,7 +231,7 @@ void main() {
           certSha256: fp,
         ),
         lan,
-        transport: const StandInTlsTransport(),
+        transport: FacadeFtpTransport(facade),
       ),
       s,
       scheme: 'ftpes',
@@ -245,6 +246,13 @@ void main() {
         'PROT P',
       ]),
     );
+    // The control connection was a platform socket upgraded in place, and
+    // every data channel asked to resume the control session.
+    expect(facade.plainConnects, isNotEmpty);
+    expect(facade.upgrades, hasLength(facade.plainConnects.length));
+    expect(facade.resumed, isNotEmpty);
+    expect(facade.resumed.every((id) => id != null), isTrue);
+    expect(facade.connects.every((c) => c.$3 == fp), isTrue);
   });
 
   test(
@@ -304,7 +312,6 @@ void main() {
     for (final (security, transport) in [
       (FtpSecurity.implicit, const SocketFtpTransport()),
       (FtpSecurity.explicit, const SocketFtpTransport()),
-      (FtpSecurity.explicit, FacadeFtpTransport(FakeTlsSocketFacade())),
     ]) {
       await expectLater(
         FtpFileSystem(
@@ -451,6 +458,14 @@ void main() {
     expect(secure.options.security, FtpSecurity.implicit);
     expect(secure.options.certSha256, 'AA');
     expect(secure.transport, isA<FacadeFtpTransport>());
+    final plain = b[SourceKind.ftp]!(
+      SourceSpec(kind: SourceKind.ftp, root: Uri.parse('ftp://nas.local/')),
+    ) as FtpFileSystem;
+    expect(
+      plain.transport,
+      isA<SocketFtpTransport>(),
+      reason: 'plain FTP stays on dart:io',
+    );
     final ssh = b[SourceKind.sftp]!(
       SourceSpec(
         kind: SourceKind.sftp,
@@ -476,6 +491,8 @@ void main() {
     ) as SftpFileSystem;
     expect(keyed.endpoint.privateKeySecretRef, 'source.cd/privateKey');
     expect(keyed.endpoint.passwordSecretRef, isNull);
+    expect(keyed.endpoint.keyPassphraseSecretRef, 'source.cd/keyPassphrase');
+    expect(ssh.endpoint.keyPassphraseSecretRef, isNull);
     expect(mainIsolateSourceKinds, {SourceKind.ftp, SourceKind.sftp});
   });
 }

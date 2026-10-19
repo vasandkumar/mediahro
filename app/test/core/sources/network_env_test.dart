@@ -9,6 +9,7 @@ import 'package:mediahro/core/sources/dlna/dlna_discovery.dart';
 import 'package:mediahro/core/sources/dlna/dlna_file_system.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
 import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
+import 'package:mediahro/core/sources/ftp/ftp_transport.dart';
 import 'package:mediahro/core/sources/http/http_auth.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/core/sources/http/webdav_file_system.dart';
@@ -163,7 +164,7 @@ void main() {
     'NET-004 FTP/FTPS client against vsftpd (TLS from the OS stand-in)',
     () {
       // Production TLS is TlsSocketFacade (ADR-017, C4); tests stand in.
-      const osTls = StandInTlsTransport();
+      final osTls = FacadeFtpTransport(FakeTlsSocketFacade());
       Uri root(String scheme, int port) =>
           Uri(scheme: scheme, host: _host, port: port, path: '/');
 

@@ -255,8 +255,12 @@ final class SourceRepository {
     final keyAuth = c.kind == 'sshKey' || options['auth'] == 'key';
     await store.delete(refs.password);
     await store.delete(refs.privateKey);
+    await store.delete(refs.keyPassphrase);
     if (secret != null) {
       await store.write(keyAuth ? refs.privateKey : refs.password, secret);
+    }
+    if (c.passphrase case final p? when keyAuth) {
+      await store.write(refs.keyPassphrase, p);
     }
   }
 
@@ -267,6 +271,7 @@ final class SourceRepository {
     await store.delete(key);
     await store.delete(refs.password);
     await store.delete(refs.privateKey);
+    await store.delete(refs.keyPassphrase);
   }
 
   Future<List<SourceSummary>> summaries() async {

@@ -19,6 +19,7 @@ import 'package:mediahro_ffi/mediahro_ffi.dart';
 extension type const SftpSecretRefs(String credentialKey) {
   String get password => '$credentialKey/password';
   String get privateKey => '$credentialKey/privateKey';
+  String get keyPassphrase => '$credentialKey/keyPassphrase';
 }
 
 final class SftpFileSystem implements MutableFileSystem {
@@ -35,6 +36,7 @@ final class SftpFileSystem implements MutableFileSystem {
   @override
   Set<VirtualFsCapability> get capabilities => const {
     VirtualFsCapability.list,
+    VirtualFsCapability.write,
     VirtualFsCapability.rename,
     VirtualFsCapability.delete,
   };
@@ -215,21 +217,33 @@ final class SftpFileSystem implements MutableFileSystem {
     await s.delete(path(uri));
   }
 
-  // SftpSession has no mkdir or upload yet (interface request in PR #1).
-  @override
-  Future<Uri> createDirectory(Uri parent, String name) async =>
-      throw VirtualFileException(
-        VirtualFileError.unsupported,
-        parent,
-        'SFTP mkdir',
-      );
+  static String _checkName(String name, Uri uri) {
+    if (name.isEmpty || name == '.' || name == '..' || name.contains('/')) {
+      throw VirtualFileException(VirtualFileError.notFound, uri, 'bad name');
+    }
+    return name;
+  }
 
   @override
-  Future<VirtualFileWriter> create(Uri uri) async => throw VirtualFileException(
-    VirtualFileError.unsupported,
-    uri,
-    'SFTP upload',
-  );
+  Future<Uri> createDirectory(Uri parent, String name) async {
+    final uri = _child(parent, _checkName(name, parent));
+    return await _run(uri, (s) async {
+      if (await _exists(s, path(uri))) {
+        throw VirtualFileException(VirtualFileError.alreadyExists, uri);
+      }
+      await s.mkdir(path(uri));
+      return uri;
+    });
+  }
+
+  /// A new file; an existing name is refused (copy/move never overwrite).
+  @override
+  Future<VirtualFileWriter> create(Uri uri) => _run(uri, (s) async {
+    if (await _exists(s, path(uri))) {
+      throw VirtualFileException(VirtualFileError.alreadyExists, uri);
+    }
+    return _SftpWriter(this, uri, await s.openWrite(path(uri)));
+  });
 
   Future<void> close() => _drop();
 }
@@ -263,4 +277,42 @@ final class _SftpFile implements VirtualFile {
 
   @override
   Future<void> close() async => _closed = true;
+}
+
+final class _SftpWriter implements VirtualFileWriter {
+  _SftpWriter(this._fs, this.uri, this._sink);
+
+  final SftpFileSystem _fs;
+  @override
+  final Uri uri;
+  final SftpWriteSink _sink;
+  bool _ended = false;
+
+  @override
+  Future<void> write(List<int> bytes) async {
+    if (_ended) throw VirtualFileException(VirtualFileError.closed, uri);
+    await _fs._run(
+      uri,
+      (_) =>
+          _sink.write(bytes is Uint8List ? bytes : Uint8List.fromList(bytes)),
+    );
+  }
+
+  @override
+  Future<void> close() async {
+    if (_ended) return;
+    _ended = true;
+    await _fs._run(uri, (_) => _sink.close());
+  }
+
+  @override
+  Future<void> abort() async {
+    if (_ended) return;
+    _ended = true;
+    try {
+      await _sink.abort();
+    } on Object catch (_) {
+      // the platform removes the partial file; nothing else to do
+    }
+  }
 }
