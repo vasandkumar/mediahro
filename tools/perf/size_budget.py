@@ -63,6 +63,9 @@ def largest_abi_mb(apk: Path) -> float:
 
 def main() -> int:
     kind, target = sys.argv[1], Path(sys.argv[2])
+    if not target.exists():
+        print(f"size: {target} does not exist; the build artefact is missing", file=sys.stderr)
+        return 1
     key = sys.argv[sys.argv.index("--key") + 1] if "--key" in sys.argv else f"{kind}:{target.name}"
     if kind == "android" and target.suffix == ".apk":
         mb = largest_abi_mb(target)
