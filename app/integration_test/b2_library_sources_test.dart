@@ -342,6 +342,10 @@ void main() {
       expect(second.result.added + second.result.updated, 0);
       report['lib003_initial_ms'] = initial.inMilliseconds;
       report['lib003_incremental_ms'] = incremental.inMilliseconds;
+      debugPrint(
+        'LIB-003 perf: initial ${initial.inMilliseconds} ms, '
+        'incremental ${incremental.inMilliseconds} ms',
+      );
       // docs/11 §5: budgets apply to profile/release builds on reference
       // devices (10 s desktop, 30 s mid-range phone, 2 s incremental); CI's
       // JIT debug runs only report them, as for CORE-001.
@@ -406,9 +410,15 @@ void main() {
     times.sort();
     final median = Duration(microseconds: times[10]);
     report['lib005_median_us'] = median.inMicroseconds;
-    // doc 04 LIB-005: instant (≤ 50 ms). The time is spent in SQLite, not in
-    // Dart, so the budget holds in debug builds too and is asserted.
-    expect(median, lessThanOrEqualTo(const Duration(milliseconds: 50)));
+    debugPrint(
+      'LIB-005 perf: median ${median.inMicroseconds} µs over 50 k items',
+    );
+    // doc 04 LIB-005 / ADR-020: ≤ 50 ms on mobile, ≤ 30 ms on desktop. The
+    // time is spent in SQLite, not in Dart, so it is asserted in debug too.
+    final budget = Platform.isAndroid || Platform.isIOS
+        ? const Duration(milliseconds: 50)
+        : const Duration(milliseconds: 30);
+    expect(median, lessThanOrEqualTo(budget));
   }, timeout: const Timeout(Duration(minutes: 5)));
 
   testWidgets(
