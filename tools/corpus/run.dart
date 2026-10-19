@@ -76,10 +76,7 @@ Future<void> main(List<String> args) async {
     ]);
   }
   // ISO images need pycdlib; make_iso.py skips with a notice without it.
-  await Process.run(py, [
-    '${root.path}/tools/corpus/make_iso.py',
-    corpus.path,
-  ]);
+  await Process.run(py, ['${root.path}/tools/corpus/make_iso.py', corpus.path]);
   env['MEDIAHRO_CORPUS_DIR'] = corpus.path;
 
   final flutter = Platform.isWindows ? 'flutter.bat' : 'flutter';

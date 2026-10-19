@@ -22,7 +22,7 @@ ROOT = PLUGIN.parents[1]
 SRC = ROOT / "test-media" / "generated"
 DEST = PLUGIN / "example" / "assets" / "corpus"
 MANIFEST_DART = PLUGIN / "example" / "integration_test" / "corpus_manifest.dart"
-HELPERS = ["subs.srt", "subs.ass", "chapters.ffmeta"]
+HELPERS = ["subs.srt", "subs.ass", "chapters.ffmeta", "vobsub.sub"]
 
 
 def main(argv: list[str]) -> int:

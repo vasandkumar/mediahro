@@ -145,6 +145,15 @@ void subtitlesSuite() {
       expect(await litPixels(e), 0, reason: 'cleared at 2 s');
     }, skip: skip);
 
+    test('SUB-011 VobSub IDX/SUB pair is drawn', () async {
+      if (corpusItems().every((i) => i.file != 'vobsub.idx')) {
+        markTestSkipped('no IDX/SUB fixture');
+        return;
+      }
+      final e = await scene('vobsub.idx');
+      expect(await litPixels(e), greaterThan(300), reason: 'subpicture');
+    }, skip: skip);
+
     for (final item in corpusItems(id: 'SUB-011')) {
       if (item.expect['video'] != 1) continue;
       test('SUB-011 ${item.file} decodes its bitmap track', () async {

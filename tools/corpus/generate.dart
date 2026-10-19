@@ -1052,6 +1052,80 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
         },
       );
     }
+    await _vobsubPair();
+  }
+
+  /// VobSub as an IDX/SUB pair (SUB-011): ffmpeg muxes the subpicture
+  /// stream into MPEG-PS (`.sub`); the `.idx` lists each subpicture's PTS
+  /// and pack offset, found by scanning the packs.
+  Future<void> _vobsubPair() async {
+    final sub = p('vobsub.sub');
+    final r = await Process.run(ffmpeg, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-i',
+      p('subs.sup'),
+      '-map',
+      '0:s',
+      '-c:s',
+      'dvdsub',
+      '-f',
+      'vob',
+      sub,
+    ]);
+    if (r.exitCode != 0 || !File(sub).existsSync()) {
+      skipped.add({'file': 'vobsub.idx', 'reason': 'ffmpeg: ${r.stderr}'});
+      return;
+    }
+    final b = File(sub).readAsBytesSync();
+    final entries = <String>[];
+    var pack = -1;
+    for (var i = 0; i + 14 < b.length; i++) {
+      if (b[i] != 0 || b[i + 1] != 0 || b[i + 2] != 1) continue;
+      if (b[i + 3] == 0xBA) {
+        pack = i;
+        continue;
+      }
+      // Private stream 1 PES with a PTS, substream 0x20: a subpicture start.
+      if (b[i + 3] != 0xBD || (b[i + 7] & 0x80) == 0) continue;
+      final headerLen = b[i + 8];
+      if (b[i + 9 + headerLen] != 0x20) continue;
+      final pts =
+          ((b[i + 9] >> 1) & 0x07) << 30 |
+          b[i + 10] << 22 |
+          (b[i + 11] >> 1) << 15 |
+          b[i + 12] << 7 |
+          b[i + 13] >> 1;
+      final ms = pts ~/ 90;
+      String two(int v) => v.toString().padLeft(2, '0');
+      final stamp =
+          '${two(ms ~/ 3600000)}:${two(ms ~/ 60000 % 60)}:'
+          '${two(ms ~/ 1000 % 60)}:${(ms % 1000).toString().padLeft(3, '0')}';
+      entries.add(
+        'timestamp: $stamp, filepos: '
+        '${pack.toRadixString(16).padLeft(9, '0')}',
+      );
+    }
+    if (entries.isEmpty) {
+      skipped.add({'file': 'vobsub.idx', 'reason': 'no subpicture packets'});
+      return;
+    }
+    final palette = List.filled(16, 'ffffff').join(', ');
+    File(p('vobsub.idx')).writeAsStringSync(
+      '# VobSub index file, v7 (do not modify this line!)\n'
+      'size: 640x360\norg: 0, 0\nscale: 100%, 100%\nalpha: 100%\n'
+      'smooth: OFF\nfadein/out: 0, 0\nalign: OFF at LEFT TOP\ntime offset: 0\n'
+      'forced subs: OFF\npalette: $palette\ncustom colors: OFF\n'
+      'langidx: 0\n\nid: en, index: 0\n${entries.join('\n')}\n',
+    );
+    items.add({
+      'file': 'vobsub.idx',
+      'category': 'subtitles',
+      'ids': ['SUB-011'],
+      'expect': {'vobsubIdx': true},
+    });
   }
 
   // ----------------------------------------------------------- edge cases --
