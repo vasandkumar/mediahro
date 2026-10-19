@@ -5,6 +5,16 @@
 /// headers in the pinned `mediahro-deps` release (`ffigen/<library>.yaml`).
 library;
 
+export 'src/archive/archive_reader.dart'
+    show
+        ArchiveLimits,
+        ArchiveSource,
+        ArchiveSyncFileSystem,
+        LocalArchiveSource,
+        SyncArchiveSource,
+        archiveFileSystem,
+        normaliseEntryPath;
+export 'src/chromaprint/fingerprinter.dart';
 export 'src/curl/curl_client.dart'
     show
         CurlOptions,
@@ -13,6 +23,7 @@ export 'src/curl/curl_client.dart'
         curlFileSystem,
         sha256ForTesting;
 export 'src/curl/list_parser.dart';
+export 'src/ebur128/loudness_meter.dart';
 export 'src/native/native_library.dart'
     show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
 export 'src/native/posix.dart';
@@ -24,6 +35,7 @@ export 'src/nfs/nfs_client.dart'
         nfsFileSystem,
         nfsFindLocalServers;
 export 'src/smb2/smb2_client.dart';
+export 'src/uchardet/charset_detector.dart';
 export 'src/vfs/isolate_file_system.dart';
 export 'src/vfs/local_file_system.dart';
 export 'src/vfs/virtual_file.dart';

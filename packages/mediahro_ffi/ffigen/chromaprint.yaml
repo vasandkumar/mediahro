@@ -1,0 +1,40 @@
+# chromaprint (LGPL-2.1-or-later, dynamic only) — LIB-014 duplicates and
+# AcoustID lookups (MUS). Headers: .deps-cache/headers/chromaprint. Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/chromaprint.yaml)
+name: ChromaprintBindings
+description: Bindings to chromaprint.
+output: ../lib/src/chromaprint/chromaprint_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/chromaprint/include/chromaprint.h
+  include-directives:
+    - '**/chromaprint.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/chromaprint/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - chromaprint_get_version
+    - chromaprint_new
+    - chromaprint_free
+    - chromaprint_start
+    - chromaprint_feed
+    - chromaprint_finish
+    - chromaprint_get_fingerprint
+    - chromaprint_get_raw_fingerprint
+    - chromaprint_get_raw_fingerprint_size
+    - chromaprint_dealloc
+    - chromaprint_encode_fingerprint
+    - chromaprint_decode_fingerprint
+structs:
+  include:
+    - ChromaprintContextPrivate
+enums:
+  include:
+    - ChromaprintAlgorithm
+comments:
+  style: any
+  length: brief
+silence-enum-warning: true
+preamble: |
+  // ignore_for_file: type=lint, unused_field
