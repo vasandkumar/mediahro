@@ -6,6 +6,7 @@
 import Foundation
 
 #if os(iOS)
+import AVFoundation
 import Flutter
 import UIKit
 #else
@@ -31,6 +32,41 @@ public class MediahroEnginePlugin: NSObject, FlutterPlugin {
     let channel = FlutterMethodChannel(name: "com.mediahro.engine/bridge", binaryMessenger: messenger)
     let instance = MediahroEnginePlugin(textures: textures)
     registrar.addMethodCallDelegate(instance, channel: channel)
+    let audio = FlutterMethodChannel(name: "com.mediahro.engine/audio", binaryMessenger: messenger)
+    audio.setMethodCallHandler { call, result in
+      guard call.method == "prefer" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(Self.preferOutput(call.arguments as? [String: Any] ?? [:]))
+    }
+  }
+
+  /// AUD-041: iOS gets the best available path — the session's preferred
+  /// sample rate follows the source. macOS bit-perfect output is mpv's
+  /// CoreAudio hog mode with rate switching (`audio-exclusive`).
+  static func preferOutput(_ args: [String: Any]) -> [String: Any] {
+    #if os(iOS)
+    let session = AVAudioSession.sharedInstance()
+    let rate = (args["sampleRate"] as? NSNumber)?.doubleValue
+    let bitPerfect = (args["bitPerfect"] as? Bool) ?? false
+    do {
+      try session.setCategory(.playback, mode: .default)
+      try session.setPreferredSampleRate(bitPerfect ? (rate ?? 0) : 0)
+      try session.setActive(true)
+    } catch {
+      return ["applied": false, "reason": "\(error)"]
+    }
+    let actual = Int(session.sampleRate)
+    return [
+      "applied": true,
+      "sampleRate": actual,
+      "bitPerfect": bitPerfect && rate != nil && Double(actual) == rate,
+      "device": session.currentRoute.outputs.first?.portName ?? "",
+    ]
+    #else
+    return ["applied": false, "reason": "CoreAudio hog mode via audio-exclusive"]
+    #endif
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

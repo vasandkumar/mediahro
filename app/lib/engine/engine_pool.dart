@@ -15,12 +15,18 @@ final libmpvAvailableProvider = Provider<bool>((ref) => MpvEngine.isAvailable);
 final playbackEngineFactoryProvider = Provider<PlaybackEngineFactory>((ref) {
   if (!ref.watch(libmpvAvailableProvider)) return UnavailableEngine.new;
   final bridge = RenderBridge();
+  final audio = AudioBridge();
   return (role) => switch (role) {
     EngineRole.video => MpvEngine(
       EngineRole.video,
-      config: MpvEngineConfig(renderBridge: bridge),
+      config: MpvEngineConfig(renderBridge: bridge, audioBridge: audio),
     ),
-    EngineRole.music => CrossfadingEngine(() => MpvEngine(EngineRole.music)),
+    EngineRole.music => CrossfadingEngine(
+      () => MpvEngine(
+        EngineRole.music,
+        config: MpvEngineConfig(audioBridge: audio),
+      ),
+    ),
   };
 });
 

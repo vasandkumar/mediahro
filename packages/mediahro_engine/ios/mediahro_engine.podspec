@@ -15,7 +15,7 @@ A new Flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'mediahro_engine/Sources/mediahro_engine/**/*.swift'
   # libmpv xcframeworks staged by tool/stage_native.py (LGPL, dynamic).
-  s.frameworks = 'OpenGLES', 'CoreVideo', 'IOSurface'
+  s.frameworks = 'OpenGLES', 'CoreVideo', 'IOSurface', 'AVFoundation'
   s.vendored_frameworks = 'mediahro_engine/Frameworks/*.xcframework'
   s.resource_bundles = {'mediahro_engine_privacy' => ['mediahro_engine/Sources/mediahro_engine/PrivacyInfo.xcprivacy']}
   s.dependency 'Flutter'

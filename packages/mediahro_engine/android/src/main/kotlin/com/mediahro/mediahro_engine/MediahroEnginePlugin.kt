@@ -90,6 +90,8 @@ class MediahroEnginePlugin :
     FlutterPlugin,
     MethodCallHandler {
     private lateinit var channel: MethodChannel
+    private var audioChannel: MethodChannel? = null
+    private var bitPerfect: BitPerfectOutput? = null
     private var textures: TextureRegistry? = null
     private val surfaces = mutableMapOf<Long, VideoSurface>()
 
@@ -97,6 +99,25 @@ class MediahroEnginePlugin :
         channel = MethodChannel(binding.binaryMessenger, "com.mediahro.engine/bridge")
         channel.setMethodCallHandler(this)
         textures = binding.textureRegistry
+        val output = BitPerfectOutput(binding.applicationContext)
+        bitPerfect = output
+        audioChannel =
+            MethodChannel(binding.binaryMessenger, "com.mediahro.engine/audio").also {
+                it.setMethodCallHandler { call, result ->
+                    if (call.method == "prefer") {
+                        result.success(
+                            output.prefer(
+                                call.argument<Boolean>("bitPerfect") == true,
+                                call.argument<Int>("sampleRate"),
+                                call.argument<Int>("channels"),
+                                call.argument<Int>("bitDepth"),
+                            ),
+                        )
+                    } else {
+                        result.notImplemented()
+                    }
+                }
+            }
         // Loads the JNI helper early so FFmpeg has the JavaVM before Dart
         // creates the first mpv core.
         NativeBridge.loaded
@@ -148,6 +169,8 @@ class MediahroEnginePlugin :
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        audioChannel?.setMethodCallHandler(null)
+        bitPerfect?.release()
         surfaces.values.forEach { it.release() }
         surfaces.clear()
         textures = null

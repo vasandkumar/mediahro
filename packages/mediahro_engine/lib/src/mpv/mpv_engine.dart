@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
@@ -37,6 +38,7 @@ final class MpvEngineConfig {
     this.onLog,
     this.softwareSize = (320, 180),
     this.libmpvPath,
+    this.audioBridge,
   });
 
   /// Defaults to the running platform.
@@ -69,6 +71,10 @@ final class MpvEngineConfig {
 
   /// libmpv file to load first (harnesses); see `Libmpv.open`.
   final String? libmpvPath;
+
+  /// OS bit-perfect / rate-matching requests (AUD-040, AUD-041); null in
+  /// headless use.
+  final AudioBridge? audioBridge;
 }
 
 /// [PlaybackEngine] over libmpv (docs/05 §4, ADR-004).
@@ -356,6 +362,7 @@ final class MpvEngine implements PlaybackEngine {
         _decoderDrops = value is int ? value : 0;
       case 'audio-params':
         _audioParams = value is Map<String, Object?> ? value : null;
+        unawaited(_syncOutputPreference());
       case 'audio-out-params':
         _audioOutParams = value is Map<String, Object?> ? value : null;
       case 'current-ao':
@@ -383,16 +390,7 @@ final class MpvEngine implements PlaybackEngine {
         return;
     }
     if (name.startsWith('audio') || name == 'current-ao') {
-      _state = _state.copyWith(
-        audio: audioOutputInfo(
-          decoded: _audioParams,
-          output: _audioOutParams,
-          exclusive: _exclusive,
-          dspActive: dspFilters(_dsp).isNotEmpty || _state.rate != 1,
-          device: _audioDevice,
-          ao: _ao,
-        ),
-      );
+      _refreshAudioInfo();
     }
     if (name.endsWith('drop-count')) {
       _state = _state.copyWith(
@@ -401,6 +399,47 @@ final class MpvEngine implements PlaybackEngine {
         ),
       );
     }
+  }
+
+  OutputPreference? _osOutput;
+  int? _preferredRate;
+
+  void _refreshAudioInfo() {
+    final os = _osOutput;
+    _state = _state.copyWith(
+      audio: audioOutputInfo(
+        decoded: _audioParams,
+        output: _audioOutParams,
+        exclusive: _exclusive || (os?.bitPerfect ?? false),
+        dspActive: dspFilters(_dsp).isNotEmpty || _state.rate != 1,
+        device: os?.device ?? _audioDevice,
+        ao: _ao,
+      ),
+    );
+  }
+
+  /// Asks the OS for a bit-perfect output at the current source rate
+  /// (automatic rate switching, AUD-040/041); released when exclusive is off.
+  Future<void> _syncOutputPreference() async {
+    final bridge = config.audioBridge;
+    if (bridge == null) return;
+    final rate = _audioParams?['samplerate'] as int?;
+    if (!_output.exclusive) {
+      if (_osOutput?.applied ?? false) await bridge.prefer(bitPerfect: false);
+      _osOutput = null;
+      _preferredRate = null;
+      return;
+    }
+    if (rate == null || rate == _preferredRate) return;
+    _preferredRate = rate;
+    _osOutput = await bridge.prefer(
+      bitPerfect: true,
+      sampleRate: rate,
+      channels: _audioParams?['channel-count'] as int?,
+      bitDepth: sampleFormatBits(_audioParams?['format'] as String?),
+    );
+    _refreshAudioInfo();
+    _scheduleEmit();
   }
 
   void _onTracks() {
@@ -885,6 +924,8 @@ final class MpvEngine implements PlaybackEngine {
     await _setAll(c, audioOutputProperties(config, platform));
     await _applyAudioFilters(c);
     if (latencyChanged) await setAudioDelay(_state.audioDelay);
+    _preferredRate = null;
+    await _syncOutputPreference();
   }
 
   @override

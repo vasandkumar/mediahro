@@ -5,6 +5,7 @@ library;
 export 'src/api/media_source.dart';
 export 'src/api/models.dart';
 export 'src/api/playback_engine.dart';
+export 'src/bridge/audio_bridge.dart';
 export 'src/bridge/render_bridge.dart' show RenderBridge, RenderSurface;
 export 'src/cast/cast_plan.dart';
 export 'src/cast/cast_server.dart';

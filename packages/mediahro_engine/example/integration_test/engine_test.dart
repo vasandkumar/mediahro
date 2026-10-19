@@ -50,6 +50,21 @@ void renderBridgeSuite() {
   final skip = ffiSkipReason;
   prepareCorpus();
 
+  testWidgets('AUD-040/041 OS output preference answers truthfully', (
+    tester,
+  ) async {
+    final r = await AudioBridge().prefer(bitPerfect: true, sampleRate: 48000);
+    if (Platform.isIOS) {
+      expect(r.applied, isTrue, reason: 'AVAudioSession accepts the rate');
+      expect(r.sampleRate, isNotNull);
+    } else {
+      // Emulators and CI desktops have no USB DAC; mpv handles macOS and
+      // Windows exclusive modes itself.
+      expect(r.bitPerfect, isFalse);
+    }
+    await AudioBridge().prefer(bitPerfect: false);
+  });
+
   group('VID-030 render bridge', () {
     testWidgets('VID-030 frames reach a Flutter texture', (tester) async {
       final bridge = RenderBridge();
