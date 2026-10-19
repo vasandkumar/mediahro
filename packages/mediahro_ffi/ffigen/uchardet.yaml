@@ -1,0 +1,30 @@
+# uchardet (MPL-1.1) — charset detection for legacy playlists and subtitles.
+# Headers: .deps-cache/headers/uchardet. Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/uchardet.yaml)
+name: UchardetBindings
+description: Bindings to uchardet.
+output: ../lib/src/uchardet/uchardet_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/uchardet/include/uchardet.h
+  include-directives:
+    - '**/uchardet.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/uchardet/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - uchardet_new
+    - uchardet_delete
+    - uchardet_handle_data
+    - uchardet_data_end
+    - uchardet_reset
+    - uchardet_get_charset
+structs:
+  include:
+    - uchardet
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

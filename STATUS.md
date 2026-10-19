@@ -60,7 +60,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-002 | First-run without walls | B3 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
-| CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL validation, headers/UA, history of 50, Open URL dialog. Playback hand-off is the `openUrlActionProvider` seam (C1 wires it). |
 | CORE-006 | Settings model | B3 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-007 | Themes | B3 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ |  |
@@ -69,39 +69,39 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
 | CORE-015 | Privacy dashboard | B3 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 2. LIB — Library, indexing, search
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| LIB-001 | Unified index | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-003 | Scan performance | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-005 | Search | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-008 | Multiple queues | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-009 | Tags and labels | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| LIB-015 | Statistics | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| LIB-001 | Unified index | B2 | ☐ | ☐ | ☐ | ☐ | B2: drift index (docs/05 §6 tables, FTS5), scanner isolate pool, viewport probe queue. Codec/duration fields fill from B1 through the `MediaProber` seam. |
+| LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ | B2: local sources via StorageFacade grants (fakes in tests); Win32 fast path. ⛔ C4 StorageFacade (SAF/MediaStore, bookmarks, pickers). |
+| LIB-003 | Scan performance | B2 | ☐ | ☐ | ☐ | ☐ | B2: 10 k files 1.0–2.5 s initial / 0.2–0.55 s incremental (desktop); pause/resume/cancel; manual/on-open/watch. Phone budget: device lab. |
+| LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ | B2: folder browser + `ViewModeToggle` persisted per mode; C1–C3 place them in each mode. |
+| LIB-005 | Search | B2 | ☐ | ☐ | ☐ | ☐ | B2: FTS5 prefix search, bm25, all doc 04 filters; 50 k items median 9.5 ms (desktop CI). |
+| LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ | B2: `HomeRow` continue/recently added/played/unwatched queries + widgets; C1–C3 place them; resume thumbnails from B1/C3. |
+| LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ | B2: manual + smart playlists (rule builder, AND/OR, limit, sort), M3U/M3U8/PLS/XSPF/CUE parse (isolate, limits) and export. File import/export pickers → C4. |
+| LIB-008 | Multiple queues | B2 | ☐ | ☐ | ☐ | ☐ | B2: named audio queues + one video queue, persisted, repeat/shuffle; queues screen. |
+| LIB-009 | Tags and labels | B2 | ☐ | ☐ | ☐ | ☐ | B2: tags, colour labels, bulk apply; tag editor sheet. |
+| LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ | B2: per-item progress/watched; `ProgressSyncTarget` seam for Jellyfin/Emby/Plex (C4 servers) and Trakt (needs owner client ID). |
+| LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ | B2: filename parser, TMDB/TVDB clients through NetworkGateway, NFO, artwork cache, manual match. Live tests need owner API keys (§4). |
+| LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ | B2: series/season, albums/artists/genres/years/composers, TMDB collections; photo people/places come from C3. |
+| LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ | B2: PBKDF2 PIN (isolate), lockout, biometrics, locked sources/folders, hidden items excluded. Needs C4 SecureStorage/Biometrics facades on device. |
+| LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ | B2: exact hash, pHash (images), duration+size (video), chromaprint (audio) review UI; never deletes. ⛔ chromaprint native lib (B4). |
+| LIB-015 | Statistics | B2 | ☐ | ☐ | ☐ | ☐ | B2: play counts, time played, top items, storage by type/source; statistics screen. |
 
 ### 3. FILE — File browser and management
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| FILE-001 | Browser | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| FILE-002 | Operations | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| FILE-003 | Batch operations | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| FILE-004 | Archives | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| FILE-005 | Transfer | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| FILE-006 | Subtitle/audio sidecars | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| FILE-001 | Browser | B2 | ☐ | ☐ | ☐ | ☐ | B2: browser with breadcrumbs, list, sort (name/date/size/type), selection. Grid thumbnails/resume bar use C1/C3 thumbnails. |
+| FILE-002 | Operations | B2 | ☐ | ☐ | ☐ | ☐ | B2: rename/move/copy/new folder, delete to trash with undo, permanent delete only on request. OS trash/share/"open in" via C4 StorageFacade. |
+| FILE-003 | Batch operations | B2 | ☐ | ☐ | ☐ | ☐ | B2: multi-select, batch rename with tokens, batch tag edit, batch image convert through ImagePipeline (C3). |
+| FILE-004 | Archives | B2 | ⛔ | ⛔ | ⛔ | ⛔ | B2: libarchive VFS (ZIP/CBZ/RAR/7z/CBR) via ffigen. ⛔ libarchive archives from B4. |
+| FILE-005 | Transfer | B2 | ☐ | ☐ | ☐ | ☐ | B2: Wi-Fi transfer page (shelf, 128-bit path token, QR). iOS Files integration and USB-C drives → C4. |
+| FILE-006 | Subtitle/audio sidecars | B2 | ☐ | ☐ | ☐ | ☐ | B2: sidecar detection by name + language suffix; rename/move keeps them together. |
 
 ### 4.1 Formats and decoding
 
@@ -245,13 +245,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| NET-001 | SMB2/3 | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-002 | NFS v3/v4 | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-003 | WebDAV | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-004 | FTP/FTPS/SFTP | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-007 | Cloud drives | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-001 | SMB2/3 | B2 | ⛔ | ⛔ | ⛔ | ⛔ | B2: libsmb2 VFS (isolate), mDNS/WS-Discovery/NetBIOS discovery, keychain credentials. ⛔ libsmb2 archive (B4) + network-env CI job (orchestrator). |
+| NET-002 | NFS v3/v4 | B2 | ⛔ | ⛔ | ⛔ | ⛔ | B2: libnfs VFS, manual + discovered mounts. ⛔ libnfs archive (B4) + network-env CI job. |
+| NET-003 | WebDAV | B2 | ☐ | ☐ | ☐ | ☐ | B2: WebDAV (Basic/Digest, ranges, HTTPS pinning prompt) — unit tests vs local DAV server; Nextcloud in network env. Live servers need the network-env job. |
+| NET-004 | FTP/FTPS/SFTP | B2 | ☐ | ☐ | ☐ | ☐ | B2 (ADR-017): plain FTP in Dart on every platform; FTPS (explicit via connectPlain+upgrade, implicit, data channels resuming the control session) in Dart over TlsSocketFacade with SHA-256 pinning; SFTP VFS over SftpFacade (list/read/mkdir/upload/rename/delete) with host-key TOFU, secrets by SecureStorage reference; libssh2+WinCNG bindings for the Windows facade. Tested against a local FTP/FTPS server, vsftpd (network env) and facade fakes. Waits for C4 facades (sequencing). |
+| NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ | B2: SSDP + ContentDirectory browse, opt-in renderer (DMR). iOS needs the multicast entitlement (owner) and C4 multicast lock on Android. |
+| NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL open, headers/UA, HTTP range reader; playback of HLS/DASH/RTSP/RTMP is B1 engine. |
+| NET-007 | Cloud drives | B2 | ☐ | ☐ | ☐ | ☐ | B2: OAuth PKCE + REST for Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex. ⛔ MEGA, Proton Drive (§3). Needs owner OAuth client IDs; AuthBrowser from C4. |
 | NET-010 | Jellyfin | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-011 | Emby | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-012 | Plex | C4 | ☐ | ☐ | ☐ | ☐ |  |
@@ -260,8 +260,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | NET-015 | Nextcloud | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-016 | Audiobookshelf | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-017 | Mediahro-to-Mediahro | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-018 | Offline downloads | B2 | ☐ | ☐ | ☐ | ☐ |  |
-| NET-019 | Connection health | B2 | ☐ | ☐ | ☐ | ☐ |  |
+| NET-018 | Offline downloads | B2 | ☐ | ☐ | ☐ | ☐ | B2: downloads with resume, quota, expiry; downloads screen. |
+| NET-019 | Connection health | B2 | ☐ | ☐ | ☐ | ☐ | B2: latency/throughput test, cache-size suggestion, metered warning via `NetworkStatus` seam (C4). |
 
 ### 9. CAST — Casting and external playback
 
@@ -330,6 +330,9 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|---|---|---|
 | 2026-10-20 | B1 + B4a | All Android cells of PR #3 (install-size budget, docs/11 §5) | APK with all mediahro-deps libraries is 102.3 MB per ABI vs the 40 MB budget | B4a: per-library size table, strip, FFmpeg `--disable-everything` + explicit components, trimmed libvips; B1: no duplicate libraries | None — budget is not relaxed; owner sees the numbers if 40 MB proves impossible |
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
+| 2026-10-19 | B2 | NET-001, NET-002, FILE-004, LIB-014 (chromaprint) — all platforms | Native libraries (libsmb2, libnfs, libarchive, libebur128, chromaprint, uchardet; libssh2 for Windows) are not yet published for every platform (Android pinned) as `mediahro-deps` archives; the ffigen bindings and contract tests skip without them | B4: publish and pin the archives; orchestrator: add the `network-env` CI job (PR #1 "Orchestrator changes needed") | Bindings, VFS clients and contract tests written; `packages/mediahro_ffi/test/network` docker-compose env + build_native.sh build them on Linux CI |
+| 2026-10-19 | B2 | LIB-002, FILE-002 (trash/share), CORE-014 (file save), LIB-007 (import/export pickers), LIB-013 (secure storage/biometrics), FILE-005 (Files/USB) — A/I (and M/W pickers) | Native storage, pickers, secure storage, biometrics and auth browser are lane C4's facades | C4: StorageFacade, SecureStorageFacade, BiometricsFacade, AuthBrowser, NetworkStatus, multicast lock | B2 codes against the facades with fakes; `_optional` degrades to "Not available on this device" |
+| 2026-10-19 | B2 | NET-007 MEGA, Proton Drive — all platforms | MEGA uses a proprietary client-side-encrypted protocol with no REST API usable without its SDK; Proton Drive has no public API (doc 04: "where API exists") | Upstream: a documented public API | Not offered in the Add cloud list; the other six providers ship |
 | 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | ~~libssh2 needs a crypto backend and curl FTPS needs TLS on Android~~ — **resolved by ADR-017** (2026-10-20): SFTP via sshj over JCA behind `SftpFacade`, FTPS over `TlsSocketFacade`; libssh2 is Windows-only (WinCNG) and curl has no TLS backend on Android/Apple (mediahro-deps#2) | Implementation: C4 / B2 per ADR-017 | — |
 | 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | ~~Open Screen libcast needs GN + BoringSSL~~ — **resolved by ADR-017**: openscreen-libcast removed from mediahro-deps (mediahro-deps#2); a Dart CASTv2 sender over `TlsSocketFacade` replaces it | Implementation: C4 per ADR-017 | — |
 
@@ -352,6 +355,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Play closed test: recruit 12 testers for 14 continuous days | M7 | Play production access | Open |
 | Beta programme recruitment (≥ 500 users across platforms) | M8 | Release gate 5 | Open |
 | Final store submissions (agents prepare packs; owner presses submit) and human sign-off at each milestone gate | Each gate / M8 | Release gate 12 | Open |
+| OAuth client IDs (and app registrations) for Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk, and Trakt; redirect = loopback | Before beta | NET-007, LIB-010 (Trakt) live tests | Open |
+| TMDB and TVDB project API keys (users may still supply their own) | Before beta | LIB-011, LIB-012 live tests | Open |
 
 ## 5. Release gates (docs/11 §7)
 

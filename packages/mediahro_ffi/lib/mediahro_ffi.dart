@@ -5,7 +5,39 @@
 /// headers in the pinned `mediahro-deps` release (`ffigen/<library>.yaml`).
 library;
 
+export 'src/archive/archive_reader.dart'
+    show
+        ArchiveLimits,
+        ArchiveSource,
+        ArchiveSyncFileSystem,
+        LocalArchiveSource,
+        SyncArchiveSource,
+        archiveFileSystem,
+        normaliseEntryPath;
+export 'src/chromaprint/fingerprinter.dart';
+export 'src/curl/curl_client.dart'
+    show
+        CurlOptions,
+        CurlProtocol,
+        CurlSyncFileSystem,
+        curlFileSystem,
+        sha256ForTesting;
+export 'src/curl/list_parser.dart';
+export 'src/ebur128/loudness_meter.dart';
+// libssh2 + WinCNG, driven by lane C4's Windows SftpFacade (ADR-017).
+export 'src/libssh2/libssh2_bindings.dart';
 export 'src/native/native_library.dart'
     show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
+export 'src/native/posix.dart';
+export 'src/nfs/nfs_client.dart'
+    show
+        NfsOptions,
+        NfsSyncFileSystem,
+        nfsExports,
+        nfsFileSystem,
+        nfsFindLocalServers;
+export 'src/smb2/smb2_client.dart';
+export 'src/uchardet/charset_detector.dart';
+export 'src/vfs/isolate_file_system.dart';
 export 'src/vfs/local_file_system.dart';
 export 'src/vfs/virtual_file.dart';

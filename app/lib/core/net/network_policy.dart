@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:mediahro_servers/mediahro_servers.dart';
 import 'package:meta/meta.dart';
 
@@ -117,6 +118,14 @@ abstract final class Endpoints {
     hosts: ['libre.fm'],
     purpose: EndpointPurpose.scrobbling,
   );
+
+  /// Watched-state sync (LIB-010, opt-in per account).
+  static const trakt = NetworkEndpoint(
+    id: 'trakt',
+    hosts: ['api.trakt.tv'],
+    purpose: EndpointPurpose.scrobbling,
+    policyUrl: 'https://trakt.tv/privacy',
+  );
   static const mapTiles = NetworkEndpoint(
     id: 'maptiles',
     hosts: ['tiles.mediahro.com'],
@@ -143,6 +152,7 @@ abstract final class Endpoints {
     listenBrainz,
     lastFm,
     libreFm,
+    trakt,
     mapTiles,
     introDb,
   ];
@@ -159,6 +169,11 @@ abstract interface class NetworkPolicy {
   void recordUse(NetworkEndpoint endpoint, DateTime at);
 }
 
+/// Optional: policies that also track user-added hosts for the dashboard.
+abstract interface class HostUseRecorder {
+  void recordHostUse(String host, DateTime at);
+}
+
 final class NetworkBlocked implements Exception {
   const NetworkBlocked(this.host, this.reason);
 
@@ -169,16 +184,60 @@ final class NetworkBlocked implements Exception {
   String toString() => 'NetworkBlocked($host: $reason)';
 }
 
+/// A streamed response (downloads, range reads of network files).
+final class HttpStreamResponse {
+  HttpStreamResponse(this.statusCode, this.headers, this.body);
+
+  final int statusCode;
+
+  /// Lower-case header names.
+  final Map<String, String> headers;
+  final Stream<List<int>> body;
+}
+
+/// A server presented a certificate the platform does not trust. The user
+/// may accept it after comparing [sha256] (docs/05 §9); the app then calls
+/// [NetworkGateway.trustCertificate].
+final class CertificateNotTrusted implements Exception {
+  const CertificateNotTrusted(this.host, this.sha256, {this.subject});
+
+  final String host;
+
+  /// Upper-case hex SHA-256 of the DER certificate, colon-separated.
+  final String sha256;
+  final String? subject;
+
+  @override
+  String toString() => 'CertificateNotTrusted($host, $sha256)';
+}
+
 /// The single outbound HTTP path for the app ([HttpTransport] for server
 /// clients). Lint `no_direct_http` forbids `HttpClient` elsewhere.
 final class NetworkGateway implements HttpTransport {
-  NetworkGateway(this._policy, {HttpClient? client, DateTime Function()? clock})
-    : _client = client ?? HttpClient(),
-      _clock = clock ?? DateTime.now;
+  NetworkGateway(
+    this._policy, {
+    HttpClient? client,
+    DateTime Function()? clock,
+    Map<String, String> trustedCertificates = const {},
+    this.userAgent = 'Mediahro',
+    Duration connectionTimeout = const Duration(seconds: 15),
+  }) : _client = client ?? HttpClient(),
+       _clock = clock ?? DateTime.now,
+       _trusted = Map.of(trustedCertificates) {
+    _client
+      ..connectionTimeout = connectionTimeout
+      ..userAgent = userAgent
+      ..badCertificateCallback = _onBadCertificate;
+  }
 
   final NetworkPolicy _policy;
   final HttpClient _client;
   final DateTime Function() _clock;
+  final String userAgent;
+
+  /// host → accepted certificate fingerprint (self-signed servers).
+  final Map<String, String> _trusted;
+  final Map<String, (String, String)> _rejected = {};
 
   /// Throws [NetworkBlocked] when [uri] is neither an enabled allow-list
   /// endpoint nor a user-configured host.
@@ -193,29 +252,97 @@ final class NetworkGateway implements HttpTransport {
         return e;
       }
     }
-    if (_policy.isUserConfiguredHost(host)) return null;
+    if (_policy.isUserConfiguredHost(host)) {
+      if (_policy case final HostUseRecorder r) r.recordHostUse(host, _clock());
+      return null;
+    }
     throw NetworkBlocked(host, 'host is not on the allow-list');
+  }
+
+  /// Accepts [sha256] for [host] after the user confirmed it.
+  void trustCertificate(String host, String sha256) =>
+      _trusted[host.toLowerCase()] = sha256.toUpperCase();
+
+  Map<String, String> get trustedCertificates => Map.unmodifiable(_trusted);
+
+  bool _onBadCertificate(X509Certificate cert, String host, int port) {
+    final fp = certificateFingerprint(cert.der);
+    if (_trusted[host.toLowerCase()] == fp) return true;
+    _rejected[host.toLowerCase()] = (fp, cert.subject);
+    return false;
   }
 
   @override
   Future<HttpResponseData> send(HttpRequestData request) async {
-    authorize(request.uri);
-    final req = await _client.openUrl(request.method, request.uri);
-    request.headers.forEach(req.headers.set);
-    if (request.body != null) req.add(request.body!);
-    final res = await req.close();
-    final body = await res.fold<List<int>>(
+    final res = await sendStreamed(request);
+    final body = await res.body.fold<List<int>>(
       <int>[],
       (acc, chunk) => acc..addAll(chunk),
     );
-    final headers = <String, String>{};
-    res.headers.forEach((name, values) => headers[name] = values.join(','));
     return HttpResponseData(
       statusCode: res.statusCode,
-      headers: headers,
+      headers: res.headers,
       body: body,
     );
   }
 
+  /// Like [send] without buffering the body (downloads, NET-018; range
+  /// reads, docs/05 §9). Redirects are followed only to hosts that pass
+  /// [authorize] too.
+  ///
+  /// [bodyStream] (with [contentLength]) uploads without buffering; it can
+  /// be consumed once, so redirects are not followed for it.
+  Future<HttpStreamResponse> sendStreamed(
+    HttpRequestData request, {
+    int maxRedirects = 5,
+    Stream<List<int>>? bodyStream,
+    int? contentLength,
+  }) async {
+    var uri = request.uri;
+    var method = request.method;
+    final redirects = bodyStream == null ? maxRedirects : 0;
+    for (var hop = 0; ; hop++) {
+      authorize(uri);
+      final HttpClientResponse res;
+      try {
+        final req = await _client.openUrl(method, uri);
+        req.followRedirects = false;
+        request.headers.forEach(req.headers.set);
+        if (bodyStream != null) {
+          if (contentLength != null) req.contentLength = contentLength;
+          await req.addStream(bodyStream);
+        } else if (request.body != null && method != 'GET') {
+          req.add(request.body!);
+        }
+        res = await req.close();
+      } on HandshakeException {
+        final r = _rejected.remove(uri.host.toLowerCase());
+        if (r != null) {
+          throw CertificateNotTrusted(uri.host, r.$1, subject: r.$2);
+        }
+        rethrow;
+      }
+      if (res.isRedirect && hop < redirects) {
+        final loc = res.headers.value(HttpHeaders.locationHeader);
+        await res.drain<void>();
+        if (loc == null) break;
+        uri = uri.resolve(loc);
+        if (res.statusCode == 303) method = 'GET';
+        continue;
+      }
+      final headers = <String, String>{};
+      res.headers.forEach((name, values) => headers[name] = values.join(','));
+      return HttpStreamResponse(res.statusCode, headers, res);
+    }
+    throw HttpException('too many redirects', uri: uri);
+  }
+
   void close() => _client.close(force: true);
 }
+
+/// Upper-case, colon-separated SHA-256 of a DER certificate.
+String certificateFingerprint(List<int> der) => sha256
+    .convert(der)
+    .bytes
+    .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+    .join(':');

@@ -16,3 +16,14 @@ workspace:
 
 dev_dependencies:
   very_good_analysis: ^11.0.0
+
+# ADR-020: iOS and macOS use the system SQLite (FTS5 + JSON, ≥ 3.30, checked
+# at every open by checkSqliteSupport); Android and Windows bundle
+# package:sqlite3's build. docs/05 §6.
+hooks:
+  user_defines:
+    sqlite3:
+      source:
+        ios: system
+        macos: system
+        default: sqlite3

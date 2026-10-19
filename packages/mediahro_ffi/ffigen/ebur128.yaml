@@ -1,0 +1,44 @@
+# libebur128 (MIT) — EBU R128 loudness (ReplayGain analysis, lanes C2/B1).
+# Headers: .deps-cache/headers/libebur128. Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/ebur128.yaml)
+name: Ebur128Bindings
+description: Bindings to libebur128.
+output: ../lib/src/ebur128/ebur128_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/libebur128/include/ebur128.h
+  include-directives:
+    - '**/ebur128.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/libebur128/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - ebur128_init
+    - ebur128_destroy
+    - ebur128_add_frames_short
+    - ebur128_add_frames_int
+    - ebur128_add_frames_float
+    - ebur128_add_frames_double
+    - ebur128_loudness_global
+    - ebur128_loudness_momentary
+    - ebur128_loudness_shortterm
+    - ebur128_loudness_range
+    - ebur128_sample_peak
+    - ebur128_true_peak
+    - ebur128_get_version
+structs:
+  include:
+    - ebur128_state
+enums:
+  include:
+    - mode
+macros:
+  include:
+    - EBUR128_SUCCESS
+comments:
+  style: any
+  length: brief
+silence-enum-warning: true
+preamble: |
+  // ignore_for_file: type=lint, unused_field

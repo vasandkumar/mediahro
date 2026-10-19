@@ -157,6 +157,10 @@ Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` cho
 ## 6. Data model and storage
 
 - **Database:** SQLite via `drift` with FTS5 for search; WAL; schema migrations versioned; one DB per profile.
+- **SQLite floor (ADR-020):** the index needs SQLite **≥ 3.30.0** with FTS5 (bm25, prefix indexes, `unicode61 remove_diacritics 2`) and the JSON functions (`json_each`). That covers UPSERT 3.24, window functions 3.25, `remove_diacritics 2` 3.27 and `NULLS LAST` 3.30; trigram is not used.
+  - iOS and macOS use the system SQLite. iOS 16 ships 3.39 and macOS 12 at least 3.36.
+  - Android and Windows bundle `package:sqlite3`'s build, with FTS5 on and JSON never omitted.
+  - `checkSqliteSupport` probes the features at every open and fails with `SqliteUnsupported` and actionable copy (`app/lib/core/db/sqlite_support.dart`).
 - Core tables: `source`, `item` (polymorphic with `kind`), `video_meta`, `audio_meta`, `image_meta`, `track`, `chapter`, `artwork`, `tag`, `item_tag`, `playlist`, `playlist_item`, `queue`, `queue_item`, `progress`, `rating`, `label`, `person`, `place`, `album`, `artist`, `series`, `season`, `collection`, `server_account`, `server_item_map`, `download`, `scan_job`, `thumb_cache`, `setting`, `shader_preset`, `eq_preset`, `subtitle_cache`, `scrobble_queue`.
 - Items keyed by stable `source_id + relative_path + size + mtime` with content hash (xxh3 of first/last 1 MB + size) for move detection.
 - Secrets: OS keychain/keystore/DPAPI; DB fields that reference them hold only identifiers.
@@ -225,7 +229,7 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 | chromaprint | 1.6 | LGPL-2.1+ | dynamic | AcoustID |
 | whisper.cpp | current | MIT | any | model downloaded on demand |
 | uchardet | 0.0.8 | MPL-1.1 | any | |
-| SQLite | 3.4x | public domain | any | FTS5 enabled |
+| SQLite | 3.4x bundled (A, W); system on I, M (≥ 3.30, §6) | public domain | any | FTS5 and JSON required, never stripped |
 | Open Screen libcast | current | BSD-3 | any | desktop/FOSS Cast sender |
 | Google Cast SDK | current | proprietary | Play/App Store flavours only | excluded from FOSS |
 | Sentry Flutter, Aptabase Flutter | current | MIT | any | opt-in, FOSS flavour excludes Sentry if non-FOSS deps |
