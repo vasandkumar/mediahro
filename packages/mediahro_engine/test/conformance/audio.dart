@@ -40,7 +40,8 @@ void audioSuite() {
   });
 
   group('AUD-002 gapless', () {
-    for (final ext in ['flac', 'mp3']) {
+    // m4a carries its delay and padding only in an iTunSMPB tag.
+    for (final ext in ['flac', 'mp3', 'm4a']) {
       test('AUD-002 $ext album joins sample-accurately', () async {
         final pcm = await _capture((e) async {
           await e.open(
@@ -62,7 +63,11 @@ void audioSuite() {
         // Two 2 s tracks of one continuous 440 Hz sine at 44.1 kHz.
         expect(
           pcm.frames,
-          closeTo(2 * 88200, ext == 'flac' ? 2 : 1152),
+          closeTo(2 * 88200, switch (ext) {
+            'flac' => 2,
+            'm4a' => 32,
+            _ => 1152,
+          }),
           reason: 'encoder delay and padding trimmed',
         );
         final jump = pcm.maxStep(channel: 0);

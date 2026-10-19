@@ -965,6 +965,43 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
         );
       }
     }
+    // The same album as AAC whose encoder delay and padding are carried only
+    // by an iTunSMPB tag (edit lists blanked), as iTunes writes it (AUD-002).
+    for (var i = 0; i < 4; i++) {
+      final name = 'gapless_m4a_${i + 1}.m4a';
+      await item(
+        name,
+        [
+          '-f',
+          'lavfi',
+          '-i',
+          'aevalsrc=sin(2*PI*440*t):s=44100:c=stereo',
+          '-ss',
+          '${i * 2}',
+          '-t',
+          '2',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '192k',
+        ],
+        needs: ['aac'],
+        ids: ['AUD-002'],
+        category: 'gapless',
+        expect: {'video': 0, 'audio': 1, 'gaplessIndex': i, 'itunsmpb': true},
+      );
+      final f = File(p(name));
+      if (f.existsSync()) {
+        final tagged = _withITunSmpb(f.readAsBytesSync(), samples: 88200);
+        if (tagged == null) {
+          f.deleteSync();
+          items.removeWhere((e) => e['file'] == name);
+          skipped.add({'file': name, 'reason': 'moov before mdat'});
+        } else {
+          f.writeAsBytesSync(tagged);
+        }
+      }
+    }
     // ReplayGain-tagged track (AUD-004).
     await item(
       'replaygain.flac',
@@ -1196,6 +1233,69 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       'ids': ['SUB-011'],
       'expect': {'vobsubIdx': true},
     });
+  }
+
+  /// AUD-002: rewrites an FFmpeg MP4 so its gapless info lives only in an
+  /// iTunes `iTunSMPB` tag: edit lists become `free` and a `udta/meta/ilst`
+  /// with the tag is appended to `moov`. Needs `moov` after `mdat` so chunk
+  /// offsets stay valid; returns null otherwise.
+  static List<int>? _withITunSmpb(Uint8List mp4, {required int samples}) {
+    final view = ByteData.sublistView(mp4);
+    String tag(int at) => String.fromCharCodes(mp4.sublist(at, at + 4));
+    int? moov;
+    var mdatSeen = false;
+    for (var at = 0; at + 8 <= mp4.length;) {
+      final size = view.getUint32(at);
+      if (size < 8) return null;
+      if (tag(at + 4) == 'mdat') mdatSeen = true;
+      if (tag(at + 4) == 'moov') moov = at;
+      at += size;
+    }
+    if (moov == null || !mdatSeen) return null;
+    final moovSize = view.getUint32(moov);
+    if (moov + moovSize != mp4.length) return null;
+    final body = Uint8List.fromList(mp4.sublist(moov));
+    var frames = 0;
+    for (var i = 4; i + 4 <= body.length; i++) {
+      final t = String.fromCharCodes(body.sublist(i, i + 4));
+      if (t == 'edts') body.setRange(i, i + 4, 'free'.codeUnits);
+      if (t == 'stsz' && frames == 0) {
+        frames = ByteData.sublistView(body).getUint32(i + 12);
+      }
+    }
+    const priming = 1024;
+    final padding = frames * 1024 - priming - samples;
+    if (padding < 0) return null;
+    String hex(int v, int width) =>
+        v.toRadixString(16).toUpperCase().padLeft(width, '0');
+    final text =
+        ' 00000000 ${hex(priming, 8)} ${hex(padding, 8)} ${hex(samples, 16)}'
+        '${' 00000000' * 8}';
+    List<int> atom(String type, List<int> payload) => [
+      ...(ByteData(4)..setUint32(0, payload.length + 8)).buffer.asUint8List(),
+      ...type.codeUnits,
+      ...payload,
+    ];
+    const zero4 = [0, 0, 0, 0];
+    final freeform = atom('----', [
+      ...atom('mean', [...zero4, ...'com.apple.iTunes'.codeUnits]),
+      ...atom('name', [...zero4, ...'iTunSMPB'.codeUnits]),
+      ...atom('data', [0, 0, 0, 1, ...zero4, ...text.codeUnits]),
+    ]);
+    final hdlr = atom('hdlr', [
+      ...zero4,
+      ...zero4,
+      ...'mdirappl'.codeUnits,
+      ...zero4,
+      ...zero4,
+      0,
+    ]);
+    final udta = atom(
+      'udta',
+      atom('meta', [...zero4, ...hdlr, ...atom('ilst', freeform)]),
+    );
+    ByteData.sublistView(body).setUint32(0, moovSize + udta.length);
+    return [...mp4.sublist(0, moov), ...body, ...udta];
   }
 
   /// VID-005: an AVI whose idx1 and OpenDML indexes are blanked to JUNK and
