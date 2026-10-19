@@ -7,4 +7,4 @@
 pubspec.lock
 
 # Local ffigen runs with a machine-specific llvm-path
-packages/mediahro_ffi/ffigen/_local*.yaml
+ffigen/_local*.yaml

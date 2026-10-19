@@ -1,0 +1,71 @@
+# libnfs (LGPL-2.1-or-later library, dynamic only) — NET-002.
+# Headers: .deps-cache/headers/libnfs (ffigen/fetch_headers.py) until the
+# mediahro-deps archives land. Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/nfs.yaml)
+name: NfsBindings
+description: Bindings to libnfs (sync API, used from a worker isolate).
+output: ../lib/src/nfs/nfs_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/libnfs/include/nfsc/libnfs.h
+  include-directives:
+    - '**/nfsc/libnfs.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/libnfs/include'
+  - '-include'
+  - 'stdint.h'
+  - '-include'
+  - 'stddef.h'
+exclude-all-by-default: true
+functions:
+  include:
+    - nfs_init_context
+    - nfs_destroy_context
+    - nfs_get_error
+    - nfs_set_version
+    - nfs_set_timeout
+    - nfs_set_uid
+    - nfs_set_gid
+    - nfs_set_readmax
+    - nfs_get_readmax
+    - nfs_get_writemax
+    - nfs_mount
+    - nfs_umount
+    - nfs_stat64
+    - nfs_fstat64
+    - nfs_open
+    - nfs_close
+    - nfs_pread
+    - nfs_pwrite
+    - nfs_creat
+    - nfs_mkdir
+    - nfs_rmdir
+    - nfs_unlink
+    - nfs_rename
+    - nfs_opendir
+    - nfs_readdir
+    - nfs_closedir
+    - mount_getexports
+    - mount_free_export_list
+    - nfs_find_local_servers
+    - free_nfs_srvr_list
+structs:
+  include:
+    - nfs_context
+    - nfsfh
+    - nfsdir
+    - nfsdirent
+    - nfs_stat_64
+    - exportnode
+    - groupnode
+    - nfs_server_list
+    - timeval
+macros:
+  include:
+    - NFS_V3
+    - NFS_V4
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

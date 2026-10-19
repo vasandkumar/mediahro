@@ -85,3 +85,5 @@ comments:
   length: brief
 preamble: |
   // ignore_for_file: type=lint, unused_field
+# C enums are int-sized on every Mediahro ABI (A/I/M/W, 32/64-bit).
+silence-enum-warning: true
