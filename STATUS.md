@@ -335,6 +335,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | 2026-10-19 | B2 | NET-007 MEGA, Proton Drive — all platforms | MEGA uses a proprietary client-side-encrypted protocol with no REST API usable without its SDK; Proton Drive has no public API (doc 04: "where API exists") | Upstream: a documented public API | Not offered in the Add cloud list; the other six providers ship |
 | 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | ~~libssh2 needs a crypto backend and curl FTPS needs TLS on Android~~ — **resolved by ADR-017** (2026-10-20): SFTP via sshj over JCA behind `SftpFacade`, FTPS over `TlsSocketFacade`; libssh2 is Windows-only (WinCNG) and curl has no TLS backend on Android/Apple (mediahro-deps#2) | Implementation: C4 / B2 per ADR-017 | — |
 | 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | ~~Open Screen libcast needs GN + BoringSSL~~ — **resolved by ADR-017**: openscreen-libcast removed from mediahro-deps (mediahro-deps#2); a Dart CASTv2 sender over `TlsSocketFacade` replaces it | Implementation: C4 per ADR-017 | — |
+| 2026-10-20 | B4b → B1 | VID-030 and the docs/05 §4.3 render path (I M) | libmpv 0.41's render API offers OpenGL and software only (no Vulkan/Metal render API), so gpu-next on MoltenVK cannot render into an IOSurface-backed CVPixelBuffer through `mpv_render_context`; mpv's `macvk` context (macOS) needs a CAMetalLayer via `--wid`, and iOS has no upstream mpv Vulkan context | ADR (orchestrator) with B1: OpenGL(ES) render API as interim (deprecated by Apple), a Vulkan render-API patch for libmpv, or `--wid` embedding | Apple archives (mediahro-deps#5) include mpv with Vulkan + libplacebo + MoltenVK, VideoToolbox→libplacebo interop, the OpenGL/GLES render API and `macvk` on macOS |
 
 ## 4. Human-owned tasks (CLAUDE.md §6 — for the owner; never attempted by agents)
 
@@ -379,6 +380,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
+| B4b (Apple deps) | libmpv render path on iOS/macOS: no Vulkan/Metal render API in mpv 0.41 (§3) | Open |
 | B4a | TLS / crypto for native protocol clients on Android (curl FTPS, libssh2 SFTP): one crypto/TLS library on Android only, or SFTP/FTPS through the Android platform module over JCA (§3) | Resolved by ADR-017 (2026-10-20) |
 | B4a | TLS stack of the Open Screen Cast sender: libcast requires BoringSSL (§3) | Resolved by ADR-017 (2026-10-20) |
 | B4a | The Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS. docs/05 §4.1 ("no OpenSSL/mbedTLS ships") and the docs/07 rule 12 encryption inventory should state this exception explicitly | Resolved by ADR-017 (2026-10-20) |
