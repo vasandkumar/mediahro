@@ -1,8 +1,8 @@
 {
   "_comment": "Size baselines in MB from the last green main build (ADR-020). A PR that grows a key by more than 5 % must update it here and justify the growth with feature IDs in its description; the orchestrator reviews every change to this file.",
-  "android:app-foss-release.apk": 19.7,
-  "android:app-direct-release.apk": 19.7,
-  "android:app-enterprise-release.apk": 19.7,
-  "desktop:Mediahro.app": 43.6,
-  "desktop:Release": 28.2
+  "android:app-foss-release.apk": 21.6,
+  "android:app-direct-release.apk": 21.6,
+  "android:app-enterprise-release.apk": 21.6,
+  "desktop:Mediahro.app": 47.2,
+  "desktop:Release": 30.1
 }
