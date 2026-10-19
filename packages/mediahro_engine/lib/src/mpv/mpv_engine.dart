@@ -125,6 +125,11 @@ final class MpvEngine implements PlaybackEngine {
   AudioOutputConfig _output = const AudioOutputConfig();
   MediaSource? _source;
   var _isNetwork = false;
+  // Network source without a caller-chosen cache: resize once the bitrate
+  // is known (VID-006).
+  var _cacheByBitrate = false;
+  // Completed on the next playback-restart (end of a seek).
+  final _restartWaiters = <Completer<void>>[];
   var _hevcChecked = false;
   int _generation = 0;
   Completer<void>? _opened;
@@ -266,6 +271,27 @@ final class MpvEngine implements PlaybackEngine {
     await _quiet(c.setProperty('vo', surface == 0 ? 'null' : 'gpu-next'));
   }
 
+  /// VID-006: sizes the read-ahead cache to the file's average bitrate once
+  /// its size and duration are known.
+  Future<void> _sizeCacheToBitrate(int gen) async {
+    final c = _client;
+    if (c == null) return;
+    try {
+      final size = await c.getProperty('file-size');
+      final duration = await c.getProperty('duration');
+      if (gen != _generation || size is! int || duration is! double) return;
+      if (size <= 0 || duration <= 0) return;
+      final bytes = cacheBytes(
+        platform: platform,
+        isNetwork: true,
+        bitrate: (size * 8 / duration).round(),
+      );
+      await c.setProperty('demuxer-max-bytes', '$bytes');
+    } on MpvException {
+      // Size or duration unknown (live streams): keep the default budget.
+    }
+  }
+
   Future<void> _quiet(Future<Object?> f) async {
     try {
       await f;
@@ -309,6 +335,7 @@ final class MpvEngine implements PlaybackEngine {
       case MpvFileLoaded():
         _loading = false;
         _eof = false;
+        if (_cacheByBitrate) unawaited(_sizeCacheToBitrate(_generation));
         final o = _opened;
         if (o != null && !o.isCompleted) o.complete();
       case MpvEndFile(:final reason, :final error):
@@ -322,6 +349,10 @@ final class MpvEngine implements PlaybackEngine {
         if (reason == MpvEndReason.eof && _next == null) _eof = true;
       case MpvPlaybackRestart():
         _seeking = false;
+        for (final w in _restartWaiters) {
+          if (!w.isCompleted) w.complete();
+        }
+        _restartWaiters.clear();
         unawaited(_afterRestart());
         if (_seekedSinceRestart) {
           _seekedSinceRestart = false;
@@ -611,6 +642,7 @@ final class MpvEngine implements PlaybackEngine {
         }
         url = protocol.urlFor(file);
     }
+    _cacheByBitrate = _isNetwork && o.cacheBytes == null;
     final perFile = <String, String>{
       'pause': o.autoplay ? 'no' : 'yes',
       if (o.start != null) 'start': secondsValue(o.start!),
@@ -745,6 +777,15 @@ final class MpvEngine implements PlaybackEngine {
   Future<void> frameStep({bool backwards = false}) async {
     final c = await _live();
     if (c == null) return;
+    if (_seeking || _seekedSinceRestart) {
+      // mpv drops a frame step issued while a seek is still settling.
+      final settled = Completer<void>();
+      _restartWaiters.add(settled);
+      await settled.future.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {},
+      );
+    }
     await _quiet(
       c.command([if (backwards) 'frame-back-step' else 'frame-step']),
     );
