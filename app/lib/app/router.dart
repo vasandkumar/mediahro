@@ -3,10 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:mediahro/features/library/search_screen.dart';
 import 'package:mediahro/features/music/music_home_screen.dart';
 import 'package:mediahro/features/photos/photos_home_screen.dart';
+import 'package:mediahro/features/settings/settings_registry.dart';
 import 'package:mediahro/features/settings/settings_screen.dart';
 import 'package:mediahro/features/sources/sources_screen.dart';
 import 'package:mediahro/features/video/video_home_screen.dart';
 import 'package:mediahro/ui/adaptive_shell.dart';
+import 'package:mediahro_design/mediahro_design.dart';
 
 /// Top-level destinations in shell order (docs/06 §2). The first five are the
 /// phone bottom bar; [sources] appears in the tablet/desktop sidebar and is
@@ -30,6 +32,30 @@ enum AppDestination {
     search,
     settings,
   ];
+
+  /// The three media modes, restored on launch (CORE-001).
+  static const List<AppDestination> modes = [video, music, photos];
+
+  static bool isMode(String name) => modes.any((m) => m.name == name);
+
+  MediaMode? get mediaMode => switch (this) {
+    video => MediaMode.video,
+    music => MediaMode.music,
+    photos => MediaMode.photos,
+    _ => null,
+  };
+}
+
+/// Routes owned by other lanes are reached by location only:
+/// - `/sources?add=folder|server` (B2, first-run actions),
+/// - `/video?open=file|url` (C1, open a file or stream).
+abstract final class AppRoutes {
+  static const String settingsPrivacy = '/settings/privacy';
+  static const String settingsShortcuts = '/settings/shortcuts';
+  static const String addFolder = '/sources?add=folder';
+  static const String addServer = '/sources?add=server';
+  static const String openFile = '/video?open=file';
+  static const String openUrl = '/video?open=url';
 }
 
 GoRouter buildRouter({String initialLocation = '/video'}) => GoRouter(
@@ -41,7 +67,20 @@ GoRouter buildRouter({String initialLocation = '/video'}) => GoRouter(
         for (final d in AppDestination.values)
           StatefulShellBranch(
             routes: [
-              GoRoute(path: d.path, builder: (context, state) => _screenFor(d)),
+              GoRoute(
+                path: d.path,
+                builder: (context, state) => _screenFor(d),
+                routes: [
+                  if (d == AppDestination.settings)
+                    GoRoute(
+                      path: ':section',
+                      builder: (context, state) => SettingsScreen(
+                        section: SettingsSectionId.values
+                            .asNameMap()[state.pathParameters['section']],
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
       ],
