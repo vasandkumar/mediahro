@@ -1,0 +1,83 @@
+# libcurl (curl licence) + libssh2 backend — NET-004 (FTP/FTPS/SFTP).
+# HTTP never goes through libcurl (ADR-014: NetworkGateway); protocols are
+# restricted per handle with CURLOPT_PROTOCOLS_STR.
+# Headers: .deps-cache/headers/curl (ffigen/fetch_headers.py). Regenerate:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/curl.yaml)
+name: CurlBindings
+description: Bindings to the libcurl easy API (used from a worker isolate).
+output: ../lib/src/curl/curl_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/curl/include/curl/curl.h
+  include-directives:
+    - '**/curl/curl.h'
+    - '**/curl/easy.h'
+    - '**/curl/system.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/curl/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - curl_global_init
+    - curl_global_cleanup
+    - curl_version
+    - curl_easy_init
+    - curl_easy_cleanup
+    - curl_easy_perform
+    - curl_easy_reset
+    - curl_easy_strerror
+    - curl_easy_setopt
+    - curl_easy_getinfo
+    - curl_slist_append
+    - curl_slist_free_all
+  variadic-arguments:
+    curl_easy_setopt:
+      - types: ['long']
+        postfix: '_long'
+      - types: ['void *']
+        postfix: '_ptr'
+      - types: ['curl_off_t']
+        postfix: '_off'
+    curl_easy_getinfo:
+      - types: ['void *']
+        postfix: '_ptr'
+structs:
+  include:
+    - curl_slist
+enums:
+  include:
+    - CURLcode
+    - CURLoption
+    - CURLINFO
+    - curl_usessl
+    - curl_khmatch
+    - curl_khtype
+typedefs:
+  include:
+    - CURL
+    - curl_off_t
+    - curl_write_callback
+    - curl_read_callback
+    - curl_sshhostkeycallback
+macros:
+  include:
+    - CURL_GLOBAL_DEFAULT
+    - CURLSSH_AUTH_PUBLICKEY
+    - CURLSSH_AUTH_PASSWORD
+    - CURLSSH_AUTH_KEYBOARD
+    - CURL_READFUNC_ABORT
+    - CURL_WRITEFUNC_ERROR
+comments:
+  style: any
+  length: brief
+# C enums are int-sized on every Mediahro ABI (A/I/M/W, 32/64-bit).
+silence-enum-warning: true
+preamble: |
+  // ignore_for_file: type=lint, unused_field
+# curl_off_t is 64-bit on every platform (long long on Windows).
+type-map:
+  typedefs:
+    curl_off_t:
+      lib: ffi
+      c-type: Int64
+      dart-type: int

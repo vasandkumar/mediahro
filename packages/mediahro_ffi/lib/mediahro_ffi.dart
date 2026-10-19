@@ -5,6 +5,14 @@
 /// headers in the pinned `mediahro-deps` release (`ffigen/<library>.yaml`).
 library;
 
+export 'src/curl/curl_client.dart'
+    show
+        CurlOptions,
+        CurlProtocol,
+        CurlSyncFileSystem,
+        curlFileSystem,
+        sha256ForTesting;
+export 'src/curl/list_parser.dart';
 export 'src/native/native_library.dart'
     show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
 export 'src/native/posix.dart';
