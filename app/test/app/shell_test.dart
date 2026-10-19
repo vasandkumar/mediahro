@@ -147,6 +147,34 @@ void main() {
     expect(scaffold.backgroundColor, Colors.transparent);
   }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 
+  testWidgets('CORE-007 colours from wallpaper replace the mode accent', (
+    tester,
+  ) async {
+    final wallpaper = ColorScheme.fromSeed(seedColor: const Color(0xFF8E24AA));
+    final store = await tester.runAsync(
+      () => memoryStore({'appearance.dynamicColor': true}),
+    );
+    await pumpApp(
+      tester,
+      settings: store,
+      overrides: [
+        platformAppearanceProvider.overrideWithValue(
+          PlatformAppearance(dynamicLight: wallpaper),
+        ),
+      ],
+    );
+    expect(
+      Theme.of(tester.element(find.byType(NavigationBar))).colorScheme.primary,
+      wallpaper.primary,
+    );
+    store!.set(CoreSettings.dynamicColor, false);
+    await tester.pumpAndSettle();
+    expect(
+      Theme.of(tester.element(find.byType(NavigationBar))).colorScheme.primary,
+      isNot(wallpaper.primary),
+    );
+  });
+
   testWidgets('CORE-007 Android uses predictive back page transitions', (
     tester,
   ) async {

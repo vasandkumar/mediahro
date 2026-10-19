@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/app/app.dart';
+import 'package:mediahro/app/appearance.dart';
+import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/shortcuts/cheat_sheet.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
@@ -102,6 +105,39 @@ void main() {
       Brightness.light,
     );
     await resetSettings(c);
+  });
+
+  testWidgets('CORE-007 colours from wallpaper drive the theme (Android 12+)', (
+    tester,
+  ) async {
+    final store = await SettingsStore.open();
+    store
+      ..resetAll()
+      ..set(CoreSettings.themeMode, ThemeMode.light)
+      ..set(CoreSettings.dynamicColor, true);
+    await tester.pumpWidget(mediahroRoot(store));
+    // DynamicColorBuilder reads the platform palette asynchronously.
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pumpAndSettle();
+    final c = ProviderScope.containerOf(
+      tester.element(find.byType(MediahroApp)),
+    );
+    final scheme = c.read(platformAppearanceProvider).dynamicLight;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      expect(scheme, isNotNull, reason: 'Material You palette on API 36');
+    }
+    if (scheme != null) {
+      expect(
+        Theme.of(tester.element(find.byType(Scaffold).first))
+            .colorScheme
+            .primary,
+        scheme.primary,
+      );
+    }
+    store.resetAll();
+    await store.flush();
   });
 
   testWidgets('CORE-008 Arabic lays out right-to-left', (tester) async {
