@@ -1,0 +1,7 @@
+{
+  "_comment": "Reviewed licences for dependencies whose metadata (POM, podspec, Package.resolved) does not state one. Keys: 'group:artifact' or 'group:*' (Gradle), 'pod:Name' (CocoaPods), 'spm:identity' (SwiftPM), optionally suffixed with '@version'. Values: SPDX expression, or {\"spdx\", \"source\"}. Every entry needs a source a reviewer can check.",
+  "io.flutter:*": {
+    "spdx": "BSD-3-Clause",
+    "source": "Flutter engine artefacts (download.flutter.io) publish POMs without <licenses>; the engine is BSD-3-Clause (https://github.com/flutter/flutter/blob/master/engine/src/flutter/LICENSE). Its third-party notices (Skia, ICU, BoringSSL, ...) ship in the app through Flutter's LicenseRegistry."
+  }
+}
