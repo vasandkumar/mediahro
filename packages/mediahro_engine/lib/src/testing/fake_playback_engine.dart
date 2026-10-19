@@ -59,10 +59,17 @@ final class FakePlaybackEngine implements PlaybackEngine {
   PlaybackState get current => _state;
 
   @override
-  Stream<PlaybackState> get state async* {
-    yield _state;
-    yield* _controller.stream;
-  }
+  Stream<PlaybackState> get state => Stream.multi((listener) {
+    // Replays the current snapshot and forwards later ones without a gap
+    // between listen and the first event.
+    listener.add(_state);
+    final sub = _controller.stream.listen(
+      listener.add,
+      onError: listener.addError,
+      onDone: listener.close,
+    );
+    listener.onCancel = sub.cancel;
+  });
 
   void _emit(PlaybackState s) {
     _state = s;

@@ -9,3 +9,4 @@ export 'src/bridge/render_bridge.dart' show RenderBridge, RenderSurface;
 export 'src/mpv/crossfading_engine.dart';
 export 'src/mpv/mpv_engine.dart' show MpvEngine, MpvEngineConfig;
 export 'src/mpv/mpv_options.dart' show EnginePlatform, VideoOutputMode;
+export 'src/session/checkpointer.dart';

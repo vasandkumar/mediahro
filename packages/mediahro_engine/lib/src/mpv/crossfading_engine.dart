@@ -49,10 +49,17 @@ final class CrossfadingEngine implements PlaybackEngine {
   PlaybackState get current => _state;
 
   @override
-  Stream<PlaybackState> get state async* {
-    yield _state;
-    yield* _controller.stream;
-  }
+  Stream<PlaybackState> get state => Stream.multi((listener) {
+    // Replays the current snapshot and forwards later ones without a gap
+    // between listen and the first event.
+    listener.add(_state);
+    final sub = _controller.stream.listen(
+      listener.add,
+      onError: listener.addError,
+      onDone: listener.close,
+    );
+    listener.onCancel = sub.cancel;
+  });
 
   @override
   int? get textureId => null;
@@ -98,8 +105,11 @@ final class CrossfadingEngine implements PlaybackEngine {
   void _maybeStartNaturalFade(PlaybackState s) {
     if (_fading || !_crossfadeNext || !_standbyReady) return;
     final d = s.duration;
-    final fade = _transition.naturalEnd;
-    if (d == null || fade <= Duration.zero) return;
+    if (d == null || _transition.naturalEnd <= Duration.zero) return;
+    // A fade never takes more than half of the outgoing track.
+    final fade = _transition.naturalEnd < d ~/ 2
+        ? _transition.naturalEnd
+        : d ~/ 2;
     if (s.status == PlaybackStatus.playing && s.position >= d - fade) {
       unawaited(_crossfade(fade));
     }
@@ -113,15 +123,18 @@ final class CrossfadingEngine implements PlaybackEngine {
     try {
       await to.setVolume(0);
       await to.play();
-      final steps = math.max(
-        1,
-        length.inMicroseconds ~/ fadeStep.inMicroseconds,
-      );
-      for (var i = 1; i <= steps && !_disposed; i++) {
-        final x = i / steps;
+      // Time-based so the fade lasts [length] however long each volume
+      // update takes.
+      final clock = Stopwatch()..start();
+      while (!_disposed) {
+        final x = math.min(
+          1,
+          clock.elapsedMicroseconds / math.max(1, length.inMicroseconds),
+        );
         // Equal-power curve keeps perceived loudness constant.
         await from.setVolume(_volume * math.cos(x * math.pi / 2));
         await to.setVolume(_volume * math.sin(x * math.pi / 2));
+        if (x >= 1) break;
         await Future<void>.delayed(fadeStep);
       }
       await from.stop();
