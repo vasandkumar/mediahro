@@ -105,9 +105,19 @@ jobs:
         run: |
           ZIPALIGN=$(ls "$ANDROID_HOME"/build-tools/*/zipalign | sort -V | tail -1)
           for apk in app/build/app/outputs/flutter-apk/*.apk; do "$ZIPALIGN" -c -P 16 -v 4 "$apk" > /dev/null && echo "aligned: $apk"; done
-      - name: Install size budget (≤ 40 MB per ABI, docs/11 §5)
+      - name: Install size budget (Android ≤ 75 MB per ABI, ADR-019)
         if: matrix.artefact == 'apk'
         run: python3 tools/perf/size_budget.py android app/build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-release.apk
+      - name: Play download size per ABI (reported, docs/11 §5)
+        if: matrix.artefact == 'appbundle'
+        run: |
+          curl -fsSL -o bundletool.jar https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  bundletool.jar" | sha256sum -c -
+          AAB=$(ls app/build/app/outputs/bundle/*/*.aab | head -1)
+          keytool -genkeypair -keystore ci.jks -storepass android -keypass android -alias ci -dname "CN=CI" -keyalg RSA -validity 1 >/dev/null 2>&1
+          java -jar bundletool.jar build-apks --bundle "$AAB" --output app.apks --ks ci.jks --ks-pass pass:android --ks-key-alias ci --key-pass pass:android
+          java -jar bundletool.jar get-size total --apks app.apks --dimensions=ABI | tee download-size.csv
+          { echo '### Play download size per ABI (bytes)'; echo '```'; cat download-size.csv; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-${{ matrix.flavor }}

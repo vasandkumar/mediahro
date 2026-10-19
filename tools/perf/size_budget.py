@@ -1,4 +1,4 @@
-"""Install-size budget (docs/11 §5): ≤ 40 MB per ABI on mobile, ≤ 70 MB desktop.
+"""Install-size budget (docs/11 §5): Android ≤ 75 MB per ABI (ADR-019), ≤ 70 MB desktop.
 
 Also fails on a > 5 % regression against tools/perf/baseline.json when a
 baseline exists for the key (CLAUDE.md §1.5).
@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BUDGET_MB = {"android": 40.0, "desktop": 70.0}
+BUDGET_MB = {"android": 75.0, "desktop": 70.0}
 
 
 def _thin_size(p: Path, arch_index: int | None) -> int:

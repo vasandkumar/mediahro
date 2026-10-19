@@ -65,7 +65,8 @@ Version 1.0 · 2026-10-19 · Every acceptance criterion in doc 04 maps to at lea
 | Search latency | ≤ 50 ms | ≤ 30 ms |
 | Idle RAM | ≤ 120 MB | ≤ 150 MB |
 | 4K playback RAM | ≤ 350 MB | ≤ 500 MB |
-| Install size | ≤ 40 MB per ABI | ≤ 70 MB |
+| Install size | Android ≤ 75 MB per ABI (ADR-019); iOS ≤ 40 MB thinned | ≤ 70 MB |
+| Play download size (reported, not gated) | per ABI from the AAB, every build | — |
 | Dropped frames (4K60 hwdec) | ≤ 0.5 % | ≤ 0.1 % |
 
 ## 6. Bug severity and SLAs

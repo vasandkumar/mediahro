@@ -80,7 +80,7 @@ Tagline (store and site): **"Every file. Every screen. Nothing in the way."**
 - Library scan: 10 k files indexed in ≤ 30 s on phone, incremental rescans ≤ 2 s.
 - Gallery scroll: 60/120 fps with no dropped frames while thumbnails load.
 - Idle RAM: ≤ 150 MB desktop, ≤ 120 MB mobile; video playback ≤ 350 MB for 4K.
-- Install size: ≤ 40 MB mobile (per ABI), ≤ 70 MB desktop.
+- Install size: ≤ 75 MB Android (per ABI, ADR-019), ≤ 40 MB iOS (thinned), ≤ 70 MB desktop; Play download size per ABI is reported every build.
 - Battery: 4K HEVC playback at or below the platform stock player's drain on the same device.
 - Accessibility: every control labelled, full keyboard/D-pad operation, captions honour system styles.
 
