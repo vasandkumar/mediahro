@@ -69,6 +69,53 @@ void subtitlesSuite() {
       }, skip: skip);
     }
 
+    test('SUB-010 embedded Matroska fonts are used by libass', () async {
+      final fonts = corpusItems(category: 'subtitle-fonts');
+      if (fonts.length < 2) {
+        markTestSkipped('no monospace font on the corpus host');
+        return;
+      }
+      Future<int> width(String file) async {
+        final e = headlessEngine(size: (640, 360));
+        addTearDown(e.dispose);
+        await e.open(
+          UriSource(Uri.file(corpusPath(file))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(e, (s) => s.status == PlaybackStatus.paused);
+        await e.seek(const Duration(seconds: 1), mode: SeekMode.exact);
+        await waitFor(
+          e,
+          (s) => s.position >= const Duration(milliseconds: 950),
+        );
+        await litPixels(e);
+        final f = e.softwareRenderer!.latest!;
+        var minX = f.width;
+        var maxX = -1;
+        for (var y = f.height * 2 ~/ 3; y < f.height; y++) {
+          for (var x = 0; x < f.width; x++) {
+            final (r, g, b) = f.pixel(x, y);
+            if (r > 150 || g > 150 || b > 150) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+            }
+          }
+        }
+        return maxX - minX;
+      }
+
+      final embedded = await width('mkv_ass_fonts.mkv');
+      final fallback = await width('mkv_ass_nofont.mkv');
+      expect(embedded, greaterThan(0));
+      // "iiii…" is wide in the embedded monospace face and narrow in any
+      // proportional fallback.
+      expect(
+        (embedded - fallback).abs(),
+        greaterThan(fallback ~/ 5),
+        reason: 'embedded $embedded px vs fallback $fallback px',
+      );
+    }, skip: skip);
+
     test('SUB-010 ASS karaoke and animation render through libass', () async {
       final e = await scene('subs.ass');
       expect(await litPixels(e), greaterThan(50), reason: 'karaoke line');

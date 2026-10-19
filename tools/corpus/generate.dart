@@ -159,6 +159,7 @@ final class _Generator {
     await _subtitles();
     await _edgeCases();
     await _subtitleScenes();
+    await _embeddedFont();
     _dsd();
     await _discs();
     _playlists();
@@ -702,6 +703,31 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       category: c,
       expect: {'video': 1, 'videoCodec': 'mpeg4'},
     );
+    // Live-mode Matroska (no cues): the base of the >4 GB / >20 GB virtual
+    // files the VID-005 tests build by inserting a huge Void element.
+    await item(
+      'mkv_live.mkv',
+      [
+        ..._video,
+        ..._tone,
+        '-t',
+        '6',
+        '-c:v',
+        'mpeg4',
+        '-q:v',
+        '5',
+        '-c:a',
+        'libopus',
+        '-f',
+        'matroska',
+        '-live',
+        '1',
+      ],
+      needs: ['mpeg4', 'libopus'],
+      ids: ['VID-005'],
+      category: 'large-base',
+      expect: {'video': 1, 'audio': 1},
+    );
   }
 
   // ------------------------------------------------------------------ HDR --
@@ -1122,6 +1148,98 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
 extension on _Generator {
   /// Black video for pixel-level subtitle checks plus external-subtitle
   /// layouts for SUB-012 lookup.
+  /// ASS over black video with the font embedded as a Matroska attachment
+  /// (SUB-010). The font's family name is patched to a name no system has,
+  /// so the text can only render in that face when attachments load; a twin
+  /// file without the attachment shows the fallback.
+  Future<void> _embeddedFont() async {
+    const candidates = [
+      '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+      'C:/Windows/Fonts/consola.ttf',
+      '/System/Library/Fonts/Supplemental/Courier New.ttf',
+    ];
+    final source = candidates
+        .map(File.new)
+        .where((f) => f.existsSync())
+        .firstOrNull;
+    final black = File(p('black.mkv'));
+    if (source == null || !black.existsSync()) {
+      skipped.add({
+        'file': 'mkv_ass_fonts.mkv',
+        'reason': 'no monospace font or black.mkv',
+      });
+      return;
+    }
+    final bytes = source.readAsBytesSync();
+    // Family names as stored in the name table (UTF-16BE and Mac Roman).
+    final family = switch (source.path) {
+      final s when s.contains('DejaVu') => 'DejaVu Sans Mono',
+      final s when s.contains('consola') => 'Consolas',
+      _ => 'Courier New',
+    };
+    final unique = 'MHCorpusMono${'X' * 64}'.substring(0, family.length);
+    List<int> utf16(String s) => [
+      for (final c in s.codeUnits) ...[0, c],
+    ];
+    void replaceAll(List<int> from, List<int> to) {
+      for (var i = 0; i + from.length <= bytes.length; i++) {
+        var hit = true;
+        for (var j = 0; j < from.length; j++) {
+          if (bytes[i + j] != from[j]) {
+            hit = false;
+            break;
+          }
+        }
+        if (hit) bytes.setRange(i, i + to.length, to);
+      }
+    }
+
+    replaceAll(utf16(family), utf16(unique));
+    replaceAll(ascii.encode(family), ascii.encode(unique));
+    final font = File(p('corpus_mono.ttf'))..writeAsBytesSync(bytes);
+    File(p('subs_font.ass')).writeAsStringSync(
+      _Generator._ass
+          .replaceFirst(
+            'Style: Default,Arial,40,',
+            'Style: Default,$unique,40,',
+          )
+          .replaceFirst(r'{\k50}Ka{\k50}ra{\k50}o{\k50}ke', 'iiiiiiiiiiiiiiii'),
+    );
+    for (final (name, attach) in [
+      ('mkv_ass_fonts.mkv', true),
+      ('mkv_ass_nofont.mkv', false),
+    ]) {
+      await item(
+        name,
+        [
+          '-i',
+          black.path,
+          '-i',
+          p('subs_font.ass'),
+          if (attach) ...[
+            '-attach',
+            font.path,
+            '-metadata:s:t',
+            'mimetype=application/x-truetype-font',
+          ],
+          '-map',
+          '0:v',
+          '-map',
+          '1:s',
+          '-c',
+          'copy',
+          '-t',
+          '5',
+          '-disposition:s:0',
+          'default',
+        ],
+        ids: ['SUB-010'],
+        category: 'subtitle-fonts',
+        expect: {'video': 1, 'sub': 1, 'embeddedFont': attach},
+      );
+    }
+  }
+
   Future<void> _subtitleScenes() async {
     const c = 'subtitle-scenes';
     await item(
