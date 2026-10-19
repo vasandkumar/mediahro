@@ -13,6 +13,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'disc_fixtures.dart';
+
 void main(List<String> args) async {
   String? opt(String name) {
     final i = args.indexOf(name);
@@ -158,6 +160,7 @@ final class _Generator {
     await _edgeCases();
     await _subtitleScenes();
     _dsd();
+    await _discs();
     _playlists();
   }
 
@@ -1376,3 +1379,127 @@ List<int> _u32(int v) => [
   (v >> 8) & 0xff,
   v & 0xff,
 ];
+
+extension on _Generator {
+  /// VIDEO_TS and BDMV folders with real streams (VID-007).
+  Future<void> _discs() async {
+    const c = 'disc';
+    final vob = p('dvd_src.vob');
+    final dvd = await Process.run(ffmpeg, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc2=size=720x576:rate=25',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:sample_rate=48000',
+      '-t',
+      '6',
+      '-c:v',
+      'mpeg2video',
+      '-b:v',
+      '3M',
+      '-c:a',
+      'ac3',
+      '-ac',
+      '2',
+      '-f',
+      'vob',
+      vob,
+    ]);
+    if (dvd.exitCode == 0) {
+      final dir = Directory(p('dvd/VIDEO_TS'))..createSync(recursive: true);
+      final bytes = File(vob).readAsBytesSync();
+      File(vob).deleteSync();
+      File('${dir.path}/VTS_01_1.VOB').writeAsBytesSync(bytes);
+      File('${dir.path}/VIDEO_TS.IFO').writeAsBytesSync(vmgIfo());
+      File('${dir.path}/VTS_01_0.IFO')
+          .writeAsBytesSync(vtsIfo(bytes.length ~/ 2048));
+      items.add({
+        'file': 'dvd',
+        'category': c,
+        'ids': ['VID-007'],
+        'expect': {
+          'disc': 'dvd',
+          'titles': 2,
+          'chapters': 2,
+          'audioLang': 'en',
+          'subLang': 'fr',
+        },
+      });
+    } else {
+      skipped.add({'file': 'dvd', 'reason': 'ffmpeg: ${dvd.stderr}'});
+    }
+
+    final m2ts = p('bd_src.m2ts');
+    final bd = await Process.run(ffmpeg, [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc2=size=1280x720:rate=24',
+      '-f',
+      'lavfi',
+      '-i',
+      'sine=frequency=440:sample_rate=48000',
+      '-t',
+      '6',
+      '-c:v',
+      'mpeg2video',
+      '-b:v',
+      '4M',
+      '-c:a',
+      'ac3',
+      '-muxdelay',
+      '0',
+      '-muxpreload',
+      '0',
+      '-mpegts_m2ts_mode',
+      '1',
+      '-f',
+      'mpegts',
+      m2ts,
+    ]);
+    if (bd.exitCode == 0) {
+      final bdmv = p('bluray/BDMV');
+      for (final d in ['PLAYLIST', 'CLIPINF', 'STREAM']) {
+        Directory('$bdmv/$d').createSync(recursive: true);
+      }
+      File(m2ts).copySync('$bdmv/STREAM/00001.m2ts');
+      File(m2ts).deleteSync();
+      File('$bdmv/index.bdmv').writeAsBytesSync([
+        ...ascii.encode('INDX0200'),
+        ...List<int>.filled(32, 0),
+      ]);
+      const s = 45000;
+      File('$bdmv/CLIPINF/00001.clpi').writeAsBytesSync(clpi(endTicks: 6 * s));
+      File('$bdmv/PLAYLIST/00000.mpls').writeAsBytesSync(
+        mpls(items: [(0, 6 * s)], marks: [(0, 0), (0, 2 * s), (0, 4 * s)]),
+      );
+      File('$bdmv/PLAYLIST/00001.mpls').writeAsBytesSync(
+        mpls(items: [(0, 3 * s), (3 * s, 6 * s)], marks: [(0, 0), (1, 3 * s)]),
+      );
+      items.add({
+        'file': 'bluray',
+        'category': c,
+        'ids': ['VID-007'],
+        'expect': {
+          'disc': 'bluray',
+          'titles': 2,
+          'chapters': 3,
+          'audioLang': 'eng',
+        },
+      });
+    } else {
+      skipped.add({'file': 'bluray', 'reason': 'ffmpeg: ${bd.stderr}'});
+    }
+  }
+}

@@ -31,7 +31,8 @@ plugins {
 // Without either the plugin builds and the engine reports libraryMissing.
 val mediahroDeps = file("$projectDir/../../../.deps-cache").canonicalFile
 val mediahroAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-val mediahroJni = layout.buildDirectory.dir("mediahro-jni")
+// A plain directory: AGP 9 refuses Providers in source sets.
+val mediahroJni = layout.buildDirectory.dir("mediahro-jni").get().asFile
 val stageLibmpv =
     tasks.register<Sync>("mediahroStageLibmpv") {
         for (abi in mediahroAbis) {

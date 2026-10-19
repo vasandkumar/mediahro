@@ -227,6 +227,10 @@ abstract class OpenOptions with _$OpenOptions {
 
     /// Read-ahead cache budget; null lets the engine size it by bitrate (VID-006).
     int? cacheBytes,
+
+    /// Chapters known from outside the container (disc IFO/MPLS, VID-007);
+    /// used when the stream itself has none.
+    @Default(<Chapter>[]) List<Chapter> chapters,
   }) = _OpenOptions;
 }
 

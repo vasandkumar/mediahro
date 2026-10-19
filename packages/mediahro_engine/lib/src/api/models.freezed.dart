@@ -1889,7 +1889,9 @@ mixin _$OpenOptions {
 
  Duration? get start; bool get autoplay;/// Music role and video audio-only mode (VID-068): `vid=no`.
  bool get audioOnly; List<String> get preferredAudioLanguages; List<String> get preferredSubtitleLanguages;/// Read-ahead cache budget; null lets the engine size it by bitrate (VID-006).
- int? get cacheBytes;
+ int? get cacheBytes;/// Chapters known from outside the container (disc IFO/MPLS, VID-007);
+/// used when the stream itself has none.
+ List<Chapter> get chapters;
 /// Create a copy of OpenOptions
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1901,20 +1903,20 @@ $OpenOptionsCopyWith<OpenOptions> get copyWith => _$OpenOptionsCopyWithImpl<Open
 @override
 bool operator ==(Object other) {
   final _this = this as OpenOptions;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenOptions&&(identical(other.start, _this.start) || other.start == _this.start)&&(identical(other.autoplay, _this.autoplay) || other.autoplay == _this.autoplay)&&(identical(other.audioOnly, _this.audioOnly) || other.audioOnly == _this.audioOnly)&&const DeepCollectionEquality().equals(other.preferredAudioLanguages, _this.preferredAudioLanguages)&&const DeepCollectionEquality().equals(other.preferredSubtitleLanguages, _this.preferredSubtitleLanguages)&&(identical(other.cacheBytes, _this.cacheBytes) || other.cacheBytes == _this.cacheBytes));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OpenOptions&&(identical(other.start, _this.start) || other.start == _this.start)&&(identical(other.autoplay, _this.autoplay) || other.autoplay == _this.autoplay)&&(identical(other.audioOnly, _this.audioOnly) || other.audioOnly == _this.audioOnly)&&const DeepCollectionEquality().equals(other.preferredAudioLanguages, _this.preferredAudioLanguages)&&const DeepCollectionEquality().equals(other.preferredSubtitleLanguages, _this.preferredSubtitleLanguages)&&(identical(other.cacheBytes, _this.cacheBytes) || other.cacheBytes == _this.cacheBytes)&&const DeepCollectionEquality().equals(other.chapters, _this.chapters));
 }
 
 
 @override
 int get hashCode {
   final _this = this as OpenOptions;
-  return Object.hash(runtimeType,_this.start,_this.autoplay,_this.audioOnly,const DeepCollectionEquality().hash(_this.preferredAudioLanguages),const DeepCollectionEquality().hash(_this.preferredSubtitleLanguages),_this.cacheBytes);
+  return Object.hash(runtimeType,_this.start,_this.autoplay,_this.audioOnly,const DeepCollectionEquality().hash(_this.preferredAudioLanguages),const DeepCollectionEquality().hash(_this.preferredSubtitleLanguages),_this.cacheBytes,const DeepCollectionEquality().hash(_this.chapters));
 }
 
 @override
 String toString() {
   final _this = this as OpenOptions;
-  return 'OpenOptions(start: ${_this.start}, autoplay: ${_this.autoplay}, audioOnly: ${_this.audioOnly}, preferredAudioLanguages: ${_this.preferredAudioLanguages}, preferredSubtitleLanguages: ${_this.preferredSubtitleLanguages}, cacheBytes: ${_this.cacheBytes})';
+  return 'OpenOptions(start: ${_this.start}, autoplay: ${_this.autoplay}, audioOnly: ${_this.audioOnly}, preferredAudioLanguages: ${_this.preferredAudioLanguages}, preferredSubtitleLanguages: ${_this.preferredSubtitleLanguages}, cacheBytes: ${_this.cacheBytes}, chapters: ${_this.chapters})';
 }
 
 
@@ -1925,7 +1927,7 @@ abstract mixin class $OpenOptionsCopyWith<$Res>  {
   factory $OpenOptionsCopyWith(OpenOptions value, $Res Function(OpenOptions) _then) = _$OpenOptionsCopyWithImpl;
 @useResult
 $Res call({
- Duration? start, bool autoplay, bool audioOnly, List<String> preferredAudioLanguages, List<String> preferredSubtitleLanguages, int? cacheBytes
+ Duration? start, bool autoplay, bool audioOnly, List<String> preferredAudioLanguages, List<String> preferredSubtitleLanguages, int? cacheBytes, List<Chapter> chapters
 });
 
 
@@ -1942,7 +1944,7 @@ class _$OpenOptionsCopyWithImpl<$Res>
 
 /// Create a copy of OpenOptions
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? start = freezed,Object? autoplay = null,Object? audioOnly = null,Object? preferredAudioLanguages = null,Object? preferredSubtitleLanguages = null,Object? cacheBytes = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? start = freezed,Object? autoplay = null,Object? audioOnly = null,Object? preferredAudioLanguages = null,Object? preferredSubtitleLanguages = null,Object? cacheBytes = freezed,Object? chapters = null,}) {
   return _then(OpenOptions(
 start: freezed == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
 as Duration?,autoplay: null == autoplay ? _self.autoplay : autoplay // ignore: cast_nullable_to_non_nullable
@@ -1950,7 +1952,8 @@ as bool,audioOnly: null == audioOnly ? _self.audioOnly : audioOnly // ignore: ca
 as bool,preferredAudioLanguages: null == preferredAudioLanguages ? _self.preferredAudioLanguages : preferredAudioLanguages // ignore: cast_nullable_to_non_nullable
 as List<String>,preferredSubtitleLanguages: null == preferredSubtitleLanguages ? _self.preferredSubtitleLanguages : preferredSubtitleLanguages // ignore: cast_nullable_to_non_nullable
 as List<String>,cacheBytes: freezed == cacheBytes ? _self.cacheBytes : cacheBytes // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,chapters: null == chapters ? _self.chapters : chapters // ignore: cast_nullable_to_non_nullable
+as List<Chapter>,
   ));
 }
 
@@ -2035,10 +2038,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes,  List<Chapter> chapters)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OpenOptions() when $default != null:
-return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes);case _:
+return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes,_that.chapters);case _:
   return orElse();
 
 }
@@ -2056,10 +2059,10 @@ return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioL
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes,  List<Chapter> chapters)  $default,) {final _that = this;
 switch (_that) {
 case _OpenOptions():
-return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes);case _:
+return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes,_that.chapters);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2076,10 +2079,10 @@ return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioL
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( Duration? start,  bool autoplay,  bool audioOnly,  List<String> preferredAudioLanguages,  List<String> preferredSubtitleLanguages,  int? cacheBytes,  List<Chapter> chapters)?  $default,) {final _that = this;
 switch (_that) {
 case _OpenOptions() when $default != null:
-return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes);case _:
+return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioLanguages,_that.preferredSubtitleLanguages,_that.cacheBytes,_that.chapters);case _:
   return null;
 
 }
@@ -2091,7 +2094,7 @@ return $default(_that.start,_that.autoplay,_that.audioOnly,_that.preferredAudioL
 
 
 class _OpenOptions implements OpenOptions {
-  const _OpenOptions({this.start, this.autoplay = true, this.audioOnly = false,  List<String> preferredAudioLanguages = const <String>[],  List<String> preferredSubtitleLanguages = const <String>[], this.cacheBytes}): _preferredAudioLanguages = preferredAudioLanguages,_preferredSubtitleLanguages = preferredSubtitleLanguages;
+  const _OpenOptions({this.start, this.autoplay = true, this.audioOnly = false,  List<String> preferredAudioLanguages = const <String>[],  List<String> preferredSubtitleLanguages = const <String>[], this.cacheBytes,  List<Chapter> chapters = const <Chapter>[]}): _preferredAudioLanguages = preferredAudioLanguages,_preferredSubtitleLanguages = preferredSubtitleLanguages,_chapters = chapters;
   
 
 @override final  Duration? start;
@@ -2114,6 +2117,17 @@ class _OpenOptions implements OpenOptions {
 
 /// Read-ahead cache budget; null lets the engine size it by bitrate (VID-006).
 @override final  int? cacheBytes;
+/// Chapters known from outside the container (disc IFO/MPLS, VID-007);
+/// used when the stream itself has none.
+ final  List<Chapter> _chapters;
+/// Chapters known from outside the container (disc IFO/MPLS, VID-007);
+/// used when the stream itself has none.
+@override@JsonKey() List<Chapter> get chapters {
+  if (_chapters is EqualUnmodifiableListView) return _chapters;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_chapters);
+}
+
 
 /// Create a copy of OpenOptions
 /// with the given fields replaced by the non-null parameter values.
@@ -2125,18 +2139,18 @@ _$OpenOptionsCopyWith<_OpenOptions> get copyWith => __$OpenOptionsCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenOptions&&(identical(other.start, start) || other.start == start)&&(identical(other.autoplay, autoplay) || other.autoplay == autoplay)&&(identical(other.audioOnly, audioOnly) || other.audioOnly == audioOnly)&&const DeepCollectionEquality().equals(other.preferredAudioLanguages, _preferredAudioLanguages)&&const DeepCollectionEquality().equals(other.preferredSubtitleLanguages, _preferredSubtitleLanguages)&&(identical(other.cacheBytes, cacheBytes) || other.cacheBytes == cacheBytes));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OpenOptions&&(identical(other.start, start) || other.start == start)&&(identical(other.autoplay, autoplay) || other.autoplay == autoplay)&&(identical(other.audioOnly, audioOnly) || other.audioOnly == audioOnly)&&const DeepCollectionEquality().equals(other.preferredAudioLanguages, _preferredAudioLanguages)&&const DeepCollectionEquality().equals(other.preferredSubtitleLanguages, _preferredSubtitleLanguages)&&(identical(other.cacheBytes, cacheBytes) || other.cacheBytes == cacheBytes)&&const DeepCollectionEquality().equals(other.chapters, _chapters));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,start,autoplay,audioOnly,const DeepCollectionEquality().hash(_preferredAudioLanguages),const DeepCollectionEquality().hash(_preferredSubtitleLanguages),cacheBytes);
+    return Object.hash(runtimeType,start,autoplay,audioOnly,const DeepCollectionEquality().hash(_preferredAudioLanguages),const DeepCollectionEquality().hash(_preferredSubtitleLanguages),cacheBytes,const DeepCollectionEquality().hash(_chapters));
 }
 
 @override
 String toString() {
-    return 'OpenOptions(start: $start, autoplay: $autoplay, audioOnly: $audioOnly, preferredAudioLanguages: $preferredAudioLanguages, preferredSubtitleLanguages: $preferredSubtitleLanguages, cacheBytes: $cacheBytes)';
+    return 'OpenOptions(start: $start, autoplay: $autoplay, audioOnly: $audioOnly, preferredAudioLanguages: $preferredAudioLanguages, preferredSubtitleLanguages: $preferredSubtitleLanguages, cacheBytes: $cacheBytes, chapters: $chapters)';
 }
 
 
@@ -2147,7 +2161,7 @@ abstract mixin class _$OpenOptionsCopyWith<$Res> implements $OpenOptionsCopyWith
   factory _$OpenOptionsCopyWith(_OpenOptions value, $Res Function(_OpenOptions) _then) = __$OpenOptionsCopyWithImpl;
 @override @useResult
 $Res call({
- Duration? start, bool autoplay, bool audioOnly, List<String> preferredAudioLanguages, List<String> preferredSubtitleLanguages, int? cacheBytes
+ Duration? start, bool autoplay, bool audioOnly, List<String> preferredAudioLanguages, List<String> preferredSubtitleLanguages, int? cacheBytes, List<Chapter> chapters
 });
 
 
@@ -2164,7 +2178,7 @@ class __$OpenOptionsCopyWithImpl<$Res>
 
 /// Create a copy of OpenOptions
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? start = freezed,Object? autoplay = null,Object? audioOnly = null,Object? preferredAudioLanguages = null,Object? preferredSubtitleLanguages = null,Object? cacheBytes = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? start = freezed,Object? autoplay = null,Object? audioOnly = null,Object? preferredAudioLanguages = null,Object? preferredSubtitleLanguages = null,Object? cacheBytes = freezed,Object? chapters = null,}) {
   return _then(_OpenOptions(
 start: freezed == start ? _self.start : start // ignore: cast_nullable_to_non_nullable
 as Duration?,autoplay: null == autoplay ? _self.autoplay : autoplay // ignore: cast_nullable_to_non_nullable
@@ -2172,7 +2186,8 @@ as bool,audioOnly: null == audioOnly ? _self.audioOnly : audioOnly // ignore: ca
 as bool,preferredAudioLanguages: null == preferredAudioLanguages ? _self._preferredAudioLanguages : preferredAudioLanguages // ignore: cast_nullable_to_non_nullable
 as List<String>,preferredSubtitleLanguages: null == preferredSubtitleLanguages ? _self._preferredSubtitleLanguages : preferredSubtitleLanguages // ignore: cast_nullable_to_non_nullable
 as List<String>,cacheBytes: freezed == cacheBytes ? _self.cacheBytes : cacheBytes // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,chapters: null == chapters ? _self._chapters : chapters // ignore: cast_nullable_to_non_nullable
+as List<Chapter>,
   ));
 }
 

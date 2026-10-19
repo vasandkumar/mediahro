@@ -125,6 +125,7 @@ final class MpvEngine implements PlaybackEngine {
   var _videoWidth = 0;
   var _videoHeight = 0;
   MediaSource? _next;
+  List<Chapter> _externalChapters = const [];
   int _itemSerial = 0;
   Directory? _tempDir;
 
@@ -367,6 +368,12 @@ final class MpvEngine implements PlaybackEngine {
         _state = applyProperty(_state, name, value);
         _onTracks();
         return;
+      case 'chapter-list':
+        _state = applyProperty(_state, name, value);
+        if (_state.chapters.isEmpty && _externalChapters.isNotEmpty) {
+          _state = _state.copyWith(chapters: _externalChapters);
+        }
+        return;
       case 'video-params':
         _state = applyProperty(_state, name, value);
         _onVideoSize();
@@ -507,6 +514,7 @@ final class MpvEngine implements PlaybackEngine {
     _source = src;
     _next = null;
     _hevcChecked = false;
+    _externalChapters = o.chapters;
     _loading = true;
     _eof = false;
     _idle = false;
@@ -516,6 +524,7 @@ final class MpvEngine implements PlaybackEngine {
       muted: _state.muted,
       rate: _state.rate,
       item: _itemSerial,
+      chapters: o.chapters,
     );
     _emitNow();
     final opened = _opened = Completer<void>();
