@@ -156,8 +156,8 @@ class CurlBindings {
       >();
 
   /// NAME curl_easy_strerror()
-  ffi.Pointer<ffi.Char> curl_easy_strerror(CURLcode arg0) {
-    return _curl_easy_strerror(arg0.value);
+  ffi.Pointer<ffi.Char> curl_easy_strerror(CURLcode error) {
+    return _curl_easy_strerror(error.value);
   }
 
   late final _curl_easy_strerrorPtr =
@@ -322,7 +322,8 @@ enum CURLINFO {
   CURLINFO_EARLYDATA_SENT_T(6291524),
   CURLINFO_HTTPAUTH_USED(2097221),
   CURLINFO_PROXYAUTH_USED(2097222),
-  CURLINFO_LASTONE(70);
+  CURLINFO_SIZE_DELIVERED(6291527),
+  CURLINFO_LASTONE(71);
 
   final int value;
   const CURLINFO(this.value);
@@ -406,7 +407,8 @@ enum CURLINFO {
     6291524 => CURLINFO_EARLYDATA_SENT_T,
     2097221 => CURLINFO_HTTPAUTH_USED,
     2097222 => CURLINFO_PROXYAUTH_USED,
-    70 => CURLINFO_LASTONE,
+    6291527 => CURLINFO_SIZE_DELIVERED,
+    71 => CURLINFO_LASTONE,
     _ => throw ArgumentError('Unknown value for CURLINFO: $value'),
   };
 }
@@ -628,7 +630,7 @@ enum CURLcode {
   /// 65 - Sending the data requires a rewind that failed
   CURLE_SEND_FAIL_REWIND(65),
 
-  /// 66 - failed to initialise ENGINE
+  /// 66 - failed to initialize ENGINE
   CURLE_SSL_ENGINE_INITFAILED(66),
 
   /// 67 - user, password or similar was not accepted and we failed to login
@@ -667,8 +669,8 @@ enum CURLcode {
   /// 78 - remote file not found
   CURLE_REMOTE_FILE_NOT_FOUND(78),
 
-  /// 79 - error from the SSH layer, somewhat generic so the error message will
-  /// be of interest when this has happened
+  /// 79 - error from the SSH layer, somewhat generic so the error message is of
+  /// interest when this has happened
   CURLE_SSH(79),
 
   /// 80 - Failed to shut down the SSL connection
@@ -699,7 +701,7 @@ enum CURLcode {
   /// 88 - chunk callback reported error
   CURLE_CHUNK_FAILED(88),
 
-  /// 89 - No connection available, the session will be queued
+  /// 89 - No connection available, the session is queued
   CURLE_NO_CONNECTION_AVAILABLE(89),
 
   /// 90 - specified pinned public key did not match
@@ -882,12 +884,12 @@ enum CURLoption {
   /// bytes big.
   CURLOPT_ERRORBUFFER(10010),
 
-  /// Function that will be called to store the output (instead of fwrite). The
-  /// parameters will use fwrite() syntax, make sure to follow them.
+  /// Function that is called to store the output (instead of fwrite). The
+  /// parameters use fwrite() syntax, make sure to follow them.
   CURLOPT_WRITEFUNCTION(20011),
 
-  /// Function that will be called to read the input (instead of fread). The
-  /// parameters will use fread() syntax, make sure to follow them.
+  /// Function that is called to read the input (instead of fread). The
+  /// parameters use fread() syntax, make sure to follow them.
   CURLOPT_READFUNCTION(20012),
 
   /// Time-out the read operation after this amount of seconds
@@ -943,7 +945,7 @@ enum CURLoption {
   CURLOPT_QUOTE(10028),
 
   /// send FILE * or void * to store headers to, if you use a callback it is
-  /// simply passed to the callback unmodified
+  /// passed to the callback unmodified
   CURLOPT_HEADERDATA(10029),
 
   /// point to a file to read the initial cookies from, also enables "cookie
@@ -1011,7 +1013,7 @@ enum CURLoption {
   /// HTTP PUT
   CURLOPT_PUT(54),
 
-  /// DEPRECATED Function that will be called instead of the internal progress
+  /// DEPRECATED Function that is called instead of the internal progress
   /// display function. This function should be defined as the
   /// curl_progress_callback prototype defines.
   CURLOPT_PROGRESSFUNCTION(20056),
@@ -1038,10 +1040,10 @@ enum CURLoption {
 
   /// Set the krb4/5 security level, this also enables krb4/5 awareness. This is
   /// a string, 'clear', 'safe', 'confidential' or 'private'. If the string is
-  /// set but does not match one of these, 'private' will be used.
+  /// set but does not match one of these, 'private' is used.
   CURLOPT_KRBLEVEL(10063),
 
-  /// Set if we should verify the peer in ssl handshake, set 1 to verify.
+  /// Set if we should verify the peer in SSL handshake, set 1 to verify.
   CURLOPT_SSL_VERIFYPEER(64),
 
   /// The CApath or CAfile used to validate the peer certificate this option is
@@ -1082,15 +1084,15 @@ enum CURLoption {
   /// OK within this time, then fine... This only aborts the connect phase.
   CURLOPT_CONNECTTIMEOUT(78),
 
-  /// Function that will be called to store headers (instead of fwrite). The
-  /// parameters will use fwrite() syntax, make sure to follow them.
+  /// Function that is called to store headers (instead of fwrite). The
+  /// parameters use fwrite() syntax, make sure to follow them.
   CURLOPT_HEADERFUNCTION(20079),
 
   /// Set this to force the HTTP request to get back to GET. Only really usable
   /// if POST, PUT or a custom request have been used first.
   CURLOPT_HTTPGET(80),
 
-  /// Set if we should verify the Common name from the peer certificate in ssl
+  /// Set if we should verify the Common name from the peer certificate in SSL
   /// handshake, set 1 to check existence, 2 to ensure that it matches the
   /// provided hostname.
   CURLOPT_SSL_VERIFYHOST(81),
@@ -1107,8 +1109,8 @@ enum CURLoption {
   CURLOPT_HTTP_VERSION(84),
 
   /// Specifically switch on or off the FTP engine's use of the EPSV command. By
-  /// default, that one will always be attempted before the more traditional
-  /// PASV command.
+  /// default, that one is always attempted before the more traditional PASV
+  /// command.
   CURLOPT_FTP_USE_EPSV(85),
 
   /// type of the file keeping your SSL-certificate ("DER", "PEM", "ENG")
@@ -1161,7 +1163,8 @@ enum CURLoption {
   CURLOPT_SHARE(10100),
 
   /// indicates type of proxy. accepted values are CURLPROXY_HTTP (default),
-  /// CURLPROXY_HTTPS, CURLPROXY_SOCKS4, CURLPROXY_SOCKS4A and CURLPROXY_SOCKS5.
+  /// CURLPROXY_HTTPS, CURLPROXY_HTTPS2, CURLPROXY_HTTPS3, CURLPROXY_SOCKS4,
+  /// CURLPROXY_SOCKS4A and CURLPROXY_SOCKS5.
   CURLOPT_PROXYTYPE(101),
 
   /// Set the Accept-Encoding string. Use this to tell a server you would like
@@ -1181,7 +1184,7 @@ enum CURLoption {
   CURLOPT_UNRESTRICTED_AUTH(105),
 
   /// Specifically switch on or off the FTP engine's use of the EPRT command (
-  /// it also disables the LPRT attempt). By default, those ones will always be
+  /// it also disables the LPRT attempt). By default, those ones are always
   /// attempted before the good old traditional PORT command.
   CURLOPT_FTP_USE_EPRT(106),
 
@@ -1190,12 +1193,12 @@ enum CURLoption {
   /// setting multiple bits may cause extra network round-trips.
   CURLOPT_HTTPAUTH(107),
 
-  /// Set the ssl context callback function, currently only for OpenSSL or
+  /// Set the SSL context callback function, currently only for OpenSSL or
   /// wolfSSL ssl_ctx, or mbedTLS mbedtls_ssl_config in the second argument. The
   /// function must match the curl_ssl_ctx_callback prototype.
   CURLOPT_SSL_CTX_FUNCTION(20108),
 
-  /// Set the userdata for the ssl context callback function's third argument
+  /// Set the userdata for the SSL context callback function's third argument
   CURLOPT_SSL_CTX_DATA(10109),
 
   /// FTP Option that causes missing dirs to be created on the remote server. In
@@ -1219,7 +1222,7 @@ enum CURLoption {
   /// with support for more than one, i.e IPv4 _and_ IPv6.
   CURLOPT_IPRESOLVE(113),
 
-  /// Set this option to limit the size of a file that will be downloaded from
+  /// Set this option to limit the size of a file that is to be downloaded from
   /// an HTTP or FTP server.
   CURLOPT_MAXFILESIZE(114),
 
@@ -1231,12 +1234,12 @@ enum CURLoption {
   /// this; look above for RESUME_FROM.
   CURLOPT_RESUME_FROM_LARGE(30116),
 
-  /// Sets the maximum size of data that will be downloaded from an HTTP or FTP
+  /// Sets the maximum size of data that is to be downloaded from an HTTP or FTP
   /// server. See MAXFILESIZE above for the LONG version.
   CURLOPT_MAXFILESIZE_LARGE(30117),
 
   /// Set this option to the filename of your .netrc file you want libcurl to
-  /// parse (using the CURLOPT_NETRC option). If not set, libcurl will do a poor
+  /// parse (using the CURLOPT_NETRC option). If not set, libcurl does a poor
   /// attempt to find the user's home directory and check for a .netrc file in
   /// there.
   CURLOPT_NETRC_FILE(10118),
@@ -1272,7 +1275,7 @@ enum CURLoption {
 
   /// Set to non-zero to skip the IP address received in a 227 PASV FTP server
   /// response. Typically used for FTP-SSL purposes but is not restricted to
-  /// that. libcurl will then instead use the same IP address it used for the
+  /// that. libcurl is then instead using the same IP address it used for the
   /// control connection.
   CURLOPT_FTP_SKIP_PASV_IP(137),
 
@@ -1283,23 +1286,23 @@ enum CURLoption {
   CURLOPT_LOCALPORT(139),
 
   /// Number of ports to try, including the first one set with LOCALPORT. Thus,
-  /// setting it to 1 will make no additional attempts but the first.
+  /// setting it to 1 makes no additional attempts but the first.
   CURLOPT_LOCALPORTRANGE(140),
 
   /// no transfer, set up connection and let application use the socket by
   /// extracting it with CURLINFO_LASTSOCKET
   CURLOPT_CONNECT_ONLY(141),
 
-  /// Function that will be called to convert from the network encoding (instead
-  /// of using the iconv calls in libcurl)
+  /// Function that is called to convert from the network encoding (instead of
+  /// using the iconv calls in libcurl)
   CURLOPT_CONV_FROM_NETWORK_FUNCTION(20142),
 
-  /// Function that will be called to convert to the network encoding (instead
-  /// of using the iconv calls in libcurl)
+  /// Function that is called to convert to the network encoding (instead of
+  /// using the iconv calls in libcurl)
   CURLOPT_CONV_TO_NETWORK_FUNCTION(20143),
 
-  /// Function that will be called to convert from UTF8 (instead of using the
-  /// iconv calls in libcurl) Note that this is used only for SSL certificate
+  /// Function that is called to convert from UTF8 (instead of using the iconv
+  /// calls in libcurl) Note that this is used only for SSL certificate
   /// processing
   CURLOPT_CONV_FROM_UTF8_FUNCTION(20144),
 
@@ -1388,10 +1391,10 @@ enum CURLoption {
 
   /// Comma separated list of hostnames defining no-proxy zones. These should
   /// match both hostnames directly, and hostnames within a domain. For example,
-  /// local.com will match local.com and www.local.com, but NOT notlocal.com or
+  /// local.com matches local.com and www.local.com, but NOT notlocal.com or
   /// www.notlocal.com. For compatibility with other implementations of this,
-  /// .local.com will be considered to be the same as local.com. A single * is
-  /// the only valid wildcard, and effectively disables the use of proxy.
+  /// .local.com is considered to be the same as local.com. A single * is the
+  /// only valid wildcard, and effectively disables the use of proxy.
   CURLOPT_NOPROXY(10177),
 
   /// block size for TFTP transfers
@@ -1527,9 +1530,9 @@ enum CURLoption {
   /// Enable/disable SASL initial response
   CURLOPT_SASL_IR(218),
 
-  /// Function that will be called instead of the internal progress display
-  /// function. This function should be defined as the curl_xferinfo_callback
-  /// prototype defines. (Deprecates CURLOPT_PROGRESSFUNCTION)
+  /// Function that is called instead of the internal progress display function.
+  /// This function should be defined as the curl_xferinfo_callback prototype
+  /// defines. (Deprecates CURLOPT_PROGRESSFUNCTION)
   CURLOPT_XFERINFOFUNCTION(20219),
 
   /// The XOAUTH2 bearer token
@@ -1550,10 +1553,10 @@ enum CURLoption {
   /// Set authentication options directly
   CURLOPT_LOGIN_OPTIONS(10224),
 
-  /// Enable/disable TLS NPN extension (http2 over ssl might fail without)
+  /// Enable/disable TLS NPN extension (http2 over SSL might fail without)
   CURLOPT_SSL_ENABLE_NPN(225),
 
-  /// Enable/disable TLS ALPN extension (http2 over ssl might fail without)
+  /// Enable/disable TLS ALPN extension (http2 over SSL might fail without)
   CURLOPT_SSL_ENABLE_ALPN(226),
 
   /// Time to wait for a response to an HTTP request containing an Expect:
@@ -1567,8 +1570,7 @@ enum CURLoption {
   /// Pass in a bitmask of "header options"
   CURLOPT_HEADEROPT(229),
 
-  /// The public key in DER form used to validate the peer public key this
-  /// option is used only if SSL_VERIFYPEER is true
+  /// The public key used to validate the peer public key
   CURLOPT_PINNEDPUBLICKEY(10230),
 
   /// Path to Unix domain socket
@@ -1626,10 +1628,10 @@ enum CURLoption {
   /// used only if PROXY_SSL_VERIFYPEER is true
   CURLOPT_PROXY_CAPATH(10247),
 
-  /// Set if we should verify the proxy in ssl handshake, set 1 to verify.
+  /// Set if we should verify the proxy in SSL handshake, set 1 to verify.
   CURLOPT_PROXY_SSL_VERIFYPEER(248),
 
-  /// Set if we should verify the Common name from the proxy certificate in ssl
+  /// Set if we should verify the Common name from the proxy certificate in SSL
   /// handshake, set 1 to check existence, 2 to ensure that it matches the
   /// provided hostname.
   CURLOPT_PROXY_SSL_VERIFYHOST(249),
@@ -1706,7 +1708,7 @@ enum CURLoption {
   /// Head start in milliseconds to give happy eyeballs.
   CURLOPT_HAPPY_EYEBALLS_TIMEOUT_MS(271),
 
-  /// Function that will be called before a resolver request is made
+  /// Function that is called before a resolver request is made
   CURLOPT_RESOLVER_START_FUNCTION(20272),
 
   /// User data to pass to the resolver start callback.
@@ -1737,7 +1739,7 @@ enum CURLoption {
   /// Specify URL using CURL URL API.
   CURLOPT_CURLU(10282),
 
-  /// add trailing data just after no more data is available
+  /// add trailing data after no more data is available
   CURLOPT_TRAILERFUNCTION(20283),
 
   /// pointer to be passed to HTTP_TRAILER_FUNCTION
@@ -1815,8 +1817,8 @@ enum CURLoption {
   /// used by scp/sftp to verify the host's public key
   CURLOPT_SSH_HOST_PUBLIC_KEY_SHA256(10311),
 
-  /// Function that will be called immediately before the initial request is
-  /// made on a connection (after any protocol negotiation step).
+  /// Function that is called immediately before the initial request is made on
+  /// a connection (after any protocol negotiation step).
   CURLOPT_PREREQFUNCTION(20312),
 
   /// Data passed to the CURLOPT_PREREQFUNCTION callback
@@ -1870,8 +1872,20 @@ enum CURLoption {
   /// set TLS supported signature algorithms
   CURLOPT_SSL_SIGNATURE_ALGORITHMS(10328),
 
+  /// RFC 9421 HTTP Message Signatures algorithm
+  CURLOPT_HTTPSIG_ALGORITHM(329),
+
+  /// Hex-encoded key for HTTP Message Signatures
+  CURLOPT_HTTPSIG_KEY(10330),
+
+  /// Key identifier for HTTP Message Signatures
+  CURLOPT_HTTPSIG_KEYID(10331),
+
+  /// Space-separated list of components to sign for HTTP Message Signatures
+  CURLOPT_HTTPSIG_HEADERS(10332),
+
   /// the last unused
-  CURLOPT_LASTENTRY(10329);
+  CURLOPT_LASTENTRY(10333);
 
   final int value;
   const CURLoption(this.value);
@@ -2185,7 +2199,11 @@ enum CURLoption {
     326 => CURLOPT_TCP_KEEPCNT,
     327 => CURLOPT_UPLOAD_FLAGS,
     10328 => CURLOPT_SSL_SIGNATURE_ALGORITHMS,
-    10329 => CURLOPT_LASTENTRY,
+    329 => CURLOPT_HTTPSIG_ALGORITHM,
+    10330 => CURLOPT_HTTPSIG_KEY,
+    10331 => CURLOPT_HTTPSIG_KEYID,
+    10332 => CURLOPT_HTTPSIG_HEADERS,
+    10333 => CURLOPT_LASTENTRY,
     _ => throw ArgumentError('Unknown value for CURLoption: $value'),
   };
 }

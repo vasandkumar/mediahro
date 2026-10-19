@@ -181,8 +181,7 @@ class ArchiveBindings {
       >();
 
   /// - Some convenience functions that are built on archive_read_data: 'skip':
-  /// skips entire entry 'into_buffer': writes data into memory buffer that you
-  /// provide 'into_fd': writes data to specified filedes
+  /// skips entire entry 'into_fd': writes data to specified filedes
   int archive_read_data_skip(ffi.Pointer<archive> arg0) {
     return _archive_read_data_skip(arg0);
   }
@@ -510,8 +509,9 @@ typedef archive_read_callback =
     >;
 
 /// Seeks to specified location in the file and returns the position. Whence
-/// values are SEEK_SET, SEEK_CUR, SEEK_END from stdio.h. Return ARCHIVE_FATAL
-/// if the seek fails for any reason.
+/// values are SEEK_SET, SEEK_CUR, SEEK_END from stdio.h. Return ARCHIVE_FAILED
+/// if the seek failed in a way that keeps its current read position,
+/// ARCHIVE_FATAL for any other error reason.
 typedef archive_seek_callback =
     ffi.NativeFunction<
       ffi.Int64 Function(
