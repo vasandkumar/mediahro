@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Android video: volume boost up to 300 % with mute, volume remembered per output device, sleep timer with fade-out (VID-066, VID-069).
 - Android video: picture-in-picture (including automatically on Home), background and sound-only playback, rotation lock and follow-video rotation, lock-screen controls (VID-067, VID-068, VID-070, VID-074).
 - Android video player: swipe and double-tap gestures, seek bar, speed, frame step, A-B loop, chapters, bookmarks, resume, audio and subtitle switching, info overlay (VID-060…065, VID-072).
 - Android music: library by artist, album, song and folder from your phone's music, tags and album art, gapless queue, mini player and Now Playing (MUS-001, MUS-002, MUS-004, MUS-007).
