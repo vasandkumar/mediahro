@@ -42,74 +42,114 @@ final class PlatformCapabilityUnavailable implements Exception {
 
 Never _unavailable(String name) => throw PlatformCapabilityUnavailable(name);
 
+// A missing facade is permanent for the process, so Riverpod 3's automatic
+// retry must not rebuild everything that depends on it with backoff.
+Duration? _noRetry(int retryCount, Object error) => null;
+
 // One provider per facade (docs/05 §8). Lane C4 overrides each with its
 // Pigeon-backed implementation per platform in `<platform>/bindings.dart`;
 // tests override them with fakes. Feature code depends only on these.
 final mediaSessionProvider = Provider<MediaSessionFacade>(
   (ref) => _unavailable('mediaSession'),
+  retry: _noRetry,
 );
 final storageProvider = Provider<StorageFacade>(
   (ref) => _unavailable('storage'),
+  retry: _noRetry,
 );
 final photoLibraryProvider = Provider<PhotoLibraryFacade>(
   (ref) => _unavailable('photoLibrary'),
+  retry: _noRetry,
 );
 final audioOutputProvider = Provider<AudioOutputFacade>(
   (ref) => _unavailable('audioOutput'),
+  retry: _noRetry,
 );
-final castProvider = Provider<CastFacade>((ref) => _unavailable('cast'));
+final castProvider = Provider<CastFacade>(
+  (ref) => _unavailable('cast'),
+  retry: _noRetry,
+);
 final displayProvider = Provider<DisplayFacade>(
   (ref) => _unavailable('display'),
+  retry: _noRetry,
 );
-final pipProvider = Provider<PipFacade>((ref) => _unavailable('pip'));
+final pipProvider = Provider<PipFacade>(
+  (ref) => _unavailable('pip'),
+  retry: _noRetry,
+);
 final secureStorageProvider = Provider<SecureStorageFacade>(
   (ref) => _unavailable('secureStorage'),
+  retry: _noRetry,
 );
 final biometricsProvider = Provider<BiometricsFacade>(
   (ref) => _unavailable('biometrics'),
+  retry: _noRetry,
 );
 final managedConfigProvider = Provider<ManagedConfigFacade>(
   (ref) => _unavailable('managedConfig'),
+  retry: _noRetry,
 );
-final kioskProvider = Provider<KioskFacade>((ref) => _unavailable('kiosk'));
+final kioskProvider = Provider<KioskFacade>(
+  (ref) => _unavailable('kiosk'),
+  retry: _noRetry,
+);
 final systemIntegrationProvider = Provider<SystemIntegrationFacade>(
   (ref) => _unavailable('systemIntegration'),
+  retry: _noRetry,
 );
 final intentsProvider = Provider<IntentsFacade>(
   (ref) => _unavailable('intents'),
+  retry: _noRetry,
 );
 final homeWidgetsProvider = Provider<HomeWidgetsFacade>(
   (ref) => _unavailable('homeWidgets'),
+  retry: _noRetry,
 );
 final tlsSocketProvider = Provider<TlsSocketFacade>(
   (ref) => _unavailable('tlsSocket'),
+  retry: _noRetry,
 );
-final sftpProvider = Provider<SftpFacade>((ref) => _unavailable('sftp'));
+final sftpProvider = Provider<SftpFacade>(
+  (ref) => _unavailable('sftp'),
+  retry: _noRetry,
+);
 final authBrowserProvider = Provider<AuthBrowserFacade>(
   (ref) => _unavailable('authBrowser'),
+  retry: _noRetry,
 );
 final networkStatusProvider = Provider<NetworkStatusFacade>(
   (ref) => _unavailable('networkStatus'),
+  retry: _noRetry,
 );
 final multicastProvider = Provider<MulticastFacade>(
   (ref) => _unavailable('multicast'),
+  retry: _noRetry,
 );
 final tlsServerProvider = Provider<TlsServerFacade>(
   (ref) => _unavailable('tlsServer'),
+  retry: _noRetry,
 );
 final purchasesProvider = Provider<PurchasesFacade>(
   (ref) => _unavailable('purchases'),
+  retry: _noRetry,
 );
 final speechSynthesisProvider = Provider<SpeechSynthesisFacade>(
   (ref) => _unavailable('speechSynthesis'),
+  retry: _noRetry,
 );
 final textRecognitionProvider = Provider<TextRecognitionFacade>(
   (ref) => _unavailable('textRecognition'),
+  retry: _noRetry,
 );
 final translationProvider = Provider<TranslationFacade>(
   (ref) => _unavailable('translation'),
+  retry: _noRetry,
 );
 final mediaBrowseProvider = Provider<MediaBrowseFacade>(
   (ref) => _unavailable('mediaBrowse'),
+  retry: _noRetry,
 );
-final alarmProvider = Provider<AlarmFacade>((ref) => _unavailable('alarm'));
+final alarmProvider = Provider<AlarmFacade>(
+  (ref) => _unavailable('alarm'),
+  retry: _noRetry,
+);
