@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
@@ -12,6 +13,7 @@ import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
 import 'package:mediahro_engine/src/disc/disc_reader.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
+import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
 import 'package:mediahro_engine/src/mpv/exporter.dart';
 import 'package:mediahro_engine/src/mpv/mp4_gapless.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
@@ -134,6 +136,8 @@ final class MpvEngine implements PlaybackEngine {
   var _cacheByBitrate = false;
   // Local files the engine opened as VirtualFiles; closed on the next open.
   final _ownedFiles = <VirtualFile>[];
+  // Visualiser taps by window size (AUD-046), started on first listen.
+  final _taps = <int, AnalysisTap>{};
   // Audio-focus ducking gain (AUD-045): mpv's volume-gain where it exists
   // (mpv >= 0.36); older builds scale mpv's `volume` instead while the state
   // keeps reporting the user's volume.
@@ -1147,6 +1151,23 @@ final class MpvEngine implements PlaybackEngine {
   }
 
   @override
+  Stream<AudioTapFrame> audioTap({int frames = 1024}) {
+    final n = frames.clamp(64, 16384);
+    return (_taps[n] ??= AnalysisTap(
+      frames: n,
+      source: () => _source,
+      item: () => _itemSerial,
+      position: () => _state.position,
+      playing: () => _state.status == PlaybackStatus.playing,
+      libmpvPath: config.libmpvPath,
+    )).stream;
+  }
+
+  /// Whether a visualiser tap's analysis core is running (tests).
+  @visibleForTesting
+  bool get audioTapActive => _taps.values.any((t) => t.active);
+
+  @override
   Future<List<EngineAudioDevice>> audioDevices() async {
     final c = await _live();
     if (c == null) return const [];
@@ -1400,6 +1421,10 @@ final class MpvEngine implements PlaybackEngine {
           ?.dispose(surface.textureId)
           .catchError((Object _) {});
     }
+    for (final t in _taps.values) {
+      await t.close();
+    }
+    _taps.clear();
     _protocol?.shutdown();
     for (final f in _ownedFiles) {
       await f.close();

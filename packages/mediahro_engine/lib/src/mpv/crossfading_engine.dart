@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
@@ -383,6 +384,27 @@ final class CrossfadingEngine implements PlaybackEngine {
     await _both((e) => e.setDucking(_duck));
     _publish(_a.current);
   }
+
+  @override
+  Stream<AudioTapFrame> audioTap({int frames = 1024}) => Stream.multi((out) {
+    // Follows the core that is playing, across crossfades (AUD-046).
+    StreamSubscription<AudioTapFrame>? sub;
+    var core = _a;
+    void follow() {
+      unawaited(sub?.cancel());
+      core = _a;
+      sub = core.audioTap(frames: frames).listen(out.add);
+    }
+
+    follow();
+    final swaps = state.listen((_) {
+      if (!identical(core, _a)) follow();
+    });
+    out.onCancel = () async {
+      await swaps.cancel();
+      await sub?.cancel();
+    };
+  });
 
   @override
   Future<List<EngineAudioDevice>> audioDevices() async {

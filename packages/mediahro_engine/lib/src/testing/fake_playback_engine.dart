@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
@@ -398,6 +399,22 @@ final class FakePlaybackEngine implements PlaybackEngine {
     _emit(_state.copyWith(ducked: gain < 1));
   }
 
+  final _tap = StreamController<AudioTapFrame>.broadcast();
+
+  /// Emits [frame] to [audioTap] listeners (tests drive visualisers).
+  void emitTap(AudioTapFrame frame) => _tap.add(frame);
+
+  /// Whether anything listens to [audioTap].
+  bool get tapListened => _tap.hasListener;
+
+  @override
+  Stream<AudioTapFrame> audioTap({int frames = 1024}) => _tap.stream;
+
+  /// Sets what [PlaybackState.mediaTitle] / [PlaybackState.mediaMetadata]
+  /// report, as an ICY or HLS ID3 update would (MUS-014).
+  void setMediaMetadata(String? title, Map<String, String> metadata) =>
+      _emit(_state.copyWith(mediaTitle: title, mediaMetadata: metadata));
+
   @override
   Future<List<EngineAudioDevice>> audioDevices() async {
     _check('audioDevices');
@@ -414,5 +431,6 @@ final class FakePlaybackEngine implements PlaybackEngine {
     calls.add('dispose');
     _disposed = true;
     await _controller.close();
+    await _tap.close();
   }
 }
