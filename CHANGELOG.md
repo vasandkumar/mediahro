@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Smart music playlists with a rule editor and live match count (MUS-008).
 - Read subtitles aloud with the system voice, translate subtitles on the device (SUB-040, SUB-053).
 - Edit music tags and covers, one file or many at once, with undo; fill tags from file names or rename files from tags (MUS-003).
 - Subtitle editor: shift and stretch timing, split and merge lines, save as SRT, WebVTT or ASS; reads SRT, WebVTT, ASS/SSA, MicroDVD, LRC and SAMI (SUB-030).
