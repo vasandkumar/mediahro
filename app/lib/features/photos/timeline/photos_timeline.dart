@@ -136,6 +136,7 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
     final entries = ref.watch(photoEntriesProvider);
     return Scaffold(
       appBar: AppBar(
@@ -160,7 +161,7 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
                 CheckedPopupMenuItem(
                   value: n,
                   checked: n == _columns,
-                  child: Text('$n'),
+                  child: Text(NumberFormat.decimalPattern(locale).format(n)),
                 ),
             ],
           ),
