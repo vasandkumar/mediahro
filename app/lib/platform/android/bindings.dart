@@ -4,6 +4,7 @@ import 'package:mediahro/platform/android/android_car.dart';
 import 'package:mediahro/platform/android/android_display.dart';
 import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
+import 'package:mediahro/platform/android/android_power_status.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
@@ -21,6 +22,7 @@ List<Override> overrides() => [
   audioOutputProvider.overrideWithValue(AndroidAudioOutput()),
   displayProvider.overrideWithValue(AndroidDisplay()),
   pipProvider.overrideWithValue(AndroidPip()),
+  powerStatusProvider.overrideWithValue(AndroidPowerStatus()),
   captionStyleProvider.overrideWithValue(AndroidCaptionStyle()),
   mediaBrowseProvider.overrideWithValue(AndroidMediaBrowse()),
   alarmProvider.overrideWithValue(AndroidAlarms()),
