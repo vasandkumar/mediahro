@@ -16,6 +16,7 @@ import 'package:mediahro/features/photos/timeline/photo_layout.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/trash/trash_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// The photos of one album, newest first. Refreshes when the album, the
@@ -122,6 +123,18 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
               subtitle: Text(l10n.photosAlbumCount(rejected)),
               onTap: () => _open(null, SystemAlbum.rejected),
             ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: Text(l10n.photosTrashTitle),
+            subtitle: Text(
+              l10n.photosTrashCount(
+                ref.watch(trashContentsProvider).value?.length ?? 0,
+              ),
+            ),
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const TrashScreen()),
+            ),
+          ),
           for (final a in albums)
             ListTile(
               leading: SizedBox.square(
