@@ -134,7 +134,7 @@ final class VideoPlayerController extends ChangeNotifier {
     _abA = _abB = _abCount = null;
     _rate = _volume = null;
     _videoOffFrom = null;
-    _subDelay = _audioDelay = null;
+    _subDelay = _audioDelay = _secondaryDelay = null;
     _lastSave = null;
     final m = memory.item(request.memoryKey);
     final resume = settings.get(VideoSettings.resume) == ResumeMode.always
@@ -260,6 +260,48 @@ final class VideoPlayerController extends ChangeNotifier {
     }
     if (select && track != null) await selectSubtitle(track);
     return track;
+  }
+
+  /// Sends the subtitle style (SUB-014); the screen recomputes it from the
+  /// settings and the system caption style.
+  Future<void> applySubtitleStyle(SubtitleStyle style) =>
+      engine.setSubtitleStyle(style);
+
+  /// Subtitle speed for frame-rate conversion (SUB-015), e.g. 25 / 23.976
+  /// for subtitles timed for 23.976 fps on a 25 fps video; remembered per
+  /// file.
+  Future<void> setSubtitleSpeed(double speed) async {
+    await engine.setSubSpeed(speed);
+    final key = _request?.memoryKey;
+    if (key != null) {
+      memory.updateItem(
+        key,
+        (m) => m.copyWith(subtitleSpeed: () => speed == 1 ? null : speed),
+      );
+    }
+    notifyListeners();
+  }
+
+  double get subtitleSpeed => _request == null
+      ? 1
+      : memory.item(_request!.memoryKey).subtitleSpeed ?? 1;
+
+  // ------------------------------------------------- second subtitles
+
+  /// Second subtitle track shown with the first (SUB-016); null hides it.
+  Future<void> selectSecondarySubtitle(Track? t) =>
+      selectSubtitle(t, slot: SubtitleSlot.secondary);
+
+  Duration? _secondaryDelay;
+  Duration get secondarySubtitleDelay =>
+      _secondaryDelay ?? _state.secondarySubtitleDelay;
+
+  /// The second line's own delay (SUB-016), same range as the first.
+  Future<void> setSecondarySubtitleDelay(Duration d) async {
+    final v = _snap(d, 50, 60000);
+    _secondaryDelay = v;
+    await engine.setSubDelay(v, slot: SubtitleSlot.secondary);
+    notifyListeners();
   }
 
   /// Forces the subtitle character set, or null for detection (SUB-013);

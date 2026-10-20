@@ -359,6 +359,93 @@
     }
   },
   "videoStartOver": "Start over",
+  "videoSubAlign": "{align, select, system{System} left{Left} center{Centre} right{Right} other{System}}",
+  "@videoSubAlign": {
+    "placeholders": {
+      "align": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubAlignDescription": "How lines line up across the picture",
+  "videoSubAlignTitle": "Alignment",
+  "videoSubBackground": "{background, select, system{System} none{None} box{See-through box} opaque{Solid box} other{System}}",
+  "@videoSubBackground": {
+    "placeholders": {
+      "background": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubBackgroundTitle": "Background",
+  "videoSubColor": "{color, select, system{System} white{White} yellow{Yellow} cyan{Cyan} green{Green} magenta{Magenta} other{System}}",
+  "@videoSubColor": {
+    "placeholders": {
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubColorTitle": "Text colour",
+  "videoSubFont": "{font, select, system{System} sans{Sans serif} serif{Serif} mono{Monospaced} other{System}}",
+  "@videoSubFont": {
+    "placeholders": {
+      "font": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubFontTitle": "Font",
+  "videoSubOutline": "{outline, select, system{System} none{None} thin{Thin} normal{Normal} thick{Thick} other{System}}",
+  "@videoSubOutline": {
+    "placeholders": {
+      "outline": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubOutlineTitle": "Outline",
+  "videoSubOverrideAssDescription": "ASS and SSA subtitles keep their own look unless this is on",
+  "videoSubOverrideAssTitle": "Use these settings for styled subtitles",
+  "videoSubPosition": "{position, select, system{System} bottom{Bottom} raised{A little higher} middle{Middle} top{Top} other{System}}",
+  "@videoSubPosition": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubPositionDescription": "Where subtitles sit on the picture",
+  "videoSubPositionTitle": "Position",
+  "videoSubSecondaryDelay": "Second subtitles delay",
+  "videoSubSecondaryOnTopDescription": "Show the second line at the top of the picture instead of above the first",
+  "videoSubSecondaryOnTopTitle": "Second subtitles at the top",
+  "videoSubSecondarySizeDescription": "Size of the second subtitle line when two are shown",
+  "videoSubSecondarySizeTitle": "Second subtitles size",
+  "videoSubSecondaryTitle": "Second subtitles",
+  "videoSubSize": "{size, select, system{System} small{Small} normal{Normal} large{Large} larger{Larger} huge{Huge} other{System}}",
+  "@videoSubSize": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubSizeTitle": "Subtitle size",
+  "videoSubSpeedFps": "From {from} to {to} fps",
+  "@videoSubSpeedFps": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSubSpeedNormal": "Normal",
+  "videoSubSpeedTitle": "Subtitle speed",
+  "videoSubSystemDescription": "\"System\" uses your device's caption style",
   "videoSubtitleAddFile": "Add a subtitle file",
   "videoSubtitleDelay": "Subtitle delay",
   "videoSubtitleDelayValue": "Subtitles {ms} ms",

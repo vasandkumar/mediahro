@@ -21,7 +21,9 @@ import 'package:mediahro/features/video/player/sleep_sheet.dart';
 import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -60,6 +62,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   VideoPlayerController? _c;
   PlayerPlatform? _platform;
   SleepTimer? _sleep;
+  SubtitleStyle? _style;
   bool _chrome = true;
   bool _locked = false;
   bool _info = false;
@@ -329,10 +332,38 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       return ColoredBox(color: Colors.black, child: video);
     }
 
+    // Subtitle style from the settings over the system caption style
+    // (SUB-014); sent again whenever it changes.
+    final settingsNow = ref.watch(settingsProvider);
+    final captions = ref.watch(captionPrefsProvider);
+    final style = subtitleStyleFor(settingsNow, system: captions);
+    if (style != _style) {
+      _style = style;
+      unawaited(c.applySubtitleStyle(style));
+    }
+    final secondText = s.secondarySubtitleText;
+    final secondOnTop = settingsNow.get(SubtitleSettings.secondaryOnTop);
+
     final error = s.error;
     final overlay = Stack(
       fit: StackFit.expand,
       children: [
+        if (secondText != null && secondText.isNotEmpty)
+          Positioned(
+            left: KSpacing.s24,
+            right: KSpacing.s24,
+            top: secondOnTop ? KSpacing.s24 : null,
+            // Above the first subtitles near the bottom.
+            bottom: secondOnTop ? null : 120,
+            child: SafeArea(
+              child: IgnorePointer(
+                child: SecondarySubtitleText(
+                  text: secondText,
+                  scale: secondaryScale(settingsNow, system: captions),
+                ),
+              ),
+            ),
+          ),
         if (_info)
           Positioned(
             top: 72,
