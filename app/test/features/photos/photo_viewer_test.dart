@@ -278,7 +278,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Samsung SM-M176B'), findsOneWidget);
       expect(find.text('Main 5.4mm f/1.8'), findsOneWidget);
-      expect(find.text('12.97500, 77.59583'), findsOneWidget);
+      // With the bundled gazetteer (IMG-007) the nearest city sits above the
+      // coordinates in the same row.
+      expect(find.textContaining('12.97500, 77.59583'), findsOneWidget);
       expect(find.text('4000 × 3000 · 12.0 MP'), findsOneWidget);
       expect(find.text('4 stars'), findsOneWidget);
       expect(find.text('lake'), findsOneWidget);

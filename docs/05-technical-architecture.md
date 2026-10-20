@@ -202,7 +202,7 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 - Server clients generated from OpenAPI (Jellyfin, Immich, Audiobookshelf) or hand-written (Plex, Subsonic, Emby, Nextcloud) in `mediahro_servers`, with a common `ServerLibrary` interface (browse, search, stream URL, progress, download).
 - Discovery: mDNS/DNS-SD (`_smb._tcp`, `_webdav._tcp`, `_googlecast._tcp`, `_airplay._tcp`, `_http._tcp`, `_jellyfin._tcp`), SSDP (needs multicast entitlement on Apple), WS-Discovery/NetBIOS for Windows shares.
 - TLS: platform stacks; certificate pinning not used (self-hosted servers); self-signed certificates accepted per-server after explicit fingerprint confirmation.
-- Allow-list: the only Mediahro-controlled endpoints are `api.mediahro.com` (feature flags/static JSON on GitHub Pages) and the opt-in Sentry/Aptabase hosts; third-party endpoints (OpenSubtitles, TMDB, LRCLIB, MusicBrainz, ListenBrainz/Last.fm, OSM tiles, IntroDB, AcoustID) each sit behind a user toggle (PRIV-004).
+- Allow-list: the only Mediahro-controlled endpoints are `api.mediahro.com` (feature flags/static JSON on GitHub Pages) and the opt-in Sentry/Aptabase hosts; third-party endpoints (OpenSubtitles, TMDB, LRCLIB, MusicBrainz, ListenBrainz/Last.fm, OSM-derived map tiles from `tiles.mediahro.com`, IntroDB, AcoustID) each sit behind a user toggle (PRIV-004).
 
 ## 10. Native dependency matrix (versions pinned in `mediahro-deps`)
 

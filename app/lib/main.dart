@@ -8,6 +8,7 @@ import 'package:mediahro/app/services.dart';
 import 'package:mediahro/features/library/widgets.dart'
     show openItemActionProvider;
 import 'package:mediahro/features/music/music_wiring.dart';
+import 'package:mediahro/features/photos/map/map_licences.dart';
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart'
     show photoRoutes;
 import 'package:mediahro/features/video/player/bundled_shaders.dart';
@@ -22,6 +23,8 @@ Future<void> main() async {
   final services = await AppServices.open();
   // Licence notices for the bundled shaders (CORE-013).
   unawaited(registerShaderLicences());
+  // Licence notices for the photo map data (IMG-007, CORE-013).
+  registerMapLicences();
   runApp(
     mediahroRoot(
       services.settings,

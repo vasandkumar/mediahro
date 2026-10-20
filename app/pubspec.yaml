@@ -60,3 +60,5 @@ flutter:
     # MIT-licensed shader presets (VID-038, ADR-034); provenance in
     # features/video/player/bundled_shaders.dart.
     - assets/shaders/
+    # Offline GeoNames gazetteer for place names (IMG-007, CC BY 4.0).
+    - assets/gazetteer/

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/appearance.dart';
+import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/settings/core_sections.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
@@ -31,6 +32,7 @@ Widget mediahroRoot(
         ...coreSettingsContributions,
         ...videoSettingsContributions,
         ...subtitleSettingsContributions,
+        ...photoSettingsContributions,
       ]),
       ...overrides,
     ],
