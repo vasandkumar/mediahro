@@ -93,7 +93,10 @@ class _MapSurfaceState extends State<MapSurface>
   late final AnimationController _anim = AnimationController(vsync: this);
   MapCamera? _startCamera;
   Offset _startFocal = Offset.zero;
-  Offset _doubleTapAt = Offset.zero;
+  // A double tap is recognised here rather than by the gesture arena: the
+  // arena would hold back every single tap (on markers too) for 300 ms.
+  Offset? _lastTap;
+  Timer? _lastTapTimer;
 
   @override
   void initState() {
@@ -112,6 +115,7 @@ class _MapSurfaceState extends State<MapSurface>
 
   @override
   void dispose() {
+    _lastTapTimer?.cancel();
     widget.controller._animate = null;
     _anim.dispose();
     super.dispose();
@@ -225,6 +229,24 @@ class _MapSurfaceState extends State<MapSurface>
     );
   }
 
+  void _tapped(Offset at) {
+    final cam = _c.camera;
+    if (cam == null) return;
+    final previous = _lastTap;
+    if (previous != null && (previous - at).distance < 48) {
+      _lastTapTimer?.cancel();
+      _lastTap = null;
+      unawaited(_c.animateTo(cam.zoomedAt(at, cam.zoom + 1)));
+      return;
+    }
+    _lastTap = at;
+    _lastTapTimer?.cancel();
+    _lastTapTimer = Timer(const Duration(milliseconds: 300), () {
+      _lastTap = null;
+    });
+    widget.onTap?.call(cam, at);
+  }
+
   void _wheel(PointerSignalEvent e) {
     if (e is! PointerScrollEvent) return;
     GestureBinding.instance.pointerSignalResolver.register(e, (_) {
@@ -284,18 +306,7 @@ class _MapSurfaceState extends State<MapSurface>
                 onScaleStart: _scaleStart,
                 onScaleUpdate: _scaleUpdate,
                 onScaleEnd: _scaleEnd,
-                onTapUp: (d) {
-                  final cam = _c.camera;
-                  if (cam != null) widget.onTap?.call(cam, d.localPosition);
-                },
-                onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
-                onDoubleTap: () {
-                  final cam = _c.camera;
-                  if (cam == null) return;
-                  unawaited(
-                    _c.animateTo(cam.zoomedAt(_doubleTapAt, cam.zoom + 1)),
-                  );
-                },
+                onTapUp: (d) => _tapped(d.localPosition),
                 child: ClipRect(
                   child: ListenableBuilder(
                     listenable: _c,

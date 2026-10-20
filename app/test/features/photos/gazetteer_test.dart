@@ -84,4 +84,60 @@ void main() {
       throwsFormatException,
     );
   });
+
+  group('search', () {
+    test('IMG-007 a name is found without its accents', () {
+      final hits = g.search('sao paulo');
+      expect(hits, isNotEmpty);
+      expect(hits.first.name, 'São Paulo');
+      expect(hits.first.country, 'Brazil');
+    });
+
+    test('IMG-007 names starting with the text come first, biggest first', () {
+      final hits = g.search('new y');
+      expect(hits.first.name, 'New York City');
+      final names = hits.map((p) => p.name).toList();
+      expect(names.every((n) => n.toLowerCase().contains('new y')), isTrue);
+    });
+
+    test('IMG-007 a name that merely contains the text still matches', () {
+      final hits = g.search('york');
+      expect(hits.map((p) => p.name), contains('New York City'));
+    });
+
+    test('IMG-007 search is capped and ignores case and spaces around', () {
+      expect(g.search('  PARIS  ', limit: 3), hasLength(3));
+      expect(g.search('paris').first.name, 'Paris');
+    });
+
+    test('IMG-007 nothing typed or nothing found gives an empty list', () {
+      expect(g.search(''), isEmpty);
+      expect(g.search('   '), isEmpty);
+      expect(g.search('qqqqzzzz'), isEmpty);
+    });
+
+    test('IMG-007 folding keeps plain letters and drops accents', () {
+      expect(Gazetteer.foldForSearch('Zürich'), 'zurich');
+      expect(Gazetteer.foldForSearch('Łódź'), 'lodz');
+      expect(Gazetteer.foldForSearch('Straße'), 'strasse');
+      expect(Gazetteer.foldForSearch('東京'), '東京');
+    });
+  });
+
+  group('metropolitan areas', () {
+    test('IMG-007 a photo in a big city is named after the city', () {
+      for (final (lat, lon, city) in [
+        (35.70, 139.60, 'Tokyo'),
+        (28.60, 77.20, 'Delhi'),
+        (40.75, -73.98, 'New York City'),
+      ]) {
+        expect(g.nearest(lat, lon)!.name, city, reason: '$lat, $lon');
+      }
+    });
+
+    test('IMG-007 a small town next to a city keeps its own name', () {
+      // Windsor, UK is 33 km from central London: not renamed to London.
+      expect(g.nearest(51.4816, -0.6044)!.name, isNot('London'));
+    });
+  });
 }
