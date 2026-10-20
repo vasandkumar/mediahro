@@ -220,6 +220,23 @@ final class RecordingEngine implements PlaybackEngine {
       fake.audioTap(frames: frames);
 
   @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) => fake.decodeAudio(
+    source,
+    trackId: trackId,
+    sampleRate: sampleRate,
+    mono: mono,
+    start: start,
+    end: end,
+  );
+
+  @override
   Future<void> dispose() async {
     await _extra.close();
     await fake.dispose();

@@ -121,5 +121,16 @@ final class UnavailableEngine implements PlaybackEngine {
   @override
   Stream<AudioTapFrame> audioTap({int frames = 1024}) => const Stream.empty();
   @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) => Stream.error(
+    const EngineException(EngineError(code: EngineErrorCode.libraryMissing)),
+  );
+  @override
   Future<void> dispose() async {}
 }

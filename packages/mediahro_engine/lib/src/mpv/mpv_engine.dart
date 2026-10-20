@@ -12,6 +12,7 @@ import 'package:mediahro_engine/src/api/video_target.dart';
 import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
 import 'package:mediahro_engine/src/disc/disc_reader.dart';
+import 'package:mediahro_engine/src/mpv/audio_decoder.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
 import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
 import 'package:mediahro_engine/src/mpv/exporter.dart';
@@ -1180,6 +1181,36 @@ final class MpvEngine implements PlaybackEngine {
       },
       libmpvPath: config.libmpvPath,
     )).stream;
+  }
+
+  @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) {
+    if (sampleRate < 8000 || sampleRate > 192000) {
+      return Stream.error(
+        const EngineException(
+          EngineError(
+            code: EngineErrorCode.invalidArgument,
+            detail: 'sampleRate out of 8000–192000',
+          ),
+        ),
+      );
+    }
+    return AudioDecoder(
+      source,
+      trackId: trackId,
+      sampleRate: sampleRate,
+      mono: mono,
+      start: start,
+      end: end,
+      libmpvPath: config.libmpvPath,
+    ).stream;
   }
 
   /// Whether a visualiser tap's analysis core is running (tests).

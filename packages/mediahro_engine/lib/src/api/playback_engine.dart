@@ -131,6 +131,26 @@ abstract interface class PlaybackEngine {
   /// first listener and stops when the last one cancels.
   Stream<AudioTapFrame> audioTap({int frames = 1024});
 
+  /// Decodes the audio of [source] for analysis without playing it
+  /// (ADR-032: SUB-050 auto-sync, SUB-052 auto-captions, MUS-010
+  /// fingerprints), as fast as the device allows and independent of what is
+  /// playing. Float32 PCM at [sampleRate], mono or interleaved stereo, in
+  /// contiguous chunks of about half a second from [start] (default: the
+  /// beginning) to [end] (default: the end). [trackId] picks the audio track
+  /// (default: the default track). Network sources are read once.
+  ///
+  /// Pausing the subscription pauses decoding; cancelling it stops it.
+  /// Failures arrive as [EngineException] (e.g. `decodeFailed`,
+  /// `unsupportedFormat` for a source without audio).
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  });
+
   /// Flutter external texture id for the video surface; null for the music
   /// role or before the first frame.
   int? get textureId;
