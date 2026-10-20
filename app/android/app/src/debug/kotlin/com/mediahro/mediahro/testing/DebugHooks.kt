@@ -40,6 +40,7 @@ object DebugHooks {
                 }
             }
         host.fake = { contract, _ -> answer(contract) }
+        SessionHooks.install(host.context, engine.dartExecutor.binaryMessenger)
     }
 
     private fun answer(contract: ActivityResultContract<*, *>): Result<Any?>? {

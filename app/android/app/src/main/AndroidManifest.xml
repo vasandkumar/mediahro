@@ -11,6 +11,12 @@
         android:maxSdkVersion="32" />
     <!-- Photo EXIF GPS for the photo map (unredacted originals); not device location. -->
     <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
+    <!-- Playback (SYS-001/002/006): mediaPlayback foreground service, the
+         media notification, no wake lock beyond playback. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:label="Mediahro"
         android:name="${applicationName}"
@@ -37,6 +43,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Media3 session service (SYS-001/002/006); MUS-013 adds the library tree. -->
+        <service
+            android:name=".platform.media.PlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
         <!-- Shares app-private files as content URIs (FILE-002 share / open in). -->
         <provider
             android:name="androidx.core.content.FileProvider"
