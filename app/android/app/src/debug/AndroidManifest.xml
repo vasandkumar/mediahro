@@ -4,4 +4,19 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <application>
+        <!-- Debug builds only: a SAF tree over app-private files so the
+             integration tests drive StorageModule's DocumentsContract paths
+             without the system folder picker (lane C4a). -->
+        <provider
+            android:name="com.mediahro.mediahro.testing.TestDocumentsProvider"
+            android:authorities="${applicationId}.testdocs"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+    </application>
 </manifest>
