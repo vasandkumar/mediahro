@@ -3,7 +3,11 @@ package com.mediahro.mediahro.platform
 import android.content.Context
 import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
+import com.mediahro.mediahro.pigeon.AlarmHostApi
+import com.mediahro.mediahro.pigeon.AlarmsFiredStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.MediaBrowseFlutterApi
+import com.mediahro.mediahro.pigeon.MediaBrowseHostApi
 import com.mediahro.mediahro.pigeon.AuthBrowserHostApi
 import com.mediahro.mediahro.pigeon.MulticastHostApi
 import com.mediahro.mediahro.pigeon.NetworkChangesStreamHandler
@@ -28,7 +32,11 @@ import com.mediahro.mediahro.pigeon.StorageHostApi
 import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
+import com.mediahro.mediahro.platform.media.AlarmHub
+import com.mediahro.mediahro.platform.media.AlarmModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
+import com.mediahro.mediahro.platform.media.BrowseHub
+import com.mediahro.mediahro.platform.media.MediaBrowseModule
 import com.mediahro.mediahro.platform.media.MediaSessionModule
 import com.mediahro.mediahro.platform.network.AuthBrowserModule
 import com.mediahro.mediahro.platform.network.MulticastModule
@@ -94,6 +102,14 @@ object PlatformModules {
         val sessionModule = MediaSessionModule(context.applicationContext, host).also { session = it }
         MediaSessionHostApi.setUp(messenger, sessionModule)
         RemoteCommandsStreamHandler.register(messenger, sessionModule.commandsHandler)
+
+        // Android Auto and voice (MUS-013): a new engine registers its provider again.
+        BrowseHub.registered = false
+        BrowseHub.flutter = MediaBrowseFlutterApi(messenger)
+        MediaBrowseHostApi.setUp(messenger, MediaBrowseModule())
+
+        AlarmHostApi.setUp(messenger, AlarmModule(context.applicationContext, host))
+        AlarmsFiredStreamHandler.register(messenger, AlarmHub.handler)
 
         audio?.dispose()
         val audioModule = AudioOutputModule(context.applicationContext).also { audio = it }

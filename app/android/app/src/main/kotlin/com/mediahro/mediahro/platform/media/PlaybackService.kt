@@ -20,6 +20,9 @@ import com.mediahro.mediahro.MainActivity
 class PlaybackService : MediaLibraryService() {
     private var session: MediaLibrarySession? = null
 
+    /** The library session, for children-changed notifications (MUS-013). */
+    val librarySession: MediaLibrarySession? get() = session
+
     override fun onCreate() {
         super.onCreate()
         val open = PendingIntent.getActivity(
@@ -28,7 +31,7 @@ class PlaybackService : MediaLibraryService() {
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        session = MediaLibrarySession.Builder(this, SessionHub.player, object : MediaLibrarySession.Callback {})
+        session = MediaLibrarySession.Builder(this, SessionHub.player, BrowseCallback(this))
             .setId(SESSION_ID)
             .setSessionActivity(open)
             .build()

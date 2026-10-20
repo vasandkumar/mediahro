@@ -68,6 +68,9 @@ class SessionPlayer(private val onCommand: (RemoteCommandMsg) -> Unit) :
             Player.COMMAND_GET_TIMELINE,
             Player.COMMAND_SET_SPEED_AND_PITCH,
             Player.COMMAND_RELEASE,
+            // Car and voice requests arrive as setMediaItems (MUS-013).
+            Player.COMMAND_SET_MEDIA_ITEM,
+            Player.COMMAND_CHANGE_MEDIA_ITEMS,
         )
         if (item != null && !item.isLive) {
             commands.addAll(
@@ -178,6 +181,16 @@ class SessionPlayer(private val onCommand: (RemoteCommandMsg) -> Unit) :
     }
 
     override fun handleRelease(): ListenableFuture<*> = Futures.immediateVoidFuture()
+
+    /**
+     * BrowseCallback already asked Dart to play the item; Dart's
+     * setNowPlaying / setPlaybackStatus update this mirror.
+     */
+    override fun handleSetMediaItems(
+        mediaItems: MutableList<MediaItem>,
+        startIndex: Int,
+        startPositionMs: Long,
+    ): ListenableFuture<*> = Futures.immediateVoidFuture()
 
     companion object {
         const val MEDIA_ID = "mediahro.now"
