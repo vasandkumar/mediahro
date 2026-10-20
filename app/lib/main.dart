@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/services.dart';
+import 'package:mediahro/features/music/music_wiring.dart';
 import 'package:mediahro/platform/platform_bindings.dart';
 
 Future<void> main() async {
@@ -12,7 +13,11 @@ Future<void> main() async {
   runApp(
     mediahroRoot(
       services.settings,
-      overrides: [...services.overrides, ...platformOverrides()],
+      overrides: [
+        ...services.overrides,
+        ...platformOverrides(),
+        ...musicOverrides,
+      ],
     ),
   );
 }

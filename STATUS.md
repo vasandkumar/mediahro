@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | MUS-001, MUS-002, MUS-004, MUS-007 (#26, if merged) | collecting (4 of 25) |
+| 1 | — | collecting (0 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -204,13 +204,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| MUS-001 | Library views | C2 | ☐ | ☐ | ☐ | ☐ |  |
-| MUS-002 | Tag reading | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-001 | Library views | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
+| MUS-002 | Tag reading | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-003 | Tag editing | C2 | ☐ | ☐ | ☐ | ☐ |  |
-| MUS-004 | Art | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-004 | Art | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-005 | Lyrics | C2 | ☐ | ☐ | ☐ | ☐ |  |
 | MUS-006 | Now Playing | C2 | ☐ | ☐ | ☐ | ☐ |  |
-| MUS-007 | Queues | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-007 | Queues | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-008 | Smart playlists | C2 | ☐ | ☐ | ☐ | ☐ |  |
 | MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ |  |
 | MUS-010 | Fingerprinting | C2 | ☐ | ☐ | ☐ | ☐ |  |
@@ -423,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C2 **#26** (Android music library, tag reading in an isolate, art, gapless queue through libmpv, mini player and Now Playing) and wired `musicOverrides` in main.dart. Verified before the batch rule: tools/check 369, c2_music_test 4/4 on the Samsung. MUS-001/002/004/007 A ticked. Batch 1 starts empty. |
 | 2026-10-20 | **Owner rule: device testing in batches of 25 features.** PRs merge on local proof (`tools/check` plus unit and widget tests, re-run by the orchestrator). Every 25 merged features, all their integration tests run on the Samsung in one go, and cells are ticked only after that run (lanes rule 10; batch table in §1). |
 | 2026-10-20 | **Owner decision: the first Play internal-test upload waits until Android has every feature** (177 Android cells for 1.0: 24 ☑, 137 ☐, 16 ⛔). This replaces the plan to upload a partial build today. Slots: C4a (Android platform code) keeps one slot; the other two rotate through the feature lanes C1, C2, C3, C4d, C5, B2, B1, one PR batch each. All Android ⛔ are being re-checked now that a real phone and local test servers exist: CORE-001, FILE-004, NET-001/002 and VID-030 are now testable; the sample-blocked ones go to B1 to generate with permissive tools; VID-004, AUD-040 and AUD-043 need owner hardware (HDMI receiver, USB DAC); VID-031 needs an HDR display. |
 | 2026-10-20 | Merged C4a **#25** (release signing from the gitignored key.properties with a debug fallback; kotlin.incremental=false) and **#24** (Media3 session, mediaPlayback foreground service, audio focus/noisy/outputs, POST_NOTIFICATIONS asked on first playback). #24's first Samsung run caught One UI hiding the media notification while POST_NOTIFICATIONS is denied; that's fixed. Verified: tools/check 325, Samsung media 9/9 + storage 13/13. SYS-001/002/006 A ticked; AUD-044/045 A moved from ⛔ to ☐. New owner decision pending: A2DP codec name (no public Android API). |
