@@ -4,6 +4,8 @@ import android.content.Context
 import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.BiometricsHostApi
+import com.mediahro.mediahro.pigeon.SecureStorageHostApi
 import com.mediahro.mediahro.pigeon.DisplayChangesStreamHandler
 import com.mediahro.mediahro.pigeon.DisplayHostApi
 import com.mediahro.mediahro.pigeon.PipHostApi
@@ -17,6 +19,8 @@ import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
 import com.mediahro.mediahro.platform.media.MediaSessionModule
+import com.mediahro.mediahro.platform.security.BiometricsModule
+import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
 import com.mediahro.mediahro.platform.storage.StorageModule
 import io.flutter.embedding.engine.FlutterEngine
@@ -74,6 +78,9 @@ object PlatformModules {
         val pipModule = PipModule(context.applicationContext, host).also { pip = it }
         PipHostApi.setUp(messenger, pipModule)
         PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
+
+        SecureStorageHostApi.setUp(messenger, SecureStorageModule(context.applicationContext, host))
+        BiometricsHostApi.setUp(messenger, BiometricsModule(context.applicationContext, host))
         debugHooks(host, engine)
     }
 

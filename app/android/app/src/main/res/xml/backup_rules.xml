@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older backups (PRIV-006): sealed secrets need Keystore
+     keys that never leave the device, so they are not backed up. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="mediahro.secure.xml" />
+</full-backup-content>

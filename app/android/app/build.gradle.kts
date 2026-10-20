@@ -93,4 +93,5 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.8.8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
     implementation("androidx.media3:media3-session:1.11.1")
+    implementation("androidx.biometric:biometric:1.1.0")
 }
