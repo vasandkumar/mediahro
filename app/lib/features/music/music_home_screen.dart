@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
+import 'package:mediahro/features/music/ui/alarms_screen.dart';
+import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
 import 'package:mediahro/ui/pending_screen.dart';
@@ -98,6 +100,18 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
         appBar: AppBar(
           title: Text(AppLocalizations.of(context).appNavMusic),
           actions: [
+            PopupMenuButton<String>(
+              tooltip: l10n.musicMoreNowPlaying,
+              onSelected: (v) => switch (v) {
+                'sound' => showSoundSheet(context),
+                'alarms' => openAlarms(context),
+                _ => null,
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'sound', child: Text(l10n.musicSound)),
+                PopupMenuItem(value: 'alarms', child: Text(l10n.musicAlarms)),
+              ],
+            ),
             if (ref.watch(
               musicPlayerStateProvider.select((s) => s.value?.current != null),
             ))

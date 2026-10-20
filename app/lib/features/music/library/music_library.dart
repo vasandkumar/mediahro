@@ -351,7 +351,14 @@ final class MusicLibrary {
   /// Fires when the music part of the index changes.
   Stream<void> changes() => db
       .tableUpdates(
-        TableUpdateQuery.onAllTables([db.items, db.audioMeta, db.artworks]),
+        TableUpdateQuery.onAllTables([
+          db.items,
+          db.audioMeta,
+          db.artworks,
+          db.itemTags,
+          db.ratings,
+          db.playEvents,
+        ]),
       )
       .map((_) {});
 
