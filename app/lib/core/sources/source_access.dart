@@ -35,7 +35,12 @@ final class SourceSpec {
 /// Resolved access to a source: its root and a factory for its file system.
 @immutable
 final class SourceAccess {
-  const SourceAccess(this.spec, this.fileSystem, {this.mainIsolate = false});
+  const SourceAccess(
+    this.spec,
+    this.fileSystem, {
+    this.mainIsolate = false,
+    this.release,
+  });
 
   final SourceSpec spec;
 
@@ -47,7 +52,37 @@ final class SourceAccess {
   /// live on the main isolate: scans run there, as async I/O.
   final bool mainIsolate;
 
+  /// Ends a scoped grant (security-scoped bookmark access on Apple) once the
+  /// scan or the browsing session is over.
+  final Future<void> Function()? release;
+
   Uri get root => spec.root;
+
+  Future<void> close() => release?.call() ?? Future.value();
+}
+
+/// URI schemes whose file systems call platform facades (SAF, MediaStore),
+/// so their scans run on the main isolate.
+const Set<String> mainIsolateSchemes = {'saf', 'mediastore'};
+
+/// The readable root of a granted folder (LIB-002): starts scoped access
+/// ([StorageFacade.startAccess]). An Android SAF tree becomes the
+/// path-shaped `saf://tree/<grantId>/` root, with the tree URI passed to the
+/// file system in the `safTree` option.
+Future<(Uri, Map<String, String>, Future<void> Function())> grantRoot(
+  StorageFacade storage,
+  String grantId,
+) async {
+  final scoped = await storage.startAccess(grantId);
+  final root = scoped.root;
+  if (root.scheme == 'content') {
+    return (
+      Uri(scheme: 'saf', host: 'tree', pathSegments: [grantId, '']),
+      {'safTree': root.toString()},
+      scoped.stop,
+    );
+  }
+  return (root, const <String, String>{}, scoped.stop);
 }
 
 /// Builds a file system for a [SourceSpec] (one entry per protocol).
@@ -88,14 +123,19 @@ final class DefaultSourceResolver implements SourceResolver {
   @override
   Future<SourceAccess> resolve(SourceRow source) async {
     var root = Uri.parse(source.rootUri);
+    var extra = const <String, String>{};
+    Future<void> Function()? release;
     final grant = source.grantId;
     if (grant != null) {
       final s = storage;
-      final resolved = s == null ? null : await s.resolveGrant(grant);
-      if (resolved == null) {
-        throw SourceUnavailable(source.id, 'folder access was revoked');
+      if (s == null) {
+        throw SourceUnavailable(source.id, 'folder access needs the platform');
       }
-      root = resolved;
+      try {
+        (root, extra, release) = await grantRoot(s, grant);
+      } on Exception catch (e) {
+        throw SourceUnavailable(source.id, 'folder access was revoked ($e)');
+      }
     }
     String? secret;
     String? user;
@@ -115,7 +155,7 @@ final class DefaultSourceResolver implements SourceResolver {
     final spec = SourceSpec(
       kind: source.kind,
       root: root,
-      options: decodeOptions(source.options),
+      options: {...decodeOptions(source.options), ...extra},
       userName: user,
       secret: secret,
       credentialKey: key,
@@ -123,7 +163,10 @@ final class DefaultSourceResolver implements SourceResolver {
     return SourceAccess(
       spec,
       () => builder(spec),
-      mainIsolate: mainIsolateKinds.contains(source.kind),
+      mainIsolate:
+          mainIsolateKinds.contains(source.kind) ||
+          mainIsolateSchemes.contains(root.scheme),
+      release: release,
     );
   }
 }

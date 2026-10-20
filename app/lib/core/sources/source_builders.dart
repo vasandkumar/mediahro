@@ -1,4 +1,6 @@
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/files/media_store_file_system.dart';
+import 'package:mediahro/core/files/saf_file_system.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart'
     show isLocalNetworkHost;
@@ -40,12 +42,28 @@ final class SourceOnlyPolicy implements NetworkPolicy {
 /// [tls] and SFTP runs on [sftp]; both facades live on the main isolate, so
 /// those kinds are in [mainIsolateSourceKinds]. Without a facade the source
 /// reports `unsupported` ("not available on this device").
+///
+/// Local sources dispatch on the root's scheme (LIB-002): `saf` (Android
+/// SAF tree, via [storage]) → [SafFileSystem], `mediastore` (Android device
+/// media) → [MediaStoreFileSystem], anything else → [LocalFileSystem]
+/// (desktop folders and Apple security-scoped roots, read with dart:io).
 Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
   TlsSocketFacade? tls,
   SftpFacade? sftp,
+  StorageFacade? storage,
+  FdIo? fdIo,
 }) {
   return {
-    SourceKind.local: (_) => const LocalFileSystem(),
+    SourceKind.local: (s) => switch (s.root.scheme) {
+      'saf' => SafFileSystem(
+        _storage(storage, s),
+        tree: Uri.parse(s.options['safTree'] ?? ''),
+        root: s.root,
+        io: fdIo,
+      ),
+      'mediastore' => MediaStoreFileSystem(_storage(storage, s), io: fdIo),
+      _ => const LocalFileSystem(),
+    },
     SourceKind.smb: (s) => smbFileSystem(
       s.root,
       smbOptionsFromUri(
@@ -88,6 +106,14 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
     ),
   };
 }
+
+StorageFacade _storage(StorageFacade? s, SourceSpec spec) =>
+    s ??
+    (throw VirtualFileException(
+      VirtualFileError.unsupported,
+      spec.root,
+      'device storage needs the platform storage facade',
+    ));
 
 /// Sources whose file systems talk to platform facades.
 const Set<SourceKind> mainIsolateSourceKinds = {

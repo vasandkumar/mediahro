@@ -199,7 +199,7 @@ final class ScanService {
           ItemKind.archive,
         },
       );
-      final ScanDiff diff;
+      ScanDiff diff;
       void report(int files, int dirs) {
         r.progress = r.progress.copyWith(
           filesSeen: files,
@@ -208,29 +208,34 @@ final class ScanService {
         if (!r.paused) _progress.add(r.progress);
       }
 
-      if (useIsolates && !access.mainIsolate) {
-        final run = await ScanRun.start(
-          root: access.root,
-          fileSystem: access.fileSystem,
-          known: known,
-          options: options,
-        );
-        r.attach(run);
-        final sub = run.progress.listen((p) => report(p.$1, p.$2));
-        try {
-          diff = await run.result;
-        } finally {
-          await sub.cancel();
+      // Scoped grant access (Apple bookmarks) is held only while walking.
+      try {
+        if (useIsolates && !access.mainIsolate) {
+          final run = await ScanRun.start(
+            root: access.root,
+            fileSystem: access.fileSystem,
+            known: known,
+            options: options,
+          );
+          r.attach(run);
+          final sub = run.progress.listen((p) => report(p.$1, p.$2));
+          try {
+            diff = await run.result;
+          } finally {
+            await sub.cancel();
+          }
+        } else {
+          diff = await ScanRun.runHere(
+            root: access.root,
+            fileSystem: access.fileSystem(),
+            known: known,
+            options: options,
+            token: r.token,
+            onProgress: report,
+          );
         }
-      } else {
-        diff = await ScanRun.runHere(
-          root: access.root,
-          fileSystem: access.fileSystem(),
-          known: known,
-          options: options,
-          token: r.token,
-          onProgress: report,
-        );
+      } finally {
+        await access.close();
       }
       final applied = await writer.apply(sourceId, diff);
       final now = _clock();

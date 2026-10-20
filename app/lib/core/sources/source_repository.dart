@@ -122,6 +122,7 @@ final class SourceRepository {
         return (await fs.list(access.root).toList()).length;
       } finally {
         if (fs case final ClosableFileSystem f) await f.close();
+        await access.close();
       }
     } finally {
       if (temp != null) await _deleteCredential(temp);
@@ -322,6 +323,36 @@ final class SourceRepository {
   }
 }
 
+/// Device media (LIB-002 Android): the MediaStore's video and audio as one
+/// source. Asks for READ_MEDIA_VIDEO/AUDIO first; null when refused.
+extension DeviceMediaSource on SourceRepository {
+  static final Uri root = Uri.parse('mediastore:///');
+
+  Future<int?> addDeviceMedia(
+    String name, {
+    ScanSchedule schedule = ScanSchedule.onOpen,
+  }) async {
+    final s = storage ?? (throw const PlatformCapabilityUnavailable('storage'));
+    var granted = false;
+    for (final kind in const [PickKind.video, PickKind.audio]) {
+      var p = await s.mediaPermission(kind);
+      if (p == MediaPermission.denied) {
+        p = await s.requestMediaPermission(kind);
+      }
+      granted |= p == MediaPermission.granted || p == MediaPermission.limited;
+    }
+    if (!granted) return null;
+    return await add(
+      NewSource(
+        kind: SourceKind.local,
+        name: name,
+        root: root,
+        schedule: schedule,
+      ),
+    );
+  }
+}
+
 extension DefaultSourceResolverTest on DefaultSourceResolver {
   /// Resolves an unsaved source with an in-memory credential (test before save).
   Future<SourceAccess> resolveWith(
@@ -334,12 +365,17 @@ extension DefaultSourceResolverTest on DefaultSourceResolver {
       throw SourceUnavailable(row.id, 'no client for ${row.kind.name}');
     }
     var root = Uri.parse(row.rootUri);
+    var extra = const <String, String>{};
+    Future<void> Function()? release;
     final grant = row.grantId;
-    if (grant != null) root = await storage?.resolveGrant(grant) ?? root;
+    final s = storage;
+    if (grant != null && s != null) {
+      (root, extra, release) = await grantRoot(s, grant);
+    }
     final spec = SourceSpec(
       kind: row.kind,
       root: root,
-      options: decodeOptions(row.options),
+      options: {...decodeOptions(row.options), ...extra},
       userName: credential?.userName,
       secret: credential?.secret,
       credentialKey: credentialKey,
@@ -347,7 +383,10 @@ extension DefaultSourceResolverTest on DefaultSourceResolver {
     return SourceAccess(
       spec,
       () => builder(spec),
-      mainIsolate: mainIsolateKinds.contains(row.kind),
+      mainIsolate:
+          mainIsolateKinds.contains(row.kind) ||
+          mainIsolateSchemes.contains(root.scheme),
+      release: release,
     );
   }
 }

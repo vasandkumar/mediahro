@@ -9,6 +9,7 @@ import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart';
 import 'package:mediahro/core/parsers/xml_lite.dart';
 import 'package:mediahro/core/sources/discovery/ssdp.dart';
+import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro_servers/mediahro_servers.dart';
 import 'package:meta/meta.dart';
 
@@ -98,6 +99,7 @@ final class DlnaRenderer {
     this.allowHost,
     this.ssdpListenPort = ssdpPort,
     this.advertiseAddress,
+    this.multicast,
   });
 
   final String friendlyName;
@@ -113,6 +115,10 @@ final class DlnaRenderer {
 
   /// Address put in LOCATION; defaults to the first LAN IPv4.
   final InternetAddress? advertiseAddress;
+
+  /// Held while running so SSDP M-SEARCH reaches us (Android multicast lock).
+  final MulticastFacade? multicast;
+  MulticastLease? _lease;
 
   HttpServer? _http;
   RawDatagramSocket? _ssdp;
@@ -139,6 +145,7 @@ final class DlnaRenderer {
 
   Future<void> start({int httpPort = 0}) async {
     if (isRunning) return;
+    _lease ??= await multicast?.acquire('mediahro-dlna-renderer');
     _address = advertiseAddress ?? await _lanAddress();
     _http = await HttpServer.bind(_address, httpPort)
       ..listen(_handle);
@@ -189,6 +196,9 @@ final class DlnaRenderer {
     await _http?.close(force: true);
     _http = null;
     _subs.clear();
+    final lease = _lease;
+    _lease = null;
+    await lease?.release();
   }
 
   List<int> _searchResponse(String st) => latin1.encode(

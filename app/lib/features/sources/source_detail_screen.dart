@@ -9,18 +9,27 @@ import 'package:mediahro/core/scanner/scan_model.dart';
 import 'package:mediahro/core/sources/connection_health.dart';
 import 'package:mediahro/features/library/folder_browser_screen.dart';
 import 'package:mediahro/features/sources/errors.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
-/// Mounts [source]'s file system for browsing and file operations.
-Future<(VirtualFileSystem, Uri)> mountSource(
+/// Mounts [source]'s file system for browsing and file operations. Call the
+/// returned release when done: it unmounts, closes connections and ends
+/// scoped folder access (Apple bookmarks).
+Future<(VirtualFileSystem, Uri, Future<void> Function())> mountSource(
   WidgetRef ref,
   SourceRow source,
 ) async {
   final access = await ref.read(sourceResolverProvider).resolve(source);
   final fs = access.fileSystem();
-  ref.read(mountsProvider).mount(access.root, fs);
-  return (fs, access.root);
+  final mounts = ref.read(mountsProvider)..mount(access.root, fs);
+  Future<void> release() async {
+    mounts.unmount(access.root);
+    if (fs case final ClosableFileSystem c) await c.close();
+    await access.close();
+  }
+
+  return (fs, access.root, release);
 }
 
 /// One source: scan schedule, what modes it feeds, metadata, scan control,
@@ -73,9 +82,15 @@ class _SourceDetailScreenState extends ConsumerState<SourceDetailScreen> {
     });
     final l10n = AppLocalizations.of(context);
     try {
-      final (fs, root) = await mountSource(ref, s);
-      final r = await ConnectionHealth().test(fs, root);
-      setState(() => _health = r);
+      final (fs, root, release) = await mountSource(ref, s);
+      try {
+        final r = await ConnectionHealth(
+          network: _optionalFacade(() => ref.read(networkStatusProvider)),
+        ).test(fs, root);
+        setState(() => _health = r);
+      } finally {
+        await release();
+      }
     } on VirtualFileException catch (e) {
       setState(() => _healthError = fileErrorMessage(l10n, e.error));
     } finally {
@@ -213,16 +228,20 @@ class _SourceDetailScreenState extends ConsumerState<SourceDetailScreen> {
                   title: Text(l10n.sourcesBrowse),
                   onTap: () async {
                     final nav = Navigator.of(context);
-                    final (fs, root) = await mountSource(ref, s);
-                    await nav.push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => FolderBrowserScreen(
-                          fileSystem: fs,
-                          root: root,
-                          title: s.name,
+                    final (fs, root, release) = await mountSource(ref, s);
+                    try {
+                      await nav.push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => FolderBrowserScreen(
+                            fileSystem: fs,
+                            root: root,
+                            title: s.name,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } finally {
+                      await release();
+                    }
                   },
                 ),
                 ListTile(
@@ -287,5 +306,13 @@ class _SourceDetailScreenState extends ConsumerState<SourceDetailScreen> {
         },
       ),
     );
+  }
+}
+
+T? _optionalFacade<T>(T Function() read) {
+  try {
+    return read();
+  } on Object {
+    return null;
   }
 }
