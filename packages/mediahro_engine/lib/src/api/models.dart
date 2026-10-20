@@ -230,6 +230,11 @@ abstract class PlaybackState with _$PlaybackState {
     @Default(Duration.zero) Duration subtitleDelay,
     @Default(Duration.zero) Duration secondarySubtitleDelay,
 
+    /// Current primary subtitle line as plain text, for text tracks (ADR-031:
+    /// SUB-040 read aloud, SUB-053 live translation); null between cues and
+    /// for bitmap tracks.
+    String? subtitleText,
+
     /// Current secondary subtitle line (SUB-016). The UI draws it with its own
     /// size and position; the engine does not burn it in.
     String? secondarySubtitleText,

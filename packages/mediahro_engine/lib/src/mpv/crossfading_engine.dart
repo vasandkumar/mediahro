@@ -407,6 +407,10 @@ final class CrossfadingEngine implements PlaybackEngine {
   });
 
   @override
+  Future<void> extractSubtitles(int trackId, Uri out) =>
+      _a.extractSubtitles(trackId, out);
+
+  @override
   Stream<Float32List> decodeAudio(
     MediaSource source, {
     int? trackId,
