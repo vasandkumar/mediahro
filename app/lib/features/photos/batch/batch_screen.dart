@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/files/batch.dart';
 import 'package:mediahro/features/photos/batch/photo_batch_service.dart';
@@ -441,7 +442,7 @@ class _BatchScreenState extends ConsumerState<BatchScreen> {
             min: 40,
             max: 100,
             divisions: 60,
-            label: '${_quality.round()}',
+            label: NumberFormat.decimalPattern().format(_quality.round()),
             onChanged: (v) => setState(() => _quality = v),
           ),
         ],
