@@ -203,6 +203,11 @@ final class TiffStructure {
     return ifd;
   }
 
+  /// The directory at [offset] (SubIFDs, RAW preview directories), or null
+  /// when it is not readable.
+  TiffIfd? ifdAt(int offset) =>
+      _readIfd(ByteView(bytes, bigEndian: bigEndian), offset);
+
   TiffIfd? ifd(IfdKind k) => switch (k) {
     IfdKind.ifd0 => chain.isEmpty ? null : chain.first,
     IfdKind.ifd1 => chain.length > 1 ? chain[1] : null,

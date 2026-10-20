@@ -173,3 +173,18 @@ int crc32(List<int> data, [int crc = 0]) {
   }
   return c ^ 0xFFFFFFFF;
 }
+
+/// Runs [f] over untrusted bytes (PRIV-005). A hostile file makes a parser
+/// throw [MetadataFormatException] or, where it indexes bytes directly, a
+/// [RangeError]; both mean "no result" and never crash the caller.
+T? guardUntrusted<T extends Object>(T? Function() f) {
+  try {
+    return f();
+    // Parsers index untrusted data; a bad offset is an expected input here.
+    // ignore: avoid_catching_errors
+  } on RangeError {
+    return null;
+  } on MetadataFormatException {
+    return null;
+  }
+}

@@ -56,21 +56,6 @@ final class MetadataBlocks {
   final bool hasMpf;
 }
 
-/// Runs [f] over untrusted bytes (PRIV-005). A hostile file makes a parser
-/// throw [MetadataFormatException] or, where it indexes bytes directly, a
-/// [RangeError]; both mean "no result" and never crash the caller.
-T? _guard<T extends Object>(T? Function() f) {
-  try {
-    return f();
-    // Parsers index untrusted data; a bad offset is an expected input here.
-    // ignore: avoid_catching_errors
-  } on RangeError {
-    return null;
-  } on MetadataFormatException {
-    return null;
-  }
-}
-
 /// Finds the metadata blocks of [bytes] without decoding pixels.
 MetadataBlocks readMetadataBlocks(Uint8List bytes, {String? extension}) {
   final head = Uint8List.sublistView(
@@ -79,7 +64,7 @@ MetadataBlocks readMetadataBlocks(Uint8List bytes, {String? extension}) {
     bytes.length < 1024 ? bytes.length : 1024,
   );
   final format = sniffImageFormat(head, extension: extension);
-  return _guard(
+  return guardUntrusted(
         () => switch (format) {
           ImageFormat.jpeg => _jpeg(bytes),
           ImageFormat.png => _png(bytes),
@@ -186,6 +171,7 @@ final class ParsedMetadata {
     this.isPanorama = false,
     this.hasGainMap = false,
     this.motionVideoLength,
+    this.livePhotoId,
   });
 
   final MetadataBlocks blocks;
@@ -200,6 +186,10 @@ final class ParsedMetadata {
 
   /// Size in bytes of the Motion Photo video appended to the file, if any.
   final int? motionVideoLength;
+
+  /// Apple's ContentIdentifier (from the MakerNote), which pairs a Live
+  /// Photo's still with its MOV (IMG-001).
+  final String? livePhotoId;
 }
 
 /// Reads and merges EXIF, IPTC, XMP and ICC (IMG-006). Precedence follows
@@ -210,7 +200,7 @@ ParsedMetadata parseMetadata(Uint8List bytes, {String? extension}) {
   final exifBlock = blocks.exif;
   final tiff = exifBlock == null
       ? null
-      : _guard(() => TiffStructure.parse(exifBlock));
+      : guardUntrusted(() => TiffStructure.parse(exifBlock));
   XmpPacket? xmp;
   if (blocks.xmp != null) {
     try {
@@ -294,7 +284,33 @@ ParsedMetadata parseMetadata(Uint8List bytes, {String? extension}) {
     isPanorama: xmp?.isPanorama ?? false,
     hasGainMap: hdr,
     motionVideoLength: xmp?.motionPhotoVideoLength,
+    livePhotoId: tiff == null ? null : appleContentIdentifier(tiff),
   );
+}
+
+/// The ContentIdentifier (tag 0x0011) in an Apple MakerNote, or null.
+/// Offsets inside an Apple MakerNote are relative to the note's start.
+String? appleContentIdentifier(TiffStructure t) {
+  final note = t.entry(IfdKind.exif, TiffTag.makerNote);
+  if (note == null || note.raw.length < 24) return null;
+  return guardUntrusted<String>(() {
+    final r = note.raw;
+    if (String.fromCharCodes(r.sublist(0, 10)) != 'Apple iOS ') {
+      return null;
+    }
+    final v = ByteView(r, bigEndian: r[12] == 0x4D);
+    final count = v.u16(14);
+    for (var i = 0; i < count && i < 256; i++) {
+      final p = 16 + i * 12;
+      if (v.u16(p) != 0x0011) continue;
+      final n = v.u32(p + 4);
+      if (n < 2 || n > 64) return null;
+      final at = n <= 4 ? p + 8 : v.u32(p + 8);
+      final raw = v.slice(at, n);
+      return String.fromCharCodes(raw.where((c) => c != 0));
+    }
+    return null;
+  });
 }
 
 String? _nonEmpty(String? s) => s == null || s.trim().isEmpty ? null : s.trim();
@@ -534,7 +550,9 @@ XmpPacket _xmpOf(String? text) {
 }
 
 TiffEditor _exifEditorOf(Uint8List? exif) {
-  final t = exif == null ? null : _guard(() => TiffStructure.parse(exif));
+  final t = exif == null
+      ? null
+      : guardUntrusted(() => TiffStructure.parse(exif));
   return t == null ? TiffEditor.empty() : TiffEditor(t);
 }
 
@@ -704,7 +722,7 @@ MetadataWriteResult writeMetadata(
     }
   }
 
-  return _guard(write) ?? sidecar();
+  return guardUntrusted(write) ?? sidecar();
 }
 
 /// [bytes] with metadata stripped for sharing (IMG-006, IMG-015):
@@ -725,7 +743,7 @@ Uint8List? stripMetadata(
   final format = sniffImageFormat(head, extension: extension);
   Uint8List? keptExif(Uint8List? exif) {
     if (!keepOrientation || exif == null) return null;
-    return _guard(() {
+    return guardUntrusted(() {
       final t = TiffStructure.parse(exif);
       final o = t.intValue(IfdKind.ifd0, TiffTag.orientation);
       if (o == null || o == 1) return null;
@@ -791,5 +809,134 @@ Uint8List? stripMetadata(
     }
   }
 
-  return _guard(strip);
+  return guardUntrusted(strip);
 }
+
+/// Copies the metadata of a source image into [output], a freshly encoded
+/// file of the same or another format (convert, resize, export; IMG-009,
+/// IMG-010). The pixels were already rotated upright, so the EXIF
+/// orientation is reset to 1. Returns [output] unchanged for formats that
+/// cannot carry metadata (BMP, GIF, ...).
+Uint8List transplantMetadata(
+  Uint8List output,
+  MetadataBlocks from, {
+  String? outputExtension,
+  bool keepGps = true,
+}) {
+  Uint8List? exif;
+  if (from.exif != null && !from.format.isTiffBased) {
+    exif = from.exif;
+  } else if (from.exif != null) {
+    // TIFF and RAW: the "EXIF block" is the whole file; carry only its
+    // EXIF and GPS directories.
+    final t = guardUntrusted(() => TiffStructure.parse(from.exif!));
+    if (t != null) {
+      final e = TiffEditor.empty();
+      for (final k in [IfdKind.ifd0, IfdKind.exif, IfdKind.gps]) {
+        for (final entry in (t.ifd(k)?.entries.values ?? const <TiffEntry>[])) {
+          if (_noCopy.contains(entry.tag) && k == IfdKind.ifd0) continue;
+          if (entry.raw.length > 4 && entry.offset != null) {
+            // Re-home out-of-line values: the new block has its own layout.
+            e.set(k, TiffEntry(entry.tag, entry.type, entry.count, entry.raw));
+          } else {
+            e.set(k, entry);
+          }
+        }
+      }
+      exif = e.build();
+    }
+  }
+  if (exif != null) {
+    final t = guardUntrusted(() => TiffStructure.parse(exif!));
+    if (t != null) {
+      final ed = TiffEditor(t)
+        ..remove(IfdKind.ifd0, TiffTag.orientation)
+        ..remove(IfdKind.ifd0, TiffTag.thumbOffset)
+        ..remove(IfdKind.ifd1, TiffTag.thumbOffset);
+      if (!keepGps) ed.drop(IfdKind.gps);
+      exif = ed.compact(dropThumbnail: true);
+    }
+  }
+  final head = Uint8List.sublistView(
+    output,
+    0,
+    output.length < 1024 ? output.length : 1024,
+  );
+  final format = sniffImageFormat(head, extension: outputExtension);
+  final xmp = keepGps ? from.xmp : null;
+  Patch<Uint8List> exifPatch() =>
+      exif == null ? const Patch.remove() : Patch.set(exif);
+  Patch<String> xmpPatch() =>
+      xmp == null ? const Patch.remove() : Patch.set(xmp);
+  return guardUntrusted(() {
+        switch (format) {
+          case ImageFormat.jpeg:
+            final j = JpegFile.parse(output);
+            return j.rewrite(
+              exif: exifPatch(),
+              xmp: xmpPatch(),
+              photoshop: from.photoshop == null
+                  ? const Patch.remove()
+                  : Patch.set(from.photoshop!),
+            );
+          case ImageFormat.png:
+            return PngFile.parse(output)
+                .rewrite(exif: exifPatch(), xmp: xmpPatch());
+          case ImageFormat.webp:
+            return WebpFile.parse(output)
+                .rewrite(exif: exifPatch(), xmp: xmpPatch());
+          case ImageFormat.jxl:
+            return JxlFile.parse(output)
+                .rewrite(exif: exifPatch(), xmp: xmpPatch());
+          case ImageFormat.gif ||
+              ImageFormat.heic ||
+              ImageFormat.avif ||
+              ImageFormat.tiff ||
+              ImageFormat.bmp ||
+              ImageFormat.ico ||
+              ImageFormat.svg ||
+              ImageFormat.psd ||
+              ImageFormat.exr ||
+              ImageFormat.hdr ||
+              ImageFormat.dds ||
+              ImageFormat.tga ||
+              ImageFormat.pnm ||
+              ImageFormat.qoi ||
+              ImageFormat.raw ||
+              ImageFormat.unknown:
+            return null;
+        }
+      }) ??
+      output;
+}
+
+/// IFD0 tags that describe the source's pixel layout, not the photo.
+const Set<int> _noCopy = {
+  0x0100,
+  0x0101,
+  0x0102,
+  0x0103,
+  0x0106,
+  0x0111,
+  0x0115,
+  0x0116,
+  0x0117,
+  0x011C,
+  0x0122,
+  0x0140,
+  0x014A,
+  0x0152,
+  0x0153,
+  0x0201,
+  0x0202,
+  0x02BC,
+  0x83BB,
+  0x8773,
+  0xC612,
+  0xC613,
+  0xC614,
+  0xC621,
+  0xC62A,
+  0xC62F,
+  0xC634,
+};
