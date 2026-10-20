@@ -42,7 +42,7 @@ void main() {
     }
 
     final samples = <int>[];
-    await binding.watchPerformance(() async {
+    Future<void> measure() async {
       for (var round = 0; round < 10; round++) {
         for (final d in cycle) {
           final sw = Stopwatch()..start();
@@ -54,7 +54,18 @@ void main() {
           await tester.pumpAndSettle();
         }
       }
-    }, reportKey: 'core001_mode_switch_frames');
+    }
+
+    // Frame timelines need the VM service that `flutter drive` provides;
+    // under `flutter test` (debug) only the stopwatch numbers are taken.
+    if (kDebugMode) {
+      await measure();
+    } else {
+      await binding.watchPerformance(
+        measure,
+        reportKey: 'core001_mode_switch_frames',
+      );
+    }
 
     samples.sort();
     int pct(double p) => samples[((samples.length - 1) * p).round()];
