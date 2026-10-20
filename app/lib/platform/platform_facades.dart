@@ -153,3 +153,27 @@ final alarmProvider = Provider<AlarmFacade>(
   (ref) => _unavailable('alarm'),
   retry: _noRetry,
 );
+
+/// Which player owns the OS media session right now (ADR-029). Only the owner
+/// answers lock-screen, notification, headset and car commands. A player sets
+/// itself as owner when it starts playing and clears ownership only if it is
+/// still the owner; the other players watch this and let go.
+final mediaSessionOwnerProvider =
+    NotifierProvider<MediaSessionOwner, MediaSessionKind?>(
+      MediaSessionOwner.new,
+    );
+
+final class MediaSessionOwner extends Notifier<MediaSessionKind?> {
+  @override
+  MediaSessionKind? build() => null;
+
+  /// Makes [kind] the owner (the player that just started playing).
+  // A verb reads better at call sites than `owner.state = kind`.
+  // ignore: use_setters_to_change_properties
+  void claim(MediaSessionKind kind) => state = kind;
+
+  /// Gives up ownership if [kind] still holds it.
+  void release(MediaSessionKind kind) {
+    if (state == kind) state = null;
+  }
+}
