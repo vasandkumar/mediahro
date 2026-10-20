@@ -20,7 +20,11 @@
     <application
         android:label="Mediahro"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
+        <!-- Predictive back (CORE-001, docs/06): system back goes through
+             OnBackInvokedCallback; Flutter takes it only while a route can
+             pop, otherwise the system shows the back-to-home animation. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
