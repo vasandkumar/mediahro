@@ -67,7 +67,7 @@ Size ceilings follow the measured full-feature build and never justify cutting a
 | Search latency | ≤ 50 ms | ≤ 30 ms |
 | Idle RAM | ≤ 120 MB | ≤ 150 MB |
 | 4K playback RAM | ≤ 350 MB | ≤ 500 MB |
-| Install size | Android ≤ 75 MB per ABI (ADR-019); iOS ≤ 40 MB thinned | ≤ 70 MB |
+| Install size | Android ≤ 75 MB per ABI (ADR-019); iOS ≤ 80 MB thinned (ADR-024) | macOS ≤ 175 MB universal (ADR-024); Windows ≤ 70 MB |
 | Play download size (reported, not gated) | per ABI from the AAB, every build | — |
 | Dropped frames (4K60 hwdec) | ≤ 0.5 % | ≤ 0.1 % |
 

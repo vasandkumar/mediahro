@@ -151,7 +151,7 @@ jobs:
         run: |
           for flavor in store direct; do
             flutter build macos --release --dart-define=MEDIAHRO_FLAVOR=$flavor --split-debug-info=build/symbols/macos-$flavor --obfuscate
-            python3 ../tools/perf/size_budget.py desktop build/macos/Build/Products/Release/Mediahro.app
+            python3 ../tools/perf/size_budget.py macos build/macos/Build/Products/Release/Mediahro.app --key desktop:Mediahro.app
             (cd build/macos/Build/Products/Release && ditto -c -k --keepParent Mediahro.app "$GITHUB_WORKSPACE/mediahro-macos-$flavor.zip")
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

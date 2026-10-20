@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BUDGET_MB = {"android": 75.0, "desktop": 70.0}
+BUDGET_MB = {"android": 75.0, "macos": 175.0, "desktop": 70.0}
 
 
 def _thin_size(p: Path, arch_index: int | None) -> int:
