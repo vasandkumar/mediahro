@@ -4,6 +4,7 @@ import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
+import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 
 /// Facade implementations for Android (Kotlin, Media3) through Pigeon files in app/pigeons/android/
@@ -22,4 +23,6 @@ List<Override> overrides() => [
   networkStatusProvider.overrideWithValue(AndroidNetworkStatus()),
   multicastProvider.overrideWithValue(AndroidMulticast()),
   authBrowserProvider.overrideWithValue(AndroidAuthBrowser()),
+  tlsSocketProvider.overrideWithValue(AndroidTlsSocketFacade()),
+  tlsServerProvider.overrideWithValue(AndroidTlsServerFacade()),
 ];
