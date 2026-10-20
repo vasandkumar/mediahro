@@ -3,7 +3,12 @@ package com.mediahro.mediahro.platform
 import android.content.Context
 import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
+import com.mediahro.mediahro.pigeon.AccessibilityPrefsHostApi
 import com.mediahro.mediahro.pigeon.AlarmHostApi
+import com.mediahro.mediahro.pigeon.AudioDescriptionChangesStreamHandler
+import com.mediahro.mediahro.pigeon.GamepadAxesStreamHandler
+import com.mediahro.mediahro.pigeon.GamepadConnectionsStreamHandler
+import com.mediahro.mediahro.pigeon.GamepadHostApi
 import com.mediahro.mediahro.pigeon.AlarmsFiredStreamHandler
 import com.mediahro.mediahro.pigeon.AppIntentsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
@@ -45,6 +50,8 @@ import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.display.PowerStatusModule
 import com.mediahro.mediahro.platform.imaging.HdrImageViewFactory
 import com.mediahro.mediahro.platform.imaging.ImagingModule
+import com.mediahro.mediahro.platform.input.AccessibilityPrefsModule
+import com.mediahro.mediahro.platform.input.GamepadModule
 import com.mediahro.mediahro.platform.media.AlarmHub
 import com.mediahro.mediahro.platform.media.AlarmModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
@@ -85,6 +92,11 @@ object PlatformModules {
     private var captions: CaptionStyleModule? = null
     private var tlsServer: TlsServerModule? = null
     private var sftp: SftpModule? = null
+    private var accessibilityPrefs: AccessibilityPrefsModule? = null
+    private var gamepad: GamepadModule? = null
+
+    /** The live gamepad module (MainActivity forwards controller motion events to it). */
+    val gamepadModule: GamepadModule? get() = gamepad
 
     /** The live PiP module (MainActivity forwards PiP callbacks to it). */
     var pip: PipModule? = null
@@ -215,6 +227,16 @@ object PlatformModules {
         // Native HDR video view (VID-031, ADR-022): the SurfaceView mpv draws into.
         engine.platformViewsController.registry
             .registerViewFactory(HdrVideoViewFactory.VIEW_TYPE, HdrVideoViewFactory(messenger, host))
+        // Accessibility preferences and game controllers (SYS-008/009, ADR-038).
+        accessibilityPrefs?.dispose()
+        val prefsModule = AccessibilityPrefsModule(context.applicationContext).also { accessibilityPrefs = it }
+        AccessibilityPrefsHostApi.setUp(messenger, prefsModule)
+        AudioDescriptionChangesStreamHandler.register(messenger, prefsModule.changesHandler)
+        gamepad?.dispose()
+        val gamepadModule = GamepadModule(context.applicationContext).also { gamepad = it }
+        GamepadHostApi.setUp(messenger, gamepadModule)
+        GamepadConnectionsStreamHandler.register(messenger, gamepadModule.connectionsHandler)
+        GamepadAxesStreamHandler.register(messenger, gamepadModule.axesHandler)
         debugHooks(host, engine)
     }
 

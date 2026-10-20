@@ -5,6 +5,7 @@ import 'package:mediahro/platform/android/android_car.dart';
 import 'package:mediahro/platform/android/android_display.dart';
 import 'package:mediahro/platform/android/android_home_widgets.dart';
 import 'package:mediahro/platform/android/android_imaging.dart';
+import 'package:mediahro/platform/android/android_input.dart';
 import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_power_status.dart';
@@ -45,5 +46,7 @@ List<Override> overrides() => [
   tlsSocketProvider.overrideWithValue(AndroidTlsSocketFacade()),
   tlsServerProvider.overrideWithValue(AndroidTlsServerFacade()),
   sftpProvider.overrideWithValue(AndroidSftp()),
+  accessibilityPrefsProvider.overrideWithValue(AndroidAccessibilityPrefs()),
+  gamepadProvider.overrideWithValue(AndroidGamepad()),
   imagingProvider.overrideWithValue(AndroidImaging()),
 ];
