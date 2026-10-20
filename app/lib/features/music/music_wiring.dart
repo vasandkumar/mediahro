@@ -9,6 +9,7 @@ import 'package:mediahro/ui/mini_player_slot.dart';
 /// the player at start-up also restores the last queue (MUS-007).
 final List<Override> musicOverrides = [
   miniPlayerSlotProvider.overrideWith((ref) {
+    if (!ref.watch(musicLibraryAvailableProvider)) return null;
     final hasTrack = ref.watch(
       musicPlayerStateProvider.select((s) => s.value?.current != null),
     );

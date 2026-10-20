@@ -8,19 +8,35 @@ import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
+import 'package:mediahro/ui/pending_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// The Music destination (MUS-001): songs, albums, artists, album artists,
 /// genres, composers, years and folders, over B2's index. Starts the
 /// background tag reader (MUS-002) and art cache (MUS-004).
-class MusicHomeScreen extends ConsumerStatefulWidget {
+class MusicHomeScreen extends ConsumerWidget {
   const MusicHomeScreen({super.key});
 
   @override
-  ConsumerState<MusicHomeScreen> createState() => _MusicHomeScreenState();
+  Widget build(BuildContext context, WidgetRef ref) =>
+      ref.watch(musicLibraryAvailableProvider)
+      ? const _MusicHome()
+      // No library database (shell-only builds and tests): the pending
+      // placeholder the shell showed before M4.
+      : PendingScreen(
+          title: AppLocalizations.of(context).appNavMusic,
+          milestone: 'M4',
+        );
 }
 
-class _MusicHomeScreenState extends ConsumerState<MusicHomeScreen> {
+class _MusicHome extends ConsumerStatefulWidget {
+  const _MusicHome();
+
+  @override
+  ConsumerState<_MusicHome> createState() => _MusicHomeState();
+}
+
+class _MusicHomeState extends ConsumerState<_MusicHome> {
   int? _songs;
   int _pending = 0;
   StreamSubscription<int>? _progress;

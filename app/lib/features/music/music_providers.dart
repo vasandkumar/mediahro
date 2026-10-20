@@ -15,6 +15,17 @@ import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+/// Whether the app runs with a library database (always in the app; shell
+/// tests run without one).
+final musicLibraryAvailableProvider = Provider<bool>((ref) {
+  try {
+    ref.watch(libraryDatabaseProvider);
+    return true;
+  } on Object {
+    return false;
+  }
+});
+
 final musicLibraryProvider = Provider<MusicLibrary>(
   (ref) => MusicLibrary(ref.watch(libraryDatabaseProvider)),
 );
