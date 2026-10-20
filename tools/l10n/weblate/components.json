@@ -68,6 +68,17 @@
       "source_language": "en",
       "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
       "edit_template": false
+    },
+    {
+      "name": "video",
+      "slug": "video",
+      "file_format": "arb",
+      "filemask": "app/lib/features/video/l10n/video_*.arb",
+      "template": "app/lib/features/video/l10n/video_en.arb",
+      "new_base": "app/lib/features/video/l10n/video_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
     }
   ]
 }
