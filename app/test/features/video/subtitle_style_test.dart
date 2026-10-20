@@ -121,10 +121,24 @@ void main() {
       addTearDown(container.dispose);
       final sub = container.listen(captionPrefsProvider, (_, _) {});
       addTearDown(sub.close);
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      // Waits for the emission itself rather than a fixed delay.
+      Future<void> scale(double want) async {
+        if (container.read(captionPrefsProvider)?.scale == want) return;
+        final done = Completer<void>();
+        final s = container.listen(captionPrefsProvider, (_, v) {
+          if (v?.scale == want && !done.isCompleted) done.complete();
+        });
+        try {
+          await done.future.timeout(const Duration(seconds: 30));
+        } finally {
+          s.close();
+        }
+      }
+
+      await scale(1.25);
       expect(container.read(captionPrefsProvider)!.scale, 1.25);
       facade.change(const SystemCaptionStyle(enabled: true, scale: 2));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await scale(2);
       expect(container.read(captionPrefsProvider)!.scale, 2);
     });
 

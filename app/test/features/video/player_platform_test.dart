@@ -410,6 +410,21 @@ void main() {
       expect(c.state.status, PlaybackStatus.paused);
     });
 
+    test('ADR-029 closing the video after music took the session leaves '
+        "music's session alone", () async {
+      owner = _Owner();
+      await build();
+      await c.open(req('film'));
+      await settle();
+      owner!.kind = 'music';
+      session.send(const PauseCommand());
+      await settle();
+      expect(c.state.status, PlaybackStatus.playing);
+      await p.dispose();
+      expect(owner!.kind, 'music');
+      expect(session.deactivations, 0);
+    });
+
     test('ADR-029 leaving releases only its own ownership', () async {
       owner = _Owner();
       await build();

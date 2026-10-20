@@ -361,8 +361,11 @@ final class PlayerPlatform with WidgetsBindingObserver {
     await d?.setWindowBrightness(null);
     if (_autoPip) await pip?.setAutoEnter(enabled: false);
     if (_sessionActive) {
+      // If music took the session meanwhile it is music's now: leave it
+      // active (ADR-029).
+      final ours = sessionOwner?.ownedByVideo ?? true;
       sessionOwner?.release();
-      await session?.deactivate();
+      if (ours) await session?.deactivate();
     }
     // After a landscape video a phone with auto-rotate off would stay in
     // landscape: ask for portrait first, then hand rotation back.
