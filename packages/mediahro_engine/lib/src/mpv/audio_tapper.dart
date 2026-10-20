@@ -7,6 +7,7 @@ import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/tap_storage.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
 import 'package:mediahro_ffi/src/mpv/mpv.dart' show Libmpv;
@@ -24,8 +25,9 @@ const tapBands = 64;
 /// AUD-046 (ADR-027): libmpv has no PCM callback, so the tap decodes the
 /// audio being played a second time, on a silent libmpv core that exists
 /// only while someone listens (an unused tap costs nothing). The core writes
-/// raw PCM (`ao=pcm`, float32 stereo at [tapSampleRate]) to a temporary file,
-/// and each window is cut from it at the playback position.
+/// raw PCM (`ao=pcm`, s16 stereo at [tapSampleRate], about 86 KB/s) to
+/// [TapStorage], RAM-backed where the OS offers it, and each window is cut
+/// from it at the playback position.
 ///
 /// The core decodes 3 s slices just ahead of playback, one after the other,
 /// appending their PCM, so it writes at the pace of playback:
@@ -35,8 +37,8 @@ const tapBands = 64;
 ///   never fetched twice. Each slice is the main core's demuxer cache for
 ///   that range (`dump-cache`, [dumpCache]).
 ///
-/// The PCM file is restarted on seeks, item changes and every minute, which
-/// bounds it to about 10 MB.
+/// The PCM is restarted on seeks, item changes and every minute, which bounds
+/// it to about 5 MB.
 final class AnalysisTap {
   AnalysisTap({
     required this.frames,
@@ -76,14 +78,12 @@ final class AnalysisTap {
   MpvClient? _client;
   StreamSubscription<MpvEvent>? _events;
   Completer<void>? _ended;
-  Directory? _dir;
-  File? _pcm;
+  TapStorage? _storage;
   RandomAccessFile? _raf;
   // Playback time of the first sample in the PCM file.
   Duration _start0 = Duration.zero;
   int _item = -1;
   bool _local = true;
-  int _chunk = 0;
 
   Stream<AudioTapFrame> get stream => _controller.stream;
 
@@ -94,10 +94,7 @@ final class AnalysisTap {
   int _rotatedBytes = 0;
 
   /// PCM bytes written since the tap started (tests measure the rate).
-  int get bytesWritten {
-    final f = _pcm;
-    return _rotatedBytes + (f != null && f.existsSync() ? f.lengthSync() : 0);
-  }
+  int get bytesWritten => _rotatedBytes + (_storage?.pcmLength ?? 0);
 
   void _start() {
     _timer ??= Timer.periodic(period, (_) => unawaited(_tick()));
@@ -148,17 +145,13 @@ final class AnalysisTap {
       await ended.future.timeout(const Duration(seconds: 10));
       return;
     }
-    final slice = File(
-      '${_dir!.path}${Platform.pathSeparator}slice${_chunk++}.mkv',
-    );
-    if (!await dumpCache(a, b, slice.path) ||
-        !slice.existsSync() ||
-        slice.lengthSync() == 0) {
+    final storage = _storage!;
+    // Each slice overwrites the previous one, which has been decoded.
+    if (!await dumpCache(a, b, storage.slicePath) || storage.sliceLength == 0) {
       return;
     }
-    await _client!.loadfile(slice.path);
+    await _client!.loadfile(storage.slicePath);
     await ended.future.timeout(const Duration(seconds: 10));
-    await slice.delete().catchError((Object _) => slice);
   }
 
   Future<void> _emit(Duration p) async {
@@ -166,15 +159,19 @@ final class AnalysisTap {
     final end = ((p - _start0).inMicroseconds * tapSampleRate / 1e6).round();
     final begin = end - frames;
     if (begin < 0 || end > written) return;
-    final raf = _raf ??= await _pcm!.open();
-    await raf.setPosition(begin * tapChannels * 4);
-    final bytes = await raf.read(frames * tapChannels * 4);
-    if (bytes.length < frames * tapChannels * 4) return;
-    final pcm = Float32List.view(
+    final raf = _raf ??= await File(_storage!.pcmPath).open();
+    await raf.setPosition(begin * _frameBytes);
+    final bytes = await raf.read(frames * _frameBytes);
+    if (bytes.length < frames * _frameBytes) return;
+    final s16 = Int16List.view(
       Uint8List.fromList(bytes).buffer,
       0,
       frames * tapChannels,
     );
+    final pcm = Float32List(s16.length);
+    for (var i = 0; i < s16.length; i++) {
+      pcm[i] = s16[i] / 32768;
+    }
     if (!_controller.isClosed && _controller.hasListener) {
       _controller.add(
         analyseWindow(
@@ -190,17 +187,16 @@ final class AnalysisTap {
   Duration _frameTime(int frames) =>
       Duration(microseconds: frames * 1000000 ~/ tapSampleRate);
 
-  Future<int> _writtenFrames() async {
-    final f = _pcm;
-    if (f == null || !f.existsSync()) return 0;
-    return await f.length() ~/ (tapChannels * 4);
-  }
+  // s16 interleaved.
+  static const int _frameBytes = tapChannels * 2;
+
+  Future<int> _writtenFrames() async =>
+      (_storage?.pcmLength ?? 0) ~/ _frameBytes;
 
   Future<void> _restart(Duration from, {required bool local}) async {
     await _destroy();
     if (source() == null) return;
-    final dir = _dir = await Directory.systemTemp.createTemp('mediahro-tap');
-    final pcm = _pcm = File('${dir.path}${Platform.pathSeparator}tap.pcm');
+    final storage = _storage = await TapStorage.create();
     final client = await MpvClient.create(
       options: {
         'config': 'no',
@@ -211,11 +207,11 @@ final class AnalysisTap {
         'vid': 'no',
         'sid': 'no',
         'ao': 'pcm',
-        'ao-pcm-file': pcm.path,
+        'ao-pcm-file': storage.pcmPath,
         'ao-pcm-waveheader': 'no',
         // Slices are decoded one after the other into the same file.
         'ao-pcm-append': 'yes',
-        'audio-format': 'float',
+        'audio-format': 's16',
         'audio-channels': 'stereo',
         'audio-samplerate': '$tapSampleRate',
         'hr-seek': 'yes',
@@ -232,12 +228,9 @@ final class AnalysisTap {
     _start0 = from;
     _item = item();
     _local = local;
-    _chunk = 0;
   }
 
   Future<void> _destroy() async {
-    final pcm = _pcm;
-    if (pcm != null && pcm.existsSync()) _rotatedBytes += pcm.lengthSync();
     final raf = _raf;
     _raf = null;
     if (raf != null) {
@@ -255,11 +248,11 @@ final class AnalysisTap {
     final client = _client;
     _client = null;
     if (client != null) await client.destroy();
-    final dir = _dir;
-    _dir = null;
-    _pcm = null;
-    if (dir != null) {
-      await dir.delete(recursive: true).catchError((Object _) => dir);
+    final storage = _storage;
+    _storage = null;
+    if (storage != null) {
+      _rotatedBytes += storage.pcmLength;
+      await storage.dispose();
     }
   }
 

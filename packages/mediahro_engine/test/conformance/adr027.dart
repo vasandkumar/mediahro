@@ -258,9 +258,9 @@ Future<Map<String, Object?>> _measureTap(MediaSource src) async {
     expect(e.audioTapActive, isFalse, reason: 'no analysis core left');
     final after = await cpuPercent();
     expect(framesPerSecond, greaterThan(15));
-    // Real time float32 stereo at 22.05 kHz is 172 KB/s; reading ahead adds
-    // a little.
-    expect(kbPerSecond, lessThan(400));
+    // Real time s16 stereo at 22.05 kHz is 86 KB/s; reading ahead adds a
+    // little.
+    expect(kbPerSecond, lessThan(200));
     return {
       'cpuPercentOfOneCore': {
         'playingNoTap': idle,
