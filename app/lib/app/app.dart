@@ -43,7 +43,12 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
     final initial = restore && AppDestination.isMode(last)
         ? '/$last'
         : AppDestination.video.path;
-    final router = widget.router ?? buildRouter(initialLocation: initial);
+    final router =
+        widget.router ??
+        buildRouter(
+          initialLocation: initial,
+          fullScreenRoutes: ref.read(appRoutesProvider),
+        );
     router.routerDelegate.addListener(() => _rememberMode(router, store));
     _lifecycle = AppLifecycleListener(
       onHide: () => unawaited(store.flush()),
