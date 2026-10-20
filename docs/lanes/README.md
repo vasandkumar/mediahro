@@ -66,4 +66,10 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
    - The Windows integration tests on this machine, if you touched shared Dart.
 
    Paste the commands and their pass lines into the PR's evidence table, with the device serial and the commit. The orchestrator re-runs `tools/check` on the merge result before merging. Never push in order to test, and never start a workflow.
+9. **Samsung only, never an emulator (owner, 2026-10-20).** The test device is the owner's Samsung SM-M176B (Android 16, arm64), serial `adb-RZGL225BN7H-KoTKDF._adb-tls-connect._tcp`. Lanes share it through a lock kept on the phone, which replaces the `K:\Projects\.device-lock` folder from rule 6:
+   - Take: `adb -s <serial> shell mkdir /data/local/tmp/mediahro-lock`. It fails if the lock is held, so retry after 60 s.
+   - Mark: write `<lane> <epoch>` to `/data/local/tmp/mediahro-lock/owner`.
+   - Release: `adb -s <serial> shell rm -rf /data/local/tmp/mediahro-lock`. Release even on failure.
+   - Stale: a lock older than 30 minutes is stale.
+   Hold it only while installing and testing. The orchestrator takes the same lock when it verifies PRs.
 
