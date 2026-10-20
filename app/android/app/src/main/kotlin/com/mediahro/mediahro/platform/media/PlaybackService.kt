@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.mediahro.mediahro.MainActivity
+import com.mediahro.mediahro.platform.AppEngine
 
 /**
  * Media3 `MediaLibraryService` (SYS-001/002/006): owns the session over
@@ -14,7 +15,8 @@ import com.mediahro.mediahro.MainActivity
  * `mediaPlayback` foreground service while something plays. Media3 starts
  * and stops the foreground state from the player's state, so no wake lock
  * or foreground time outlives playback. The library tree for Android Auto
- * (MUS-013) is added with `MediaBrowseFacade`.
+ * (MUS-013) is added with `MediaBrowseFacade`; a car or voice request while
+ * the app is closed starts the app without a screen ([AppEngine], ADR-036).
  */
 @OptIn(UnstableApi::class)
 class PlaybackService : MediaLibraryService() {
@@ -36,11 +38,13 @@ class PlaybackService : MediaLibraryService() {
             .setSessionActivity(open)
             .build()
         SessionHub.service = this
+        AppEngine.onService(alive = true)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
+        AppEngine.onService(alive = false)
         SessionHub.service = null
         session?.release()
         session = null
