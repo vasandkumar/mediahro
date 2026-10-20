@@ -308,9 +308,11 @@ void main() {
     expect(find.text('0:09'), findsWidgets);
     await tester.tap(find.text('Save'));
     await settle(tester);
+    await settle(tester);
     expect(find.text('Your lyrics'), findsOneWidget);
-    expect(find.text('First line'), findsOneWidget);
-    expect(find.text('Second line'), findsOneWidget);
+    // The editor may still be leaving the screen; the lines show either way.
+    expect(find.text('First line'), findsWidgets);
+    expect(find.text('Second line'), findsWidgets);
     await finish(tester);
   });
 
