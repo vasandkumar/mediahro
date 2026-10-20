@@ -98,6 +98,7 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
       session: session,
       art: ref.watch(artworkStoreProvider),
       widgets: _optional(() => ref.read(homeWidgetsProvider)),
+      otherPlayer: ref.read(playbackEngineProvider(EngineRole.video)).state,
     )..start();
     ref.onDispose(() => unawaited(bridge.dispose()));
   }

@@ -17,6 +17,7 @@ final class MusicSessionBridge {
     required this.session,
     required this.art,
     this.widgets,
+    this.otherPlayer,
   });
 
   final MusicPlayer player;
@@ -24,26 +25,49 @@ final class MusicSessionBridge {
   final ArtworkStore art;
   final HomeWidgetsFacade? widgets;
 
+  /// State of the other player sharing the OS session (the video engine).
+  /// When it starts playing it takes the session over: music stops
+  /// answering lock-screen commands until music plays again.
+  final Stream<PlaybackState>? otherPlayer;
+
   StreamSubscription<MusicPlayerState>? _states;
   StreamSubscription<RemoteCommand>? _commands;
+  StreamSubscription<PlaybackState>? _other;
   bool _active = false;
   int? _shownItem;
   SessionPlaybackState? _shownState;
   bool? _shownNext;
   Duration _shownPosition = Duration.zero;
 
+  /// Whether music owns the OS media session right now.
+  bool get owns => _active;
+
   void start() {
     _commands ??= session.commands.listen(_onCommand);
+    _other ??= otherPlayer?.listen((s) {
+      if (s.status != PlaybackStatus.playing) return;
+      // A film started: it takes the session (and the speakers) over.
+      if (player.state.playing) unawaited(player.pause());
+      if (_active) {
+        _active = false;
+        _shownItem = null;
+        _shownState = null;
+        _shownNext = null;
+      }
+    });
     _states ??= player.states.listen((s) => unawaited(_onState(s)));
   }
 
   Future<void> dispose() async {
     await _states?.cancel();
     await _commands?.cancel();
+    await _other?.cancel();
     if (_active) await session.deactivate();
   }
 
   Future<void> _onCommand(RemoteCommand c) async {
+    // One session, two players: act only while music owns it.
+    if (!_active) return;
     switch (c) {
       case PlayCommand():
         await player.play();

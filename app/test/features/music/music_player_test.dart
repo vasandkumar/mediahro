@@ -284,6 +284,54 @@ void main() {
       expect(player.state.current!.title, 'T2');
       await bridge.dispose();
     });
+
+    test(
+      'MUS-006 the session follows its owner: a playing film takes it '
+      'over and music ignores lock-screen commands until it plays again',
+      () async {
+        final session = _FakeSession();
+        final video = StreamController<PlaybackState>.broadcast();
+        final dir = await Directory.systemTemp.createTemp('c2_own');
+        addTearDown(() async {
+          await video.close();
+          try {
+            await dir.delete(recursive: true);
+          } on FileSystemException {
+            // Best effort on Windows.
+          }
+        });
+        final bridge = MusicSessionBridge(
+          player: player,
+          session: session,
+          art: ArtworkStore(db, dir),
+          otherPlayer: video.stream,
+        )..start();
+        await player.playTracks(album);
+        await eventually(() => session.status != null);
+        expect(bridge.owns, isTrue);
+
+        // A film starts: music pauses and lets go of the session.
+        video.add(const PlaybackState(status: PlaybackStatus.playing));
+        await eventually(() => engine.current.status == PlaybackStatus.paused);
+        expect(bridge.owns, isFalse);
+        session
+          ..send(const TogglePlayPauseCommand())
+          ..send(const NextCommand());
+        await settle();
+        await settle();
+        expect(engine.current.status, PlaybackStatus.paused);
+        expect(player.state.current!.title, 'T1');
+
+        // Music plays again: it takes the session back.
+        final activations = session.activations;
+        await player.play();
+        await eventually(() => session.activations > activations);
+        expect(bridge.owns, isTrue);
+        session.send(const PauseCommand());
+        await eventually(() => engine.current.status == PlaybackStatus.paused);
+        await bridge.dispose();
+      },
+    );
   });
 }
 
@@ -295,8 +343,13 @@ final class _FakeSession implements MediaSessionFacade {
 
   void send(RemoteCommand c) => _commands.add(c);
 
+  int activations = 0;
+
   @override
-  Future<void> activate(MediaSessionKind kind) async => this.kind = kind;
+  Future<void> activate(MediaSessionKind kind) async {
+    activations++;
+    this.kind = kind;
+  }
 
   @override
   Future<void> setNowPlaying(NowPlaying item) async => nowPlaying = item;
