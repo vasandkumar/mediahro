@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Android video player: swipe and double-tap gestures, seek bar, speed, frame step, A-B loop, chapters, bookmarks, resume, audio and subtitle switching, info overlay (VID-060…065, VID-072).
 - Android music: library by artist, album, song and folder from your phone's music, tags and album art, gapless queue, mini player and Now Playing (MUS-001, MUS-002, MUS-004, MUS-007).
 - Android: background playback with lock-screen, notification, headset and car controls; pauses or ducks for calls and other apps, and pauses when headphones are unplugged (SYS-001, SYS-002, SYS-006, AUD-045).
 - Android: browse folders you grant, the phone's videos, music and photos (with Motion Photos), delete to the system trash with undo, and save files anywhere (SYS-007).

@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | VID-036, VID-067, VID-070, SYS-011 (#27, platform side; device files: c4a_android_display_test, plus a c4a_android_media_test re-run) | collecting (4 of 25) |
+| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) | collecting (11 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -423,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C1 **#28** (Android video player: gestures, seek bar, speed, frame step/A-B loop/chapters/bookmarks, resume, track switching, info overlay) and wired videoRoutes, videoOverrides (main.dart) and videoSettingsContributions (root.dart). Local proof: tools/check 402 on the merge result with the wiring. Device batch 1 is at 11 of 25. Device findings from C1, routed: Android FFmpeg lacks the mov_text decoder (MP4 text subtitles; B4a/B1); seek-to-0 while playing stalls the Exynos MediaCodec decoder (B1); the picker opens multi-select and PickedFile.name is the media id (C4a); KPlayerChrome's scroll view swallows touches over the video (B3). |
 | 2026-10-20 | Merged C4a **#27** (Android display + picture-in-picture: screen-on, brightness, orientation locks, frame-rate matching, display changes, PiP enter/exit/auto-enter). Local proof: tools/check 373 on the merge result. Its phone tests are queued in device batch 1. ADR-028 accepted (PipFacade.setAspectRatio). |
 | 2026-10-20 | Merged C2 **#26** (Android music library, tag reading in an isolate, art, gapless queue through libmpv, mini player and Now Playing) and wired `musicOverrides` in main.dart. Verified before the batch rule: tools/check 369, c2_music_test 4/4 on the Samsung. MUS-001/002/004/007 A ticked. Batch 1 starts empty. |
 | 2026-10-20 | **Owner rule: device testing in batches of 25 features.** PRs merge on local proof (`tools/check` plus unit and widget tests, re-run by the orchestrator). Every 25 merged features, all their integration tests run on the Samsung in one go, and cells are ticked only after that run (lanes rule 10; batch table in §1). |

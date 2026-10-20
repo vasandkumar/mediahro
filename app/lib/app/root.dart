@@ -7,6 +7,7 @@ import 'package:mediahro/app/appearance.dart';
 import 'package:mediahro/features/settings/core_sections.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
+import 'package:mediahro/features/video/video_settings.dart';
 
 /// The widget main.dart runs, shared with integration tests so they launch
 /// exactly what users get.
@@ -27,6 +28,7 @@ Widget mediahroRoot(
       // Each lane's settings contributions are appended here.
       settingsContributionsProvider.overrideWithValue([
         ...coreSettingsContributions,
+        ...videoSettingsContributions,
       ]),
       ...overrides,
     ],

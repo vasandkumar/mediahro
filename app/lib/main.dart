@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:mediahro/app/root.dart';
+import 'package:mediahro/app/router.dart';
 import 'package:mediahro/app/services.dart';
 import 'package:mediahro/features/music/music_wiring.dart';
+import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/platform/platform_bindings.dart';
 
 Future<void> main() async {
@@ -17,6 +19,8 @@ Future<void> main() async {
         ...services.overrides,
         ...platformOverrides(),
         ...musicOverrides,
+        ...videoOverrides,
+        appRoutesProvider.overrideWithValue([...videoRoutes]),
       ],
     ),
   );
