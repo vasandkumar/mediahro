@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,7 +72,12 @@ class NowPlayingScreen extends ConsumerWidget {
                           children: [
                             Flexible(child: Center(child: art)),
                             const SizedBox(width: KSpacing.s32),
-                            Expanded(child: Center(child: controls)),
+                            Expanded(
+                              child: Center(
+                                // Short landscape phones: let it scroll.
+                                child: SingleChildScrollView(child: controls),
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -81,12 +87,26 @@ class NowPlayingScreen extends ConsumerWidget {
                         horizontal: KSpacing.s24,
                         vertical: KSpacing.s16,
                       ),
-                      child: Column(
-                        children: [
-                          Expanded(child: Center(child: art)),
-                          const SizedBox(height: KSpacing.s24),
-                          controls,
-                        ],
+                      // The art takes what the controls leave (they need
+                      // about 340 dp, more with large text); tiny windows
+                      // scroll instead of overflowing.
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            SizedBox.square(
+                              dimension: math.max(
+                                120,
+                                math.min(
+                                  c.maxHeight - 380,
+                                  c.maxWidth - KSpacing.s48,
+                                ),
+                              ),
+                              child: Center(child: art),
+                            ),
+                            const SizedBox(height: KSpacing.s24),
+                            controls,
+                          ],
+                        ),
                       ),
                     );
                   },
