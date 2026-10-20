@@ -78,4 +78,10 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
     - Its features are then "built, awaiting the device batch" (STATUS §1, *Android device batch*). They are not ☑ yet.
     - When 25 features are waiting, the orchestrator runs every listed integration test on the Samsung in one go. It ticks what passes and sends each lane its failures as one list.
     - Lanes don't wait for batch results: keep building. Fix batch failures first when they arrive.
+11. **This PC has 16 GB RAM: be light (owner, 2026-10-20).** This replaces the 3-lane cap with 2.
+    - **At most 2 lane sessions run at once.**
+    - **Only one heavy build at a time across all sessions.** Heavy means Gradle/APK builds, desktop app builds, native C/C++ compiles or `flutter test integration_test`. Before starting one, check that no other `java`/Gradle, `clang`/`cmake` or WSL compile is running (`Get-Process java,cmake,ninja,clang` / `tasklist`). If one is, wait or do Dart-only work meanwhile.
+    - **Lane proof is Dart-level:** `tools/check` plus unit and widget tests. Only the Android platform lane (C4a) builds APKs, to compile its Kotlin. Device runs and release builds are the orchestrator's.
+    - **Keep your build folders while you are active** (fast incremental builds); they're deleted when your lane is paused or if the project goes over its 30 GB budget on K:.
+    - **Never start an emulator, never start a GitHub workflow, nothing large on C:** (rules 6, 8, 9).
 
