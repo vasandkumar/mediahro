@@ -24,6 +24,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         PlatformModules.host(applicationContext).attach(this)
+        PlatformModules.authBrowser?.onAppResumed()
     }
 
     override fun onUserLeaveHint() {

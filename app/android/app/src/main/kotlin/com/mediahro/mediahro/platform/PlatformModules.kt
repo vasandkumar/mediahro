@@ -4,6 +4,10 @@ import android.content.Context
 import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.AuthBrowserHostApi
+import com.mediahro.mediahro.pigeon.MulticastHostApi
+import com.mediahro.mediahro.pigeon.NetworkChangesStreamHandler
+import com.mediahro.mediahro.pigeon.NetworkStatusHostApi
 import com.mediahro.mediahro.pigeon.BiometricsHostApi
 import com.mediahro.mediahro.pigeon.SecureStorageHostApi
 import com.mediahro.mediahro.pigeon.DisplayChangesStreamHandler
@@ -19,6 +23,9 @@ import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
 import com.mediahro.mediahro.platform.media.MediaSessionModule
+import com.mediahro.mediahro.platform.network.AuthBrowserModule
+import com.mediahro.mediahro.platform.network.MulticastModule
+import com.mediahro.mediahro.platform.network.NetworkStatusModule
 import com.mediahro.mediahro.platform.security.BiometricsModule
 import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
@@ -39,6 +46,16 @@ object PlatformModules {
 
     /** The live PiP module (MainActivity forwards PiP callbacks to it). */
     var pip: PipModule? = null
+        private set
+
+    private var network: NetworkStatusModule? = null
+
+    /** The live multicast module (debug hooks read its leases). */
+    var multicast: MulticastModule? = null
+        private set
+
+    /** The live auth browser (MainActivity reports resumes for cancel detection). */
+    var authBrowser: AuthBrowserModule? = null
         private set
 
     /** The live audio module (debug hooks drive its focus listener). */
@@ -81,6 +98,16 @@ object PlatformModules {
 
         SecureStorageHostApi.setUp(messenger, SecureStorageModule(context.applicationContext, host))
         BiometricsHostApi.setUp(messenger, BiometricsModule(context.applicationContext, host))
+
+        network?.dispose()
+        val networkModule = NetworkStatusModule(context.applicationContext).also { network = it }
+        NetworkStatusHostApi.setUp(messenger, networkModule)
+        NetworkChangesStreamHandler.register(messenger, networkModule.changesHandler)
+
+        multicast?.dispose()
+        MulticastHostApi.setUp(messenger, MulticastModule(context.applicationContext).also { multicast = it })
+
+        AuthBrowserHostApi.setUp(messenger, AuthBrowserModule(host).also { authBrowser = it })
         debugHooks(host, engine)
     }
 

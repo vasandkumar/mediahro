@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mediahro/platform/android/android_display.dart';
 import 'package:mediahro/platform/android/android_media.dart';
+import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -18,4 +19,7 @@ List<Override> overrides() => [
   pipProvider.overrideWithValue(AndroidPip()),
   secureStorageProvider.overrideWithValue(AndroidSecureStorage()),
   biometricsProvider.overrideWithValue(AndroidBiometrics()),
+  networkStatusProvider.overrideWithValue(AndroidNetworkStatus()),
+  multicastProvider.overrideWithValue(AndroidMulticast()),
+  authBrowserProvider.overrideWithValue(AndroidAuthBrowser()),
 ];
