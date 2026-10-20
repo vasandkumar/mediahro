@@ -4,7 +4,6 @@ import android.app.WallpaperManager
 import android.content.ClipData
 import android.content.ContentResolver
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -30,6 +29,7 @@ import com.mediahro.mediahro.pigeon.PlatformImageMsg
 import com.mediahro.mediahro.pigeon.PrintLayoutMsg
 import com.mediahro.mediahro.pigeon.WallpaperTargetMsg
 import com.mediahro.mediahro.platform.ActivityHost
+import com.mediahro.mediahro.platform.display.HdrWindowMode
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -47,7 +47,7 @@ import kotlinx.coroutines.withContext
 class ImagingModule(private val context: Context, private val host: ActivityHost) : ImagingHostApi {
     private val resolver: ContentResolver = context.contentResolver
     private val codec = ImageCodec(context)
-    private var previousColorMode: Int? = null
+    private var hdrWindow: android.view.Window? = null
 
     // --- capabilities ---------------------------------------------------
 
@@ -156,15 +156,16 @@ class ImagingModule(private val context: Context, private val host: ActivityHost
         } catch (e: SecurityException) {
             return@withContext null
         }
-        if (previousColorMode == null) previousColorMode = activity.window.colorMode
-        activity.window.colorMode = ActivityInfo.COLOR_MODE_HDR
+        if (hdrWindow == null) {
+            hdrWindow = activity.window
+            HdrWindowMode.acquire(activity.window)
+        }
         HdrImageViewFactory.VIEW_TYPE
     }
 
     override fun closeHdrView() {
-        val activity = host.activity ?: return
-        previousColorMode?.let { activity.window.colorMode = it }
-        previousColorMode = null
+        hdrWindow?.let(HdrWindowMode::release)
+        hdrWindow = null
     }
 
     // --- wallpaper, print, clipboard -----------------------------------
