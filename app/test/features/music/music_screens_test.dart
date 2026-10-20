@@ -195,6 +195,77 @@ void main() {
     expect(find.text('Added 1 song to the queue'), findsOneWidget);
     await finish(tester);
   });
+
+  testWidgets('MUS-006 Now Playing extras: favourite, rating, sound, sleep '
+      'timer, info', (tester) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.text('Alpha'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(KMiniPlayer),
+        matching: find.text('Alpha'),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('Favourite'));
+    await settle(tester);
+    expect(find.byTooltip('Remove from favourites'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Not rated'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Rate 4 stars'));
+    await settle(tester);
+    expect(find.text('4 of 5 stars'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Sound'));
+    await settle(tester);
+    await tester.tap(find.text('Bass boost'));
+    await settle(tester);
+    expect(engine.dsp!.graphicEq.first, 6);
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Sleep timer'));
+    await settle(tester);
+    await tester.tap(find.text('15 minutes'));
+    await settle(tester);
+    final stopsIn = find.byWidgetPredicate(
+      (w) => w is Tooltip && (w.message ?? '').startsWith('Stops in 1'),
+    );
+    expect(stopsIn, findsOneWidget);
+    await tester.tap(stopsIn);
+    await settle(tester);
+    await tester.tap(find.text('Turn off timer'));
+    await settle(tester);
+    expect(find.byTooltip('Sleep timer'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Song info'));
+    await settle(tester);
+    expect(find.text('a/1.flac'), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await settle(tester);
+    await finish(tester);
+  });
+
+  testWidgets('MUS-011 alarms screen without an alarm facade says so', (
+    tester,
+  ) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.byTooltip('More'));
+    await settle(tester);
+    await tester.tap(find.text('Alarms'));
+    await settle(tester);
+    expect(
+      find.text("Alarms aren't available on this device yet."),
+      findsOneWidget,
+    );
+    await finish(tester);
+  });
 }
 
 /// Unmounts the app and lets drift's stream-close timers run, so no timer

@@ -206,6 +206,30 @@ final class ScriptedMusicEngine implements PlaybackEngine {
     _emit(_state.copyWith(position: position));
   }
 
+  final volumes = <double>[];
+  double? ducking;
+  AudioDspChain? dsp;
+  TransitionConfig? transition;
+
+  @override
+  Future<void> setVolume(double volume) async {
+    volumes.add(volume);
+    _emit(_state.copyWith(volume: volume));
+  }
+
+  @override
+  Future<void> setDucking(double gain) async {
+    ducking = gain;
+    _emit(_state.copyWith(ducked: gain < 1));
+  }
+
+  @override
+  Future<void> setAudioDsp(AudioDspChain chain) async => dsp = chain;
+
+  @override
+  Future<void> setTransition(TransitionConfig config) async =>
+      transition = config;
+
   @override
   Future<void> dispose() => _c.close();
 

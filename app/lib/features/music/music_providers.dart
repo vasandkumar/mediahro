@@ -10,8 +10,14 @@ import 'package:mediahro/features/music/library/artwork_store.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_indexer.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
+import 'package:mediahro/features/music/library/ratings.dart';
+import 'package:mediahro/features/music/player/audio_focus.dart';
+import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
+import 'package:mediahro/features/music/player/sleep_timer.dart';
+import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -76,6 +82,15 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   );
   unawaited(p.init());
   ref.onDispose(() => unawaited(p.dispose()));
+  final output = _optional(() => ref.read(audioOutputProvider));
+  if (output != null) {
+    final focus = MusicFocusBridge(
+      player: p,
+      engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+      output: output,
+    )..start();
+    ref.onDispose(() => unawaited(focus.dispose()));
+  }
   final session = _optional(() => ref.read(mediaSessionProvider));
   if (session != null) {
     final bridge = MusicSessionBridge(
@@ -88,6 +103,71 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   }
   return p;
 });
+
+final musicPrefsProvider = Provider<MusicPrefs>(
+  (ref) => MusicPrefs(ref.watch(libraryDatabaseProvider)),
+);
+
+/// EQ, levelling and crossfade for the music engine (MUS-006, AUD-003/005).
+final musicDspProvider = Provider<MusicDsp>((ref) {
+  final d = MusicDsp(
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+    prefs: ref.watch(musicPrefsProvider),
+    db: ref.watch(libraryDatabaseProvider),
+  );
+  unawaited(d.load());
+  ref.onDispose(() => unawaited(d.dispose()));
+  return d;
+});
+
+final musicSoundProvider = StreamProvider<MusicSound>(
+  (ref) => ref.watch(musicDspProvider).changes,
+);
+
+final sleepTimerProvider = Provider<SleepTimer>((ref) {
+  final t = SleepTimer(
+    player: ref.watch(musicPlayerProvider),
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+  );
+  ref.onDispose(() => unawaited(t.dispose()));
+  return t;
+});
+
+final sleepTimerStateProvider = StreamProvider<SleepTimerState>(
+  (ref) => ref.watch(sleepTimerProvider).states,
+);
+
+/// Wake-up alarms (MUS-011); null where the platform has no AlarmFacade.
+final wakeAlarmsProvider = Provider<WakeAlarms?>((ref) {
+  final facade = _optional(() => ref.read(alarmProvider));
+  if (facade == null) return null;
+  final a = WakeAlarms(
+    facade: facade,
+    prefs: ref.watch(musicPrefsProvider),
+    player: ref.watch(musicPlayerProvider),
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+    db: ref.watch(libraryDatabaseProvider),
+    library: ref.watch(musicLibraryProvider),
+  );
+  unawaited(a.start());
+  ref.onDispose(() => unawaited(a.dispose()));
+  return a;
+});
+
+final musicRatingsProvider = Provider<MusicRatings>(
+  (ref) => MusicRatings(
+    ref.watch(libraryDatabaseProvider),
+    ref.watch(tagRepositoryProvider),
+  ),
+);
+
+/// Rating and favourite of an item, refreshed on index changes.
+final FutureProviderFamily<(int?, bool), int> ratingProvider =
+    FutureProvider.family<(int?, bool), int>((ref, itemId) async {
+      ref.watch(musicLibraryChangesProvider);
+      final r = ref.watch(musicRatingsProvider);
+      return (await r.rating(itemId), await r.isFavourite(itemId));
+    });
 
 final musicPlayerStateProvider = StreamProvider<MusicPlayerState>(
   (ref) => ref.watch(musicPlayerProvider).states,

@@ -9,6 +9,7 @@ import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -88,7 +89,7 @@ class NowPlayingScreen extends ConsumerWidget {
                         vertical: KSpacing.s16,
                       ),
                       // The art takes what the controls leave (they need
-                      // about 340 dp, more with large text); tiny windows
+                      // about 400 dp, more with large text); tiny windows
                       // scroll instead of overflowing.
                       child: SingleChildScrollView(
                         child: Column(
@@ -97,7 +98,7 @@ class NowPlayingScreen extends ConsumerWidget {
                               dimension: math.max(
                                 120,
                                 math.min(
-                                  c.maxHeight - 380,
+                                  c.maxHeight - 440,
                                   c.maxWidth - KSpacing.s48,
                                 ),
                               ),
@@ -286,6 +287,8 @@ class _Controls extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: KSpacing.s8),
+        NowPlayingActions(track: t),
       ],
     );
   }

@@ -212,5 +212,198 @@
   "musicCreate": "Create",
   "musicSave": "Save",
   "musicCancel": "Cancel",
-  "musicQueueActions": "Queue actions"
+  "musicQueueActions": "Queue actions",
+  "musicSound": "Sound",
+  "musicEqualizer": "Equalizer",
+  "musicEqOn": "Equalizer on",
+  "musicEqBand": "{hz} Hz",
+  "@musicEqBand": {
+    "placeholders": {
+      "hz": {
+        "type": "String"
+      }
+    }
+  },
+  "musicEqBandValue": "{band}: {db} dB",
+  "@musicEqBandValue": {
+    "description": "Screen-reader value of an EQ slider.",
+    "placeholders": {
+      "band": {
+        "type": "String"
+      },
+      "db": {
+        "type": "String"
+      }
+    }
+  },
+  "musicEqPreset": "{id, select, flat{Flat} bassBoost{Bass boost} trebleBoost{Treble boost} vocal{Vocal} rock{Rock} pop{Pop} jazz{Jazz} classical{Classical} electronic{Electronic} loudness{Loudness} other{Custom}}",
+  "@musicEqPreset": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPresets": "Presets",
+  "musicSavePreset": "Save as preset",
+  "musicPresetName": "Preset name",
+  "musicDeletePreset": "Delete preset {name}",
+  "@musicDeletePreset": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPreamp": "Pre-amp",
+  "musicLoudness": "Volume levelling",
+  "musicLoudnessMode": "{mode, select, off{Off} replayGainTrack{ReplayGain per track} replayGainAlbum{ReplayGain per album} ebuR128{Measured loudness (EBU R128)} other{Off}}",
+  "@musicLoudnessMode": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "musicCrossfade": "Crossfade",
+  "musicCrossfadeValue": "{seconds, plural, =0{Off (gapless)} =1{1 second} other{{seconds} seconds}}",
+  "@musicCrossfadeValue": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "musicCrossfadeOnSkip": "Also when skipping",
+  "musicOutput": "Output",
+  "musicOutputDevice": "Device",
+  "musicOutputSystemDefault": "System default",
+  "musicOutputFormat": "{rate} kHz · {bits}-bit · {channels} ch",
+  "@musicOutputFormat": {
+    "placeholders": {
+      "rate": {
+        "type": "String"
+      },
+      "bits": {
+        "type": "int"
+      },
+      "channels": {
+        "type": "int"
+      }
+    }
+  },
+  "musicOutputPath": "{path, select, bitPerfect{Bit-perfect} resampled{Resampled by the system} mixed{Mixed with other sounds} passthrough{Passthrough} dop{DSD over PCM} nativeDsd{Native DSD} other{Unknown path}}",
+  "@musicOutputPath": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "musicBluetoothCodec": "Bluetooth codec: {codec}",
+  "@musicBluetoothCodec": {
+    "placeholders": {
+      "codec": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSleepTimer": "Sleep timer",
+  "musicSleepMinutes": "{minutes, plural, =1{1 minute} other{{minutes} minutes}}",
+  "@musicSleepMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "musicSleepEndOfTrack": "End of this song",
+  "musicSleepTracks": "{count, plural, =1{After 1 song} other{After {count} songs}}",
+  "@musicSleepTracks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicSleepOff": "Turn off timer",
+  "musicSleepRemaining": "Stops in {time}",
+  "@musicSleepRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSleepTracksLeft": "{count, plural, =1{Stops after this song} other{Stops after {count} songs}}",
+  "@musicSleepTracksLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicSleepExtend": "Add 5 minutes",
+  "musicFavourite": "Favourite",
+  "musicUnfavourite": "Remove from favourites",
+  "musicRating": "Rating",
+  "musicRatingValue": "{stars} of 5 stars",
+  "@musicRatingValue": {
+    "description": "Rating, possibly with a half, e.g. '3.5 of 5 stars'.",
+    "placeholders": {
+      "stars": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSetRating": "Rate {stars} stars",
+  "@musicSetRating": {
+    "description": "Button: set a rating, e.g. 'Rate 4 stars'.",
+    "placeholders": {
+      "stars": {
+        "type": "String"
+      }
+    }
+  },
+  "musicClearRating": "Clear rating",
+  "musicAddToPlaylist": "Add to playlist",
+  "musicNewPlaylist": "New playlist",
+  "musicAddedToPlaylist": "Added to {name}",
+  "@musicAddedToPlaylist": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicInfo": "Song info",
+  "musicInfoPath": "File",
+  "musicInfoFormat": "Format",
+  "musicInfoSize": "Size",
+  "musicInfoDuration": "Length",
+  "musicInfoPlays": "Plays",
+  "musicInfoGain": "ReplayGain",
+  "musicAlarms": "Alarms",
+  "musicAlarmsEmpty": "Wake up to your music. Add an alarm to start.",
+  "musicAddAlarm": "Add alarm",
+  "musicAlarmUnsupported": "Alarms aren't available on this device yet.",
+  "musicAlarmLabel": "Label",
+  "musicAlarmMusic": "Music",
+  "musicAlarmCurrentQueue": "Current queue",
+  "musicAlarmRepeat": "Repeat",
+  "musicAlarmOnce": "Once",
+  "musicAlarmEveryDay": "Every day",
+  "musicAlarmShuffle": "Shuffle",
+  "musicAlarmEnabled": "{time} alarm on",
+  "@musicAlarmEnabled": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "musicDelete": "Delete",
+  "musicDone": "Done",
+  "musicMoreNowPlaying": "More",
+  "musicNotRated": "Not rated"
 }
