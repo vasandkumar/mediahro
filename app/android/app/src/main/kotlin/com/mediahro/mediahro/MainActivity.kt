@@ -3,6 +3,7 @@ package com.mediahro.mediahro
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.view.MotionEvent
 import com.mediahro.mediahro.platform.AppEngine
 import com.mediahro.mediahro.platform.PlatformModules
 import com.mediahro.mediahro.platform.media.AlarmHub
@@ -52,6 +53,10 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         PlatformModules.register(applicationContext, flutterEngine)
     }
+
+    /** Controller sticks, triggers and hat: Flutter ignores them, so the gamepad module reads them (SYS-009). */
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
+        PlatformModules.gamepadModule?.onMotion(ev) == true || super.dispatchGenericMotionEvent(ev)
 
     override fun onResume() {
         super.onResume()
