@@ -98,9 +98,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   );
   final ViewerController _viewer = ViewerController();
   final ScrollController _strip = ScrollController();
-  late final ThumbnailController _thumbs = ThumbnailController(
-    ref.read(thumbnailSourceProvider(256)),
-  );
+  late final ThumbnailController _thumbs;
 
   late int _index = widget.args.index;
   bool _chrome = true;
@@ -115,6 +113,12 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
 
   List<PhotoEntry> get _entries => widget.args.entries;
   PhotoEntry get _entry => _entries[_index];
+
+  @override
+  void initState() {
+    super.initState();
+    _thumbs = ThumbnailController(ref.read(thumbnailSourceProvider(256)));
+  }
 
   @override
   void didChangeDependencies() {

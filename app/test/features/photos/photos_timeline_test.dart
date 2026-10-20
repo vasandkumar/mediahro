@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
@@ -130,7 +131,12 @@ void main() {
     await h.pump(tester, entries: fakeEntries(days: 90));
     final scrubber = find.byType(KTimelineScrubber);
     expect(scrubber, findsOneWidget);
-    final list = tester.state<ScrollableState>(find.byType(Scrollable).first);
+    final list = tester.state<ScrollableState>(
+      find.descendant(
+        of: find.byType(PhotoGrid),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(list.position.pixels, 0);
     final box = tester.getRect(scrubber);
     await tester.dragFrom(
