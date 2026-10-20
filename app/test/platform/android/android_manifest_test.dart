@@ -62,4 +62,30 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'MUS-013 Android Auto media app, browsed through the library service',
+    () {
+      expect(
+        manifest.contains('com.google.android.gms.car.application'),
+        isTrue,
+      );
+      expect(
+        File('android/app/src/main/res/xml/automotive_app_desc.xml')
+            .readAsStringSync()
+            .contains('<uses name="media" />'),
+        isTrue,
+      );
+    },
+  );
+
+  test('MUS-011 wake alarms: exact alarms and a private receiver', () {
+    expect(has('SCHEDULE_EXACT_ALARM'), isTrue);
+    expect(
+      RegExp(r'AlarmReceiver"\s+android:exported="false"').hasMatch(manifest),
+      isTrue,
+    );
+    // USE_EXACT_ALARM is reserved for alarm-clock apps on Play.
+    expect(has('USE_EXACT_ALARM'), isFalse);
+  });
 }

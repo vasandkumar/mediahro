@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Native strings the OS shows outside Flutter (lane C4a). Translated with
+     the ARB files in Weblate; keys prefixed mediahro_. -->
+<resources>
+    <!-- Notification channel and fallback title for wake alarms (MUS-011). -->
+    <string name="mediahro_alarm_channel">Alarms</string>
+</resources>
