@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
+import 'package:mediahro/features/photos/batch/photo_batch_service.dart';
 import 'package:mediahro/features/photos/edit/edit_store.dart';
 import 'package:mediahro/features/photos/edit/photo_editor_service.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
@@ -218,6 +219,18 @@ final photoEditorProvider = Provider<PhotoEditor>(
     prober: ref.watch(imageProberProvider),
     db: ref.watch(libraryDatabaseProvider),
     store: ref.watch(editStoreProvider),
+  ),
+);
+
+/// Batch rename, convert, upright and strip (IMG-010).
+final photoBatchProvider = Provider<PhotoBatch>(
+  (ref) => PhotoBatchService(
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+    operations: ref.watch(fileOperationsProvider),
+    db: ref.watch(libraryDatabaseProvider),
+    prober: ref.watch(imageProberProvider),
   ),
 );
 
