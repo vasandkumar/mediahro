@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mediahro/platform/accessibility_prefs.dart';
 import 'package:mediahro/platform/audio_output.dart';
 import 'package:mediahro/platform/auth_browser.dart';
 import 'package:mediahro/platform/caption_style.dart';
@@ -6,6 +7,7 @@ import 'package:mediahro/platform/car_and_alarms.dart';
 import 'package:mediahro/platform/cast.dart';
 import 'package:mediahro/platform/display.dart';
 import 'package:mediahro/platform/enterprise.dart';
+import 'package:mediahro/platform/gamepad.dart';
 import 'package:mediahro/platform/imaging.dart';
 import 'package:mediahro/platform/media_session.dart';
 import 'package:mediahro/platform/network_status.dart';
@@ -17,6 +19,7 @@ import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro/platform/system_integration.dart';
 import 'package:mediahro/platform/text_services.dart';
 
+export 'accessibility_prefs.dart';
 export 'audio_output.dart';
 export 'auth_browser.dart';
 export 'caption_style.dart';
@@ -24,6 +27,7 @@ export 'car_and_alarms.dart';
 export 'cast.dart';
 export 'display.dart';
 export 'enterprise.dart';
+export 'gamepad.dart';
 export 'imaging.dart';
 export 'media_session.dart';
 export 'network_status.dart';
@@ -169,6 +173,14 @@ final powerStatusProvider = Provider<PowerStatusFacade>(
 );
 final imagingProvider = Provider<ImagingFacade>(
   (ref) => _unavailable('imaging'),
+  retry: _noRetry,
+);
+final accessibilityPrefsProvider = Provider<AccessibilityPrefsFacade>(
+  (ref) => const UnsupportedAccessibilityPrefs(),
+  retry: _noRetry,
+);
+final gamepadProvider = Provider<GamepadFacade>(
+  (ref) => const UnsupportedGamepad(),
   retry: _noRetry,
 );
 
