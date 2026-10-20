@@ -751,6 +751,25 @@ void videoPlayerSuite({
     expect(next.shaderPresets.single, shader.preset);
   });
 
+  playerTest('VID-038 built-in presets are listed by name and applied', (
+    tester,
+  ) async {
+    final fsr = ShaderChoice('builtin:fsr', 'fsr', [
+      Uri.parse('file:///data/shaders/FSR.glsl'),
+    ], builtIn: true);
+    final (engine, _) = await pumpPlayer(
+      tester,
+      overrides: [
+        shaderLibraryProvider.overrideWithValue((_) async => [fsr]),
+      ],
+    );
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('FSR: sharp upscaling for any video'));
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, fsr.preset);
+  });
+
   playerTest('VID-038 a folder without a file path is refused', (tester) async {
     final (_, store) = await pumpPlayer(
       tester,

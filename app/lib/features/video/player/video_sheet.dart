@@ -345,7 +345,11 @@ Future<void> showVideoSheet(
                         for (final choice in list)
                           RadioListTile<String>(
                             value: choice.id,
-                            title: Text(choice.name),
+                            title: Text(
+                              choice.builtIn
+                                  ? l.videoShaderPresetName(choice.name)
+                                  : choice.name,
+                            ),
                           ),
                         if (list.isEmpty)
                           Padding(

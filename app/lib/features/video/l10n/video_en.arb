@@ -465,6 +465,14 @@
   "videoShaderFolder": "Choose a shader folder",
   "videoShaderFolderUnsupported": "Shaders can only be read from a folder on this device's own storage.",
   "videoShaderNone": "None",
+  "videoShaderPresetName": "{preset, select, anime4kAFast{Anime4K A: sharpen blurry anime (fast)} anime4kAHq{Anime4K A: sharpen blurry anime (best)} anime4kBFast{Anime4K B: clean up compressed anime (fast)} anime4kBHq{Anime4K B: clean up compressed anime (best)} anime4kCFast{Anime4K C: upscale clean anime (fast)} anime4kCHq{Anime4K C: upscale clean anime (best)} fsr{FSR: sharp upscaling for any video} other{Built-in shader}}",
+  "@videoShaderPresetName": {
+    "placeholders": {
+      "preset": {
+        "type": "String"
+      }
+    }
+  },
   "videoShaders": "Shaders",
   "videoShadersEmpty": "Put .glsl shader files in a folder and choose it here to use them.",
   "videoSharpen": "Sharpen",
