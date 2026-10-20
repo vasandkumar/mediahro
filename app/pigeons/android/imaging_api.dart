@@ -12,8 +12,7 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/platform/android/gen/imaging_api.pigeon.dart',
-    kotlinOut:
-        'android/app/src/main/kotlin/com/mediahro/mediahro/pigeon/ImagingApi.g.kt',
+    kotlinOut: 'android/app/src/main/kotlin/com/mediahro/mediahro/pigeon/ImagingApi.g.kt',
     kotlinOptions: KotlinOptions(
       // Shares FlutterError with StorageApi.g.kt.
       package: 'com.mediahro.mediahro.pigeon',
