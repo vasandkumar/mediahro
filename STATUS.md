@@ -287,7 +287,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-005 | File provider / Files integration | C4 | — | ☐ | 1.1 | 1.1 |  |
 | SYS-006 | Foreground service & battery | C4 | ☐ | — | — | — |  |
-| SYS-007 | Storage access | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-007 | Storage access | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #23: c4a_android_storage_test 13/13 on Samsung SM-M176B (Android 16), tools/check 321 pass. |
 | SYS-008 | Accessibility services | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-009 | Input | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-010 | TV mode | C4 | 1.1 | — | — | — | Rel. 1.1 |
@@ -417,6 +417,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C4a **#23**: Android storage and photo library (SAF trees, MediaStore with OS trash and undo, Photo Picker, Motion Photo). Verified locally: `tools/check` on the merge result (321 pass) and c4a_android_storage_test 13/13 on the Samsung. SYS-007 A ticked. This unblocks B2's Android LIB-002/003, FILE-001/002, NET-018, LIB-007, CORE-014 and C3's IMG-016 A, pending their end-to-end runs. |
 | 2026-10-20 | **Owner decisions:** (1) the Android test build goes to **Google Play internal testing** today; the owner checklist is docs/release/android-internal-test.md (upload key, Play Console and declarations are owner steps). (2) **No GitHub CI for now:** every workflow is manual-only (164fa62, a364a9c). Proof is local: `tools/check`, plus integration tests on the owner's Samsung SM-M176B (Android 16) over wireless debugging (lanes rule 8). The orchestrator re-runs `tools/check` before each merge. |
 | 2026-10-20 | **Owner decision: Android first.** An Android test build ships today; the other platforms follow afterwards. This changes the order of work only: every doc 04 feature still ships on every listed platform. Slots: C4a (Android storage + media session), C1 (video player, Android) and C2 (music, Android). B2 and B4a are paused (the Android engine already runs on mediahro-deps android.4). Testing iterates on the owner's Samsung phone over wireless debugging, one lane at a time under K:\Projects\.device-lock; CI on each PR stays the merge proof. |
 | 2026-10-20 | **Owner rule: at most 3 lane sessions run at once.** Paused all eight C lanes plus B4b and B4c (their worktrees and work are kept). Running: B1, B2, B4a. Rotation order is in §1. ADR-027 (engine audio tap and stream metadata, for C2) is accepted; C3's ImagingFacade request is pending until C3's slot. |
