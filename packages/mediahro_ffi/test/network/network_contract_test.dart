@@ -17,8 +17,6 @@ final String? _skip = _enabled
           'MEDIAHRO_NET_ENV=1 with the docker environment running';
 final String _host = Platform.environment['MEDIAHRO_NET_HOST'] ?? '127.0.0.1';
 final int? _smbPort = int.tryParse(Platform.environment['SMB_PORT'] ?? '');
-final String _data =
-    Platform.environment['MEDIAHRO_NET_DATA'] ?? 'test/network/data';
 
 Matcher _err(VirtualFileError e) =>
     throwsA(isA<VirtualFileException>().having((x) => x.error, 'error', e));
@@ -223,133 +221,7 @@ void main() {
     });
   }, skip: _skip);
 
-  group('NET-004 FTP/FTPS/SFTP', () {
-    Uri root(String scheme, [int? port]) =>
-        Uri(scheme: scheme, host: _host, port: port, path: '/');
-
-    test('plain FTP', () async {
-      final fs = curlFileSystem(
-        root('ftp'),
-        CurlOptions(
-          protocol: CurlProtocol.ftp,
-          host: _host,
-          user: 'test',
-          password: 'testpass',
-        ),
-      );
-      addTearDown(fs.close);
-      await contract(fs, root('ftp'));
-    });
-
-    test(
-      'explicit FTPS (AUTH TLS) with an accepted self-signed certificate',
-      () async {
-        final fs = curlFileSystem(
-          root('ftp'),
-          CurlOptions(
-            protocol: CurlProtocol.ftpes,
-            host: _host,
-            user: 'test',
-            password: 'testpass',
-            allowUntrustedTls: true,
-          ),
-        );
-        addTearDown(fs.close);
-        await contract(fs, root('ftp'), large: false);
-      },
-    );
-
-    test(
-      'FTPS refuses an untrusted certificate until the user accepts it',
-      () async {
-        final fs = curlFileSystem(
-          root('ftp'),
-          CurlOptions(
-            protocol: CurlProtocol.ftpes,
-            host: _host,
-            user: 'test',
-            password: 'testpass',
-          ),
-        );
-        addTearDown(fs.close);
-        await expectLater(
-          fs.list(root('ftp')).toList(),
-          _err(VirtualFileError.untrustedCertificate),
-        );
-      },
-    );
-
-    test('implicit FTPS', () async {
-      final fs = curlFileSystem(
-        root('ftps', 990),
-        CurlOptions(
-          protocol: CurlProtocol.ftps,
-          host: _host,
-          port: 990,
-          user: 'test',
-          password: 'testpass',
-          allowUntrustedTls: true,
-        ),
-      );
-      addTearDown(fs.close);
-      await contract(fs, root('ftps', 990), large: false, writable: false);
-    });
-
-    test('SFTP host key is trusted on first use, then pinned; password and key auth', () async {
-      final r = root('sftp', 2222);
-      final first = curlFileSystem(
-        r,
-        CurlOptions(
-          protocol: CurlProtocol.sftp,
-          host: _host,
-          port: 2222,
-          rootPath: '/srv/media',
-          user: 'test',
-          password: 'testpass',
-        ),
-      );
-      String? fingerprint;
-      try {
-        await first.list(r).toList();
-      } on VirtualFileException catch (e) {
-        expect(e.error, VirtualFileError.untrustedCertificate);
-        fingerprint = e.detail;
-      } finally {
-        await first.close();
-      }
-      expect(fingerprint, isNotNull);
-      final pw = curlFileSystem(
-        r,
-        CurlOptions(
-          protocol: CurlProtocol.sftp,
-          host: _host,
-          port: 2222,
-          rootPath: '/srv/media',
-          user: 'test',
-          password: 'testpass',
-          hostKeySha256: fingerprint,
-        ),
-      );
-      addTearDown(pw.close);
-      await contract(pw, r);
-      final key = File('$_data/ssh/id_ed25519').readAsStringSync();
-      final byKey = curlFileSystem(
-        r,
-        CurlOptions(
-          protocol: CurlProtocol.sftp,
-          host: _host,
-          port: 2222,
-          rootPath: '/srv/media',
-          user: 'test',
-          privateKeyPem: key,
-          hostKeySha256: fingerprint,
-        ),
-      );
-      addTearDown(byKey.close);
-      expect(
-        (await byKey.list(r).toList()).map((e) => e.name),
-        contains('Films'),
-      );
-    });
-  }, skip: _skip);
+  // NET-004 runs in the app (app/test/core/sources/network_env_test.dart):
+  // FTP/FTPS through the Dart client against vsftpd; SFTP through C4's
+  // SftpFacade (ADR-017). libcurl is no longer used for NET-004.
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Linux CI only: native libraries for the FFI network contract tests until
 # lane B4's mediahro-deps archives exist. libsmb2/libnfs are built from the
-# same pinned sources ffigen read (SHA-256 checked); libcurl, libarchive,
+# same pinned sources ffigen read (SHA-256 checked); libarchive,
 # libebur128, chromaprint and uchardet come from Ubuntu (their APIs match
 # the bound subset). Test-only: nothing here is shipped.
 # Usage: build_native.sh <prefix>   (then LD_LIBRARY_PATH=<prefix>/lib)
@@ -9,7 +9,7 @@ set -euo pipefail
 prefix="$1"
 sudo apt-get -qq update
 sudo apt-get -qq install -y build-essential cmake pkg-config \
-  libcurl4-openssl-dev libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev > /dev/null
+  libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev > /dev/null
 src="$(mktemp -d)"
 fetch() {
   curl -sSLf "$2" -o "$src/$1.tgz"

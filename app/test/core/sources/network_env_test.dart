@@ -138,12 +138,13 @@ void main() {
       final root = Uri.parse('dlna://${d.udn}/');
       final top = await fs.list(root).toList();
       expect(top, isNotEmpty);
-      // MiniDLNA: Video → Folders → Films → Movie One (2024).mkv
+      // MiniDLNA indexes only files its parser opens: the seeded WAV
+      // (Music → All Music → 02 Tone); the MKV is a byte-pattern placeholder.
       VirtualEntry? movie;
       Future<void> walk(Uri u, int depth) async {
         if (movie != null || depth > 4) return;
         for (final e in await fs.list(u).toList()) {
-          if (!e.isDirectory && e.name.contains('Movie One')) {
+          if (!e.isDirectory && e.name.contains('02 Tone')) {
             movie = e;
             return;
           }
@@ -151,7 +152,13 @@ void main() {
         }
       }
 
-      await walk(root, 0);
+      // The health check passes before MiniDLNA's first scan finishes.
+      for (var i = 0; i < 15 && movie == null; i++) {
+        await walk(root, 0);
+        if (movie == null) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
+      }
       expect(movie, isNotNull);
       final f = await fs.open(movie!.uri);
       expect(await f.read(100, 4), [
