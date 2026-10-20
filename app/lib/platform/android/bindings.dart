@@ -10,6 +10,7 @@ import 'package:mediahro/platform/android/android_input.dart';
 import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_power_status.dart';
+import 'package:mediahro/platform/android/android_purchases.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
@@ -55,4 +56,5 @@ List<Override> overrides() => [
   imagingProvider.overrideWithValue(AndroidImaging()),
   managedConfigProvider.overrideWithValue(AndroidManagedConfig()),
   kioskProvider.overrideWithValue(AndroidKiosk()),
+  purchasesProvider.overrideWithValue(AndroidPurchases()),
 ];
