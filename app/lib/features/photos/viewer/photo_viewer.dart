@@ -11,6 +11,7 @@ import 'package:mediahro/features/library/widgets.dart'
     show openItemActionProvider;
 import 'package:mediahro/features/photos/compare/compare_screen.dart';
 import 'package:mediahro/features/photos/compare/compare_tray.dart';
+import 'package:mediahro/features/photos/edit/editor_screen.dart';
 import 'package:mediahro/features/photos/info/info_sheet.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
@@ -393,6 +394,13 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: l10n.photosEditPhoto,
+                                color: Colors.white,
+                                icon: const Icon(Icons.tune),
+                                onPressed: () =>
+                                    unawaited(openEditor(context, _entry)),
                               ),
                               IconButton(
                                 tooltip:
