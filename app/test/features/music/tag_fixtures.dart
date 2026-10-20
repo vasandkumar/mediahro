@@ -237,7 +237,7 @@ List<int> oggPage(int serial, int seq, List<int> packet, {int flags = 0}) {
     n -= 255;
   }
   segs.add(n);
-  return [
+  final page = [
     ...ascii('OggS'),
     0,
     flags,
@@ -249,6 +249,22 @@ List<int> oggPage(int serial, int seq, List<int> packet, {int flags = 0}) {
     ...segs,
     ...packet,
   ];
+  return page..setRange(22, 26, u32le(_oggCrc(page)));
+}
+
+int _oggCrc(List<int> page) {
+  var crc = 0;
+  for (final b in page) {
+    var c = ((crc >> 24) & 0xFF) ^ b;
+    var r = c << 24;
+    for (var k = 0; k < 8; k++) {
+      r = (r & 0x80000000) != 0 ? ((r << 1) ^ 0x04C11DB7) : (r << 1);
+      r &= 0xFFFFFFFF;
+    }
+    c = r;
+    crc = ((crc << 8) ^ c) & 0xFFFFFFFF;
+  }
+  return crc;
 }
 
 Uint8List oggVorbis(List<String> comments) => bytesOf([
