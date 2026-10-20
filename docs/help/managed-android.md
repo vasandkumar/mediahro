@@ -17,7 +17,7 @@ Set these app restrictions from your MDM console (Android Enterprise). The conso
 | `branding_off` | Hide the app name and supporter prompts (enterprise licence). |
 | `telemetry_off` | Keep diagnostics and crash reports off. |
 | `playlist_url` | A playlist to start automatically. |
-| `update_channel` | `stable` or `beta`. |
+| `update_channel` | `stable` or `beta`. Informational, for your own deployment tooling: the app never checks for or installs updates. |
 
 A setting that your MDM controls shows a lock in Settings and cannot be changed on the device. Changes in the console apply while the app is running.
 

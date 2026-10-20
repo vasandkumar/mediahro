@@ -31,7 +31,7 @@
     <string name="mediahro_mdm_playlist_url">Playlist URL</string>
     <string name="mediahro_mdm_playlist_url_desc">A playlist to start automatically.</string>
     <string name="mediahro_mdm_update_channel">Update channel</string>
-    <string name="mediahro_mdm_update_channel_desc">Which releases the app offers.</string>
+    <string name="mediahro_mdm_update_channel_desc">Informational: the release channel your own deployment tooling distributes. The app never checks for updates itself.</string>
     <string name="mediahro_mdm_source_local">Device storage</string>
     <string name="mediahro_mdm_source_smb">SMB</string>
     <string name="mediahro_mdm_source_sftp">SFTP</string>
