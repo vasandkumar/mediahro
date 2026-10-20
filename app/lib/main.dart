@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:mediahro/app/media_wiring.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/router.dart';
 import 'package:mediahro/app/services.dart';
+import 'package:mediahro/features/library/widgets.dart'
+    show openItemActionProvider;
 import 'package:mediahro/features/music/music_wiring.dart';
+import 'package:mediahro/features/photos/viewer/photo_viewer.dart'
+    show photoRoutes;
 import 'package:mediahro/features/video/player/bundled_shaders.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/platform/platform_bindings.dart';
@@ -25,7 +30,8 @@ Future<void> main() async {
         ...platformOverrides(),
         ...musicOverrides,
         ...videoOverrides,
-        appRoutesProvider.overrideWithValue([...videoRoutes]),
+        openItemActionProvider.overrideWithValue(openItemByKind),
+        appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
       ],
     ),
   );
