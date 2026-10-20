@@ -4,8 +4,7 @@
 name: nightly
 
 on:
-  schedule:
-    - cron: '17 2 * * *'
+  # Owner, 2026-10-20: no GitHub CI for now (lanes rule 8). Manual runs only.
   workflow_dispatch:
 
 permissions:

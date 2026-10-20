@@ -3,11 +3,8 @@
 name: status
 
 on:
-  push:
-    branches: [main]
-    paths: ['STATUS.md', 'tools/status/**']
-  pull_request:
-    paths: ['STATUS.md', 'tools/status/**']
+  # Owner, 2026-10-20: no GitHub CI for now (lanes rule 8); tools/check runs this locally.
+  workflow_dispatch:
 
 permissions:
   contents: read
