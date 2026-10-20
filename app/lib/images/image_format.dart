@@ -73,6 +73,36 @@ const Set<String> rawExtensions = {
   'cap',
 };
 
+const Set<String> _heifBrands = {
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'hevm',
+  'hevs',
+  'mif1',
+  'msf1',
+  'mif2',
+};
+
+/// Video container extensions the photo timeline shows with a play badge.
+const Set<String> videoContainerExtensions = {
+  '3gp',
+  'avi',
+  'm2ts',
+  'm4v',
+  'mkv',
+  'mov',
+  'mp4',
+  'mpeg',
+  'mpg',
+  'mts',
+  'webm',
+  'wmv',
+};
+
 /// Detects the format from the first bytes of a file and, for the TIFF-based
 /// RAW families that share TIFF's magic, from [extension] (no dot).
 ImageFormat sniffImageFormat(Uint8List head, {String? extension}) {
@@ -104,7 +134,9 @@ ImageFormat sniffImageFormat(Uint8List head, {String? extension}) {
     );
     if (brand == 'avif' || brand == 'avis') return ImageFormat.avif;
     if (brand == 'crx ') return ImageFormat.raw;
-    return ImageFormat.heic;
+    if (_heifBrands.contains(brand)) return ImageFormat.heic;
+    // isom, mp42, qt, M4V ...: an MP4/MOV video, not a still image.
+    return ImageFormat.unknown;
   }
   if (ascii(0, 'FUJIFILMCCD-RAW') || ascii(6, 'HEAPCCDR') || ascii(0, 'FOVb')) {
     return ImageFormat.raw;

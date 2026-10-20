@@ -131,27 +131,60 @@ final class MediahroImagePipeline implements ImagePipeline {
     ThumbnailPriority priority = ThumbnailPriority.visible,
     Object? group,
     void Function(JobHandle)? onQueued,
+  }) async => await thumbnailFor(
+    uri: src.uri,
+    size: await _length(src),
+    mtime: src.mtime,
+    orientation: src.orientationHint ?? 1,
+    edge: edge,
+    open: () async => src,
+    priority: priority,
+    group: group,
+    onQueued: onQueued,
+  );
+
+  /// Like [thumbnailFile] for callers that know the file's size and time
+  /// from the index: a cache hit needs no I/O at all, and [open] is called
+  /// only on a miss. [open] may hand back a source the pipeline then closes
+  /// when [closeSource] is set.
+  Future<File> thumbnailFor({
+    required Uri uri,
+    required int size,
+    required int edge,
+    required Future<ImageSource> Function() open,
+    DateTime? mtime,
+    int orientation = 1,
+    ThumbnailPriority priority = ThumbnailPriority.visible,
+    Object? group,
+    void Function(JobHandle)? onQueued,
+    bool closeSource = false,
   }) async {
-    final length = await _length(src);
     final key = ThumbnailCache.keyFor(
-      uri: src.uri,
+      uri: uri,
       edge: edge,
-      mtime: src.mtime,
-      size: length,
-      orientation: src.orientationHint ?? 1,
+      mtime: mtime,
+      size: size,
+      orientation: orientation,
     );
     final hit = await cache.lookup(key);
     if (hit != null) return hit;
     return await (_inflight[key] ??=
-        _generate(
-          src,
-          key,
-          edge,
-          length,
-          priority,
-          group,
-          onQueued,
-        ).whenComplete(() {
+        () async {
+          final src = await open();
+          try {
+            return await _generate(
+              src,
+              key,
+              edge,
+              size,
+              priority,
+              group,
+              onQueued,
+            );
+          } finally {
+            if (closeSource) await src.file.close();
+          }
+        }().whenComplete(() {
           // A block body: returning remove()'s value would make this future
           // wait on itself.
           unawaited(_inflight.remove(key));
@@ -185,6 +218,11 @@ final class MediahroImagePipeline implements ImagePipeline {
       } on ImageBackendUnavailable {
         return await cache.store(key, await fallback.encodePng(os), ext: 'png');
       }
+    }
+
+    // Videos get a thumbnail from the OS or none (the video lane may add one).
+    if (videoContainerExtensions.contains(ext)) {
+      throw const ImageBackendUnavailable('no video thumbnail without the OS');
     }
 
     // 2. libvips on the worker pool.
