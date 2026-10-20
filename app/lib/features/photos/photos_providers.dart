@@ -9,6 +9,7 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/batch/photo_batch_service.dart';
+import 'package:mediahro/features/photos/duplicates/photo_duplicates.dart';
 import 'package:mediahro/features/photos/edit/edit_store.dart';
 import 'package:mediahro/features/photos/edit/photo_editor_service.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
@@ -247,6 +248,15 @@ final photoOutputSupportProvider = FutureProvider<ImagingSupport>((ref) async {
     return const ImagingSupport();
   }
 });
+
+/// Finds exact and similar photos (IMG-013).
+final photoDuplicateScannerProvider = Provider<DuplicateScanner>(
+  (ref) => PhotoDuplicateScanner(
+    db: ref.watch(libraryDatabaseProvider),
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+  ),
+);
 
 /// The app's recycle bin for photos (IMG-014).
 final appTrashProvider = Provider<PhotoTrash>(

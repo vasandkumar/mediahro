@@ -793,5 +793,49 @@
         "type": "int"
       }
     }
+  },
+  "photosDuplicates": "Duplicates",
+  "photosDuplicatesSubtitle": "Find copies and photos that look the same",
+  "photosDuplicatesIntro": "Look for exact copies, and for photos that look the same even when they differ in size or quality. You decide what to keep; nothing is deleted on its own.",
+  "photosDuplicatesExact": "Exact copies",
+  "photosDuplicatesSimilar": "Look the same",
+  "photosDuplicatesFind": "Find duplicates",
+  "photosDuplicatesScanning": "Looking at photos: {done} of {total}",
+  "@photosDuplicatesScanning": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosDuplicatesComparing": "Comparing photos",
+  "photosDuplicatesNone": "No duplicates",
+  "photosDuplicatesNoneMessage": "Nothing in your library looks like a copy of something else.",
+  "photosDuplicatesKindExact": "identical files",
+  "photosDuplicatesKindSimilar": "look the same",
+  "photosDuplicatesGroup": "{count} photos, {kind}",
+  "@photosDuplicatesGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "photosDuplicatesReview": "Review duplicates",
+  "photosDuplicatesKeep": "Keep",
+  "photosDuplicatesKeepOne": "Keep at least one",
+  "photosDuplicatesDelete": "{count, plural, =1{Delete 1 other} other{Delete {count} others}}",
+  "@photosDuplicatesDelete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
