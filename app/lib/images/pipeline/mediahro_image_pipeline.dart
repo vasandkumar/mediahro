@@ -406,7 +406,14 @@ final class MediahroImagePipeline implements ImagePipeline {
   }
 
   @override
-  Future<ImageInfo> info(ImageSource src) async {
+  Future<ImageInfo> info(ImageSource src) async => (await readFacts(src)).info;
+
+  /// Header facts and the parsed metadata from one read of the file's first
+  /// 4 MiB: what the library prober and the info sheet need without reading
+  /// the whole file.
+  Future<({ImageInfo info, ParsedMetadata parsed})> readFacts(
+    ImageSource src,
+  ) async {
     final length = await _length(src);
     final head = await _range(src.file, 0, math.min(length, _head));
     final ext = extensionOf(src.uri);
@@ -445,7 +452,7 @@ final class MediahroImagePipeline implements ImagePipeline {
       w = h;
       h = t;
     }
-    return ImageInfo(
+    final info = ImageInfo(
       width: w,
       height: h,
       format: format == ImageFormat.raw ? (ext ?? 'raw') : format.shortName,
@@ -458,6 +465,7 @@ final class MediahroImagePipeline implements ImagePipeline {
       isMotionPhoto: parsed.motionVideoLength != null,
       isPanorama: parsed.isPanorama,
     );
+    return (info: info, parsed: parsed);
   }
 
   Future<Uint8List> _forMetadata(ImageSource src) async {

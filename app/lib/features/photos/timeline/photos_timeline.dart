@@ -1,8 +1,7 @@
-import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -61,11 +60,7 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
     _thumbs?.dispose();
     _thumbEdge = edge;
     return _thumbs = ThumbnailController(
-      PipelineThumbnailSource(
-        ref.read(imagePipelineProvider),
-        ref.read(photoFilesProvider),
-        edge: edge,
-      ),
+      ref.read(thumbnailSourceProvider(edge)),
     );
   }
 
@@ -211,7 +206,7 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
         _viewport = constraints.maxHeight;
         // The scrubber sits over the trailing edge; tiles use the rest.
         final width = constraints.maxWidth;
-        final headerHeight = math.max(48.0, scaler.scale(24) + 24);
+        final double headerHeight = math.max(48, scaler.scale(24) + 24);
         final layout = _layoutFor(entries, width, headerHeight);
         final tileWidth = (width - 2 * (_columns - 1)) / _columns;
         final edge = tileWidth * dpr > 300 ? 512 : 256;
@@ -251,7 +246,9 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
                 child: ListView.builder(
                   controller: _scroll,
                   itemCount: layout.rows.length,
-                  cacheExtent: constraints.maxHeight * 2,
+                  scrollCacheExtent: ScrollCacheExtent.pixels(
+                    constraints.maxHeight * 2,
+                  ),
                   itemExtentBuilder: (i, _) =>
                       layout.rows[i].height +
                       (layout.rows[i] is TileRow ? layout.gap : 0),
@@ -325,7 +322,7 @@ class _PhotoTimelineState extends ConsumerState<PhotoTimeline> {
 
   /// One mark per month (a year when sections are months of many years).
   List<KTimelineMark> _marks(TimelineLayout layout, String locale) {
-    final max = math.max(1.0, layout.totalHeight - _viewport);
+    final max = math.max(1, layout.totalHeight - _viewport);
     final out = <KTimelineMark>[];
     int? lastKey;
     for (var s = 0; s < layout.sections.length; s++) {

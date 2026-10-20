@@ -16,6 +16,7 @@ class PhotoThumbnail extends StatefulWidget {
     required this.index,
     required this.controller,
     this.cacheWidth,
+    this.fit = BoxFit.cover,
     super.key,
   });
 
@@ -27,6 +28,7 @@ class PhotoThumbnail extends StatefulWidget {
 
   /// Decode width in physical pixels.
   final int? cacheWidth;
+  final BoxFit fit;
 
   @override
   State<PhotoThumbnail> createState() => _PhotoThumbnailState();
@@ -101,9 +103,8 @@ class _PhotoThumbnailState extends State<PhotoThumbnail> {
     final reduceMotion = KAccessibility.reduceMotion(context);
     return Image.file(
       file,
-      fit: BoxFit.cover,
+      fit: widget.fit,
       cacheWidth: widget.cacheWidth,
-      filterQuality: FilterQuality.medium,
       gaplessPlayback: true,
       excludeFromSemantics: true,
       frameBuilder: (context, child, frame, sync) {

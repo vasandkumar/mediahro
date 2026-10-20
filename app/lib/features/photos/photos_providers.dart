@@ -3,11 +3,15 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show ProviderException;
+import 'package:flutter_riverpod/misc.dart'
+    show ProviderException, ProviderFamily;
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
+import 'package:mediahro/features/photos/image_prober.dart';
+import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
+import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
@@ -47,7 +51,7 @@ final thumbnailCacheProvider = Provider<ThumbnailCache>((ref) {
   return c;
 });
 
-final photoFilesProvider = Provider<PhotoFiles>((ref) {
+final photoFilesProvider = Provider<PhotoFileOpener>((ref) {
   final f = PhotoFiles(
     ref.watch(libraryDatabaseProvider),
     ref.watch(sourceResolverProvider),
@@ -75,6 +79,34 @@ final imagePipelineProvider = Provider<MediahroImagePipeline>((ref) {
   );
   return p;
 });
+
+/// Where thumbnails of a given edge (px) come from; tests replace it.
+final ProviderFamily<ThumbnailSource, int> thumbnailSourceProvider =
+    Provider.family<ThumbnailSource, int>(
+      (ref, edge) => PipelineThumbnailSource(
+        ref.watch(imagePipelineProvider),
+        ref.watch(photoFilesProvider),
+        edge: edge,
+      ),
+    );
+
+/// Reads image facts for the library (plug into the probe queue for images).
+final imageProberProvider = Provider<ImageProber>(
+  (ref) => ImageProber(
+    pipeline: ref.watch(imagePipelineProvider),
+    db: ref.watch(libraryDatabaseProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+  ),
+);
+
+final metadataEditServiceProvider = Provider<MetadataEditService>(
+  (ref) => MetadataEditService(
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+    prober: ref.watch(imageProberProvider),
+    db: ref.watch(libraryDatabaseProvider),
+  ),
+);
 
 /// Photos and videos of the library, newest first, as light entries
 /// (IMG-003). Re-queried (coalesced) when the index changes.

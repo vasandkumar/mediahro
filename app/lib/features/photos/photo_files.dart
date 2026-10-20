@@ -8,10 +8,19 @@ import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
+/// Opens photos by index entry; faked in tests.
+abstract interface class PhotoFileOpener {
+  /// URI of [e] inside its source.
+  Future<Uri> uriOf(PhotoEntry e);
+
+  /// The file, opened. The caller closes `source.file`.
+  Future<ImageSource> open(PhotoEntry e);
+}
+
 /// Opens indexed photos through their source (local folder, SAF tree,
 /// MediaStore, network share) and mounts the source so the image pipeline
 /// can write metadata back through it (IMG-006).
-final class PhotoFiles {
+final class PhotoFiles implements PhotoFileOpener {
   PhotoFiles(this.db, this.resolver, this.mounts);
 
   final LibraryDatabase db;
@@ -30,13 +39,13 @@ final class PhotoFiles {
         return (access, fs);
       }();
 
-  /// URI of [e] inside its source.
+  @override
   Future<Uri> uriOf(PhotoEntry e) async {
     final (access, _) = await _source(e.sourceId);
     return childUri(access.root, e.relPath);
   }
 
-  /// The file, opened. The caller closes `source.file`.
+  @override
   Future<ImageSource> open(PhotoEntry e) async {
     try {
       final (access, fs) = await _source(e.sourceId);

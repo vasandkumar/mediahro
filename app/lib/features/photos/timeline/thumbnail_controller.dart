@@ -26,7 +26,7 @@ final class PipelineThumbnailSource implements ThumbnailSource {
   PipelineThumbnailSource(this.pipeline, this.files, {this.edge = 256});
 
   final MediahroImagePipeline pipeline;
-  final PhotoFiles files;
+  final PhotoFileOpener files;
   final int edge;
 
   @override
