@@ -19,24 +19,54 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.mediahro.mediahro.pigeon.MediaBrowseFlutterApi
 import com.mediahro.mediahro.pigeon.MediaBrowseHostApi
 import com.mediahro.mediahro.pigeon.MediaBrowseNodeMsg
+import com.mediahro.mediahro.platform.AppEngine
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The car and voice side of the session (MUS-013): Android Auto and the
  * Assistant browse, search and play through the Media3 library session;
  * every request goes to the Dart [MediaBrowseFacade] provider through
- * [MediaBrowseFlutterApi]. Until Dart registers a provider (the app is not
- * running yet), browsing reports the session as disconnected.
+ * [MediaBrowseFlutterApi]. When the app is not running, the first request
+ * starts it without a screen ([AppEngine], ADR-036) and waits for Dart to
+ * register its provider; only if that fails is the session reported as
+ * disconnected.
  */
 @OptIn(UnstableApi::class)
 object BrowseHub {
+    /** How long a car request waits for a cold-started app (ADR-036). */
+    const val START_TIMEOUT_MS = 15_000L
+
     @Volatile var flutter: MediaBrowseFlutterApi? = null
-    @Volatile var registered = false
+    private val ready = MutableStateFlow<MediaBrowseFlutterApi?>(null)
+
+    /** Dart registered its provider on the current engine. */
+    var registered: Boolean
+        get() = ready.value != null
+        set(value) {
+            ready.value = if (value) flutter else null
+        }
+
+    /** The provider, or null until Dart registers one. */
+    fun current(): MediaBrowseFlutterApi? = ready.value
+
+    /** Waits up to [timeoutMs] for Dart to register its provider. */
+    suspend fun await(timeoutMs: Long = START_TIMEOUT_MS): MediaBrowseFlutterApi? =
+        ready.value ?: withTimeoutOrNull(timeoutMs) { ready.filterNotNull().first() }
+
+    /** The engine is gone (or a new one starts): no provider until Dart registers. */
+    fun reset() {
+        ready.value = null
+        flutter = null
+    }
 
     /** Nodes seen recently, for onGetItem and voice play. */
     val nodes = ConcurrentHashMap<String, MediaBrowseNodeMsg>()
@@ -60,12 +90,15 @@ class MediaBrowseModule : MediaBrowseHostApi {
 internal class BrowseCallback(private val context: Context) : MediaLibrarySession.Callback {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private fun ready(): MediaBrowseFlutterApi? = BrowseHub.flutter?.takeIf { BrowseHub.registered }
+    /** The Dart provider, starting the app without a screen if needed (ADR-036). */
+    private suspend fun api(): MediaBrowseFlutterApi? {
+        BrowseHub.current()?.let { return it }
+        AppEngine.startHeadless(context)
+        return BrowseHub.await()
+    }
 
-    private fun <T : Any> notReady(): ListenableFuture<LibraryResult<T>> =
-        Futures.immediateFuture(
-            LibraryResult.ofError<T>(SessionError(SessionError.ERROR_SESSION_DISCONNECTED, "app not running")),
-        )
+    private fun <T : Any> notReady(): LibraryResult<T> =
+        LibraryResult.ofError(SessionError(SessionError.ERROR_SESSION_DISCONNECTED, "app not running"))
 
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
@@ -79,6 +112,8 @@ internal class BrowseCallback(private val context: Context) : MediaLibrarySessio
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED).build(),
             )
             .build()
+        // The car shows the root at once; the app warms up behind it.
+        if (BrowseHub.current() == null) AppEngine.startHeadless(context)
         return Futures.immediateFuture(LibraryResult.ofItem(root, params))
     }
 
@@ -90,8 +125,8 @@ internal class BrowseCallback(private val context: Context) : MediaLibrarySessio
         pageSize: Int,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        val api = ready() ?: return notReady()
         return scope.future {
+            val api = api() ?: return@future notReady()
             val nodes = try {
                 api.children(parentId, page.toLong())
             } catch (e: Exception) {
@@ -117,8 +152,8 @@ internal class BrowseCallback(private val context: Context) : MediaLibrarySessio
         query: String,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
-        val api = ready() ?: return notReady()
         return scope.future {
+            val api = api() ?: return@future notReady()
             val found = try {
                 api.search(query)
             } catch (e: Exception) {
@@ -156,10 +191,10 @@ internal class BrowseCallback(private val context: Context) : MediaLibrarySessio
         startIndex: Int,
         startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        val api = ready()
         val first = mediaItems.getOrNull(maxOf(startIndex, 0))
-        if (api != null && first != null) {
+        if (first != null) {
             scope.future {
+                val api = api() ?: return@future
                 val query = first.requestMetadata.searchQuery
                 val id = if (!query.isNullOrBlank() && first.mediaId.isEmpty()) {
                     api.search(query).firstOrNull { it.playable }?.id

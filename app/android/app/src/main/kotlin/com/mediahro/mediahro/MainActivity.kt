@@ -3,6 +3,7 @@ package com.mediahro.mediahro
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import com.mediahro.mediahro.platform.AppEngine
 import com.mediahro.mediahro.platform.PlatformModules
 import com.mediahro.mediahro.platform.media.AlarmHub
 import com.mediahro.mediahro.platform.system.IncomingIntents
@@ -12,9 +13,20 @@ import io.flutter.embedding.engine.FlutterEngine
 /**
  * Fragment activity so platform modules can use the Activity Result APIs
  * (pickers, permissions, trash consent) and BiometricPrompt.
+ *
+ * If Android Auto already started the app without a screen (ADR-036), the
+ * activity shows that engine instead of starting a second one.
  */
 class MainActivity : FlutterFragmentActivity() {
+    /** Decided once, before the Flutter fragment is created. */
+    private val adopted: String? by lazy {
+        AppEngine.CACHE_ID.takeIf { AppEngine.cached() != null }
+    }
+
+    override fun getCachedEngineId(): String? = adopted ?: super.getCachedEngineId()
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (adopted != null) AppEngine.onActivity(attached = true, finishing = false)
         PlatformModules.host(applicationContext).attach(this)
         super.onCreate(savedInstanceState)
         deliverAlarm(intent)
@@ -60,5 +72,6 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onDestroy() {
         PlatformModules.host(applicationContext).detach(this)
         super.onDestroy()
+        if (adopted != null) AppEngine.onActivity(attached = false, finishing = isFinishing)
     }
 }

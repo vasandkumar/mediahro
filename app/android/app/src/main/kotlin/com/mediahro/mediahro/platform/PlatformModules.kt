@@ -105,7 +105,26 @@ object PlatformModules {
             activityHost ?: ActivityHost(context.applicationContext).also { activityHost = it }
         }
 
+    /** The engine the modules serve; registered once per engine (ADR-036). */
+    @Volatile private var engine: FlutterEngine? = null
+
+    /** A Flutter engine is running Dart (the activity's or the headless one). */
+    val engineAlive: Boolean get() = engine != null
+
     fun register(context: Context, engine: FlutterEngine) {
+        // MainActivity adopting the headless engine keeps its modules: Dart
+        // already holds their channels and streams.
+        if (engine === this.engine) return
+        this.engine = engine
+        engine.addEngineLifecycleListener(object : FlutterEngine.EngineLifecycleListener {
+            override fun onPreEngineRestart() {}
+
+            override fun onEngineWillDestroy() {
+                if (this@PlatformModules.engine !== engine) return
+                this@PlatformModules.engine = null
+                BrowseHub.reset()
+            }
+        })
         val host = host(context)
         val messenger = engine.dartExecutor.binaryMessenger
         storage?.dispose()
@@ -120,7 +139,7 @@ object PlatformModules {
         RemoteCommandsStreamHandler.register(messenger, sessionModule.commandsHandler)
 
         // Android Auto and voice (MUS-013): a new engine registers its provider again.
-        BrowseHub.registered = false
+        BrowseHub.reset()
         BrowseHub.flutter = MediaBrowseFlutterApi(messenger)
         MediaBrowseHostApi.setUp(messenger, MediaBrowseModule())
 
