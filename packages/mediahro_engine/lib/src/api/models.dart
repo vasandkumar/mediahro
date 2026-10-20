@@ -325,8 +325,43 @@ abstract class VideoFilterChain with _$VideoFilterChain {
     @Default(0) double panX,
     @Default(0) double panY,
     @Default(false) bool interpolation,
+
+    /// VID-037: fractions of the frame cut from each edge (0…0.45 each).
+    ({double left, double top, double right, double bottom})? crop,
+
+    /// VID-040 (M W): colour-manage to the display's ICC profile.
+    @Default(false) bool iccAuto,
+
+    /// VID-040: an explicit ICC profile (`file:` URI); wins over [iccAuto].
+    Uri? iccProfile,
+
+    /// VID-040: a 3D LUT file (`file:` URI, e.g. `.cube`) and how to read it.
+    Uri? lut3d,
+    @Default(Lut3dType.auto) Lut3dType lutType,
+
+    /// VID-041: stereoscopic 3D shown as 2D (one eye) or as red/cyan
+    /// anaglyph.
+    @Default(StereoMode.off) StereoMode stereo,
+
+    /// VID-041: 360°/180° video shown as a flat view looking [yaw] degrees
+    /// right and [pitch] degrees up with a horizontal field of view of
+    /// [fov] degrees.
+    @Default(Projection.flat) Projection projection,
+    @Default(0) double yaw,
+    @Default(0) double pitch,
+    @Default(90) double fov,
   }) = _VideoFilterChain;
 }
+
+/// How a 3D LUT file is read (mpv `lut-type`, VID-040).
+enum Lut3dType { auto, native, normalized, conversion }
+
+/// Stereoscopic layouts and how they are shown (VID-041). Half- and
+/// full-resolution layouts are told apart by the frame's shape.
+enum StereoMode { off, sbsToLeft, tabToLeft, sbsAnaglyph, tabAnaglyph }
+
+/// Spherical projections shown as a flat view (VID-041).
+enum Projection { flat, equirect360, equirect180, vr180 }
 
 /// Built-in user-shader presets and custom GLSL (VID-038).
 @freezed

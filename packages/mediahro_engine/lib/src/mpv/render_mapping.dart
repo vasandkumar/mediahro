@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:mediahro_engine/src/api/models.dart';
 
 String _n(num v) {
@@ -18,12 +20,19 @@ String toneMappingName(ToneMapping t) => switch (t) {
   ToneMapping.clip => 'clip',
 };
 
-/// mpv properties for [chain] (VID-031, VID-037, VID-039, VID-041).
+/// mpv properties for [chain] (VID-031, VID-037, VID-039, VID-040, VID-041).
 ///
 /// Deinterlacing and sharpening use mpv's own `deinterlace` and the
 /// libplacebo `sharpen`/`deband` options, so no GPL video filter (pp, yadif
-/// GPL parts) is ever inserted.
-Map<String, String> videoFilterProperties(VideoFilterChain chain) => {
+/// GPL parts) is ever inserted. Crop, stereo and 360° views use LGPL
+/// libavfilter filters only (`crop`, `setsar`, `split`, `lutrgb`, `blend`,
+/// `v360`); FFmpeg's `stereo3d` is GPL and never used. [iccProfilePath] is
+/// the display profile resolved for [VideoFilterChain.iccAuto] where the
+/// render API cannot find it itself (Windows, macOS).
+Map<String, String> videoFilterProperties(
+  VideoFilterChain chain, {
+  String? iccProfilePath,
+}) => {
   'tone-mapping': toneMappingName(chain.toneMapping),
   'scale': switch (chain.scaler) {
     Scaler.bilinear => 'bilinear',
@@ -45,10 +54,19 @@ Map<String, String> videoFilterProperties(VideoFilterChain chain) => {
   'hue': _n(chain.hue.clamp(-100, 100)),
   'video-rotate': '${((chain.rotate % 360) + 360) % 360}',
   'vf': [
+    if (chain.deinterlace == Deinterlace.bwdif) 'bwdif',
+    ?stereoProjectionFilter(chain),
+    ?cropFilter(chain.crop),
     if (chain.flipHorizontal) 'hflip',
     if (chain.flipVertical) 'vflip',
-    if (chain.deinterlace == Deinterlace.bwdif) 'bwdif',
   ].join(','),
+  'icc-profile-auto': chain.iccAuto && chain.iccProfile == null ? 'yes' : 'no',
+  'icc-profile':
+      chain.iccProfile?.toFilePath() ??
+      (chain.iccAuto ? iccProfilePath : null) ??
+      '',
+  'lut': chain.lut3d?.toFilePath() ?? '',
+  'lut-type': chain.lutType.name,
   'video-aspect-override': chain.aspectOverride == null
       ? 'no'
       : _n(chain.aspectOverride!),
@@ -58,6 +76,73 @@ Map<String, String> videoFilterProperties(VideoFilterChain chain) => {
   'interpolation': chain.interpolation ? 'yes' : 'no',
   'tscale': chain.interpolation ? 'oversample' : 'linear',
 };
+
+/// `crop` for [crop] fractions (VID-037), or null for none. Each edge is
+/// clamped to 0…0.45 so something always remains.
+String? cropFilter(
+  ({double left, double top, double right, double bottom})? crop,
+) {
+  if (crop == null) return null;
+  double c(double v) => v.isNaN ? 0 : v.clamp(0, 0.45).toDouble();
+  final (l, t, r, b) = (
+    c(crop.left),
+    c(crop.top),
+    c(crop.right),
+    c(crop.bottom),
+  );
+  if (l == 0 && t == 0 && r == 0 && b == 0) return null;
+  return 'crop=w=iw*${_n(1 - l - r)}:h=ih*${_n(1 - t - b)}'
+      ':x=iw*${_n(l)}:y=ih*${_n(t)}';
+}
+
+/// The lavfi graph for [VideoFilterChain.stereo] and
+/// [VideoFilterChain.projection] (VID-041), or null for flat 2D video.
+///
+/// - One eye: the left (or top) half; a half-resolution layout (an SBS frame
+///   narrower than 3:1, a TAB frame wider than 1:1) gets its pixel aspect
+///   doubled back.
+/// - Anaglyph: the left eye's red with the right eye's green and blue.
+/// - 360°/180°: `v360` to a 1280×720 flat view; stereo layouts are read by
+///   `v360` itself (left eye), and VR180 is half-equirect side by side.
+String? stereoProjectionFilter(VideoFilterChain chain) {
+  final sbs =
+      chain.stereo == StereoMode.sbsToLeft ||
+      chain.stereo == StereoMode.sbsAnaglyph;
+  final tab =
+      chain.stereo == StereoMode.tabToLeft ||
+      chain.stereo == StereoMode.tabAnaglyph;
+  if (chain.projection != Projection.flat) {
+    final h = chain.fov.clamp(30, 150).toDouble();
+    final v =
+        2 * math.atan(math.tan(h * math.pi / 360) * 9 / 16) * 180 / math.pi;
+    final input = chain.projection == Projection.equirect360
+        ? 'e'
+        : 'hequirect';
+    final stereo = chain.projection == Projection.vr180 || sbs
+        ? 'sbs'
+        : (tab ? 'tb' : null);
+    return 'lavfi=[v360=input=$input:output=flat'
+        '${stereo == null ? '' : ':in_stereo=$stereo:out_stereo=2d'}'
+        ':h_fov=${_n(h)}:v_fov=${_n(v)}'
+        ':yaw=${_n(chain.yaw.clamp(-180, 180))}'
+        ':pitch=${_n(chain.pitch.clamp(-90, 90))}'
+        ':w=1280:h=720:interp=linear]';
+  }
+  if (!sbs && !tab) return null;
+  // Half-resolution layouts squeeze each eye; restore its shape.
+  final sar = sbs
+      ? r'setsar=r=if(gte(dar\,3)\,sar\,sar*2)'
+      : r'setsar=r=if(lte(dar\,1)\,sar\,sar/2)';
+  final (left, right) = sbs
+      ? ('crop=iw/2:ih:0:0', 'crop=iw/2:ih:iw/2:0')
+      : ('crop=iw:ih/2:0:0', 'crop=iw:ih/2:0:ih/2');
+  final anaglyph =
+      chain.stereo == StereoMode.sbsAnaglyph ||
+      chain.stereo == StereoMode.tabAnaglyph;
+  if (!anaglyph) return 'lavfi=[$sar,$left]';
+  return 'lavfi=[$sar,split[a][b];[a]$left,lutrgb=g=0:b=0[l];'
+      '[b]$right,lutrgb=r=0[r];[l][r]blend=all_mode=addition]';
+}
 
 /// mpv `glsl-shaders` list for [preset] (VID-038). Paths are platform file
 /// paths; the list separator is `;` on Windows and `:` elsewhere.

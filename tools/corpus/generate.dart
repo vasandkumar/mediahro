@@ -1687,6 +1687,32 @@ extension on _Generator {
       category: c,
       expect: {'video': 1, 'audio': 1},
     );
+    // Four solid quadrants (red, green / blue, white), lossless: crop,
+    // stereo (as SBS or TAB) and 360° views have known colours (VID-037,
+    // VID-041).
+    await item(
+      'quad_colors.mkv',
+      [
+        for (final colour in ['red', 'lime', 'blue', 'white']) ...[
+          '-f',
+          'lavfi',
+          '-i',
+          'color=$colour:size=320x180:rate=25',
+        ],
+        '-filter_complex',
+        '[0][1][2][3]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0',
+        '-t',
+        '3',
+        '-c:v',
+        'ffv1',
+        '-pix_fmt',
+        'yuv444p',
+      ],
+      needs: ['ffv1'],
+      ids: ['VID-037', 'VID-041'],
+      category: c,
+      expect: {'video': 1, 'width': 640, 'height': 360},
+    );
     written(
       'subs.ttml',
       utf8.encode(
