@@ -71,6 +71,14 @@ android {
             // The owner's upload key when key.properties is present; otherwise
             // the debug key, so CI and lane release builds stay installable.
             signingConfig = signingConfigs.getByName(if (hasUploadKey) "upload" else "debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    packaging {
+        resources {
+            // Library build metadata several jars carry; not needed at runtime.
+            excludes += setOf("META-INF/DEPENDENCIES", "META-INF/INDEX.LIST")
         }
     }
 }
@@ -95,6 +103,13 @@ dependencies {
     implementation("androidx.media3:media3-session:1.11.1")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.browser:browser:1.8.0")
+    // SFTP (ADR-017): sshj over the platform JCA; no bundled crypto provider.
+    implementation("com.hierynomus:sshj:0.41.2") {
+        exclude(group = "org.bouncycastle")
+    }
+
+    // Debug builds only: a local SFTP server for the SftpFacade device tests.
+    debugImplementation("org.apache.sshd:sshd-sftp:2.20.0")
 
     // JVM unit tests of the modules' pure rules (./gradlew :app:testFossDebugUnitTest).
     testImplementation("junit:junit:4.13.2")

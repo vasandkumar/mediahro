@@ -3,6 +3,7 @@ import 'package:mediahro/platform/android/android_display.dart';
 import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_security.dart';
+import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -25,4 +26,5 @@ List<Override> overrides() => [
   authBrowserProvider.overrideWithValue(AndroidAuthBrowser()),
   tlsSocketProvider.overrideWithValue(AndroidTlsSocketFacade()),
   tlsServerProvider.overrideWithValue(AndroidTlsServerFacade()),
+  sftpProvider.overrideWithValue(AndroidSftp()),
 ];
