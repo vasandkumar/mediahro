@@ -210,6 +210,7 @@
   "videoKeepPlayingInBackgroundDetail": "For this video only",
   "videoLock": "Lock touch controls",
   "videoMoreTitle": "More",
+  "videoMute": "Mute",
   "videoNextCountdownDescription": "Time to cancel before the next video starts",
   "videoNextCountdownSeconds": "{seconds, plural, =0{Start at once} =1{1 second} other{{seconds} seconds}}",
   "@videoNextCountdownSeconds": {
@@ -285,6 +286,34 @@
   },
   "videoShowDuration": "Show total time",
   "videoShowRemaining": "Show time remaining",
+  "videoSleepChip": "Sleep timer: {state}",
+  "@videoSleepChip": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSleepEndOfItem": "End of this video",
+  "videoSleepEndOfQueue": "End of the last video",
+  "videoSleepMinutes": "{minutes} minutes",
+  "@videoSleepMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "videoSleepOff": "Off",
+  "videoSleepRemaining": "Pauses in {time}",
+  "@videoSleepRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSleepTitle": "Sleep timer",
   "videoSpeedChip": "Speed: {speed}",
   "@videoSpeedChip": {
     "placeholders": {
@@ -357,6 +386,16 @@
   "videoTrackSurround51": "5.1",
   "videoTrackSurround71": "7.1",
   "videoUnlock": "Unlock touch controls",
+  "videoUnmute": "Unmute",
+  "videoVolumeBoostHint": "Above 100 % the sound is amplified; a limiter keeps loud parts clean.",
+  "videoVolumeValue": "{percent} %",
+  "@videoVolumeValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
   "videoZoomFill": "Fill screen",
   "videoZoomFit": "Fit to screen"
 }

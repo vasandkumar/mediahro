@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/video/player/languages.dart';
 import 'package:mediahro/features/video/player/player_platform.dart';
+import 'package:mediahro/features/video/player/sleep_sheet.dart';
+import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
@@ -112,6 +114,8 @@ Future<void> showAudioSheet(BuildContext context, VideoPlayerController c) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          VolumeRow(c),
+          const Divider(),
           if (tracks.isEmpty) Text(l.videoNoAudioTracks),
           RadioGroup<int>(
             groupValue: c.state.audioTrackId,
@@ -257,7 +261,7 @@ Future<void> showChaptersSheet(BuildContext context, VideoPlayerController c) {
               title: Text(ch.title ?? l.videoChapterNumber(i + 1)),
               onTap: () {
                 unawaited(c.seekToChapter(ch));
-                Navigator.of(sheetContext).maybePop();
+                Navigator.of(sheetContext).pop();
               },
             ),
           const Divider(),
@@ -283,7 +287,7 @@ Future<void> showChaptersSheet(BuildContext context, VideoPlayerController c) {
               title: Text(b.note.isEmpty ? l.videoBookmarkUntitled : b.note),
               onTap: () {
                 unawaited(c.seekTo(b.position));
-                Navigator.of(sheetContext).maybePop();
+                Navigator.of(sheetContext).pop();
               },
               trailing: Wrap(
                 children: [
@@ -355,33 +359,39 @@ Future<void> showMoreSheet(
   BuildContext context,
   VideoPlayerController c,
   PlayerPlatform platform,
+  SleepTimer sleep,
 ) {
   final l = AppLocalizations.of(context);
+  // Follow-up sheets open from the player, after this one has closed.
+  final player = context;
+  void then(BuildContext sheetContext, void Function() next) {
+    Navigator.of(sheetContext).pop();
+    next();
+  }
+
   return KSheet.show<void>(
     context,
     title: l.videoMoreTitle,
     builder: (sheetContext) => _Live(
       c,
-      (context) => Column(
+      (_) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ListTile(
             leading: const Icon(Icons.bookmarks_outlined),
             title: Text(l.videoChaptersTitle),
-            onTap: () {
-              Navigator.of(sheetContext).maybePop();
-              unawaited(showChaptersSheet(context, c));
-            },
+            onTap: () => then(
+              sheetContext,
+              () => unawaited(showChaptersSheet(player, c)),
+            ),
           ),
           if (platform.pipSupported)
             ListTile(
               leading: const Icon(Icons.picture_in_picture_alt_outlined),
               title: Text(l.videoPip),
-              onTap: () {
-                Navigator.of(sheetContext).maybePop();
-                unawaited(platform.enterPip());
-              },
+              onTap: () =>
+                  then(sheetContext, () => unawaited(platform.enterPip())),
             ),
           ValueListenableBuilder<bool>(
             valueListenable: platform.backgroundThisSession,
@@ -399,6 +409,18 @@ Future<void> showMoreSheet(
             subtitle: Text(l.videoAudioOnlyDetail),
             value: c.videoOff,
             onChanged: (v) => unawaited(c.setVideoOff(off: v)),
+          ),
+          ListenableBuilder(
+            listenable: sleep,
+            builder: (_, _) => ListTile(
+              leading: const Icon(Icons.bedtime_outlined),
+              title: Text(l.videoSleepTitle),
+              subtitle: Text(sleepLabel(l, sleep, c.state.duration)),
+              onTap: () => then(
+                sheetContext,
+                () => unawaited(showSleepSheet(player, sleep)),
+              ),
+            ),
           ),
         ],
       ),

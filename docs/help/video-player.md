@@ -1,5 +1,5 @@
 ---
-ids: [VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-066, VID-067, VID-068, VID-070, VID-072, VID-074]
+ids: [VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-066, VID-067, VID-068, VID-069, VID-070, VID-072, VID-074]
 ---
 # The video player
 
@@ -68,3 +68,11 @@ On phones and tablets the screen turns to match the video: landscape for wide vi
 ## Lock screen, notification and media keys
 
 While a video plays, its title shows on the lock screen and in the notification. Their buttons, headset buttons and keyboard media keys play, pause, seek and skip to the next video.
+
+## Volume and boost
+
+The Audio sheet has a volume slider from 0 to 300 % and a mute button. Above 100 % the sound is amplified for quiet videos; a limiter keeps loud parts from distorting. Mediahro remembers the volume for each output (phone speaker, headphones, Bluetooth, TV) and switches to it when you change outputs.
+
+## Sleep timer
+
+**More → Sleep timer** pauses the video after 15, 30, 45, 60 or 90 minutes, at the end of this video, or at the end of the last queued video. The sound fades out over the last 30 seconds, and a chip on the player shows the time left; tap it to change or turn off the timer. The countdown stops while the video is paused.

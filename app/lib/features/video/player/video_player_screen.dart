@@ -17,6 +17,8 @@ import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/player_gestures.dart';
 import 'package:mediahro/features/video/player/player_platform.dart';
 import 'package:mediahro/features/video/player/player_sheets.dart';
+import 'package:mediahro/features/video/player/sleep_sheet.dart';
+import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
 import 'package:mediahro/features/video/video_settings.dart';
@@ -56,6 +58,7 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
 class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   VideoPlayerController? _c;
   PlayerPlatform? _platform;
+  SleepTimer? _sleep;
   bool _chrome = true;
   bool _locked = false;
   bool _info = false;
@@ -100,9 +103,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       isPhone: () => _phone,
     );
     platform.inPip.addListener(_onPip);
+    final sleep = SleepTimer(c)..addListener(_onPip);
     setState(() {
       _c = c;
       _platform = platform;
+      _sleep = sleep;
     });
     _scheduleHide();
     await platform.start();
@@ -185,6 +190,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   void dispose() {
     _hide?.cancel();
+    _sleep
+      ?..removeListener(_onPip)
+      ..dispose();
     final c = _c;
     final platform = _platform;
     if (platform != null) {
@@ -419,7 +427,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           icon: KIcon.more,
           label: l.videoMoreTitle,
           color: Colors.white,
-          onPressed: () => unawaited(showMoreSheet(context, c, platform)),
+          onPressed: () =>
+              unawaited(showMoreSheet(context, c, platform, _sleep!)),
         ),
       ],
       seekBar: seekBar,
@@ -471,6 +480,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         ),
       ],
       chips: [
+        if (_sleep case final sleep? when sleep.active)
+          KChip(
+            label: sleepLabel(l, sleep, dur),
+            icon: KIcon.playback,
+            semanticLabel: l.videoSleepChip(sleepLabel(l, sleep, dur)),
+            onDark: true,
+            onPressed: () => unawaited(showSleepSheet(context, sleep)),
+          ),
         KChip(
           label: l.videoSpeedValue(s.rate),
           semanticLabel: l.videoSpeedChip(l.videoSpeedValue(s.rate)),
