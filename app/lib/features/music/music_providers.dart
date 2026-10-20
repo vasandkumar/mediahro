@@ -1,16 +1,20 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderException;
+import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
+import 'package:mediahro/features/music/car/music_browse_tree.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_indexer.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
+import 'package:mediahro/features/music/library/music_playlists.dart';
 import 'package:mediahro/features/music/library/ratings.dart';
 import 'package:mediahro/features/music/lyrics/lrc.dart';
 import 'package:mediahro/features/music/lyrics/lyrics_service.dart';
@@ -112,8 +116,54 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
     )..start();
     ref.onDispose(() => unawaited(bridge.dispose()));
   }
+  final browse = _optional(() => ref.read(mediaBrowseProvider));
+  if (browse != null) {
+    final tree = MusicBrowseTree(
+      db: ref.watch(libraryDatabaseProvider),
+      library: ref.watch(musicLibraryProvider),
+      playlists: ref.watch(musicPlaylistsProvider),
+      views: ref.watch(libraryViewsProvider),
+      player: p,
+      art: ref.watch(artworkStoreProvider),
+      labels: _browseLabels(),
+    );
+    unawaited(browse.register(tree));
+    // The car's queue view follows the player.
+    var lastQueue = -1;
+    final sub = p.states.listen((s) {
+      final key = Object.hash(s.queueId, s.queue.length, s.index);
+      if (key == lastQueue) return;
+      lastQueue = key;
+      unawaited(browse.notifyChildrenChanged(MusicBrowseTree.queueId));
+    });
+    ref.onDispose(() => unawaited(sub.cancel()));
+  }
   return p;
 });
+
+MusicBrowseLabels _browseLabels() {
+  final locale = PlatformDispatcher.instance.locale;
+  final l10n = lookupAppLocalizations(
+    AppLocalizations.delegate.isSupported(locale) ? locale : const Locale('en'),
+  );
+  return MusicBrowseLabels(
+    queue: l10n.musicQueue,
+    playlists: l10n.musicTabPlaylists,
+    albums: l10n.musicTabAlbums,
+    artists: l10n.musicTabArtists,
+    folders: l10n.musicTabFolders,
+    songs: l10n.musicTabSongs,
+    unknownArtist: l10n.musicUnknownArtist,
+  );
+}
+
+final musicPlaylistsProvider = Provider<MusicPlaylists>(
+  (ref) => MusicPlaylists(
+    ref.watch(libraryDatabaseProvider),
+    ref.watch(playlistRepositoryProvider),
+    ref.watch(musicLibraryProvider),
+  ),
+);
 
 final musicPrefsProvider = Provider<MusicPrefs>(
   (ref) => MusicPrefs(ref.watch(libraryDatabaseProvider)),

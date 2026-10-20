@@ -554,5 +554,43 @@
       }
     }
   },
-  "musicTagLoading": "Reading tags…"
+  "musicTagLoading": "Reading tags…",
+  "musicTabPlaylists": "Playlists",
+  "musicNewSmartPlaylist": "New smart playlist",
+  "musicEditRule": "Edit rule",
+  "musicSmartPlaylist": "Smart playlist",
+  "musicPlaylistEmpty": "No songs in this playlist yet.",
+  "musicPlaylistsEmpty": "No playlists yet. Create one, or a smart playlist that fills itself from rules.",
+  "musicRuleMatchAll": "Match all",
+  "musicRuleMatchAny": "Match any",
+  "musicRuleAddCondition": "Add condition",
+  "musicRuleAddGroup": "Add group",
+  "musicRuleRemove": "Remove condition",
+  "musicRuleValue": "Value",
+  "musicRuleDays": "Days",
+  "musicRuleLimit": "Limit",
+  "musicRuleNoLimit": "No limit",
+  "musicRuleLimitUnit": "{unit, select, items{songs} minutes{minutes} megabytes{MB} other{songs}}",
+  "@musicRuleLimitUnit": {
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "musicRuleSortBy": "Sort by",
+  "musicRuleRandom": "Random",
+  "musicRuleDescending": "Descending",
+  "musicRuleMatches": "{count, plural, =0{No songs match yet} =1{1 song matches} other{{count} songs match}}",
+  "@musicRuleMatches": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicRename": "Rename",
+  "musicDeletePlaylist": "Delete playlist",
+  "musicImportPlaylist": "Import playlist",
+  "musicExportPlaylist": "Export playlist"
 }

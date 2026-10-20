@@ -344,6 +344,40 @@ void main() {
     expect(find.textContaining('live audio analysis'), findsNothing);
     await finish(tester);
   });
+
+  testWidgets('MUS-008 create a smart playlist with a live match count', (
+    tester,
+  ) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.text('Playlists'));
+    await settle(tester);
+    await tester.tap(find.text('New smart playlist'));
+    await settle(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Playlist name'),
+      'Pop picks',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Value'), 'Pop');
+    for (
+      var i = 0;
+      i < 20 && find.text('2 songs match').evaluate().isEmpty;
+      i++
+    ) {
+      await settle(tester);
+    }
+    expect(find.text('2 songs match'), findsOneWidget);
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+    expect(find.text('Pop picks'), findsOneWidget);
+    expect(find.text('Smart playlist · 2 songs'), findsOneWidget);
+    await tester.tap(find.text('Pop picks'));
+    await settle(tester);
+    expect(find.text('Alpha'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.text('Gamma'), findsNothing);
+    await finish(tester);
+  });
 }
 
 /// Unmounts the app and lets drift's stream-close timers run, so no timer
