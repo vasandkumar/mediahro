@@ -1,6 +1,7 @@
 /// Subtitle parsing, editing and on-device pipelines (SUB-*).
 library;
 
+export 'src/autosync.dart';
 export 'src/decoding.dart';
 export 'src/editing.dart';
 export 'src/formats.dart';

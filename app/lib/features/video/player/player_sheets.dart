@@ -195,6 +195,7 @@ Future<void> showSubtitleSheet(
   SubtitleSpeaker? speaker,
   SubtitleTextSource? textSource,
   Future<void> Function()? onTranslate,
+  Future<void> Function()? onSync,
 }) {
   final l = AppLocalizations.of(context);
   final player = context;
@@ -249,6 +250,24 @@ Future<void> showSubtitleSheet(
                 onChanged: (v) => setState(() => speaker.enabled = v),
               ),
             ),
+          ListTile(
+            leading: const Icon(Icons.graphic_eq_rounded),
+            title: Text(l.videoSyncTitle),
+            enabled: onSync != null && (textSource?.available ?? false),
+            subtitle: Text(
+              onSync == null
+                  ? l.videoSyncNeedsEngine
+                  : textSource?.available ?? false
+                  ? l.videoSyncDetail
+                  : l.videoTranslateOnlyFiles,
+            ),
+            onTap: onSync == null
+                ? null
+                : () {
+                    Navigator.of(sheetContext).pop();
+                    unawaited(onSync());
+                  },
+          ),
           if (onTranslate != null)
             ListTile(
               leading: const Icon(Icons.g_translate_outlined),
