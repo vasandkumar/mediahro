@@ -1,0 +1,26 @@
+# CLD3 (Apache-2.0) via Mediahro's C shim, SUB-053/ADR-034. The header is ours (the shim's
+# contract), committed under lib/src/cld3/include. Regenerate
+# (lib/src/cld3/cld3_bindings.dart was first written by hand to match):
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/cld3.yaml)
+name: Cld3Bindings
+description: Bindings to Mediahro's C API over CLD3 (language ID; ADR-034).
+output: ../lib/src/cld3/cld3_bindings.dart
+headers:
+  entry-points:
+    - ../lib/src/cld3/include/mediahro_cld3.h
+  include-directives:
+    - '**/mediahro_cld3.h'
+exclude-all-by-default: true
+functions:
+  include:
+    - mh_cld3_new
+    - mh_cld3_free
+    - mh_cld3_find
+structs:
+  include:
+    - mh_cld3
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

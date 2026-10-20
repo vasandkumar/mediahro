@@ -20,7 +20,13 @@ enum NativeLibrary {
   chromaprint('chromaprint', licence: 'LGPL-2.1-or-later', dynamicOnly: true),
   openmpt('openmpt', licence: 'BSD-3-Clause'),
   whisper('whisper', licence: 'MIT'),
-  uchardet('uchardet', licence: 'MPL-1.1');
+  uchardet('uchardet', licence: 'MPL-1.1'),
+
+  // On-device text services (ADR-034): OCR, language ID, translation.
+  tesseract('tesseract', licence: 'Apache-2.0'),
+  leptonica('leptonica', licence: 'BSD-2-Clause'),
+  cld3('cld3', licence: 'Apache-2.0'),
+  bergamot('bergamot', licence: 'MPL-2.0');
 
   const NativeLibrary(
     this.baseName, {
