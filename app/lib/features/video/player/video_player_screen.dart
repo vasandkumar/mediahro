@@ -529,10 +529,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 : (v) => _display!.setWindowBrightness(v),
             child: chrome,
           )
-        // Desktop: click toggles play, double-click leaves the player.
+        // Desktop: a click on the video plays or pauses; buttons keep their
+        // own clicks, and moving the mouse shows the chrome.
         : GestureDetector(
             onTap: () => unawaited(c.togglePlay()),
-            onDoubleTap: _close,
             child: MouseRegion(onHover: (_) => _poke(), child: chrome),
           );
 
