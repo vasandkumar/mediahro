@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
+import 'package:mediahro/images/edit/edit_recipe.dart';
 import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/metadata/metadata_codec.dart';
@@ -622,11 +623,44 @@ final class MediahroImagePipeline implements ImagePipeline {
     Uri destination,
     EncodeOptions options,
   ) async {
+    var recipe = EditRecipe.none;
     if (ops.isNotEmpty) {
-      throw UnsupportedError('Edit operations are applied by the editor.');
+      final info = await this.info(src);
+      recipe = EditRecipe.fromOps(ops, info.width, info.height);
     }
+    await io.replace(destination, await renderEdited(src, recipe, options));
+  }
+
+  /// [frame] with [recipe] applied in a worker isolate (the editor's
+  /// preview, IMG-009).
+  Future<PixelFrame> editFrame(PixelFrame frame, EditRecipe recipe) =>
+      recipe.isIdentity
+      ? Future.value(frame)
+      : worker.edit(frame, recipe, priority: 0);
+
+  /// The photo at full size with [recipe] applied, encoded as [options]
+  /// says, carrying the original's metadata (orientation reset, the pixels
+  /// are upright) unless [EncodeOptions.stripMetadata].
+  Future<Uint8List> renderEdited(
+    ImageSource src,
+    EditRecipe recipe,
+    EncodeOptions options,
+  ) async {
     final decoded = await decode(src);
-    var out = await encode(decoded, options);
+    var frame = PixelFrame(
+      width: decoded.width,
+      height: decoded.height,
+      rgba: decoded.pixels,
+    );
+    if (!recipe.isIdentity) frame = await worker.edit(frame, recipe);
+    var out = await encode(
+      DecodedImage(
+        width: frame.width,
+        height: frame.height,
+        pixels: frame.rgba,
+      ),
+      options,
+    );
     if (!options.stripMetadata) {
       final meta = await _forMetadata(src);
       final parsed = parseMetadata(meta, extension: extensionOf(src.uri));
@@ -636,7 +670,7 @@ final class MediahroImagePipeline implements ImagePipeline {
         outputExtension: options.format.name,
       );
     }
-    await io.replace(destination, out);
+    return out;
   }
 
   @override

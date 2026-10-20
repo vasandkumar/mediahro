@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/features/photos/compare/compare_screen.dart';
+import 'package:mediahro/features/photos/edit/apply_look_flow.dart';
+import 'package:mediahro/features/photos/edit/editor_screen.dart'
+    show copiedLookProvider;
 import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
@@ -203,6 +206,11 @@ class SelectionBar extends ConsumerWidget {
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
                       writeBack((w) => w.tags(chosen));
+                    case 'applyLook':
+                      if (await applyCopiedLookFlow(context, ref, chosen) &&
+                          context.mounted) {
+                        selection.clear();
+                      }
                     case 'compare':
                       final photos = chosen.where((e) => !e.isVideo).toList();
                       if (photos.length < 2 || photos.length > 4) {
@@ -236,6 +244,11 @@ class SelectionBar extends ConsumerWidget {
                     value: 'tags',
                     child: Text(l10n.photosTagsAction),
                   ),
+                  if (ref.watch(copiedLookProvider) != null)
+                    PopupMenuItem(
+                      value: 'applyLook',
+                      child: Text(l10n.photosApplyLook),
+                    ),
                   PopupMenuItem(
                     value: 'compare',
                     child: Text(l10n.photosCompare),

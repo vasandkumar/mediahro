@@ -408,5 +408,162 @@
     }
   },
   "photosRejected": "Rejected",
-  "photosRejectedEmpty": "Photos you reject while comparing appear here. Nothing is deleted."
+  "photosRejectedEmpty": "Photos you reject while comparing appear here. Nothing is deleted.",
+  "photosEditPhoto": "Edit photo",
+  "photosEditUndo": "Undo",
+  "photosEditRedo": "Redo",
+  "photosEditorClose": "Close editor",
+  "photosEditorLoading": "Opening the photo",
+  "photosEditorLoadFailed": "This photo can't be opened for editing.",
+  "photosEditorSaveCopy": "Save a copy",
+  "photosEditorReplace": "Replace the original",
+  "photosEditorCopyLook": "Copy this look",
+  "photosEditorResetAll": "Reset all edits",
+  "photosEditorSaving": "Saving the photo",
+  "photosEditorSavedCopy": "Saved as {name}.",
+  "@photosEditorSavedCopy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosEditorSaveFailed": "Couldn't save. The folder may be read-only.",
+  "photosEditorReplaceTitle": "Replace the original?",
+  "photosEditorReplaceBody": "The original file is overwritten with your edits and this can't be undone. A JPEG is saved again, which loses a little quality. To keep the original, save a copy instead.",
+  "photosEditorReplaceConfirm": "Replace",
+  "photosEditorReplaced": "The original was replaced.",
+  "photosEditorLookCopied": "Look copied. Select photos and choose Apply copied look.",
+  "photosToolCrop": "Crop",
+  "photosToolLight": "Light",
+  "photosToolColour": "Colour",
+  "photosToolDetail": "Detail",
+  "photosToolCurves": "Curves",
+  "photosToolDraw": "Draw",
+  "photosCropArea": "Crop area",
+  "photosCropAreaValue": "{width}% wide, {height}% high",
+  "@photosCropAreaValue": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "photosCropAreaHint": "Drag the corners or edges to resize, the middle to move. Arrow keys move it; Shift and an arrow resizes it.",
+  "photosCropFree": "Free",
+  "photosCropOriginal": "Original",
+  "photosCropRatio": "{width}:{height}",
+  "@photosCropRatio": {
+    "description": "A picture shape such as 4:3.",
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "photosCropRotateLeft": "Turn left",
+  "photosCropRotateRight": "Turn right",
+  "photosCropFlipHorizontal": "Flip horizontally",
+  "photosCropFlipVertical": "Flip vertically",
+  "photosCropReset": "Reset crop",
+  "photosCropStraighten": "Straighten",
+  "photosDegrees": "{degrees}°",
+  "@photosDegrees": {
+    "placeholders": {
+      "degrees": {
+        "type": "String"
+      }
+    }
+  },
+  "photosDrawPen": "Pen",
+  "photosDrawLine": "Line",
+  "photosDrawArrow": "Arrow",
+  "photosDrawBox": "Box",
+  "photosDrawBlur": "Blur",
+  "photosDrawThin": "Thin",
+  "photosDrawMedium": "Medium",
+  "photosDrawThick": "Thick",
+  "photosDrawClear": "Remove drawings and blurs",
+  "photosColourRed": "Red",
+  "photosColourOrange": "Orange",
+  "photosColourYellow": "Yellow",
+  "photosColourGreen": "Green",
+  "photosColourBlue": "Blue",
+  "photosColourPurple": "Purple",
+  "photosColourWhite": "White",
+  "photosColourBlack": "Black",
+  "photosAdjExposure": "Exposure",
+  "photosAdjContrast": "Contrast",
+  "photosAdjHighlights": "Highlights",
+  "photosAdjShadows": "Shadows",
+  "photosAdjWhites": "Whites",
+  "photosAdjBlacks": "Blacks",
+  "photosAdjSaturation": "Saturation",
+  "photosAdjVibrance": "Vibrance",
+  "photosAdjTemperature": "Temperature",
+  "photosAdjTint": "Tint",
+  "photosAdjSharpen": "Sharpen",
+  "photosAdjVignette": "Vignette",
+  "photosCurveRgb": "RGB",
+  "photosCurveRed": "Red",
+  "photosCurveGreen": "Green",
+  "photosCurveBlue": "Blue",
+  "photosCurveReset": "Reset curve",
+  "photosCurveHint": "Tap to add a point, drag a point to move it, drag it out of the box to remove it.",
+  "photosCurvePoint": "Curve point {number}",
+  "@photosCurvePoint": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "photosCurvePointValue": "input {input}%, output {output}%",
+  "@photosCurvePointValue": {
+    "placeholders": {
+      "input": {
+        "type": "int"
+      },
+      "output": {
+        "type": "int"
+      }
+    }
+  },
+  "photosApplyLook": "Apply copied look",
+  "photosApplyLookTitle": "Apply the copied look?",
+  "photosApplyLookBody": "{count, plural, =1{The light, colour, detail and curves of the copied look go onto this photo.} other{The light, colour, detail and curves of the copied look go onto these {count} photos.}} Cropping and drawings are not copied.",
+  "@photosApplyLookBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosApplyLookCopies": "Save copies",
+  "photosApplyLookReplace": "Replace originals",
+  "photosBatchProgress": "Saving edits: {done} of {total}",
+  "@photosBatchProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosApplyLookDone": "{count, plural, =1{1 photo saved.} other{{count} photos saved.}}",
+  "@photosApplyLookDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

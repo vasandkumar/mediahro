@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:mediahro/images/edit/edit_engine.dart';
+import 'package:mediahro/images/edit/edit_recipe.dart';
 import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/metadata/metadata_codec.dart';
@@ -112,6 +114,17 @@ final class StripJob extends ImageJob {
 
   final TransferableTypedData bytes;
   final String? extension;
+}
+
+/// Applies an edit recipe to pixels (IMG-009).
+final class EditJob extends ImageJob {
+  EditJob(this.width, this.height, Uint8List rgba, this.recipe)
+    : pixels = TransferableTypedData.fromList([rgba]);
+
+  final int width;
+  final int height;
+  final TransferableTypedData pixels;
+  final EditRecipe recipe;
 }
 
 sealed class ImageReply {
@@ -242,6 +255,16 @@ ImageReply _handle(PixelCodec codec, ImageJob job) => switch (job) {
       job.edit,
       extension: job.extension,
       existingSidecar: job.existingSidecar,
+    ),
+  ),
+  EditJob() => FrameReply(
+    applyRecipe(
+      PixelFrame(
+        width: job.width,
+        height: job.height,
+        rgba: job.pixels.materialize().asUint8List(),
+      ),
+      job.recipe,
     ),
   ),
   StripJob() => BytesReply(
@@ -399,6 +422,16 @@ final class ImageWorkerClient {
     );
     return r.bytes!.materialize().asUint8List();
   }
+
+  /// [image] with [recipe] applied, computed in a worker.
+  Future<PixelFrame> edit(
+    PixelFrame image,
+    EditRecipe recipe, {
+    int priority = 1,
+  }) async => (await _run<FrameReply>(
+    EditJob(image.width, image.height, image.rgba, recipe),
+    priority: priority,
+  )).take();
 
   Future<ParsedMetadata> metadata(
     Uint8List bytes, {

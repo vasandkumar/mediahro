@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
+import 'package:mediahro/features/photos/edit/edit_store.dart';
+import 'package:mediahro/features/photos/edit/photo_editor_service.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/map/map_providers.dart';
@@ -195,6 +197,27 @@ final metadataEditServiceProvider = Provider<MetadataEditor>(
     pipeline: ref.watch(imagePipelineProvider),
     prober: ref.watch(imageProberProvider),
     db: ref.watch(libraryDatabaseProvider),
+  ),
+);
+
+/// Unsaved edits, one file per photo under the app data folder (IMG-009).
+final editStoreProvider = Provider<EditStore>(
+  (ref) => EditStore(
+    Directory(
+      '${ref.watch(appDataDirectoryProvider).path}${Platform.pathSeparator}edits',
+    ),
+  ),
+);
+
+/// The photo editor's access to files, the pipeline and the library.
+final photoEditorProvider = Provider<PhotoEditor>(
+  (ref) => PhotoEditService(
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+    prober: ref.watch(imageProberProvider),
+    db: ref.watch(libraryDatabaseProvider),
+    store: ref.watch(editStoreProvider),
   ),
 );
 
