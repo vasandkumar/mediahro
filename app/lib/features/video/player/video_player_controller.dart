@@ -6,6 +6,7 @@ import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
+import 'package:mediahro/features/video/player/video_render.dart';
 import 'package:mediahro/features/video/subtitles/sidecar_loader.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
@@ -175,6 +176,7 @@ final class VideoPlayerController extends ChangeNotifier {
       await engine.setSubtitleCodepage(cp);
     }
     if (m.subtitleSpeed case final sp?) await engine.setSubSpeed(sp);
+    await applyVideoFilters();
     final rate = _initialRate(m);
     if (rate != 1) await engine.setRate(rate);
     unawaited(_loadSidecars(request));
@@ -310,6 +312,67 @@ final class VideoPlayerController extends ChangeNotifier {
   /// (SUB-030 edits them).
   Map<int, (Uri, Uri?, String?)> get subtitleFiles =>
       Map.unmodifiable(_subtitleFiles);
+
+  // ------------------------------------------------------------ picture
+
+  /// This video's rotation, flips, aspect and zoom (VID-037).
+  VideoView get view => _request == null
+      ? const VideoView()
+      : memory.item(_request!.memoryKey).view ?? const VideoView();
+
+  /// Changes and remembers this video's view, then re-renders.
+  Future<void> setView(VideoView v) async {
+    final key = _request?.memoryKey;
+    if (key != null) {
+      memory.updateItem(key, (m) => m.copyWith(view: () => v));
+    }
+    notifyListeners();
+    await applyVideoFilters();
+  }
+
+  /// Sends the picture settings and this video's view to the engine
+  /// (VID-031, VID-037, VID-039). Smooth motion stays off while
+  /// [throttled].
+  Future<void> applyVideoFilters() {
+    final chain = filterChainFor(settings.snapshot, view);
+    return engine.setVideoFilters(
+      _throttled ? chain.copyWith(interpolation: false) : chain,
+    );
+  }
+
+  ShaderPreset _shader = ShaderPreset.none;
+  bool _throttled = false;
+
+  /// The user-shader preset in use, or wanted once [throttled] ends.
+  ShaderPreset get shader => _shader;
+
+  /// Applies a user-shader preset (VID-038); [ShaderPreset.none] clears.
+  /// While [throttled] it is only remembered.
+  Future<void> setShader(ShaderPreset preset) async {
+    _shader = preset;
+    notifyListeners();
+    if (!_throttled) await engine.setShaderPreset(preset);
+  }
+
+  /// The device is hot or saving battery (ADR-033): shaders (VID-038) and
+  /// smooth motion (VID-039) are paused until it isn't.
+  bool get throttled => _throttled;
+
+  /// Whether [throttled] is actually holding something back.
+  bool get steppedDown =>
+      _throttled &&
+      (_shader != ShaderPreset.none ||
+          settings.get(RenderSettings.interpolation));
+
+  Future<void> setThrottled({required bool throttled}) async {
+    if (throttled == _throttled) return;
+    _throttled = throttled;
+    notifyListeners();
+    if (_shader != ShaderPreset.none) {
+      await engine.setShaderPreset(throttled ? ShaderPreset.none : _shader);
+    }
+    await applyVideoFilters();
+  }
 
   /// Sends the subtitle style (SUB-014); the screen recomputes it from the
   /// settings and the system caption style.

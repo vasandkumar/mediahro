@@ -24,6 +24,8 @@ import 'package:mediahro/features/video/player/sleep_sheet.dart';
 import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/player/video_render.dart';
+import 'package:mediahro/features/video/player/video_sheet.dart';
 import 'package:mediahro/features/video/subtitles/audio_sync.dart';
 import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_model.dart';
 import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_screen.dart';
@@ -74,12 +76,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   PlayerPlatform? _platform;
   SleepTimer? _sleep;
   SubtitleStyle? _style;
+  VideoFilterChain? _chain;
   SubtitleTextSource? _text;
   SubtitleSpeaker? _speaker;
   bool _chrome = true;
   bool _locked = false;
   bool _info = false;
-  bool _fill = false;
+  StreamSubscription<PowerStatus>? _power;
+  bool _cooling = false;
   bool _remaining = false;
   bool _deleteShown = false;
   Duration? _scrub;
@@ -144,6 +148,27 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _scheduleHide();
     await platform.start();
     await c.open(widget.request);
+    unawaited(_restoreShader(c));
+    _watchPower(c);
+  }
+
+  /// Pauses shaders and smooth motion while the device is hot or saving
+  /// battery (VID-038, VID-039, ADR-033).
+  void _watchPower(VideoPlayerController c) {
+    final power = _optional(() => ref.read(powerStatusProvider));
+    if (power == null) return;
+    void apply(PowerStatus s) {
+      if (!mounted) return;
+      unawaited(
+        c.setThrottled(
+          throttled:
+              s.thermal.index >= ThermalLevel.serious.index || s.batterySaver,
+        ),
+      );
+    }
+
+    _power = power.changes.listen(apply);
+    unawaited(power.current().then(apply, onError: (Object _) {}));
   }
 
   void _close() {
@@ -153,6 +178,48 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     } else {
       context.go('/video');
     }
+  }
+
+  /// The Picture sheet (VID-037…039).
+  Future<void> _showPicture(bool mobile) {
+    final store = ref.read(settingsStoreProvider);
+    return showVideoSheet(
+      context,
+      _c!,
+      store: store,
+      shaders: ref.read(shaderLibraryProvider),
+      mobile: mobile,
+      chooseShaderFolder: switch (_optional(() => ref.read(storageProvider))) {
+        final storage? => () async {
+          final grant = await storage.pickFolder();
+          // mpv reads shaders by path: folders with a file path only.
+          if (grant != null && grant.uri.scheme == 'file') {
+            store.set(RenderSettings.shaderFolder, grant.uri.toString());
+          } else if (grant != null && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  AppLocalizations.of(context).videoShaderFolderUnsupported,
+                ),
+              ),
+            );
+          }
+        },
+        null => null,
+      },
+    );
+  }
+
+  /// Puts back the user's shader preset (VID-038) for a new player.
+  Future<void> _restoreShader(VideoPlayerController c) async {
+    final store = ref.read(settingsStoreProvider);
+    final id = store.get(RenderSettings.shaderPreset);
+    if (id == 'none') return;
+    final list = await ref.read(shaderLibraryProvider)(
+      store.get(RenderSettings.shaderFolder),
+    );
+    final choice = list.where((x) => x.id == id).firstOrNull;
+    if (choice != null) await c.setShader(choice.preset);
   }
 
   /// "Sync to the audio" (SUB-050): decode the audio faster than playback,
@@ -508,6 +575,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       unawaited(_confirmDelete());
     }
     if (!playing && !_chrome) setState(() => _chrome = true);
+    if (c.steppedDown && !_cooling && mounted) {
+      _cooling = true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).videoCooling)),
+      );
+    } else if (!c.throttled) {
+      _cooling = false;
+    }
     if (mounted) setState(() {});
   }
 
@@ -562,6 +637,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   void dispose() {
     _hide?.cancel();
+    unawaited(_power?.cancel());
     _sleep
       ?..removeListener(_onPip)
       ..dispose();
@@ -678,7 +754,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final video = _VideoSurface(
       textureId: c.engine.textureId,
       size: PlayerPlatform.videoSize(s),
-      fill: _fill,
+      fit: c.view.fit,
     );
 
     final platform = _platform!;
@@ -691,6 +767,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     // (SUB-014); sent again whenever it changes.
     final settingsNow = ref.watch(settingsProvider);
     final captions = ref.watch(captionPrefsProvider);
+    // Picture settings and this video's view (VID-037, VID-039); sent
+    // again whenever they change.
+    final chain = filterChainFor(settingsNow, c.view);
+    if (chain != _chain) {
+      _chain = chain;
+      unawaited(c.applyVideoFilters());
+    }
     final style = subtitleStyleFor(settingsNow, system: captions);
     if (style != _style) {
       _style = style;
@@ -811,6 +894,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       onBack: _close,
       overlay: overlay,
       topActions: [
+        KIconButton(
+          icon: KIcon.appearance,
+          label: l.videoPictureTitle,
+          color: Colors.white,
+          onPressed: () => unawaited(_showPicture(touch)),
+        ),
         KIconButton(
           icon: KIcon.info,
           label: l.videoInfoToggle,
@@ -951,7 +1040,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             config: _gestures(ref),
             locked: _locked,
             onToggleChrome: _toggleChrome,
-            onFill: (v) => setState(() => _fill = v),
+            onFill: (v) => unawaited(
+              c.setView(c.view.copyWith(fit: v ? VideoFit.fill : VideoFit.fit)),
+            ),
             setBrightness: switch (platform.display) {
               final d? => d.setWindowBrightness,
               null => null,
@@ -1010,12 +1101,12 @@ class _VideoSurface extends StatelessWidget {
   const _VideoSurface({
     required this.textureId,
     required this.size,
-    required this.fill,
+    required this.fit,
   });
 
   final int? textureId;
   final (int, int)? size;
-  final bool fill;
+  final VideoFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -1026,7 +1117,11 @@ class _VideoSurface extends StatelessWidget {
       color: Colors.black,
       child: ClipRect(
         child: FittedBox(
-          fit: fill ? BoxFit.cover : BoxFit.contain,
+          fit: switch (fit) {
+            VideoFit.fit => BoxFit.contain,
+            VideoFit.fill => BoxFit.cover,
+            VideoFit.stretch => BoxFit.fill,
+          },
           child: SizedBox(
             width: w.toDouble(),
             height: h.toDouble(),

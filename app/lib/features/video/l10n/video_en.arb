@@ -8,6 +8,7 @@
   "videoAfterPlaybackStop": "Stop",
   "videoAfterPlaybackTitle": "When a video ends",
   "videoAllVideos": "All videos",
+  "videoAspectAuto": "Original",
   "videoAudioDelay": "Audio delay",
   "videoAudioOnly": "Sound only",
   "videoAudioOnlyDetail": "Turns the picture off to save battery",
@@ -27,6 +28,7 @@
   "videoBookmarkNoteHint": "Optional note",
   "videoBookmarkUntitled": "Bookmark",
   "videoBookmarksTitle": "Bookmarks",
+  "videoBrightness": "Brightness",
   "videoCancel": "Cancel",
   "videoChapterNumber": "Chapter {number}",
   "@videoChapterNumber": {
@@ -59,7 +61,20 @@
   },
   "videoCharsetTitle": "Character encoding",
   "videoChooseAnother": "Choose another",
+  "videoContrast": "Contrast",
+  "videoCooling": "Shaders and smooth motion are paused while the device is hot or saving battery.",
   "videoCopyDetails": "Copy details",
+  "videoDeband": "Smooth banding",
+  "videoDebandDetail": "Removes steps in gradients such as skies",
+  "videoDeinterlace": "Deinterlacing",
+  "videoDeinterlaceName": "{mode, select, off{Off} auto{Automatic} yadif{Always (yadif)} bwdif{Always, better (bwdif)} other{Automatic}}",
+  "@videoDeinterlaceName": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
   "videoDelayEarlier": "Earlier",
   "videoDelayLater": "Later",
   "videoDelayReset": "Reset delay",
@@ -192,6 +207,9 @@
   "videoErrorNetwork": "The connection timed out. Check the network and try again.",
   "videoErrorSource": "Couldn't open this file. It may be corrupt or on a disconnected drive.",
   "videoErrorUnsupported": "This video uses a format Mediahro can't play.",
+  "videoFlipHorizontal": "Mirror",
+  "videoFlipVertical": "Upside down",
+  "videoGamma": "Gamma",
   "videoGestureBrightness": "Brightness {percent} %",
   "@videoGestureBrightness": {
     "placeholders": {
@@ -251,6 +269,7 @@
       }
     }
   },
+  "videoHue": "Hue",
   "videoInfoAudio": "Audio",
   "videoInfoAudioOutput": "Audio output",
   "videoInfoBitrate": "Bitrate",
@@ -331,6 +350,10 @@
   "videoInfoSubtitles": "Subtitles",
   "videoInfoTitle": "Playback information",
   "videoInfoToggle": "Playback information",
+  "videoInterpolation": "Smooth motion",
+  "videoInterpolationBattery": "Smooth motion keeps the graphics chip busier and uses noticeably more battery. Turn it on?",
+  "videoInterpolationDetail": "Blends frames to match your screen's refresh rate",
+  "videoInterpolationMobile": "Blends frames for smoother motion; uses more battery",
   "videoKeepPlayingInBackground": "Keep playing in the background",
   "videoKeepPlayingInBackgroundDetail": "For this video only",
   "videoLock": "Lock touch controls",
@@ -368,7 +391,15 @@
   "videoOrientationLandscape": "Always landscape",
   "videoOrientationPortrait": "Always portrait",
   "videoOrientationTitle": "Rotation",
+  "videoPanHorizontal": "Left and right",
+  "videoPanVertical": "Up and down",
   "videoPause": "Pause",
+  "videoPictureColour": "Colour",
+  "videoPictureMotion": "Motion",
+  "videoPictureQuality": "Quality",
+  "videoPictureReset": "Reset",
+  "videoPictureThisVideo": "This video",
+  "videoPictureTitle": "Picture",
   "videoPip": "Picture in picture",
   "videoPlay": "Play",
   "videoPlayNow": "Play now",
@@ -396,7 +427,25 @@
       }
     }
   },
+  "videoRotate": "{degrees, plural, =0{Rotate} other{Rotated {degrees}°}}",
+  "@videoRotate": {
+    "placeholders": {
+      "degrees": {
+        "type": "int"
+      }
+    }
+  },
+  "videoSaturation": "Saturation",
   "videoSave": "Save",
+  "videoScaler": "Scaling",
+  "videoScalerName": "{scaler, select, bilinear{Fast (bilinear)} spline36{Sharp (spline36)} ewaLanczos{Sharpest (EWA Lanczos)} other{Default}}",
+  "@videoScalerName": {
+    "placeholders": {
+      "scaler": {
+        "type": "String"
+      }
+    }
+  },
   "videoSeekBack": "Back {seconds} seconds",
   "@videoSeekBack": {
     "placeholders": {
@@ -413,6 +462,12 @@
       }
     }
   },
+  "videoShaderFolder": "Choose a shader folder",
+  "videoShaderFolderUnsupported": "Shaders can only be read from a folder on this device's own storage.",
+  "videoShaderNone": "None",
+  "videoShaders": "Shaders",
+  "videoShadersEmpty": "Put .glsl shader files in a folder and choose it here to use them.",
+  "videoSharpen": "Sharpen",
   "videoShowDuration": "Show total time",
   "videoShowRemaining": "Show time remaining",
   "videoSleepChip": "Sleep timer: {state}",
@@ -467,6 +522,7 @@
     }
   },
   "videoStartOver": "Start over",
+  "videoStretch": "Stretch",
   "videoSubAlign": "{align, select, system{System} left{Left} center{Centre} right{Right} other{System}}",
   "@videoSubAlign": {
     "placeholders": {
@@ -584,6 +640,16 @@
   "videoSyncTitle": "Sync to the audio",
   "videoSyncUnsureBody": "The subtitles don't clearly match the speech. They may belong to another version of this video.",
   "videoSyncUnsureTitle": "No clear match",
+  "videoToneMapping": "HDR on this screen",
+  "videoToneMappingDetail": "How HDR videos are fitted to a non-HDR screen",
+  "videoToneMappingName": "{curve, select, bt2390{Natural (BT.2390)} spline{Spline} reinhard{Soft (Reinhard)} hable{Filmic (Hable)} mobius{Mobius} clip{Clip} other{Natural}}",
+  "@videoToneMappingName": {
+    "placeholders": {
+      "curve": {
+        "type": "String"
+      }
+    }
+  },
   "videoTrackAudioDescription": "Audio description",
   "videoTrackChannels": "{count, plural, =1{Mono} =2{Stereo} other{{count} channels}}",
   "@videoTrackChannels": {
@@ -660,6 +726,7 @@
       }
     }
   },
+  "videoTurnOn": "Turn on",
   "videoUnlock": "Unlock touch controls",
   "videoUnmute": "Unmute",
   "videoVolumeBoostHint": "Above 100 % the sound is amplified; a limiter keeps loud parts clean.",
@@ -671,6 +738,15 @@
       }
     }
   },
+  "videoZoom": "Zoom",
   "videoZoomFill": "Fill screen",
-  "videoZoomFit": "Fit to screen"
+  "videoZoomFit": "Fit to screen",
+  "videoZoomValue": "{percent} %",
+  "@videoZoomValue": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  }
 }
