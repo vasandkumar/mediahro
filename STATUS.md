@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | — | collecting (0 of 25) |
+| 1 | VID-036, VID-067, VID-070, SYS-011 (#27, platform side; device files: c4a_android_display_test, plus a c4a_android_media_test re-run) | collecting (4 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -423,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C4a **#27** (Android display + picture-in-picture: screen-on, brightness, orientation locks, frame-rate matching, display changes, PiP enter/exit/auto-enter). Local proof: tools/check 373 on the merge result. Its phone tests are queued in device batch 1. ADR-028 accepted (PipFacade.setAspectRatio). |
 | 2026-10-20 | Merged C2 **#26** (Android music library, tag reading in an isolate, art, gapless queue through libmpv, mini player and Now Playing) and wired `musicOverrides` in main.dart. Verified before the batch rule: tools/check 369, c2_music_test 4/4 on the Samsung. MUS-001/002/004/007 A ticked. Batch 1 starts empty. |
 | 2026-10-20 | **Owner rule: device testing in batches of 25 features.** PRs merge on local proof (`tools/check` plus unit and widget tests, re-run by the orchestrator). Every 25 merged features, all their integration tests run on the Samsung in one go, and cells are ticked only after that run (lanes rule 10; batch table in §1). |
 | 2026-10-20 | **Owner decision: the first Play internal-test upload waits until Android has every feature** (177 Android cells for 1.0: 24 ☑, 137 ☐, 16 ⛔). This replaces the plan to upload a partial build today. Slots: C4a (Android platform code) keeps one slot; the other two rotate through the feature lanes C1, C2, C3, C4d, C5, B2, B1, one PR batch each. All Android ⛔ are being re-checked now that a real phone and local test servers exist: CORE-001, FILE-004, NET-001/002 and VID-030 are now testable; the sample-blocked ones go to B1 to generate with permissive tools; VID-004, AUD-040 and AUD-043 need owner hardware (HDMI receiver, USB DAC); VID-031 needs an HDR display. |
