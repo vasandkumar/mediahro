@@ -50,8 +50,8 @@ class PrivacyDashboard extends ConsumerWidget {
           e.hosts.join(', '),
           lastUsed(usage.lastUsed(e)),
         ].join(' · '),
-        value: settings.get(key),
-        managed: settings.isManaged(key),
+        value: settings.get(key) && !usage.isForcedOff(e),
+        managed: settings.isManaged(key) || usage.isForcedOff(e),
         highlight: highlight,
         onChanged: (v) => store.set(key, v),
       );
@@ -113,6 +113,15 @@ class PrivacyDashboard extends ConsumerWidget {
           KSettingsHeader(title: l10n.settingsPrivacyServicesHeader),
           for (final e in services) endpointRow(e),
           KSettingsHeader(title: l10n.settingsPrivacyUserHostsHeader),
+          if (usage.lanDiscovery case final bool lan)
+            KSettingsRow.toggle(
+              key: const ValueKey('privacy.lanDiscovery'),
+              title: l10n.settingsPrivacyLanDiscovery,
+              description: l10n.settingsPrivacyLanDiscoveryDescription,
+              value: lan,
+              highlight: highlight,
+              onChanged: (v) => usage.setLanDiscovery(enabled: v),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: KSpacing.s16),
             child: Text(
