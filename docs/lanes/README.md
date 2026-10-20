@@ -72,4 +72,5 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
    - Release: `adb -s <serial> shell rm -rf /data/local/tmp/mediahro-lock`. Release even on failure.
    - Stale: a lock older than 30 minutes is stale.
    Hold it only while installing and testing. The orchestrator takes the same lock when it verifies PRs.
+   In Git Bash, put `export MSYS_NO_PATHCONV=1` before these commands. Otherwise Git Bash rewrites `/data/...` into a Windows path and mkdir fails with a misleading error.
 
