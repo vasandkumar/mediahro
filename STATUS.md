@@ -190,8 +190,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | AUD-041 | Bit-perfect Apple | B1 | — | ⛔ | ⛔ | — | ⛔ device lab (§3) |
 | AUD-042 | Bit-perfect Windows | B1 | — | — | — | ⛔ | ⛔ ASIO licence; exclusive mode needs device lab (§3) |
 | AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W |
-| AUD-044 | Bluetooth | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) |
-| AUD-045 | Audio focus and interruptions | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) |
+| AUD-044 | Bluetooth | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
+| AUD-045 | Audio focus and interruptions | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
 | AUD-046 | Visualiser | C2 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 6.2 Music library and player UI
@@ -281,12 +281,12 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| SYS-001 | Media session | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| SYS-002 | Notifications/lock screen | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-001 | Media session | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
+| SYS-002 | Notifications/lock screen | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-005 | File provider / Files integration | C4 | — | ☐ | 1.1 | 1.1 |  |
-| SYS-006 | Foreground service & battery | C4 | ☐ | — | — | — |  |
+| SYS-006 | Foreground service & battery | C4 | ☑ | — | — | — | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-007 | Storage access | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #23: c4a_android_storage_test 13/13 on Samsung SM-M176B (Android 16), tools/check 321 pass. |
 | SYS-008 | Accessibility services | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | SYS-009 | Input | C4 | ☐ | ☐ | ☐ | ☐ |  |
@@ -417,6 +417,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C4a **#25** (release signing from the gitignored key.properties with a debug fallback; kotlin.incremental=false) and **#24** (Media3 session, mediaPlayback foreground service, audio focus/noisy/outputs, POST_NOTIFICATIONS asked on first playback). #24's first Samsung run caught One UI hiding the media notification while POST_NOTIFICATIONS is denied; that's fixed. Verified: tools/check 325, Samsung media 9/9 + storage 13/13. SYS-001/002/006 A ticked; AUD-044/045 A moved from ⛔ to ☐. New owner decision pending: A2DP codec name (no public Android API). |
 | 2026-10-20 | Merged C4a **#23**: Android storage and photo library (SAF trees, MediaStore with OS trash and undo, Photo Picker, Motion Photo). Verified locally: `tools/check` on the merge result (321 pass) and c4a_android_storage_test 13/13 on the Samsung. SYS-007 A ticked. This unblocks B2's Android LIB-002/003, FILE-001/002, NET-018, LIB-007, CORE-014 and C3's IMG-016 A, pending their end-to-end runs. |
 | 2026-10-20 | **Owner decisions:** (1) the Android test build goes to **Google Play internal testing** today; the owner checklist is docs/release/android-internal-test.md (upload key, Play Console and declarations are owner steps). (2) **No GitHub CI for now:** every workflow is manual-only (164fa62, a364a9c). Proof is local: `tools/check`, plus integration tests on the owner's Samsung SM-M176B (Android 16) over wireless debugging (lanes rule 8). The orchestrator re-runs `tools/check` before each merge. |
 | 2026-10-20 | **Owner decision: Android first.** An Android test build ships today; the other platforms follow afterwards. This changes the order of work only: every doc 04 feature still ships on every listed platform. Slots: C4a (Android storage + media session), C1 (video player, Android) and C2 (music, Android). B2 and B4a are paused (the Android engine already runs on mediahro-deps android.4). Testing iterates on the owner's Samsung phone over wireless debugging, one lane at a time under K:\Projects\.device-lock; CI on each PR stays the merge proof. |

@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Android: background playback with lock-screen, notification, headset and car controls; pauses or ducks for calls and other apps, and pauses when headphones are unplugged (SYS-001, SYS-002, SYS-006, AUD-045).
 - Android: browse folders you grant, the phone's videos, music and photos (with Motion Photos), delete to the system trash with undo, and save files anywhere (SYS-007).
 - Engine API: native-HDR video targets, ducking, audio device list, Bluetooth pre-roll and codec, DoP/native-DSD output paths, GIF/WebP/lossless clip export (VID-031, VID-042, AUD-040…045).
 - Engine (lane B1, M1): `MpvEngine` over libmpv with own ffigen bindings and an event isolate; render bridges for Windows (D3D11 shared textures), Android (SurfaceProducer) and iOS/macOS (IOSurface pixel buffers) (VID-001…007, VID-030/031, CORE-011).
