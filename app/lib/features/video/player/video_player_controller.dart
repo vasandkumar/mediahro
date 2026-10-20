@@ -9,6 +9,9 @@ import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+/// What the sleep timer waits for instead of a time (VID-069).
+enum StopAfter { item, queue }
+
 /// The "Next: …" card after an item ends (VID-064, docs/06 §3.1).
 @immutable
 final class NextUp {
@@ -47,6 +50,9 @@ final class VideoPlayerController extends ChangeNotifier {
 
   /// Leaves the player (post-playback "close").
   final VoidCallback? onClose;
+
+  /// Called when the sleep timer stopped playback at the end of an item.
+  VoidCallback? onSleep;
 
   /// The device's languages (BCP 47 primary subtags), last resort for the
   /// audio track default.
@@ -151,6 +157,7 @@ final class VideoPlayerController extends ChangeNotifier {
     if (tracks.subtitlesOff) await engine.selectTrack(TrackType.subtitle, null);
     if (m.subtitleDelay case final d?) await engine.setSubDelay(d);
     if (m.audioDelay case final d?) await engine.setAudioDelay(d);
+    await _applyDeviceVolume(engine.current);
     final rate = _initialRate(m);
     if (rate != 1) await engine.setRate(rate);
   }
@@ -249,7 +256,19 @@ final class VideoPlayerController extends ChangeNotifier {
   Future<void> setVolume(double v) {
     final x = v.clamp(0.0, 3.0);
     _volume = x;
+    memory.setDeviceVolume(_deviceKey(_state), x);
     return engine.setVolume(x);
+  }
+
+  static String _deviceKey(PlaybackState s) => s.audio.device ?? 'default';
+
+  /// Each output device keeps its own volume (VID-066): speakers quiet,
+  /// headphones louder, a TV boosted.
+  Future<void> _applyDeviceVolume(PlaybackState s) async {
+    final v = memory.deviceVolume(_deviceKey(s));
+    if (v == null || v == volume) return;
+    _volume = v;
+    await engine.setVolume(v);
   }
 
   Future<void> toggleMute() => engine.setMuted(muted: !_state.muted);
@@ -548,10 +567,25 @@ final class VideoPlayerController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set by the sleep timer (VID-069): stop when this item, or the last
+  /// queued item, ends, whatever the post-playback setting says.
+  StopAfter? stopAfter;
+
   Future<void> _onEnded() async {
     if (_endHandled) return;
     _endHandled = true;
     await _saveNow(finished: true);
+    final stop = switch (stopAfter) {
+      StopAfter.item => true,
+      StopAfter.queue => _nextRequest == null,
+      null => false,
+    };
+    if (stop) {
+      stopAfter = null;
+      onSleep?.call();
+      if (!_disposed) notifyListeners();
+      return;
+    }
     switch (settings.get(VideoSettings.afterPlayback)) {
       case PostPlayback.stop:
         break;
@@ -590,6 +624,9 @@ final class VideoPlayerController extends ChangeNotifier {
   void _onState(PlaybackState s) {
     final prev = _state;
     _state = s;
+    if (s.audio.device != prev.audio.device && _request != null) {
+      unawaited(_applyDeviceVolume(s));
+    }
     if (s.status == PlaybackStatus.ended && prev.status != s.status) {
       unawaited(_onEnded());
     } else if (s.status == PlaybackStatus.playing) {

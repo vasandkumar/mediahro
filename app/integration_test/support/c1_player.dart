@@ -362,4 +362,42 @@ void videoPlayerSuite({
     expect(display.brightness.last, isNull);
     expect(display.locks.last, OrientationLock.auto);
   });
+
+  playerTest('VID-066 the audio sheet sets volume up to 300 % and mutes', (
+    tester,
+  ) async {
+    final (engine, _) = await pumpPlayer(tester);
+    await tester.tap(find.text('Audio'));
+    await tester.pumpAndSettle();
+    expect(find.text('100 %'), findsWidgets);
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    expect(slider.max, 3);
+    slider.onChanged!(2.5);
+    await tester.pumpAndSettle();
+    expect(engine.volumes.last, 2.5);
+    expect(find.text('250 %'), findsWidgets);
+    await tester.tap(find.byTooltip('Mute'));
+    await tester.pumpAndSettle();
+    expect(engine.current.muted, isTrue);
+  });
+
+  playerTest('VID-069 sleep timer from the More sheet shows a countdown', (
+    tester,
+  ) async {
+    await pumpPlayer(tester);
+    await tester.tap(iconButton('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sleep timer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15 minutes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sleep timer'), findsNothing, reason: 'sheets closed');
+    final chip = find.widgetWithText(KChip, 'Pauses in 15:00');
+    expect(chip, findsOneWidget);
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Off'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(KChip, 'Pauses in 15:00'), findsNothing);
+  });
 }
