@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:mediahro/platform/android/android_caption_style.dart';
 import 'package:mediahro/platform/android/android_display.dart';
 import 'package:mediahro/platform/android/android_media.dart';
 import 'package:mediahro/platform/android/android_network.dart';
@@ -19,6 +20,7 @@ List<Override> overrides() => [
   audioOutputProvider.overrideWithValue(AndroidAudioOutput()),
   displayProvider.overrideWithValue(AndroidDisplay()),
   pipProvider.overrideWithValue(AndroidPip()),
+  captionStyleProvider.overrideWithValue(AndroidCaptionStyle()),
   secureStorageProvider.overrideWithValue(AndroidSecureStorage()),
   biometricsProvider.overrideWithValue(AndroidBiometrics()),
   networkStatusProvider.overrideWithValue(AndroidNetworkStatus()),

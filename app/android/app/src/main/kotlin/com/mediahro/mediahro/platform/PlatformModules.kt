@@ -9,6 +9,8 @@ import com.mediahro.mediahro.pigeon.MulticastHostApi
 import com.mediahro.mediahro.pigeon.NetworkChangesStreamHandler
 import com.mediahro.mediahro.pigeon.NetworkStatusHostApi
 import com.mediahro.mediahro.pigeon.BiometricsHostApi
+import com.mediahro.mediahro.pigeon.CaptionStyleChangesStreamHandler
+import com.mediahro.mediahro.pigeon.CaptionStyleHostApi
 import com.mediahro.mediahro.pigeon.SecureStorageHostApi
 import com.mediahro.mediahro.pigeon.SftpHostApi
 import com.mediahro.mediahro.pigeon.TlsEventsStreamHandler
@@ -23,6 +25,7 @@ import com.mediahro.mediahro.pigeon.PhotoLibraryHostApi
 import com.mediahro.mediahro.pigeon.RemoteCommandsStreamHandler
 import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
+import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
@@ -51,6 +54,7 @@ object PlatformModules {
     private var session: MediaSessionModule? = null
 
     private var display: DisplayModule? = null
+    private var captions: CaptionStyleModule? = null
     private var tlsServer: TlsServerModule? = null
     private var sftp: SftpModule? = null
 
@@ -105,6 +109,11 @@ object PlatformModules {
         val pipModule = PipModule(context.applicationContext, host).also { pip = it }
         PipHostApi.setUp(messenger, pipModule)
         PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
+
+        captions?.dispose()
+        val captionModule = CaptionStyleModule(context.applicationContext).also { captions = it }
+        CaptionStyleHostApi.setUp(messenger, captionModule)
+        CaptionStyleChangesStreamHandler.register(messenger, captionModule.changesHandler)
 
         val secureStorage = SecureStorageModule(context.applicationContext, host)
         SecureStorageHostApi.setUp(messenger, secureStorage)
