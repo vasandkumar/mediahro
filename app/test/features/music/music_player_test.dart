@@ -1,0 +1,247 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/library/progress.dart';
+import 'package:mediahro/core/library/queues.dart';
+import 'package:mediahro/features/music/library/artwork_store.dart';
+import 'package:mediahro/features/music/library/music_library.dart';
+import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/player/music_session.dart';
+import 'package:mediahro/platform/platform_facades.dart';
+import 'package:mediahro_engine/mediahro_engine.dart';
+
+import 'music_test_support.dart';
+
+void main() {
+  late LibraryDatabase db;
+  late MusicSeed seed;
+  late MusicLibrary lib;
+  late ScriptedMusicEngine engine;
+  late MusicPlayer player;
+  late List<MusicTrack> album;
+
+  Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+  /// Waits for async work that does real I/O (cover file reads).
+  Future<void> eventually(bool Function() done) async {
+    for (var i = 0; i < 200 && !done(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
+  MusicPlayer newPlayer() => MusicPlayer(
+    engine: engine,
+    queues: QueueRepository(db),
+    library: lib,
+    files: localMusicFiles(db),
+    progress: ProgressRepository(db),
+    openTimeout: const Duration(milliseconds: 200),
+  );
+
+  setUp(() async {
+    db = LibraryDatabase.memory();
+    seed = MusicSeed(db);
+    lib = MusicLibrary(db);
+    engine = ScriptedMusicEngine();
+    for (var i = 1; i <= 3; i++) {
+      await seed.song(
+        'al/$i.flac',
+        title: 'T$i',
+        album: 'Al',
+        albumArtist: 'A',
+        track: i,
+      );
+    }
+    await seed.song(
+      'other/x.mp3',
+      title: 'X',
+      album: 'Other',
+      albumArtist: 'B',
+    );
+    album = await lib.albumTracks((await lib.albums()).first.groupKey);
+    player = newPlayer();
+    await player.init();
+  });
+  tearDown(() async {
+    await player.dispose();
+    await db.close();
+  });
+
+  String opened(int i) => uriOf(engine.opened[i]).split('/').last;
+
+  group('MUS-007 queue and gapless playback', () {
+    test('MUS-007 playTracks opens the start track and prepares the next as '
+        'same-album gapless', () async {
+      await player.playTracks(album, start: 1);
+      expect(player.state.current!.title, 'T2');
+      expect(opened(0), '2.flac');
+      expect(uriOf(engine.next!), endsWith('3.flac'));
+      expect(engine.nextSameAlbum, isTrue);
+      expect(player.state.playing, isTrue);
+    });
+
+    test('MUS-007 a natural gapless advance moves the queue and prepares '
+        'the following track', () async {
+      await player.playTracks(album);
+      engine
+        ..at(const Duration(minutes: 3))
+        ..finishTrack();
+      await settle();
+      await settle();
+      expect(player.state.index, 1);
+      expect(player.state.current!.title, 'T2');
+      expect(uriOf(engine.next!), endsWith('3.flac'));
+      // The finished track counts as played (LIB-015).
+      final row = await (db.select(
+        db.items,
+      )..where((i) => i.id.equals(album[0].itemId))).getSingle();
+      expect(row.playCount, 1);
+    });
+
+    test('MUS-007 next uses the prepared item, previous restarts or goes '
+        'back', () async {
+      await player.playTracks(album);
+      await player.next();
+      expect(engine.calls, contains('skipToNext'));
+      expect(player.state.index, 1);
+      engine.at(const Duration(seconds: 10));
+      await settle();
+      await player.previous();
+      expect(player.state.index, 1);
+      expect(engine.current.position, Duration.zero);
+      await player.previous();
+      expect(player.state.index, 0);
+      expect(opened(engine.opened.length - 1), '1.flac');
+    });
+
+    test('MUS-007 end of queue without repeat stops; repeat all wraps; '
+        'repeat one prepares the same track', () async {
+      await player.playTracks(album, start: 2);
+      expect(engine.next, isNull);
+      await player.setRepeat(RepeatMode.all);
+      expect(uriOf(engine.next!), endsWith('1.flac'));
+      await player.setRepeat(RepeatMode.one);
+      expect(uriOf(engine.next!), endsWith('3.flac'));
+    });
+
+    test('MUS-007 play next and add to queue; reorder and remove', () async {
+      final other = (await lib.songs()).firstWhere((t) => t.title == 'X');
+      await player.playTracks(album);
+      await player.playNext([other]);
+      expect(player.state.queue.map((t) => t.title), ['T1', 'X', 'T2', 'T3']);
+      expect(uriOf(engine.next!), endsWith('x.mp3'));
+      expect(engine.nextSameAlbum, isFalse);
+      await player.addToQueue([other]);
+      expect(player.state.queue.length, 5);
+      await player.move(4, 0);
+      expect(player.state.queue.first.title, 'X');
+      expect(player.state.current!.title, 'T1');
+      await player.removeAt(0);
+      expect(player.state.queue.map((t) => t.title), ['T1', 'X', 'T2', 'T3']);
+      await player.jumpTo(3);
+      expect(player.state.current!.title, 'T3');
+    });
+
+    test(
+      'MUS-007 the queue survives a restart and resumes at its position',
+      () async {
+        await player.playTracks(album, start: 1);
+        engine.at(const Duration(seconds: 42));
+        await settle();
+        await player.stop();
+        await player.dispose();
+        engine = ScriptedMusicEngine();
+        player = newPlayer();
+        await player.init();
+        expect(player.state.current!.title, 'T2');
+        expect(player.state.position, const Duration(seconds: 42));
+        expect(player.state.playing, isFalse);
+        await player.play();
+        expect(opened(0), '2.flac');
+        expect(engine.current.position, const Duration(seconds: 42));
+      },
+    );
+
+    test('MUS-007 shuffle keeps the current track first', () async {
+      await player.playTracks(album, start: 2, shuffle: true);
+      expect(player.state.shuffle, isTrue);
+      expect(player.state.index, 0);
+      expect(player.state.current!.title, 'T3');
+      expect(player.state.queue.map((t) => t.title).toSet(), {
+        'T1',
+        'T2',
+        'T3',
+      });
+    });
+  });
+
+  group('MUS-006 media session', () {
+    test('MUS-006 session shows the track and lock-screen commands control '
+        'the player', () async {
+      final session = _FakeSession();
+      final dir = await Directory.systemTemp.createTemp('c2_sess');
+      addTearDown(() async {
+        try {
+          await dir.delete(recursive: true);
+        } on FileSystemException {
+          // Windows may still hold the cover open; the OS cleans temp.
+        }
+      });
+      final art = ArtworkStore(db, dir);
+      await art.store(
+        album[0].itemId,
+        Uint8List.fromList([0xFF, 0xD8, 1]),
+        mimeType: 'image/jpeg',
+        source: ArtSource.embedded,
+      );
+      final bridge = MusicSessionBridge(
+        player: player,
+        session: session,
+        art: art,
+      )..start();
+      await player.playTracks(album);
+      await eventually(() => session.status != null);
+      expect(session.kind, MediaSessionKind.music);
+      expect(session.nowPlaying!.title, 'T1');
+      expect(session.nowPlaying!.album, 'Al');
+      expect(session.nowPlaying!.artwork, isNotNull);
+      expect(session.status!.state, SessionPlaybackState.playing);
+      expect(session.status!.canSkipNext, isTrue);
+      session.send(const PauseCommand());
+      await eventually(() => engine.current.status == PlaybackStatus.paused);
+      expect(engine.current.status, PlaybackStatus.paused);
+      session.send(const NextCommand());
+      await eventually(() => player.state.current!.title == 'T2');
+      expect(player.state.current!.title, 'T2');
+      await bridge.dispose();
+    });
+  });
+}
+
+final class _FakeSession implements MediaSessionFacade {
+  MediaSessionKind? kind;
+  NowPlaying? nowPlaying;
+  SessionPlaybackStatus? status;
+  final _commands = StreamController<RemoteCommand>.broadcast();
+
+  void send(RemoteCommand c) => _commands.add(c);
+
+  @override
+  Future<void> activate(MediaSessionKind kind) async => this.kind = kind;
+
+  @override
+  Future<void> setNowPlaying(NowPlaying item) async => nowPlaying = item;
+
+  @override
+  Future<void> setPlaybackStatus(SessionPlaybackStatus status) async =>
+      this.status = status;
+
+  @override
+  Stream<RemoteCommand> get commands => _commands.stream;
+
+  @override
+  Future<void> deactivate() async => kind = null;
+}

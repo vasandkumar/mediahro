@@ -26,6 +26,17 @@
       "edit_template": false
     },
     {
+      "name": "music",
+      "slug": "music",
+      "file_format": "arb",
+      "filemask": "app/lib/features/music/l10n/music_*.arb",
+      "template": "app/lib/features/music/l10n/music_en.arb",
+      "new_base": "app/lib/features/music/l10n/music_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
       "name": "onboarding",
       "slug": "onboarding",
       "file_format": "arb",
