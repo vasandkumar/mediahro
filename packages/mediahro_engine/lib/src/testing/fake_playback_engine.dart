@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// Deterministic in-memory [PlaybackEngine] for widget and integration tests
 /// of feature lanes before (and alongside) `MpvEngine`.
@@ -122,6 +123,7 @@ final class FakePlaybackEngine implements PlaybackEngine {
         audioTrackId: first(TrackType.audio),
         volume: _state.volume,
         muted: _state.muted,
+        ducked: _state.ducked,
       ),
     );
   }
@@ -146,7 +148,13 @@ final class FakePlaybackEngine implements PlaybackEngine {
   Future<void> stop() async {
     _check('stop');
     openedSource = null;
-    _emit(PlaybackState(volume: _state.volume, muted: _state.muted));
+    _emit(
+      PlaybackState(
+        volume: _state.volume,
+        muted: _state.muted,
+        ducked: _state.ducked,
+      ),
+    );
   }
 
   @override
@@ -348,6 +356,52 @@ final class FakePlaybackEngine implements PlaybackEngine {
     _check('screenshot');
     // Smallest valid PNG signature + IHDR is not needed by callers; return a marker.
     return Uint8List.fromList(const [0x89, 0x50, 0x4E, 0x47]);
+  }
+
+  /// Last target passed to [setVideoTarget].
+  VideoTarget videoTarget = const VideoTarget.texture();
+
+  /// Audio devices [audioDevices] returns (tests set them).
+  List<EngineAudioDevice> devices = const [
+    EngineAudioDevice(id: 'auto', name: 'Default', isDefault: true),
+  ];
+
+  /// Exports requested through [export], as (start, end, format, out).
+  final List<(Duration, Duration, ExportFormat, Uri)> exports = [];
+
+  @override
+  Future<void> export(
+    Duration start,
+    Duration end,
+    ExportFormat format,
+    Uri out, {
+    bool subtitles = false,
+  }) async {
+    _check('export');
+    if (openedSource == null || end <= start) {
+      throw const EngineException(
+        EngineError(code: EngineErrorCode.invalidArgument),
+      );
+    }
+    exports.add((start, end, format, out));
+  }
+
+  @override
+  Future<void> setVideoTarget(VideoTarget target) async {
+    _check('setVideoTarget');
+    videoTarget = target;
+  }
+
+  @override
+  Future<void> setDucking(double gain) async {
+    _check('setDucking');
+    _emit(_state.copyWith(ducked: gain < 1));
+  }
+
+  @override
+  Future<List<EngineAudioDevice>> audioDevices() async {
+    _check('audioDevices');
+    return devices;
   }
 
   @override

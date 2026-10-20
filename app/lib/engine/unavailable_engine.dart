@@ -103,5 +103,21 @@ final class UnavailableEngine implements PlaybackEngine {
     const EngineException(EngineError(code: EngineErrorCode.libraryMissing)),
   );
   @override
+  Future<void> export(
+    Duration start,
+    Duration end,
+    ExportFormat format,
+    Uri out, {
+    bool subtitles = false,
+  }) => Future.error(
+    const EngineException(EngineError(code: EngineErrorCode.libraryMissing)),
+  );
+  @override
+  Future<void> setVideoTarget(VideoTarget target) async {}
+  @override
+  Future<void> setDucking(double gain) async {}
+  @override
+  Future<List<EngineAudioDevice>> audioDevices() async => const [];
+  @override
   Future<void> dispose() async {}
 }

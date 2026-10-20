@@ -1,15 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/video_target.dart';
 import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
 import 'package:mediahro_engine/src/disc/disc_reader.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
+import 'package:mediahro_engine/src/mpv/exporter.dart';
 import 'package:mediahro_engine/src/mpv/mp4_gapless.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
@@ -131,6 +134,14 @@ final class MpvEngine implements PlaybackEngine {
   var _cacheByBitrate = false;
   // Local files the engine opened as VirtualFiles; closed on the next open.
   final _ownedFiles = <VirtualFile>[];
+  // Audio-focus ducking gain (AUD-045); mpv's volume-gain, never `volume`.
+  double _duck = 1;
+  // Bluetooth codec of the active output, from the AudioBridge (AUD-044).
+  String? _bluetoothCodec;
+  // Where video is drawn (VID-031): the texture or a platform view.
+  VideoTarget _videoTarget = const VideoTarget.texture();
+  // JNI reference to a platform view's Surface (Android), released on change.
+  int? _viewRef;
   // Completed on the next playback-restart (end of a seek).
   final _restartWaiters = <Completer<void>>[];
   var _hevcChecked = false;
@@ -447,6 +458,7 @@ final class MpvEngine implements PlaybackEngine {
         _ao = value is String ? value : null;
       case 'audio-device':
         _audioDevice = value is String ? value : null;
+        unawaited(_refreshBluetoothCodec());
       case 'audio-exclusive':
         _exclusive = value == true;
       case 'track-list':
@@ -481,6 +493,15 @@ final class MpvEngine implements PlaybackEngine {
 
   OutputPreference? _osOutput;
   int? _preferredRate;
+
+  Future<void> _refreshBluetoothCodec() async {
+    final bridge = config.audioBridge;
+    if (bridge == null) return;
+    final codec = await bridge.bluetoothCodec();
+    if (codec == _bluetoothCodec) return;
+    _bluetoothCodec = codec;
+    _scheduleEmit();
+  }
 
   void _refreshAudioInfo() {
     final os = _osOutput;
@@ -614,9 +635,26 @@ final class MpvEngine implements PlaybackEngine {
     }
     final backend =
         _surface?.backend ?? (_software != null ? 'software' : null);
-    if (_state.video.renderBackend != backend) {
+    final hdrOutput =
+        _videoTarget is PlatformViewVideoTarget &&
+            _state.video.hdr != HdrType.sdr
+        ? HdrOutput.native
+        : HdrOutput.sdrToneMapped;
+    if (_state.video.renderBackend != backend ||
+        _state.video.hdrOutput != hdrOutput) {
       _state = _state.copyWith(
-        video: _state.video.copyWith(renderBackend: backend),
+        video: _state.video.copyWith(
+          renderBackend: backend,
+          hdrOutput: hdrOutput,
+        ),
+      );
+    }
+    if (_state.ducked != _duck < 1) {
+      _state = _state.copyWith(ducked: _duck < 1);
+    }
+    if (_state.audio.bluetoothCodec != _bluetoothCodec) {
+      _state = _state.copyWith(
+        audio: _state.audio.copyWith(bluetoothCodec: _bluetoothCodec),
       );
     }
     if (!_controller.isClosed) _controller.add(_state);
@@ -1070,6 +1108,133 @@ final class MpvEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setDucking(double gain) async {
+    final c = await _live();
+    if (c == null) return;
+    _duck = gain.clamp(0.0, 1.0);
+    await _quiet(c.setProperty('volume-gain', duckingGainDb(_duck)));
+    _scheduleEmit();
+  }
+
+  @override
+  Future<List<EngineAudioDevice>> audioDevices() async {
+    final c = await _live();
+    if (c == null) return const [];
+    try {
+      return parseAudioDevices(await c.getProperty('audio-device-list'));
+    } on MpvException {
+      return const [];
+    }
+  }
+
+  @override
+  Future<void> setVideoTarget(VideoTarget target) async {
+    final c = await _live();
+    if (c == null) return;
+    if (target == _videoTarget) return;
+    final bridge = config.renderBridge;
+    switch (target) {
+      case TextureVideoTarget():
+        await _releaseView();
+        final surface = _surface;
+        if (surface?.androidSurface != null) {
+          await _setWid(c, surface!.androidSurface!);
+        } else {
+          await _quiet(c.setProperty('wid', '0'));
+          await _quiet(
+            c.setProperty('vo', _surface == null ? 'null' : 'libmpv'),
+          );
+        }
+        await _quiet(c.setProperty('target-colorspace-hint', 'no'));
+      case PlatformViewVideoTarget(:final handle):
+        if (bridge == null || role != EngineRole.video) {
+          throw const EngineException(
+            EngineError(
+              code: EngineErrorCode.notSupported,
+              detail: 'no render bridge for a platform view',
+            ),
+          );
+        }
+        if (!bridge.supportsViews) {
+          throw const EngineException(
+            EngineError(
+              code: EngineErrorCode.notSupported,
+              detail: 'no native video view on this platform yet (ADR-022)',
+            ),
+          );
+        }
+        final native = await bridge.viewSurface(handle);
+        if (native == null) {
+          throw EngineException(
+            EngineError(
+              code: EngineErrorCode.invalidArgument,
+              detail: 'platform view $handle is not registered',
+            ),
+          );
+        }
+        await _releaseView();
+        if (platform == EnginePlatform.android) _viewRef = native;
+        // Native HDR on HDR displays: mpv signals the content's colour space
+        // to the swapchain instead of tone mapping to SDR.
+        await _quiet(c.setProperty('target-colorspace-hint', 'yes'));
+        await _setWid(c, native);
+    }
+    _videoTarget = target;
+    _scheduleEmit();
+  }
+
+  Future<void> _releaseView() async {
+    final ref = _viewRef;
+    _viewRef = null;
+    if (ref != null) await config.renderBridge?.releaseViewSurface(ref);
+  }
+
+  @override
+  Future<void> export(
+    Duration start,
+    Duration end,
+    ExportFormat format,
+    Uri out, {
+    bool subtitles = false,
+  }) async {
+    final src = _source;
+    if (src == null || end <= start || out.scheme != 'file') {
+      throw EngineException(
+        EngineError(
+          code: EngineErrorCode.invalidArgument,
+          detail: src == null
+              ? 'nothing open to export'
+              : 'export needs a non-empty range and a file: URI',
+        ),
+      );
+    }
+    try {
+      await exportRange(
+        url: switch (src) {
+          UriSource(:final uri) =>
+            uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
+          VirtualFileSource() => '',
+        },
+        virtualFile: src is VirtualFileSource ? src.file : null,
+        start: start,
+        end: end,
+        format: format,
+        out: File(out.toFilePath()),
+        subtitles: subtitles,
+        libmpvPath: config.libmpvPath,
+      );
+    } on MpvException catch (e) {
+      throw EngineException(
+        EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
+      );
+    } on ExportException catch (e) {
+      throw EngineException(
+        EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
+      );
+    }
+  }
+
+  @override
   Future<void> setAudioOutput(AudioOutputConfig config) async {
     final c = await _live();
     if (c == null) return;
@@ -1229,7 +1394,33 @@ Map<String, String> audioOutputProperties(
   // 0 = open the device at the source rate; in exclusive mode the device
   // switches rate per track (automatic rate switching).
   'audio-samplerate': '0',
+  // AUD-044: keep the output fed with silence and wait before the first
+  // sample, so a waking Bluetooth link does not cut the start.
+  'audio-stream-silence': config.preRoll > Duration.zero ? 'yes' : 'no',
+  'audio-wait-open': secondsValue(config.preRoll),
 };
+
+/// mpv `volume-gain` in dB for an audio-focus ducking [gain] (0…1, AUD-045).
+String duckingGainDb(double gain) {
+  if (gain >= 1) return '0';
+  if (gain <= 0) return '-96';
+  final db = 20 * math.log(gain) / math.ln10;
+  return (db < -96 ? -96.0 : db).toStringAsFixed(2);
+}
+
+/// mpv's `audio-device-list` as [EngineAudioDevice]s (AUD-040…042).
+List<EngineAudioDevice> parseAudioDevices(Object? list) => [
+  if (list is List)
+    for (final d in list)
+      if (d is Map && d['name'] is String)
+        EngineAudioDevice(
+          id: d['name']! as String,
+          name: (d['description'] as String?)?.isNotEmpty ?? false
+              ? d['description']! as String
+              : d['name']! as String,
+          isDefault: d['name'] == 'auto',
+        ),
+];
 
 /// Encodes per-file options for `loadfile` using mpv's `%len%` quoting so
 /// values may contain commas and equals signs.

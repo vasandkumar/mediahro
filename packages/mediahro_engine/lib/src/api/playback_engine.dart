@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
+import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// The playback contract (docs/05 §4.2). Implemented by `MpvEngine` on every
 /// platform; `NativeAppleEngine` is the specified fallback (ADR-001). This
@@ -94,6 +95,34 @@ abstract interface class PlaybackEngine {
     bool subtitles = true,
     ScreenshotFormat format = ScreenshotFormat.png,
   });
+
+  /// Exports [start]…[end] of the current item to [out] (a `file:` URI)
+  /// (VID-042): an animated GIF or WebP, re-encoded, with burnt-in
+  /// subtitles when [subtitles] is true, or [ExportFormat.clipCopy], a
+  /// lossless stream copy of the range (container from [out]'s extension;
+  /// [subtitles] keeps the subtitle tracks). Throws [EngineException] when
+  /// nothing is open or the range is empty.
+  Future<void> export(
+    Duration start,
+    Duration end,
+    ExportFormat format,
+    Uri out, {
+    bool subtitles = false,
+  });
+
+  /// Draws video into [target] (VID-031, ADR-022); [VideoTarget.texture] by
+  /// default. Throws [EngineException] for an unregistered platform-view
+  /// handle (`invalidArgument`) or where the platform has no such path yet
+  /// (`notSupported`).
+  Future<void> setVideoTarget(VideoTarget target);
+
+  /// Lowers the output by [gain] (0…1) while another app holds audio focus
+  /// (AUD-045); 1 restores it. Never changes [PlaybackState.volume], the
+  /// user's volume; [PlaybackState.ducked] reports the state.
+  Future<void> setDucking(double gain);
+
+  /// Output devices for [AudioOutputConfig.deviceId] (AUD-040…042, VID-004).
+  Future<List<EngineAudioDevice>> audioDevices();
 
   /// Flutter external texture id for the video surface; null for the music
   /// role or before the first frame.

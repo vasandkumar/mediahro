@@ -40,7 +40,26 @@ enum HwdecPath {
 }
 
 /// Audio output truthfulness indicator (AUD-006).
-enum AudioOutputPath { bitPerfect, resampled, mixed, passthrough, unknown }
+/// How audio reaches the device (AUD-006 indicator). `dop`: DSD packed in
+/// PCM frames for a DoP-capable DAC; `nativeDsd`: DSD sent natively
+/// (AUD-043, ADR-023).
+enum AudioOutputPath {
+  bitPerfect,
+  resampled,
+  mixed,
+  passthrough,
+  dop,
+  nativeDsd,
+  unknown,
+}
+
+/// Whether HDR video is shown natively on an HDR display through a platform
+/// view (ADR-022) or tone mapped to SDR in the Flutter texture (VID-031).
+enum HdrOutput { sdrToneMapped, native }
+
+/// Export formats (VID-042): animated GIF, animated WebP, or a lossless clip
+/// copied from the source streams without re-encoding.
+enum ExportFormat { gif, webp, clipCopy }
 
 enum ScreenshotFormat { png, jpegXl, webp, jpeg }
 
@@ -73,6 +92,10 @@ enum EngineErrorCode {
   engineCrashed,
   libraryMissing,
   invalidArgument,
+
+  /// The platform has no path for the request yet (e.g. a native HDR video
+  /// target on Apple before ADR-022's view exists).
+  notSupported,
   unknown,
 }
 
@@ -156,6 +179,9 @@ abstract class VideoStats with _$VideoStats {
     /// null without a surface.
     String? renderBackend,
 
+    /// Native HDR output or SDR tone mapping (VID-031, ADR-022).
+    @Default(HdrOutput.sdrToneMapped) HdrOutput hdrOutput,
+
     /// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
     double? peakNits,
     double? maxCll,
@@ -174,6 +200,10 @@ abstract class AudioOutputInfo with _$AudioOutputInfo {
 
     /// Engine audio output in use (`wasapi`, `aaudio`, `coreaudio`, …).
     String? output,
+
+    /// Bluetooth codec of the active output (e.g. `LDAC`, `aptX HD`, `AAC`),
+    /// reported by the platform module through the AudioBridge (AUD-044).
+    String? bluetoothCodec,
   }) = _AudioOutputInfo;
 }
 
@@ -217,6 +247,10 @@ abstract class PlaybackState with _$PlaybackState {
     /// Increments each time an item starts, including gapless and crossfade
     /// advances, so queues can follow transitions.
     @Default(0) int item,
+
+    /// True while audio focus has the engine ducked (AUD-045). [volume] stays
+    /// the user's volume throughout.
+    @Default(false) bool ducked,
   }) = _PlaybackState;
 }
 
@@ -364,6 +398,10 @@ abstract class AudioOutputConfig with _$AudioOutputConfig {
 
     /// Extra output latency compensation, e.g. Bluetooth A/V sync (AUD-044).
     @Default(Duration.zero) Duration latencyOffset,
+
+    /// Silence played into a newly opened output before the first sample, so
+    /// waking Bluetooth links do not cut the start of a track (AUD-044).
+    @Default(Duration.zero) Duration preRoll,
   }) = _AudioOutputConfig;
 }
 
@@ -410,4 +448,20 @@ abstract class TransitionConfig with _$TransitionConfig {
     /// Crossfade even between consecutive tracks of a gapless album (opt-in).
     @Default(false) bool crossfadeGaplessAlbums,
   }) = _TransitionConfig;
+}
+
+/// An audio output device as libmpv sees it (AUD-040…042, VID-004).
+///
+/// [id] is mpv's `audio-device` string (e.g. `wasapi/{guid}`,
+/// `coreaudio/AppleUSBAudioEngine:…`, `aaudio`); pass it back in
+/// [AudioOutputConfig.deviceId]. The platform layer (C4's `AudioDevice`
+/// facade in `app/lib/platform/audio_output.dart`) maps it to the OS device
+/// with its encoded formats and exclusive-mode support.
+@freezed
+abstract class EngineAudioDevice with _$EngineAudioDevice {
+  const factory EngineAudioDevice({
+    required String id,
+    required String name,
+    @Default(false) bool isDefault,
+  }) = _EngineAudioDevice;
 }
