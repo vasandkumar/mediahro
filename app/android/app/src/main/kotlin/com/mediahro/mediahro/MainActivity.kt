@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import com.mediahro.mediahro.platform.PlatformModules
 import com.mediahro.mediahro.platform.media.AlarmHub
+import com.mediahro.mediahro.platform.system.IncomingIntents
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -17,11 +18,14 @@ class MainActivity : FlutterFragmentActivity() {
         PlatformModules.host(applicationContext).attach(this)
         super.onCreate(savedInstanceState)
         deliverAlarm(intent)
+        // A restored activity's intent was handled before it was destroyed.
+        if (savedInstanceState == null) IncomingIntents.handle(applicationContext, intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         deliverAlarm(intent)
+        IncomingIntents.handle(applicationContext, intent)
     }
 
     /** Opened from a wake alarm (MUS-011): hand its id to Dart. */

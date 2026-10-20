@@ -14,4 +14,7 @@
     <string name="mediahro_widget_pause">Pause</string>
     <string name="mediahro_widget_next">Next</string>
     <string name="mediahro_widget_previous">Previous</string>
+    <!-- Static launcher shortcut (SYS-003): short label at most 10 characters. -->
+    <string name="mediahro_shortcut_resume">Resume</string>
+    <string name="mediahro_shortcut_resume_long">Resume playback</string>
 </resources>

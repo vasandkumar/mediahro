@@ -88,4 +88,41 @@ void main() {
     // USE_EXACT_ALARM is reserved for alarm-clock apps on Play.
     expect(has('USE_EXACT_ALARM'), isFalse);
   });
+
+  test('CORE-003 open with and SYS-004 share targets; URIs are not routes', () {
+    for (final action in ['VIEW', 'SEND', 'SEND_MULTIPLE']) {
+      expect(
+        manifest.contains('android.intent.action.$action"'),
+        isTrue,
+        reason: action,
+      );
+    }
+    expect(
+      manifest.contains('android:mimeType="application/x-subrip"'),
+      isTrue,
+    );
+    expect(manifest.contains('android:scheme="rtsp"'), isTrue);
+    expect(
+      RegExp(r'flutter_deeplinking_enabled"\s+android:value="false"')
+          .hasMatch(manifest),
+      isTrue,
+    );
+  });
+
+  test('SYS-003 App Actions for every build id', () {
+    expect(manifest.contains('android.app.shortcuts'), isTrue);
+    final main = File('android/app/src/main/res/xml/shortcuts.xml')
+        .readAsStringSync();
+    final enterprise = File('android/app/src/enterprise/res/xml/shortcuts.xml')
+        .readAsStringSync();
+    expect(main.contains('targetPackage="com.mediahro.app"'), isTrue);
+    expect(
+      enterprise.contains('targetPackage="com.mediahro.app.enterprise"'),
+      isTrue,
+    );
+    for (final xml in [main, enterprise]) {
+      expect(xml.contains('actions.intent.OPEN_APP_FEATURE'), isTrue);
+      expect(xml.contains('actions.intent.GET_THING'), isTrue);
+    }
+  });
 }
