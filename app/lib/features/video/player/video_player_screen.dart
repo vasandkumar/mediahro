@@ -10,7 +10,6 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/app/shortcuts/shortcut_catalog.dart';
 import 'package:mediahro/app/shortcuts/shortcut_scope.dart';
 import 'package:mediahro/core/library/progress.dart';
-import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/video/player/info_overlay.dart';
@@ -31,10 +30,13 @@ T? _optional<T>(T Function() read) {
     return null;
   } on ProviderException catch (e) {
     if (e.exception is PlatformCapabilityUnavailable) return null;
-    if (e.exception is StateError) return null;
     rethrow;
   }
 }
+
+/// Library progress for indexed items (LIB-010); null without a library.
+/// `videoOverrides` points it at `progressRepositoryProvider`.
+final videoProgressProvider = Provider<ProgressRepository?>((ref) => null);
 
 /// The video player (docs/06 §3.1): video on black under
 /// [KPlayerChrome], the touch gesture layer (VID-060), the seek bar with
@@ -63,6 +65,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   Duration? _scrub;
   Timer? _hide;
   (int, int)? _orientedFor;
+  bool _phone = true;
 
   @override
   void initState() {
@@ -82,9 +85,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       engine: engine,
       memory: memory,
       settings: ref.read(settingsStoreProvider),
-      progress: _optional<ProgressRepository>(
-        () => ref.read(progressRepositoryProvider),
-      ),
+      progress: ref.read(videoProgressProvider),
       onClose: _close,
       systemLanguages: [
         for (final l in PlatformDispatcher.instance.locales) l.languageCode,
@@ -136,6 +137,19 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             : const [DeviceOrientation.portraitUp],
       ),
     );
+  }
+
+  /// Gives rotation back to the system. After a landscape video a phone with
+  /// auto-rotate off would otherwise stay in landscape, so phones ask for
+  /// portrait first (VID-070); [lockedFor] is null on tablets.
+  static Future<void> _releaseOrientation((int, int)? lockedFor) async {
+    if (lockedFor != null && lockedFor.$1 >= lockedFor.$2) {
+      await SystemChrome.setPreferredOrientations(const [
+        DeviceOrientation.portraitUp,
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+    await SystemChrome.setPreferredOrientations(const []);
   }
 
   static (int, int)? _videoSize(PlaybackState s) {
@@ -208,7 +222,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     unawaited(_display?.keepScreenOn(on: false));
     unawaited(_display?.setWindowBrightness(null));
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
-    unawaited(SystemChrome.setPreferredOrientations(const []));
+    unawaited(_releaseOrientation(_phone ? _orientedFor : null));
     super.dispose();
   }
 
@@ -290,6 +304,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     if (c == null) {
       return const ColoredBox(color: Colors.black, child: SizedBox.expand());
     }
+    _phone = MediaQuery.sizeOf(context).shortestSide < 600;
     final s = c.state;
     final dur = s.duration ?? Duration.zero;
     final shown = _scrub ?? s.position;
@@ -306,28 +321,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       fill: _fill,
     );
 
-    final gestures = touch
-        ? PlayerGestureLayer(
-            controller: c,
-            config: _gestures(ref),
-            locked: _locked,
-            onToggleChrome: _toggleChrome,
-            onFill: (v) => setState(() => _fill = v),
-            setBrightness: _display == null
-                ? null
-                : (v) => _display!.setWindowBrightness(v),
-          )
-        : GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => unawaited(c.togglePlay()),
-            onDoubleTap: _close,
-          );
-
     final error = s.error;
     final overlay = Stack(
       fit: StackFit.expand,
       children: [
-        gestures,
         if (_info)
           Positioned(
             top: 72,
@@ -520,12 +517,31 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       ],
     );
 
+    final surface = touch
+        ? PlayerGestureLayer(
+            controller: c,
+            config: _gestures(ref),
+            locked: _locked,
+            onToggleChrome: _toggleChrome,
+            onFill: (v) => setState(() => _fill = v),
+            setBrightness: _display == null
+                ? null
+                : (v) => _display!.setWindowBrightness(v),
+            child: chrome,
+          )
+        // Desktop: click toggles play, double-click leaves the player.
+        : GestureDetector(
+            onTap: () => unawaited(c.togglePlay()),
+            onDoubleTap: _close,
+            child: MouseRegion(onHover: (_) => _poke(), child: chrome),
+          );
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: ShortcutScopeWidget(
         scope: ShortcutScope.player,
         handlers: _handlers(c),
-        child: Focus(autofocus: true, child: chrome),
+        child: Focus(autofocus: true, child: surface),
       ),
     );
   }

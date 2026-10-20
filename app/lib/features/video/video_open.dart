@@ -14,6 +14,7 @@ import 'package:mediahro/features/library/widgets.dart';
 import 'package:mediahro/features/sources/open_url_dialog.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
+import 'package:mediahro/features/video/video_home_screen.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
@@ -73,7 +74,16 @@ void playVideo(BuildContext context, PlayRequest request) =>
     unawaited(context.push(VideoRoutes.play, extra: request));
 
 const _directSchemes = {
-  'file', 'http', 'https', 'rtsp', 'rtsps', 'rtmp', 'rtmps', 'hls', //
+  'fd',
+  'fdclose',
+  'file',
+  'http',
+  'https',
+  'rtsp',
+  'rtsps',
+  'rtmp',
+  'rtmps',
+  'hls', //
   'udp', 'rtp', 'srt', 'mms', 'mmsh',
 };
 
@@ -215,47 +225,13 @@ Future<void> pickAndPlayVideo(BuildContext context) async {
         if (f.uri.scheme != 'content') {
           return await mediaSourceFor(container, f.uri, title: f.name);
         }
-        final io = container.read(fdIoProvider);
+        // mpv reads the detached descriptor itself and closes it when the
+        // item ends: no copy through Dart, full speed, seekable.
         final fd = await storage.openDocumentFd(f.uri);
-        return VirtualFileSource(
-          _FdVirtualFile(io, fd, f.uri, io.size(fd)),
-          title: f.name,
-        );
+        return UriSource(Uri.parse('fdclose://$fd'), title: f.name);
       },
     ),
   );
-}
-
-/// A picked document read with pread on its descriptor.
-final class _FdVirtualFile implements VirtualFile {
-  _FdVirtualFile(this._io, this._fd, this.uri, this._length);
-
-  final FdIo _io;
-  final int _fd;
-  @override
-  final Uri uri;
-  final int _length;
-  bool _closed = false;
-
-  @override
-  bool get isSeekable => true;
-
-  @override
-  Future<int?> length() async => _length;
-
-  @override
-  Future<Uint8List> read(int offset, int length) async {
-    if (_closed) throw VirtualFileException(VirtualFileError.closed, uri);
-    if (length <= 0 || offset >= _length) return Uint8List(0);
-    return _io.pread(_fd, offset, length);
-  }
-
-  @override
-  Future<void> close() async {
-    if (_closed) return;
-    _closed = true;
-    _io.close(_fd);
-  }
 }
 
 /// Open URL (CORE-005): plays the stream.
@@ -284,6 +260,9 @@ int _natural(String a, String b) {
 /// adds these to the app root (composed with the music and photo lanes'
 /// handlers for their kinds).
 final List<Override> videoOverrides = [
+  videoLibraryProvider.overrideWith(
+    (ref) => ref.watch(libraryDatabaseProvider),
+  ),
   openItemActionProvider.overrideWithValue(
     (context, item) => unawaited(openVideoItem(context, item)),
   ),

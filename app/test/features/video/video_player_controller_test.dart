@@ -41,19 +41,16 @@ void main() {
   });
 
   group('VID-061 seek bar', () {
-    test(
-      'VID-061 seeks are frame-accurate when paused, keyframe when playing',
-      () async {
-        await c.open(req('a'));
-        await settle();
-        await c.seekTo(const Duration(minutes: 2));
-        expect(engine.seeks.last.$2, SeekMode.keyframe);
-        await engine.pause();
-        await settle();
-        await c.seekTo(const Duration(minutes: 3));
-        expect(engine.seeks.last, (const Duration(minutes: 3), SeekMode.exact));
-      },
-    );
+    test('VID-061 seeks are frame-accurate, playing or paused', () async {
+      await c.open(req('a'));
+      await settle();
+      await c.seekTo(const Duration(minutes: 2));
+      expect(engine.seeks.last.$2, SeekMode.exact);
+      await engine.pause();
+      await settle();
+      await c.seekTo(const Duration(minutes: 3));
+      expect(engine.seeks.last, (const Duration(minutes: 3), SeekMode.exact));
+    });
 
     test('VID-061 seeks clamp to the item and jump to percentages', () async {
       await c.open(req('a'));

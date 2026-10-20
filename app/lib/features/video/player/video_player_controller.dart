@@ -305,12 +305,10 @@ final class VideoPlayerController extends ChangeNotifier {
     return total > Duration.zero && d > total ? total : d;
   }
 
-  /// Seeks to [to]; frame-accurate when paused (VID-061), keyframe while
-  /// playing so scrubbing stays fast.
-  Future<void> seekTo(Duration to) => engine.seek(
-    _clamp(to),
-    mode: isPlaying ? SeekMode.keyframe : SeekMode.exact,
-  );
+  /// Seeks to [to], frame-accurately (VID-061). Keyframe seeks are not used:
+  /// with long keyframe intervals they land seconds away from the target.
+  Future<void> seekTo(Duration to) =>
+      engine.seek(_clamp(to), mode: SeekMode.exact);
 
   Future<void> seekBy(Duration delta) => seekTo(_state.position + delta);
 
@@ -354,9 +352,9 @@ final class VideoPlayerController extends ChangeNotifier {
   double? _heldFrom;
 
   /// Long-press speed (VID-060): [rate] while held, not remembered.
-  Future<void> holdRate(double rate) async {
+  Future<void> holdRate(double held) async {
     _heldFrom ??= rate;
-    await engine.setRate(PlaybackSpeed.normalize(rate));
+    await engine.setRate(PlaybackSpeed.normalize(held));
   }
 
   Future<void> releaseRate() async {

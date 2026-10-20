@@ -44,8 +44,13 @@ class _Live extends StatelessWidget {
   final WidgetBuilder builder;
 
   @override
-  Widget build(BuildContext context) =>
-      ListenableBuilder(listenable: controller, builder: (c, _) => builder(c));
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    // List tiles paint their ink on the nearest Material; the sheet's
+    // surface is a coloured box.
+    builder: (c, _) =>
+        Material(type: MaterialType.transparency, child: builder(c)),
+  );
 }
 
 Future<void> showSpeedSheet(BuildContext context, VideoPlayerController c) {

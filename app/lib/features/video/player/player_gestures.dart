@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
@@ -69,6 +70,7 @@ class PlayerGestureLayer extends StatefulWidget {
     required this.config,
     required this.onToggleChrome,
     required this.onFill,
+    required this.child,
     this.locked = false,
     this.setBrightness,
     this.initialBrightness = 0.5,
@@ -81,6 +83,11 @@ class PlayerGestureLayer extends StatefulWidget {
 
   /// true = fill the screen (crop), false = fit.
   final ValueChanged<bool> onFill;
+
+  /// The player chrome. The layer wraps it so it sees touches over the
+  /// video even while the chrome is shown; the chrome's own buttons win
+  /// their taps.
+  final Widget child;
   final bool locked;
 
   /// Window brightness through `DisplayFacade` (A I); null hides the
@@ -104,7 +111,8 @@ class _PlayerGestureLayerState extends State<PlayerGestureLayer> {
   Duration _subFrom = Duration.zero;
   Duration _subTo = Duration.zero;
   bool _hitBoundary = false;
-  Offset? _doubleTapAt;
+  Offset? _tapAt;
+  Timer? _singleTap;
 
   VideoPlayerController get _c => widget.controller;
   GestureConfig get _cfg => widget.config;
@@ -112,6 +120,7 @@ class _PlayerGestureLayerState extends State<PlayerGestureLayer> {
   @override
   void dispose() {
     _hide?.cancel();
+    _singleTap?.cancel();
     super.dispose();
   }
 
@@ -139,9 +148,30 @@ class _PlayerGestureLayerState extends State<PlayerGestureLayer> {
 
   // ---------------------------------------------------------- double tap
 
-  void _onDoubleTap(Size size) {
-    final at = _doubleTapAt;
-    if (at == null) return;
+  /// Taps are told apart with a timer instead of a double-tap recognizer:
+  /// a recognizer here would hold the gesture arena and delay every chrome
+  /// button by the double-tap timeout.
+  void _onTapUp(TapUpDetails d, Size size) {
+    final first = _tapAt;
+    if (_cfg.doubleTap &&
+        (_singleTap?.isActive ?? false) &&
+        first != null &&
+        (d.localPosition - first).distance < 80) {
+      _singleTap!.cancel();
+      _tapAt = null;
+      _onDoubleTap(d.localPosition, size);
+      return;
+    }
+    if (!_cfg.doubleTap) {
+      widget.onToggleChrome();
+      return;
+    }
+    _tapAt = d.localPosition;
+    _singleTap?.cancel();
+    _singleTap = Timer(kDoubleTapTimeout, widget.onToggleChrome);
+  }
+
+  void _onDoubleTap(Offset at, Size size) {
     final l = AppLocalizations.of(context);
     final third = size.width / 3;
     if (at.dx > third && at.dx < 2 * third) {
@@ -311,14 +341,11 @@ class _PlayerGestureLayerState extends State<PlayerGestureLayer> {
             ? GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: widget.onToggleChrome,
+                child: widget.child,
               )
             : GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: widget.onToggleChrome,
-                onDoubleTapDown: _cfg.doubleTap
-                    ? (d) => _doubleTapAt = d.localPosition
-                    : null,
-                onDoubleTap: _cfg.doubleTap ? () => _onDoubleTap(size) : null,
+                onTapUp: (d) => _onTapUp(d, size),
                 onLongPressStart: _cfg.longPress
                     ? (_) {
                         unawaited(_c.holdRate(_cfg.longPressRate));
@@ -342,6 +369,7 @@ class _PlayerGestureLayerState extends State<PlayerGestureLayer> {
                 onScaleStart: _onScaleStart,
                 onScaleUpdate: (d) => _onScaleUpdateWithPinch(d, size),
                 onScaleEnd: _onScaleEnd,
+                child: widget.child,
               );
         return Stack(
           fit: StackFit.expand,

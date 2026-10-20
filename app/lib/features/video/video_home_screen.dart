@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/library/library_views.dart';
-import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/library/library_widgets.dart';
 import 'package:mediahro/features/library/widgets.dart';
 import 'package:mediahro/features/onboarding/first_run_panel.dart';
@@ -15,9 +14,15 @@ import 'package:mediahro/features/sources/open_url_dialog.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
+/// The library the video home lists; null without one (widget tests, a
+/// build whose database failed to open). `videoOverrides` points it at
+/// `libraryDatabaseProvider`.
+final videoLibraryProvider = Provider<LibraryDatabase?>((ref) => null);
+
 /// Every indexed video, by title (the video home's list).
 final allVideosProvider = StreamProvider<List<ItemRow>>((ref) {
-  final db = ref.watch(libraryDatabaseProvider);
+  final db = ref.watch(videoLibraryProvider);
+  if (db == null) return Stream.value(const []);
   return (db.select(db.items)
         ..where(
           (i) =>
@@ -67,8 +72,8 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final videos = _optionalVideos();
-    final hasLibrary = videos?.value?.isNotEmpty ?? false;
+    final videos = ref.watch(allVideosProvider).value ?? const [];
+    final hasLibrary = videos.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
         title: Text(l.appNavVideo),
@@ -86,9 +91,7 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
         ],
       ),
       body: !hasLibrary
-          ? FirstRunPanel(
-              onOpenFile: () => unawaited(pickAndPlayVideo(context)),
-            )
+          ? const FirstRunPanel()
           : CustomScrollView(
               slivers: [
                 const SliverToBoxAdapter(
@@ -118,9 +121,9 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
                   ),
                 ),
                 SliverList.builder(
-                  itemCount: videos!.value!.length,
+                  itemCount: videos.length,
                   itemBuilder: (context, i) {
-                    final item = videos.value![i];
+                    final item = videos[i];
                     return ItemTile(
                       item: item,
                       onTap: () => unawaited(openVideoItem(context, item)),
@@ -130,14 +133,5 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
               ],
             ),
     );
-  }
-
-  /// Null when the build has no library (widget tests without a DB).
-  AsyncValue<List<ItemRow>>? _optionalVideos() {
-    try {
-      return ref.watch(allVideosProvider);
-    } on Object {
-      return null;
-    }
   }
 }
