@@ -6,6 +6,7 @@ import 'package:mediahro/core/library/progress.dart';
 import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
+import 'package:mediahro/features/music/radio/radio_stations.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:meta/meta.dart';
 
@@ -21,6 +22,7 @@ final class MusicPlayerState {
     this.queueId,
     this.restoredPosition,
     this.queues = const [],
+    this.station,
   });
 
   final List<MusicTrack> queue;
@@ -37,6 +39,12 @@ final class MusicPlayerState {
   /// starts again.
   final Duration? restoredPosition;
 
+  /// The internet radio station playing (MUS-014); the queue waits while
+  /// it plays.
+  final RadioStation? station;
+
+  bool get live => station != null;
+
   MusicTrack? get current =>
       index >= 0 && index < queue.length ? queue[index] : null;
 
@@ -45,8 +53,9 @@ final class MusicPlayerState {
       playback.status == PlaybackStatus.buffering ||
       playback.status == PlaybackStatus.opening;
 
-  bool get hasNext => repeat != RepeatMode.off || index + 1 < queue.length;
-  bool get hasPrevious => queue.isNotEmpty;
+  bool get hasNext =>
+      !live && (repeat != RepeatMode.off || index + 1 < queue.length);
+  bool get hasPrevious => !live && queue.isNotEmpty;
 
   Duration get position => restoredPosition ?? playback.position;
   Duration? get duration => playback.duration ?? current?.duration;
@@ -60,6 +69,7 @@ final class MusicPlayerState {
     int? queueId,
     Duration? Function()? restoredPosition,
     List<QueueRow>? queues,
+    RadioStation? Function()? station,
   }) => MusicPlayerState(
     queue: queue ?? this.queue,
     index: index ?? this.index,
@@ -71,6 +81,7 @@ final class MusicPlayerState {
         ? this.restoredPosition
         : restoredPosition(),
     queues: queues ?? this.queues,
+    station: station == null ? this.station : station(),
   );
 }
 
@@ -319,9 +330,49 @@ final class MusicPlayer {
     );
   }
 
+  // ---------------------------------------------------------------- radio --
+
+  /// Plays an internet radio station (MUS-014) on the music engine. The
+  /// queue keeps its place and resumes with the next song played from it.
+  Future<void> playStation(RadioStation station) => _serial(() async {
+    _preparedIndex = null;
+    await engine.setNext(null);
+    await _savePosition();
+    _emit(
+      _state.copyWith(station: () => station, restoredPosition: () => null),
+    );
+    await _awaitItem(
+      () => engine.open(
+        UriSource(station.url, headers: station.headers, title: station.name),
+        opts: const OpenOptions(audioOnly: true),
+      ),
+    );
+  });
+
   // ------------------------------------------------------------ transport --
 
   Future<void> play() => _serial(() async {
+    final station = _state.station;
+    if (station != null) {
+      final st = engine.current.status;
+      if (st == PlaybackStatus.idle ||
+          st == PlaybackStatus.error ||
+          st == PlaybackStatus.ended) {
+        await _awaitItem(
+          () => engine.open(
+            UriSource(
+              station.url,
+              headers: station.headers,
+              title: station.name,
+            ),
+            opts: const OpenOptions(audioOnly: true),
+          ),
+        );
+      } else {
+        await engine.play();
+      }
+      return;
+    }
     if (_state.current == null) return;
     final s = engine.current.status;
     if (s == PlaybackStatus.idle ||
@@ -347,7 +398,7 @@ final class MusicPlayer {
   });
 
   Future<void> next() => _serial(() async {
-    if (_state.queue.isEmpty) return;
+    if (_state.live || _state.queue.isEmpty) return;
     if (_preparedIndex != null && engine.current.nextPrepared) {
       final to = _preparedIndex!;
       await _awaitItem(engine.skipToNext);
@@ -363,7 +414,7 @@ final class MusicPlayer {
 
   /// Restarts the track after 3 s, otherwise goes to the previous one.
   Future<void> previous() => _serial(() async {
-    if (_state.queue.isEmpty) return;
+    if (_state.live || _state.queue.isEmpty) return;
     if (_state.position > const Duration(seconds: 3)) {
       await engine.seek(Duration.zero, mode: SeekMode.exact);
       return;
@@ -430,7 +481,8 @@ final class MusicPlayer {
     _preparedIndex = null;
     final src = await files.mediaSource(t.sourceId, t.relPath, title: t.title);
     _lastPosition = start ?? Duration.zero;
-    _emit(_state.copyWith(restoredPosition: () => null));
+    // Playing from the queue ends a radio station.
+    _emit(_state.copyWith(restoredPosition: () => null, station: () => null));
     await _awaitItem(
       () => engine.open(
         src,
@@ -495,6 +547,7 @@ final class MusicPlayer {
     if (_disposed) return;
     if (s.status == PlaybackStatus.playing) _lastPosition = s.position;
     _emit(_state.copyWith(playback: s));
+    if (_state.live) return; // a stream: no queue hand-off, no play counts
     if (!_busy && s.item != _currentItem && _preparedIndex != null) {
       final to = _preparedIndex!;
       _currentItem = s.item;
@@ -542,7 +595,7 @@ final class MusicPlayer {
   /// database may already be closed while the app shuts down.
   Future<void> _savePosition() async {
     final id = _state.queueId;
-    if (id == null || _state.current == null) return;
+    if (id == null || _state.current == null || _state.live) return;
     try {
       await queues.savePosition(id, _state.index, _state.position);
     } on Object {

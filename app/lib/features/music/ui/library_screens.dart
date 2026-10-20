@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/library/library_views.dart';
 import 'package:mediahro/core/providers.dart';
@@ -153,37 +154,50 @@ class _SongsTabState extends ConsumerState<SongsTab> {
     return LibraryQuery<List<MusicTrack>>(
       queryKey: (_sort, _desc),
       load: (lib) => lib.songs(sort: _sort, descending: _desc),
-      builder: (context, songs) => CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Row(
-              children: [
-                Expanded(child: PlayShuffleBar(tracks: songs)),
-                SortMenu<SongSort>(
-                  values: SongSort.values,
-                  current: _sort,
-                  descending: _desc,
-                  onChanged: (s, {required descending}) => setState(() {
-                    _sort = s;
-                    _desc = descending;
-                  }),
+      builder: (context, songs) => songs.isEmpty
+          // An empty library: the way in is Sources; radio stays reachable
+          // in its own tab.
+          ? KEmptyState(
+              title: AppLocalizations.of(context).musicEmptyTitle,
+              message: AppLocalizations.of(context).musicEmptyMessage,
+              actions: [
+                FilledButton(
+                  onPressed: () => context.go('/sources?add=folder'),
+                  child: Text(AppLocalizations.of(context).musicAddMusic),
+                ),
+              ],
+            )
+          : CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Row(
+                    children: [
+                      Expanded(child: PlayShuffleBar(tracks: songs)),
+                      SortMenu<SongSort>(
+                        values: SongSort.values,
+                        current: _sort,
+                        descending: _desc,
+                        onChanged: (s, {required descending}) => setState(() {
+                          _sort = s;
+                          _desc = descending;
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+                SliverList.builder(
+                  itemCount: songs.length,
+                  itemBuilder: (context, i) => TrackRow(
+                    track: songs[i],
+                    playing: songs[i].itemId == playingId,
+                    navigation: musicNavigation(context),
+                    onTap: () => unawaited(
+                      ref.read(musicPlayerProvider).playTracks(songs, start: i),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          SliverList.builder(
-            itemCount: songs.length,
-            itemBuilder: (context, i) => TrackRow(
-              track: songs[i],
-              playing: songs[i].itemId == playingId,
-              navigation: musicNavigation(context),
-              onTap: () => unawaited(
-                ref.read(musicPlayerProvider).playTracks(songs, start: i),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

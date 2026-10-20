@@ -25,6 +25,7 @@ import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
+import 'package:mediahro/features/music/radio/radio_stations.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
 import 'package:mediahro/features/music/tags/writer/tag_editor.dart';
 import 'package:mediahro/features/music/visualizer/visualizer.dart';
@@ -164,6 +165,13 @@ final musicPlaylistsProvider = Provider<MusicPlaylists>(
     ref.watch(musicLibraryProvider),
   ),
 );
+
+/// The user's radio stations (MUS-014).
+final radioStationsProvider = Provider<RadioStations>((ref) {
+  final r = RadioStations(ref.watch(musicPrefsProvider));
+  ref.onDispose(() => unawaited(r.dispose()));
+  return r;
+});
 
 final musicPrefsProvider = Provider<MusicPrefs>(
   (ref) => MusicPrefs(ref.watch(libraryDatabaseProvider)),

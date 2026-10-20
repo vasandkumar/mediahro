@@ -592,5 +592,34 @@
   "musicRename": "Rename",
   "musicDeletePlaylist": "Delete playlist",
   "musicImportPlaylist": "Import playlist",
-  "musicExportPlaylist": "Export playlist"
+  "musicExportPlaylist": "Export playlist",
+  "musicTabRadio": "Radio",
+  "musicRadioEmpty": "Add your own stations by their stream address, or import a station list (.m3u, .pls). Mediahro has no station directory.",
+  "musicAddStation": "Add station",
+  "musicEditStation": "Edit station",
+  "musicDeleteStation": "Delete station",
+  "musicStationName": "Name",
+  "musicStationUrl": "Stream address (http://, https://)",
+  "musicStationUrlInvalid": "Enter a stream address that starts with http:// or https://.",
+  "musicImportStations": "Import stations",
+  "musicExportStations": "Export stations",
+  "musicStationsImported": "{count, plural, =0{No stations found in that file} =1{Imported 1 station} other{Imported {count} stations}}",
+  "@musicStationsImported": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicLive": "Live",
+  "musicRadio": "Radio",
+  "musicStationFavourite": "Favourite station",
+  "musicPlayStation": "Play {name}",
+  "@musicPlayStation": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  }
 }

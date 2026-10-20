@@ -34,7 +34,7 @@ final class MusicSessionBridge {
   StreamSubscription<RemoteCommand>? _commands;
   StreamSubscription<PlaybackState>? _other;
   bool _active = false;
-  int? _shownItem;
+  String? _shownItem;
   NowPlaying? _shownNowPlaying;
   bool? _widgetPlaying;
   SessionPlaybackState? _shownState;
@@ -94,21 +94,26 @@ final class MusicSessionBridge {
 
   Future<void> _onState(MusicPlayerState s) async {
     final track = s.current;
-    if (track == null) return;
+    final station = s.station;
+    if (track == null && station == null) return;
     if (!_active && s.playing) {
       _active = true;
       await session.activate(MediaSessionKind.music);
     }
     if (!_active) return;
-    if (_shownItem != track.itemId) {
-      _shownItem = track.itemId;
-      final item = NowPlaying(
-        title: track.title,
-        artist: track.artist ?? track.albumArtist,
-        album: track.album,
-        duration: s.duration,
-        artwork: await _artwork(track.itemId),
-      );
+    final key = station != null ? 'st:${station.id}' : 'tr:${track!.itemId}';
+    if (_shownItem != key) {
+      _shownItem = key;
+      final item = station != null
+          // A radio stream (MUS-014): live, no duration.
+          ? NowPlaying(title: station.name, isLive: true)
+          : NowPlaying(
+              title: track!.title,
+              artist: track.artist ?? track.albumArtist,
+              album: track.album,
+              duration: s.duration,
+              artwork: await _artwork(track.itemId),
+            );
       await session.setNowPlaying(item);
       _shownNowPlaying = item;
       _widgetPlaying = s.playing;
