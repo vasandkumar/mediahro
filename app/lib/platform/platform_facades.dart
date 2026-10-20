@@ -8,6 +8,7 @@ import 'package:mediahro/platform/display.dart';
 import 'package:mediahro/platform/enterprise.dart';
 import 'package:mediahro/platform/media_session.dart';
 import 'package:mediahro/platform/network_status.dart';
+import 'package:mediahro/platform/power_status.dart';
 import 'package:mediahro/platform/purchases.dart';
 import 'package:mediahro/platform/secure_transport.dart';
 import 'package:mediahro/platform/security.dart';
@@ -24,6 +25,7 @@ export 'display.dart';
 export 'enterprise.dart';
 export 'media_session.dart';
 export 'network_status.dart';
+export 'power_status.dart';
 export 'purchases.dart';
 export 'secure_transport.dart';
 export 'security.dart';
@@ -157,6 +159,10 @@ final alarmProvider = Provider<AlarmFacade>(
 );
 final captionStyleProvider = Provider<CaptionStyleFacade>(
   (ref) => _unavailable('captionStyle'),
+  retry: _noRetry,
+);
+final powerStatusProvider = Provider<PowerStatusFacade>(
+  (ref) => _unavailable('powerStatus'),
   retry: _noRetry,
 );
 

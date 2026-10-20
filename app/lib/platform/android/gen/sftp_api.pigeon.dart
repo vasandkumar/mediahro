@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,7 +97,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 class SftpEndpointMsg {
   SftpEndpointMsg({
     required this.host,
@@ -135,7 +135,8 @@ class SftpEndpointMsg {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static SftpEndpointMsg decode(Object result) {
     result as List<Object?>;
@@ -159,7 +160,13 @@ class SftpEndpointMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(host, other.host) && _deepEquals(port, other.port) && _deepEquals(username, other.username) && _deepEquals(passwordSecretRef, other.passwordSecretRef) && _deepEquals(privateKeySecretRef, other.privateKeySecretRef) && _deepEquals(keyPassphraseSecretRef, other.keyPassphraseSecretRef) && _deepEquals(knownHostKeySha256, other.knownHostKeySha256);
+    return _deepEquals(host, other.host) &&
+        _deepEquals(port, other.port) &&
+        _deepEquals(username, other.username) &&
+        _deepEquals(passwordSecretRef, other.passwordSecretRef) &&
+        _deepEquals(privateKeySecretRef, other.privateKeySecretRef) &&
+        _deepEquals(keyPassphraseSecretRef, other.keyPassphraseSecretRef) &&
+        _deepEquals(knownHostKeySha256, other.knownHostKeySha256);
   }
 
   @override
@@ -187,15 +194,12 @@ class SftpSessionMsg {
   bool authenticated;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      hostKeySha256,
-      authenticated,
-    ];
+    return <Object?>[id, hostKeySha256, authenticated];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static SftpSessionMsg decode(Object result) {
     result as List<Object?>;
@@ -215,7 +219,9 @@ class SftpSessionMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(hostKeySha256, other.hostKeySha256) && _deepEquals(authenticated, other.authenticated);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(hostKeySha256, other.hostKeySha256) &&
+        _deepEquals(authenticated, other.authenticated);
   }
 
   @override
@@ -245,16 +251,12 @@ class SftpEntryMsg {
   int? modifiedMs;
 
   List<Object?> _toList() {
-    return <Object?>[
-      path,
-      isDirectory,
-      size,
-      modifiedMs,
-    ];
+    return <Object?>[path, isDirectory, size, modifiedMs];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static SftpEntryMsg decode(Object result) {
     result as List<Object?>;
@@ -275,7 +277,10 @@ class SftpEntryMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(path, other.path) && _deepEquals(isDirectory, other.isDirectory) && _deepEquals(size, other.size) && _deepEquals(modifiedMs, other.modifiedMs);
+    return _deepEquals(path, other.path) &&
+        _deepEquals(isDirectory, other.isDirectory) &&
+        _deepEquals(size, other.size) &&
+        _deepEquals(modifiedMs, other.modifiedMs);
   }
 
   @override
@@ -288,7 +293,6 @@ class SftpEntryMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -296,13 +300,13 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is SftpEndpointMsg) {
+    } else if (value is SftpEndpointMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is SftpSessionMsg) {
+    } else if (value is SftpSessionMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is SftpEntryMsg) {
+    } else if (value is SftpEntryMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
@@ -330,219 +334,246 @@ class SftpHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   SftpHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<SftpSessionMsg> connect(SftpEndpointMsg endpoint) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.connect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[endpoint]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[endpoint],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as SftpSessionMsg;
   }
 
   Future<List<SftpEntryMsg>> list(String sessionId, String path) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.list$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.list$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<SftpEntryMsg>();
   }
 
   Future<SftpEntryMsg> stat(String sessionId, String path) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.stat$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.stat$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as SftpEntryMsg;
   }
 
-  Future<Uint8List> read(String sessionId, String path, int offset, int length) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.read$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> read(
+    String sessionId,
+    String path,
+    int offset,
+    int length,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.read$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path, offset, length]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path, offset, length],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
   Future<void> rename(String sessionId, String from, String to) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.rename$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.rename$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, from, to]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, from, to],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> delete(String sessionId, String path) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.delete$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.delete$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> mkdir(String sessionId, String path) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.mkdir$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.mkdir$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Returns a write-sink id.
   Future<String> openWrite(String sessionId, String path, bool truncate) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.openWrite$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.openWrite$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, path, truncate]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, path, truncate],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
   Future<void> write(String sinkId, Uint8List data) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.write$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.write$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sinkId, data]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sinkId, data],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> closeWrite(String sinkId, bool abort) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.closeWrite$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.closeWrite$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sinkId, abort]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sinkId, abort],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> close(String sessionId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SftpHostApi.close$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SftpHostApi.close$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }

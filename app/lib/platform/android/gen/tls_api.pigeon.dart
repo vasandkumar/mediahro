@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,13 +97,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum TlsEventKindMsg {
-  data,
-  closed,
-  error,
-  accepted;
-}
+enum TlsEventKindMsg { data, closed, error, accepted }
 
 class TlsSocketInfoMsg {
   TlsSocketInfoMsg({
@@ -121,16 +116,12 @@ class TlsSocketInfoMsg {
   String peerCertificateSha256;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      isTls,
-      protocolVersion,
-      peerCertificateSha256,
-    ];
+    return <Object?>[id, isTls, protocolVersion, peerCertificateSha256];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TlsSocketInfoMsg decode(Object result) {
     result as List<Object?>;
@@ -151,7 +142,10 @@ class TlsSocketInfoMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(isTls, other.isTls) && _deepEquals(protocolVersion, other.protocolVersion) && _deepEquals(peerCertificateSha256, other.peerCertificateSha256);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(isTls, other.isTls) &&
+        _deepEquals(protocolVersion, other.protocolVersion) &&
+        _deepEquals(peerCertificateSha256, other.peerCertificateSha256);
   }
 
   @override
@@ -165,24 +159,19 @@ class TlsSocketInfoMsg {
 }
 
 class TlsIdentityMsg {
-  TlsIdentityMsg({
-    required this.label,
-    required this.certificateSha256,
-  });
+  TlsIdentityMsg({required this.label, required this.certificateSha256});
 
   String label;
 
   String certificateSha256;
 
   List<Object?> _toList() {
-    return <Object?>[
-      label,
-      certificateSha256,
-    ];
+    return <Object?>[label, certificateSha256];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TlsIdentityMsg decode(Object result) {
     result as List<Object?>;
@@ -201,7 +190,8 @@ class TlsIdentityMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(label, other.label) && _deepEquals(certificateSha256, other.certificateSha256);
+    return _deepEquals(label, other.label) &&
+        _deepEquals(certificateSha256, other.certificateSha256);
   }
 
   @override
@@ -215,31 +205,23 @@ class TlsIdentityMsg {
 }
 
 class TlsListenerMsg {
-  TlsListenerMsg({
-    required this.id,
-    required this.port,
-  });
+  TlsListenerMsg({required this.id, required this.port});
 
   String id;
 
   int port;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      port,
-    ];
+    return <Object?>[id, port];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TlsListenerMsg decode(Object result) {
     result as List<Object?>;
-    return TlsListenerMsg(
-      id: result[0]! as String,
-      port: result[1]! as int,
-    );
+    return TlsListenerMsg(id: result[0]! as String, port: result[1]! as int);
   }
 
   @override
@@ -287,18 +269,12 @@ class TlsEventMsg {
   TlsSocketInfoMsg? accepted;
 
   List<Object?> _toList() {
-    return <Object?>[
-      kind,
-      socketId,
-      data,
-      message,
-      listenerId,
-      accepted,
-    ];
+    return <Object?>[kind, socketId, data, message, listenerId, accepted];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TlsEventMsg decode(Object result) {
     result as List<Object?>;
@@ -321,7 +297,12 @@ class TlsEventMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(socketId, other.socketId) && _deepEquals(data, other.data) && _deepEquals(message, other.message) && _deepEquals(listenerId, other.listenerId) && _deepEquals(accepted, other.accepted);
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(socketId, other.socketId) &&
+        _deepEquals(data, other.data) &&
+        _deepEquals(message, other.message) &&
+        _deepEquals(listenerId, other.listenerId) &&
+        _deepEquals(accepted, other.accepted);
   }
 
   @override
@@ -334,7 +315,6 @@ class TlsEventMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -342,19 +322,19 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is TlsEventKindMsg) {
+    } else if (value is TlsEventKindMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is TlsSocketInfoMsg) {
+    } else if (value is TlsSocketInfoMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is TlsIdentityMsg) {
+    } else if (value is TlsIdentityMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is TlsListenerMsg) {
+    } else if (value is TlsListenerMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is TlsEventMsg) {
+    } else if (value is TlsEventMsg) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else {
@@ -382,138 +362,176 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class TlsSocketHostApi {
   /// Constructor for [TlsSocketHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   TlsSocketHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   /// Fails with code `untrusted` (details: the peer SHA-256) when the
   /// certificate is neither trusted by the system nor pinned.
-  Future<TlsSocketInfoMsg> connect(String host, int port, String? serverName, String? pinnedSha256, List<String> alpn, int timeoutMs, String? resumeSessionOf) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.connect$pigeonVar_messageChannelSuffix';
+  Future<TlsSocketInfoMsg> connect(
+    String host,
+    int port,
+    String? serverName,
+    String? pinnedSha256,
+    List<String> alpn,
+    int timeoutMs,
+    String? resumeSessionOf,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.connect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[host, port, serverName, pinnedSha256, alpn, timeoutMs, resumeSessionOf]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[
+        host,
+        port,
+        serverName,
+        pinnedSha256,
+        alpn,
+        timeoutMs,
+        resumeSessionOf,
+      ],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsSocketInfoMsg;
   }
 
-  Future<TlsSocketInfoMsg> connectPlain(String host, int port, int timeoutMs) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.connectPlain$pigeonVar_messageChannelSuffix';
+  Future<TlsSocketInfoMsg> connectPlain(
+    String host,
+    int port,
+    int timeoutMs,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.connectPlain$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[host, port, timeoutMs]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[host, port, timeoutMs],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsSocketInfoMsg;
   }
 
   /// Returns the upgraded socket under a new id; the plain one stops.
-  Future<TlsSocketInfoMsg> upgrade(String connectionId, String? serverName, String? pinnedSha256) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.upgrade$pigeonVar_messageChannelSuffix';
+  Future<TlsSocketInfoMsg> upgrade(
+    String connectionId,
+    String? serverName,
+    String? pinnedSha256,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.upgrade$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[connectionId, serverName, pinnedSha256]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[connectionId, serverName, pinnedSha256],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsSocketInfoMsg;
   }
 
   /// Starts delivering `data` events for [socketId] (after Dart listens).
   Future<void> startReading(String socketId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.startReading$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.startReading$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[socketId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[socketId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> write(String socketId, Uint8List data) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.write$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.write$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[socketId, data]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[socketId, data],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> close(String socketId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsSocketHostApi.close$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsSocketHostApi.close$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[socketId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[socketId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -522,108 +540,130 @@ class TlsServerHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   TlsServerHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<TlsIdentityMsg> identity(String label) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsServerHostApi.identity$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsServerHostApi.identity$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[label]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[label],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsIdentityMsg;
   }
 
-  Future<TlsListenerMsg> listen(String label, List<String> trustedPeers, int port) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsServerHostApi.listen$pigeonVar_messageChannelSuffix';
+  Future<TlsListenerMsg> listen(
+    String label,
+    List<String> trustedPeers,
+    int port,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsServerHostApi.listen$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[label, trustedPeers, port]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[label, trustedPeers, port],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsListenerMsg;
   }
 
-  Future<void> setTrustedPeers(String listenerId, List<String> trustedPeers) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsServerHostApi.setTrustedPeers$pigeonVar_messageChannelSuffix';
+  Future<void> setTrustedPeers(
+    String listenerId,
+    List<String> trustedPeers,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsServerHostApi.setTrustedPeers$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[listenerId, trustedPeers]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[listenerId, trustedPeers],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> closeListener(String listenerId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsServerHostApi.closeListener$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsServerHostApi.closeListener$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[listenerId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[listenerId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
-  Future<TlsSocketInfoMsg> connectMutual(String host, int port, String label, String peerSha256) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.TlsServerHostApi.connectMutual$pigeonVar_messageChannelSuffix';
+  Future<TlsSocketInfoMsg> connectMutual(
+    String host,
+    int port,
+    String label,
+    String peerSha256,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.TlsServerHostApi.connectMutual$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[host, port, label, peerSha256]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[host, port, label, peerSha256],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TlsSocketInfoMsg;
   }
 }
@@ -634,14 +674,15 @@ class TlsServerHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<TlsEventMsg> tlsEvents( {String instanceName = ''}) {
+Stream<TlsEventMsg> tlsEvents({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel tlsEventsChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.TlsEventsApi.tlsEvents$instanceName', pigeonMethodCodec);
+  final EventChannel tlsEventsChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.TlsEventsApi.tlsEvents$instanceName',
+    pigeonMethodCodec,
+  );
   return tlsEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as TlsEventMsg;
   });
 }
-    
