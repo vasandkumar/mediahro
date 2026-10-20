@@ -226,6 +226,10 @@ jobs:
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
           xcrun simctl boot "$UDID"
+          # Wait for a full boot: the first test file used to launch into a
+          # half-booted simulator and hang until the 15-min cap.
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl privacy "$UDID" grant all com.mediahro.app || true
           echo "udid=$UDID" >> "$GITHUB_OUTPUT"
       - name: iOS integration tests
         working-directory: app
