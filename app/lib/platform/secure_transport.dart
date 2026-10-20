@@ -73,6 +73,50 @@ final class UntrustedCertificate implements Exception {
   String toString() => 'UntrustedCertificate($host, $sha256)';
 }
 
+/// Mutual-TLS listener for Mediahro-to-Mediahro sharing (NET-017, ADR-025)
+/// on the OS TLS stack: SSLServerSocket (A), Network.framework NWListener
+/// (I M), SChannel (W). The identity is a device key pair generated and kept
+/// in the OS key store; peers are paired by QR and pinned by fingerprint.
+abstract interface class TlsServerFacade {
+  /// Creates (or returns) this device's identity under [label]; the private
+  /// key never leaves the OS key store.
+  Future<TlsIdentity> identity(String label);
+
+  /// Listens on [port] (0 = any) and accepts only peers whose certificate
+  /// SHA-256 is in [trustedPeers]; others are rejected in the handshake.
+  Future<TlsListener> listen(
+    TlsIdentity identity, {
+    required Set<String> trustedPeers,
+    int port = 0,
+  });
+
+  /// Connects to a paired peer presenting [identity] as the client
+  /// certificate and pinning the peer's [peerSha256].
+  Future<TlsSocket> connectMutual(
+    String host,
+    int port, {
+    required TlsIdentity identity,
+    required String peerSha256,
+  });
+}
+
+@immutable
+final class TlsIdentity {
+  const TlsIdentity({required this.label, required this.certificateSha256});
+
+  final String label;
+  final String certificateSha256;
+}
+
+abstract interface class TlsListener {
+  int get port;
+  Stream<TlsSocket> get connections;
+
+  /// Replaces the trusted set (pairing added or revoked).
+  Future<void> setTrustedPeers(Set<String> sha256s);
+  Future<void> close();
+}
+
 /// SFTP over the platform's own SSH implementation (ADR-017): sshj over JCA
 /// (A), SwiftNIO SSH over CryptoKit (I M), libssh2 with WinCNG (W).
 abstract interface class SftpFacade {

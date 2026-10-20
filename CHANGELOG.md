@@ -4,7 +4,12 @@ All notable changes are grouped by feature area and reference feature IDs from `
 
 ## [Unreleased]
 
+### Fixed
+- Comic and archive files on network shares open without crashing (FILE-004).
+- A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
+
 ### Added
+- Engine API: native-HDR video targets, ducking, audio device list, Bluetooth pre-roll and codec, DoP/native-DSD output paths, GIF/WebP/lossless clip export (VID-031, VID-042, AUD-040…045).
 - Engine (lane B1, M1): `MpvEngine` over libmpv with own ffigen bindings and an event isolate; render bridges for Windows (D3D11 shared textures), Android (SurfaceProducer) and iOS/macOS (IOSurface pixel buffers) (VID-001…007, VID-030/031, CORE-011).
 - Seekable playback from any `VirtualFile` source through the `mhvf://` stream protocol, including files over 20 GB (VID-005, VID-006).
 - Gapless AAC trims its padding once when a file has both an iTunSMPB tag and a container duration that already excludes the padding (AUD-002).
