@@ -23,6 +23,8 @@ import com.mediahro.mediahro.pigeon.TlsSocketHostApi
 import com.mediahro.mediahro.pigeon.DisplayChangesStreamHandler
 import com.mediahro.mediahro.pigeon.DisplayHostApi
 import com.mediahro.mediahro.pigeon.PipHostApi
+import com.mediahro.mediahro.pigeon.PowerStatusChangesStreamHandler
+import com.mediahro.mediahro.pigeon.PowerStatusHostApi
 import com.mediahro.mediahro.pigeon.PipStatesStreamHandler
 import com.mediahro.mediahro.pigeon.MediaSessionHostApi
 import com.mediahro.mediahro.pigeon.PhotoLibraryHostApi
@@ -32,6 +34,7 @@ import com.mediahro.mediahro.pigeon.StorageHostApi
 import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
+import com.mediahro.mediahro.platform.display.PowerStatusModule
 import com.mediahro.mediahro.platform.media.AlarmHub
 import com.mediahro.mediahro.platform.media.AlarmModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
@@ -62,6 +65,7 @@ object PlatformModules {
     private var session: MediaSessionModule? = null
 
     private var display: DisplayModule? = null
+    private var powerStatus: PowerStatusModule? = null
     private var captions: CaptionStyleModule? = null
     private var tlsServer: TlsServerModule? = null
     private var sftp: SftpModule? = null
@@ -125,6 +129,11 @@ object PlatformModules {
         val pipModule = PipModule(context.applicationContext, host).also { pip = it }
         PipHostApi.setUp(messenger, pipModule)
         PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
+
+        powerStatus?.dispose()
+        val powerModule = PowerStatusModule(context.applicationContext).also { powerStatus = it }
+        PowerStatusHostApi.setUp(messenger, powerModule)
+        PowerStatusChangesStreamHandler.register(messenger, powerModule.changesHandler)
 
         captions?.dispose()
         val captionModule = CaptionStyleModule(context.applicationContext).also { captions = it }
