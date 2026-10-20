@@ -237,7 +237,7 @@ List<int> oggPage(int serial, int seq, List<int> packet, {int flags = 0}) {
     n -= 255;
   }
   segs.add(n);
-  return [
+  final page = [
     ...ascii('OggS'),
     0,
     flags,
@@ -249,12 +249,48 @@ List<int> oggPage(int serial, int seq, List<int> packet, {int flags = 0}) {
     ...segs,
     ...packet,
   ];
+  return page..setRange(22, 26, u32le(_oggCrc(page)));
 }
 
-Uint8List oggVorbis(List<String> comments) => bytesOf([
-  oggPage(7, 0, [1, ...ascii('vorbis'), ...List.filled(23, 0)], flags: 2),
-  oggPage(7, 1, [3, ...ascii('vorbis'), ...vorbisComment(comments), 1]),
-]);
+int _oggCrc(List<int> page) {
+  var crc = 0;
+  for (final b in page) {
+    var c = ((crc >> 24) & 0xFF) ^ b;
+    var r = c << 24;
+    for (var k = 0; k < 8; k++) {
+      r = (r & 0x80000000) != 0 ? ((r << 1) ^ 0x04C11DB7) : (r << 1);
+      r &= 0xFFFFFFFF;
+    }
+    c = r;
+    crc = ((crc << 8) ^ c) & 0xFFFFFFFF;
+  }
+  return crc;
+}
+
+/// Identification page, then one page holding the comment and setup
+/// packets (as encoders write them).
+Uint8List oggVorbis(List<String> comments) {
+  final comment = [3, ...ascii('vorbis'), ...vorbisComment(comments), 1];
+  final setup = [5, ...ascii('vorbis'), ...List.filled(40, 0x55)];
+  final segs = <int>[];
+  for (final p in [comment, setup]) {
+    var n = p.length;
+    while (n >= 255) {
+      segs.add(255);
+      n -= 255;
+    }
+    segs.add(n);
+  }
+  final page = [
+    ...ascii('OggS'), 0, 0, ...List.filled(8, 0), ...u32le(7), ...u32le(1), //
+    ...u32le(0), segs.length, ...segs, ...comment, ...setup,
+  ];
+  page.setRange(22, 26, u32le(_oggCrc(page)));
+  return bytesOf([
+    oggPage(7, 0, [1, ...ascii('vorbis'), ...List.filled(23, 0)], flags: 2),
+    page,
+  ]);
+}
 
 Uint8List oggOpus(List<String> comments) => bytesOf([
   oggPage(9, 0, [...ascii('OpusHead'), ...List.filled(11, 0)], flags: 2),

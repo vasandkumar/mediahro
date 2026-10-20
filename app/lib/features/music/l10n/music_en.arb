@@ -460,5 +460,99 @@
   },
   "musicVisualizerLowPower": "Low-power mode",
   "musicVisualizerUnavailable": "The visualiser needs live audio analysis from the playback engine, which this build doesn't include yet.",
-  "musicVisualizerSemantics": "Music visualiser"
+  "musicVisualizerSemantics": "Music visualiser",
+  "musicEditTags": "Edit tags",
+  "musicEditTagsCount": "{count, plural, =1{Edit tags of 1 song} other{Edit tags of {count} songs}}",
+  "@musicEditTagsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTagField": "{field, select, TITLE{Title} ARTIST{Artist} ALBUMARTIST{Album artist} ALBUM{Album} TRACKNUMBER{Track} TRACKTOTAL{Tracks on disc} DISCNUMBER{Disc} DISCTOTAL{Discs} DATE{Date or year} GENRE{Genre} COMPOSER{Composer} CONDUCTOR{Conductor} LYRICIST{Lyricist} COMMENT{Comment} BPM{BPM} COMPILATION{Compilation (1 = yes)} LABEL{Label} ISRC{ISRC} COPYRIGHT{Copyright} GROUPING{Grouping} LYRICS{Lyrics} other{Field}}",
+  "@musicTagField": {
+    "description": "Tag field label; the value is the canonical field id.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "musicTagMultipleValues": "Several values: leave empty to keep",
+  "musicTagMultiValueHint": "Separate several values with ;",
+  "musicTagCover": "Cover",
+  "musicTagReplaceCover": "Replace cover",
+  "musicTagRemoveCover": "Remove cover",
+  "musicTagKeepCover": "Keep cover",
+  "musicTagFromFileName": "Fill from file name",
+  "musicTagRenameFiles": "Rename files from tags",
+  "musicTagPattern": "Pattern",
+  "musicTagPatternHelp": "Use %track%, %disc%, %title%, %artist%, %albumartist%, %album%, %year%, %genre%, %composer%.",
+  "musicTagPreview": "{from} → {to}",
+  "@musicTagPreview": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "musicTagNoMatch": "{name} doesn't match the pattern",
+  "@musicTagNoMatch": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicTagApply": "Apply",
+  "musicTagSaving": "Saving tags… {done} of {total}",
+  "@musicTagSaving": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTagSaved": "{count, plural, =1{Saved tags of 1 song} other{Saved tags of {count} songs}}",
+  "@musicTagSaved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTagFailed": "{count, plural, =1{1 song couldn't be changed} other{{count} songs couldn't be changed}}",
+  "@musicTagFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTagFailure": "{reason, select, readOnly{The file's location is read-only.} unsupported{This file type can't be tagged, or the file is damaged.} verifyFailed{The new tags didn't read back correctly, so the file was left as it was.} ioError{The file couldn't be read or written.} other{The file couldn't be changed.}}",
+  "@musicTagFailure": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "musicTagUndo": "Undo last tag edit",
+  "musicTagUndone": "Tag edit undone",
+  "musicTagRenamed": "{count, plural, =1{Renamed 1 file} other{Renamed {count} files}}",
+  "@musicTagRenamed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTagLoading": "Reading tags…"
 }

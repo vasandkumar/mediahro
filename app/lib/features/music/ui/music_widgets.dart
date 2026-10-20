@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
+import 'package:mediahro/features/music/ui/tag_editor_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// Cover art of an item (MUS-004) or a neutral placeholder, decoded at the
@@ -194,6 +195,8 @@ class TrackMenuButton extends ConsumerWidget {
             );
           case 'other':
             if (context.mounted) await addToAnotherQueue(context, ref, tracks);
+          case 'tags':
+            if (context.mounted) await openTagEditor(context, tracks);
           case 'album':
             toAlbum?.call(single!);
           case 'artist':
@@ -204,6 +207,7 @@ class TrackMenuButton extends ConsumerWidget {
         PopupMenuItem(value: 'next', child: Text(l10n.musicPlayNext)),
         PopupMenuItem(value: 'queue', child: Text(l10n.musicAddToQueue)),
         PopupMenuItem(value: 'other', child: Text(l10n.musicAddToAnotherQueue)),
+        PopupMenuItem(value: 'tags', child: Text(l10n.musicEditTags)),
         if (single?.album != null && toAlbum != null)
           PopupMenuItem(value: 'album', child: Text(l10n.musicGoToAlbum)),
         if ((single?.artist ?? single?.albumArtist) != null && toArtist != null)

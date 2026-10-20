@@ -8,6 +8,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
+import 'package:mediahro/features/music/ui/tag_editor_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// Reloads [load] when the music index changes, at most once a second while
@@ -339,7 +340,21 @@ class AlbumScreen extends ConsumerWidget {
       musicPlayerStateProvider.select((s) => s.value?.current?.itemId),
     );
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          IconButton(
+            tooltip: l10n.musicEditTags,
+            icon: Icon(KIcon.edit.resolve(theme.family)),
+            onPressed: () async {
+              final tracks = await ref
+                  .read(musicLibraryProvider)
+                  .albumTracks(groupKey);
+              if (context.mounted) await openTagEditor(context, tracks);
+            },
+          ),
+        ],
+      ),
       body: LibraryQuery<List<MusicTrack>>(
         queryKey: groupKey,
         load: (lib) => lib.albumTracks(groupKey),
@@ -467,7 +482,21 @@ class GroupScreen extends ConsumerWidget {
     final isArtist =
         field == GroupField.artist || field == GroupField.albumArtist;
     return Scaffold(
-      appBar: AppBar(title: Text(value)),
+      appBar: AppBar(
+        title: Text(value),
+        actions: [
+          IconButton(
+            tooltip: l10n.musicEditTags,
+            icon: Icon(KIcon.edit.resolve(theme.family)),
+            onPressed: () async {
+              final tracks = await ref
+                  .read(musicLibraryProvider)
+                  .groupTracks(field, value);
+              if (context.mounted) await openTagEditor(context, tracks);
+            },
+          ),
+        ],
+      ),
       body: LibraryQuery<(List<MusicAlbum>, List<MusicTrack>)>(
         queryKey: (field, value),
         load: (lib) async => (

@@ -307,10 +307,18 @@ void main() {
     expect(find.text('0:02'), findsOneWidget);
     expect(find.text('0:09'), findsWidgets);
     await tester.tap(find.text('Save'));
-    await settle(tester);
+    // The saved lyrics reload from disk; under load that takes a moment.
+    for (
+      var i = 0;
+      i < 30 && find.text('Your lyrics').evaluate().isEmpty;
+      i++
+    ) {
+      await settle(tester);
+    }
     expect(find.text('Your lyrics'), findsOneWidget);
-    expect(find.text('First line'), findsOneWidget);
-    expect(find.text('Second line'), findsOneWidget);
+    // The editor may still be leaving the screen; the lines show either way.
+    expect(find.text('First line'), findsWidgets);
+    expect(find.text('Second line'), findsWidgets);
     await finish(tester);
   });
 

@@ -9,7 +9,7 @@ import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
-void openAlarms(BuildContext context) =>
+Future<void> openAlarms(BuildContext context) =>
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const AlarmsScreen()));
 
