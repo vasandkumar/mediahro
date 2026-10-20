@@ -7,6 +7,7 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
+import 'package:mediahro/features/photos/organise/write_back.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
@@ -116,6 +117,21 @@ class SelectionBar extends ConsumerWidget {
     final allFavourite = chosen.isNotEmpty && chosen.every((e) => e.favourite);
     final scheme = Theme.of(context).colorScheme;
 
+    // Copies the change into the files when Settings asks for it; tells the
+    // user only if some file could not be written.
+    void writeBack(Future<int> Function(OrganisationWriteBack) run) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      unawaited(
+        run(ref.read(organisationWriteBackProvider)).then((failed) {
+          if (failed > 0) {
+            messenger?.showSnackBar(
+              SnackBar(content: Text(l10n.photosWriteBackFailed(failed))),
+            );
+          }
+        }),
+      );
+    }
+
     Future<void> done(Future<void> Function() action) async {
       await action();
       if (context.mounted) selection.clear();
@@ -175,15 +191,17 @@ class SelectionBar extends ConsumerWidget {
                       final stars = await askRating(context);
                       if (stars != null) {
                         await done(() => org.setRating(ids, stars));
+                        writeBack((w) => w.rating(chosen, stars));
                       }
                     case 'label':
                       final c = await askLabel(context);
                       if (c == null) return;
-                      await done(
-                        () => org.setLabel(ids, c is LabelColor ? c : null),
-                      );
+                      final color = c is LabelColor ? c : null;
+                      await done(() => org.setLabel(ids, color));
+                      writeBack((w) => w.label(chosen, color));
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
+                      writeBack((w) => w.tags(chosen));
                     case 'setLocation':
                       if (await setLocationFlow(context, ref, chosen) &&
                           context.mounted) {

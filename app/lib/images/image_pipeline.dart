@@ -161,6 +161,7 @@ final class ImageMetadataEdit {
     this.description,
     this.keywords,
     this.rating,
+    this.label,
   });
 
   final DateTime? captured;
@@ -170,6 +171,10 @@ final class ImageMetadataEdit {
   final String? description;
   final List<String>? keywords;
   final int? rating;
+
+  /// The colour label (`xmp:Label`, e.g. `Red`); empty removes it. Only XMP
+  /// holds one, so formats without XMP get a sidecar.
+  final String? label;
 }
 
 enum EncodeFormat { jpeg, png, webp, avif, jxl, heic }

@@ -369,6 +369,22 @@ void main() {
       expect(m.keywords, isEmpty);
     });
 
+    test('IMG-005 a colour label is written to XMP and can be removed', () {
+      final labelled = writeMetadata(
+        sampleJpeg(),
+        const ImageMetadataEdit(label: 'Red', rating: 3),
+      ).file!;
+      final p = parseMetadata(labelled);
+      expect(p.label, 'Red');
+      expect(p.metadata.rating, 3);
+      final cleared = writeMetadata(
+        labelled,
+        const ImageMetadataEdit(label: ''),
+      ).file!;
+      expect(parseMetadata(cleared).label, isNull);
+      expect(parseMetadata(cleared).metadata.rating, 3);
+    });
+
     test('IMG-006 unrelated XMP properties survive an edit', () {
       final xmp = xmpDoc(
         ['<GPano:ProjectionType>equirectangular</GPano:ProjectionType>'].join(),

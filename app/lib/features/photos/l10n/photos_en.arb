@@ -339,5 +339,13 @@
         "type": "String"
       }
     }
+  },
+  "photosWriteBackFailed": "{count, plural, =1{The file of 1 photo could not be updated with the rating, label or tags.} other{The files of {count} photos could not be updated with the rating, label or tags.}}",
+  "@photosWriteBackFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

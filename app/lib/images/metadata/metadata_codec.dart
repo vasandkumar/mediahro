@@ -524,6 +524,14 @@ void _applyXmp(XmpPacket x, ImageMetadataEdit edit) {
   if (edit.rating != null) {
     x.setSimple('xmp:Rating', edit.rating!.clamp(0, 5).toString());
   }
+  final label = edit.label;
+  if (label != null) {
+    if (label.isEmpty) {
+      x.remove('xmp:Label');
+    } else {
+      x.setSimple('xmp:Label', label);
+    }
+  }
 }
 
 bool _touchesIptc(ImageMetadataEdit e) =>
