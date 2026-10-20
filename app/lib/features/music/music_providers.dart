@@ -124,6 +124,9 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
         claim: () => ref
             .read(mediaSessionOwnerProvider.notifier)
             .claim(MediaSessionKind.music),
+        release: () => ref
+            .read(mediaSessionOwnerProvider.notifier)
+            .release(MediaSessionKind.music),
         changes: owners.stream,
       ),
     )..start();

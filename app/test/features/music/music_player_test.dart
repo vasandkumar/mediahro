@@ -30,9 +30,13 @@ void main() {
 
   Future<void> settle() => Future<void>.delayed(Duration.zero);
 
-  /// Waits for async work that does real I/O (cover file reads).
+  /// Waits for async work that does real I/O (cover file reads). Waits for
+  /// the state itself, however slow the machine, and fails clearly if it
+  /// never comes.
   Future<void> eventually(bool Function() done) async {
-    for (var i = 0; i < 200 && !done(); i++) {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (!done()) {
+      if (DateTime.now().isAfter(deadline)) fail('state never reached');
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
   }
@@ -273,7 +277,11 @@ void main() {
         art: art,
       )..start();
       await player.playTracks(album);
-      await eventually(() => session.status != null);
+      await eventually(
+        () =>
+            session.nowPlaying?.artwork != null &&
+            session.status?.state == SessionPlaybackState.playing,
+      );
       expect(session.kind, MediaSessionKind.music);
       expect(session.nowPlaying!.title, 'T1');
       expect(session.nowPlaying!.album, 'Al');
@@ -284,7 +292,7 @@ void main() {
       await eventually(() => engine.current.status == PlaybackStatus.paused);
       expect(engine.current.status, PlaybackStatus.paused);
       session.send(const NextCommand());
-      await eventually(() => player.state.current!.title == 'T2');
+      await eventually(() => player.state.current?.title == 'T2');
       expect(player.state.current!.title, 'T2');
       await bridge.dispose();
     });
@@ -296,6 +304,7 @@ void main() {
         final session = _FakeSession();
         final owners = StreamController<MediaSessionKind?>.broadcast();
         var claims = 0;
+        var releases = 0;
         final dir = await Directory.systemTemp.createTemp('c2_own');
         addTearDown(() async {
           await owners.close();
@@ -311,6 +320,7 @@ void main() {
           art: ArtworkStore(db, dir),
           owner: SessionOwnerLink(
             claim: () => claims++,
+            release: () => releases++,
             changes: owners.stream,
           ),
         )..start();
@@ -339,6 +349,13 @@ void main() {
         expect(claims, 2);
         session.send(const PauseCommand());
         await eventually(() => engine.current.status == PlaybackStatus.paused);
+        expect(releases, 0);
+
+        // Stopping gives the session back.
+        session.send(const StopCommand());
+        await eventually(() => releases == 1);
+        expect(bridge.owns, isFalse);
+        expect(session.kind, isNull);
         await bridge.dispose();
       },
     );

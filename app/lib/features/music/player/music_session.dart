@@ -9,11 +9,16 @@ import 'package:mediahro_engine/mediahro_engine.dart';
 
 /// Music's link to the shared media-session owner (ADR-029,
 /// `mediaSessionOwnerProvider`): [claim] when music starts playing,
-/// [changes] when any player takes the session.
+/// [release] when it stops, [changes] when any player takes the session.
 final class SessionOwnerLink {
-  const SessionOwnerLink({required this.claim, required this.changes});
+  const SessionOwnerLink({
+    required this.claim,
+    required this.release,
+    required this.changes,
+  });
 
   final void Function() claim;
+  final void Function() release;
   final Stream<MediaSessionKind?> changes;
 }
 
@@ -112,6 +117,17 @@ final class MusicSessionBridge {
       await session.activate(MediaSessionKind.music);
     }
     if (!_active) return;
+    if (s.playback.status == PlaybackStatus.idle ||
+        (s.playback.status == PlaybackStatus.ended && !s.hasNext)) {
+      // Music stopped: give the session back (ADR-029).
+      _active = false;
+      _shownItem = null;
+      _shownState = null;
+      _shownNext = null;
+      owner?.release();
+      await session.deactivate();
+      return;
+    }
     final key = station != null ? 'st:${station.id}' : 'tr:${track!.itemId}';
     if (_shownItem != key) {
       _shownItem = key;
