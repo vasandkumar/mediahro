@@ -228,9 +228,5 @@ final class MusicIndexer {
     }
   }
 
-  static Future<AudioTags> _defaultRead(VirtualFile file) {
-    final uri = file.uri;
-    if (uri.scheme == 'file') return TagReader.readFile(uri.toFilePath());
-    return TagReader.readVirtualFile(file);
-  }
+  static Future<AudioTags> _defaultRead(VirtualFile file) => readTagsOf(file);
 }

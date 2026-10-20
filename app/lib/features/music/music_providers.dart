@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderException;
+import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
@@ -11,6 +12,8 @@ import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_indexer.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/library/ratings.dart';
+import 'package:mediahro/features/music/lyrics/lrc.dart';
+import 'package:mediahro/features/music/lyrics/lyrics_service.dart';
 import 'package:mediahro/features/music/player/audio_focus.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
@@ -18,8 +21,13 @@ import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
+import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro/features/music/visualizer/visualizer.dart';
+import 'package:mediahro/features/settings/core_settings.dart';
+import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_servers/mediahro_servers.dart';
 
 /// Whether the app runs with a library database (always in the app; shell
 /// tests run without one).
@@ -170,6 +178,36 @@ final FutureProviderFamily<(int?, bool), int> ratingProvider =
       return (await r.rating(itemId), await r.isFavourite(itemId));
     });
 
+/// Lyrics (MUS-005): edited, sidecar, embedded, then LRCLIB when the user
+/// turned that endpoint on (PRIV-004).
+final lyricsServiceProvider = Provider<LyricsService>(
+  (ref) => LyricsService(
+    files: ref.watch(musicFilesProvider),
+    cacheDir: Directory(
+      [
+        ref.watch(appDataDirectoryProvider).path,
+        'music',
+        'lyrics',
+      ].join(Platform.pathSeparator),
+    ),
+    readTags: readTagsOf,
+    transport: _LazyTransport(() => ref.read(networkGatewayProvider)),
+    onlineEnabled: () => ref
+        .read(settingsStoreProvider)
+        .get(CoreSettings.endpoint(Endpoints.lrclib.id)),
+  ),
+);
+
+/// Lyrics of an item; refresh with `ref.invalidate(lyricsProvider(id))`.
+final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
+    FutureProvider.family<Lyrics?, MusicTrack>(
+      (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
+    );
+
+/// Audio tap for the visualiser (AUD-046). Null until the engine's
+/// `audioTap` (ADR-027, lane B1) is available; then this adapts it.
+final visualizerFeedProvider = Provider<VisualizerFeed?>((ref) => null);
+
 final musicPlayerStateProvider = StreamProvider<MusicPlayerState>(
   (ref) => ref.watch(musicPlayerProvider).states,
 );
@@ -202,4 +240,16 @@ T? _optional<T>(T Function() read) {
     if (e.exception is PlatformCapabilityUnavailable) return null;
     rethrow;
   }
+}
+
+/// Resolves the gateway only when a request is made, so features that may
+/// go online stay usable where networking is not set up (tests, shells).
+final class _LazyTransport implements HttpTransport {
+  _LazyTransport(this._gateway);
+
+  final HttpTransport Function() _gateway;
+
+  @override
+  Future<HttpResponseData> send(HttpRequestData request) =>
+      _gateway().send(request);
 }

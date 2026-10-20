@@ -266,6 +266,76 @@ void main() {
     );
     await finish(tester);
   });
+
+  testWidgets('MUS-005 lyrics: empty state with the opt-in online prompt, '
+      'then create synced lyrics by tapping along', (tester) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.text('Alpha'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(KMiniPlayer),
+        matching: find.text('Alpha'),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('Show lyrics'));
+    await settle(tester);
+    expect(find.text('No lyrics for this song.'), findsOneWidget);
+
+    // Online lookup is off until the user agrees.
+    await tester.tap(find.text('Search online (LRCLIB)'));
+    await settle(tester);
+    expect(find.textContaining('lrclib.net'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+
+    // Create: paste text, stamp two lines, save.
+    await tester.tap(find.byTooltip('Create synced lyrics'));
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), 'First line\nSecond line');
+    await tester.tap(find.text('Use this text'));
+    await settle(tester);
+    engine.at(const Duration(seconds: 2));
+    await settle(tester);
+    await tester.tap(find.text('Stamp line'));
+    engine.at(const Duration(seconds: 9));
+    await settle(tester);
+    await tester.tap(find.text('Stamp line'));
+    await settle(tester);
+    expect(find.text('0:02'), findsOneWidget);
+    expect(find.text('0:09'), findsWidgets);
+    await tester.tap(find.text('Save'));
+    await settle(tester);
+    expect(find.text('Your lyrics'), findsOneWidget);
+    expect(find.text('First line'), findsOneWidget);
+    expect(find.text('Second line'), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('AUD-046 visualiser toggle; without an engine tap it says so', (
+    tester,
+  ) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.text('Alpha'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(KMiniPlayer),
+        matching: find.text('Alpha'),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('Show visualiser'));
+    await settle(tester);
+    expect(find.textContaining('live audio analysis'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show cover'));
+    await settle(tester);
+    expect(find.textContaining('live audio analysis'), findsNothing);
+    await finish(tester);
+  });
 }
 
 /// Unmounts the app and lets drift's stream-close timers run, so no timer
