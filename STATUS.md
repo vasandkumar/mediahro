@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) · secure storage + biometrics facades (#33; c4a_android_security_test 6 + 2 manual checks needing a fingerprint or PIN; unblocks LIB-013, IMG-011, PRIV-006/008 A) · MUS-001, MUS-002 re-test with SAF/MediaStore sources (#34; c2_music_test) · VID-066, VID-069 (#35; c1_video_player_test 17 + 3 manual checks) · MUS-006, MUS-011 (#31; c2_now_playing_test, c2_music_test) · picker fix (#36; c4a_android_storage_test, now 14) | collecting (19 of 25) |
+| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) · secure storage + biometrics facades (#33; c4a_android_security_test 6 + 2 manual checks needing a fingerprint or PIN; unblocks LIB-013, IMG-011, PRIV-006/008 A) · MUS-001, MUS-002 re-test with SAF/MediaStore sources (#34; c2_music_test) · VID-066, VID-069 (#35; c1_video_player_test 17 + 3 manual checks) · MUS-006, MUS-011 (#31; c2_now_playing_test, c2_music_test) · picker fix (#36; c4a_android_storage_test, now 14) · MUS-005 (#37; c2_lyrics_test) | collecting (20 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -198,7 +198,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W |
 | AUD-044 | Bluetooth | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
 | AUD-045 | Audio focus and interruptions | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
-| AUD-046 | Visualiser | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-046 | Visualiser | C2 | ⛔ | ☐ | ☐ | ☐ | A ⛔ C2 side merged (#37); waits on B1 PlaybackEngine.audioTap (ADR-027; B1's branch lane/b1-adr027 is ready locally). |
 
 ### 6.2 Music library and player UI
 
@@ -423,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C2 **#37**: lyrics (edited > sidecar > embedded > opt-in LRCLIB, with a consent dialog; synced karaoke scroll, tap-to-seek, LRC editor) and the visualiser UI. Verified at 4c49145: tools/check 466. AUD-046 A is ⛔ on B1's audioTap (ADR-027), which goes to B1 at its next slot. Device batch 1: 20 of 25. |
 | 2026-10-20 | Merged C4a **#36**: picking a video opened Samsung's Photo Picker (multi-select, media-id names). Only image-only picks use the Photo Picker now; everything else uses the documents picker, with single or multiple selection as requested and real display names. Verified at fbaf960: tools/check 448 and the Gradle unit tests (PickPolicyTest 6/6). |
 | 2026-10-20 | Merged C2 **#31** (Now Playing extras: favourite, rating, sound sheet with EQ/levelling/crossfade, output, add to playlist, info; sleep timer and wake alarms through the AlarmFacade, which waits on C4a; music answers lock-screen commands only while it owns the session). Verified at 652c99e: tools/check 448. ADR-029: shared `mediaSessionOwnerProvider` so video and music never both answer one button. Device batch 1: 19 of 25. |
 | 2026-10-20 | Merged C1 **#35** (volume boost to 300 % with mute, per-device volume, sleep timer with fade-out). Verified at f1872d5: tools/check 438. Device batch 1: 17 of 25. |
