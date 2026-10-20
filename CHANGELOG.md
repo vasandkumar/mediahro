@@ -38,6 +38,9 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - Parental PIN, biometrics, locked sources and folders, hidden items (LIB-013); duplicate finder that never deletes (LIB-014).
 - File browser, operations with trash and undo, batch rename and convert, sidecars kept together (FILE-001, FILE-002, FILE-003, FILE-006).
 - Archive browsing through libarchive (FILE-004); Wi-Fi transfer page with a QR code (FILE-005).
+- Device media on Android: videos and music on the phone show up without picking folders (LIB-002).
+- Export and import playlists as M3U8, PLS or XSPF (LIB-007); backups are saved wherever you choose (CORE-014).
+- Share files or open them in another app from the browser (FILE-002).
 - Network sources: SMB, NFS, WebDAV, FTP, FTPS, SFTP and DLNA, with LAN discovery and an opt-in renderer (NET-001 to NET-005).
 - Open URL with headers, user agent and history (CORE-005, NET-006); cloud drives over OAuth PKCE and REST (NET-007).
 - FTP and FTPS through a built-in client that takes TLS from the operating system, SFTP through the platform's SSH stack, and a prompt to trust a server's self-signed certificate or SSH host key after comparing its fingerprint (NET-003, NET-004).
