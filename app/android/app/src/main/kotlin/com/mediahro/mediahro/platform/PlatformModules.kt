@@ -40,6 +40,7 @@ import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
 import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
+import com.mediahro.mediahro.platform.display.HdrVideoViewFactory
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.display.PowerStatusModule
 import com.mediahro.mediahro.platform.imaging.HdrImageViewFactory
@@ -211,6 +212,9 @@ object PlatformModules {
         ImagingHostApi.setUp(messenger, ImagingModule(context.applicationContext, host))
         engine.platformViewsController.registry
             .registerViewFactory(HdrImageViewFactory.VIEW_TYPE, HdrImageViewFactory(context.applicationContext))
+        // Native HDR video view (VID-031, ADR-022): the SurfaceView mpv draws into.
+        engine.platformViewsController.registry
+            .registerViewFactory(HdrVideoViewFactory.VIEW_TYPE, HdrVideoViewFactory(messenger, host))
         debugHooks(host, engine)
     }
 
