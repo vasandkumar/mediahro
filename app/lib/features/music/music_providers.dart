@@ -26,6 +26,7 @@ import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_servers/mediahro_servers.dart';
 
 /// Whether the app runs with a library database (always in the app; shell
 /// tests run without one).
@@ -189,7 +190,7 @@ final lyricsServiceProvider = Provider<LyricsService>(
       ].join(Platform.pathSeparator),
     ),
     readTags: readTagsOf,
-    transport: ref.watch(networkGatewayProvider),
+    transport: _LazyTransport(() => ref.read(networkGatewayProvider)),
     onlineEnabled: () => ref
         .read(settingsStoreProvider)
         .get(CoreSettings.endpoint(Endpoints.lrclib.id)),
@@ -234,4 +235,16 @@ T? _optional<T>(T Function() read) {
     if (e.exception is PlatformCapabilityUnavailable) return null;
     rethrow;
   }
+}
+
+/// Resolves the gateway only when a request is made, so features that may
+/// go online stay usable where networking is not set up (tests, shells).
+final class _LazyTransport implements HttpTransport {
+  _LazyTransport(this._gateway);
+
+  final HttpTransport Function() _gateway;
+
+  @override
+  Future<HttpResponseData> send(HttpRequestData request) =>
+      _gateway().send(request);
 }

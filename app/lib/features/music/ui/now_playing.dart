@@ -11,6 +11,7 @@ import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
+import 'package:mediahro/features/music/ui/lyrics_view.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
@@ -26,11 +27,19 @@ void openNowPlaying(BuildContext context) =>
 
 /// Now Playing (MUS-006): art, progress, transport, shuffle/repeat, queue,
 /// "go to album/artist", swipe gestures and a landscape/tablet layout.
-class NowPlayingScreen extends ConsumerWidget {
+class NowPlayingScreen extends ConsumerStatefulWidget {
   const NowPlayingScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NowPlayingScreen> createState() => _NowPlayingScreenState();
+}
+
+class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
+  /// Lyrics instead of the cover (MUS-005).
+  bool _lyrics = false;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final s = ref.watch(musicPlayerStateProvider).value;
     final player = ref.read(musicPlayerProvider);
@@ -46,6 +55,14 @@ class NowPlayingScreen extends ConsumerWidget {
         actions: [
           if (t != null)
             IconButton(
+              tooltip: _lyrics ? l10n.musicShowArtwork : l10n.musicShowLyrics,
+              isSelected: _lyrics,
+              icon: const Icon(Icons.lyrics_outlined),
+              selectedIcon: const Icon(Icons.lyrics),
+              onPressed: () => setState(() => _lyrics = !_lyrics),
+            ),
+          if (t != null)
+            IconButton(
               tooltip: l10n.musicQueue,
               icon: const Icon(Icons.queue_music),
               onPressed: () => showQueueSheet(context),
@@ -56,7 +73,7 @@ class NowPlayingScreen extends ConsumerWidget {
           ? KEmptyState(message: l10n.musicNothingPlaying)
           : GestureDetector(
               onVerticalDragEnd: (d) {
-                if ((d.primaryVelocity ?? 0) > 600) {
+                if (!_lyrics && (d.primaryVelocity ?? 0) > 600) {
                   Navigator.of(context).maybePop();
                 }
               },
@@ -65,6 +82,38 @@ class NowPlayingScreen extends ConsumerWidget {
                   builder: (context, c) {
                     final wide = c.maxWidth > c.maxHeight * 1.1;
                     final art = _SwipeArt(track: t, player: player);
+                    if (_lyrics) {
+                      final compact = _Controls(
+                        state: s,
+                        player: player,
+                        compact: true,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: KSpacing.s16,
+                        ),
+                        child: wide
+                            ? Row(
+                                children: [
+                                  Expanded(child: LyricsView(track: t)),
+                                  const SizedBox(width: KSpacing.s24),
+                                  Expanded(
+                                    child: Center(
+                                      child: SingleChildScrollView(
+                                        child: compact,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  Expanded(child: LyricsView(track: t)),
+                                  compact,
+                                ],
+                              ),
+                      );
+                    }
                     final controls = _Controls(state: s, player: player);
                     if (wide) {
                       return Padding(
@@ -152,10 +201,17 @@ class _SwipeArt extends StatelessWidget {
 }
 
 class _Controls extends StatelessWidget {
-  const _Controls({required this.state, required this.player});
+  const _Controls({
+    required this.state,
+    required this.player,
+    this.compact = false,
+  });
 
   final MusicPlayerState state;
   final MusicPlayer player;
+
+  /// Under the lyrics: seek bar and transport only.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -171,22 +227,25 @@ class _Controls extends StatelessWidget {
       children: [
         Text(
           t.title,
-          style: theme.textTheme.headlineSmall,
-          maxLines: 2,
+          style: compact
+              ? theme.textTheme.titleMedium
+              : theme.textTheme.headlineSmall,
+          maxLines: compact ? 1 : 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: KSpacing.s4),
-        _LinkText(
-          text: artist ?? l10n.musicUnknownArtist,
-          label: l10n.musicGoToArtist,
-          onTap: artist == null
-              ? null
-              : () => _go(
-                  context,
-                  (ctx) => openGroup(ctx, GroupField.artist, artist),
-                ),
-        ),
-        if (t.album != null)
+        if (!compact)
+          _LinkText(
+            text: artist ?? l10n.musicUnknownArtist,
+            label: l10n.musicGoToArtist,
+            onTap: artist == null
+                ? null
+                : () => _go(
+                    context,
+                    (ctx) => openGroup(ctx, GroupField.artist, artist),
+                  ),
+          ),
+        if (t.album != null && !compact)
           _LinkText(
             text: t.album!,
             label: l10n.musicGoToAlbum,
@@ -203,7 +262,7 @@ class _Controls extends StatelessWidget {
               ),
             ),
           ),
-        const SizedBox(height: KSpacing.s16),
+        SizedBox(height: compact ? KSpacing.s4 : KSpacing.s16),
         Semantics(
           label: l10n.musicPosition(
             formatMediaDuration(state.position),
@@ -287,8 +346,10 @@ class _Controls extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: KSpacing.s8),
-        NowPlayingActions(track: t),
+        if (!compact) ...[
+          const SizedBox(height: KSpacing.s8),
+          NowPlayingActions(track: t),
+        ],
       ],
     );
   }
