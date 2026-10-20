@@ -45,7 +45,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     final l10n = AppLocalizations.of(context);
     final s = ref.watch(musicPlayerStateProvider).value;
     final player = ref.read(musicPlayerProvider);
-    final t = s?.current;
+    final station = s?.station;
+    final t = station == null ? s?.current : null;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -86,7 +87,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             ),
         ],
       ),
-      body: s == null || t == null
+      body: s != null && station != null
+          ? _LiveView(state: s, player: player)
+          : s == null || t == null
           ? KEmptyState(message: l10n.musicNothingPlaying)
           : GestureDetector(
               onVerticalDragEnd: (d) {
@@ -690,6 +693,90 @@ Future<String?> askName(
   return t == null || t.isEmpty ? null : t;
 }
 
+/// Now Playing for a radio station (MUS-014): name, address, live badge,
+/// play/pause, and the sound, output and sleep controls.
+class _LiveView extends StatelessWidget {
+  const _LiveView({required this.state, required this.player});
+
+  final MusicPlayerState state;
+  final MusicPlayer player;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final st = state.station!;
+    final error = state.playback.error;
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(KSpacing.s24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.radio, size: 120, color: theme.colorScheme.primary),
+              const SizedBox(height: KSpacing.s16),
+              Text(
+                st.name,
+                style: theme.textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+              Text(st.url.host, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: KSpacing.s8),
+              Chip(label: Text(l10n.musicLive)),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: KSpacing.s8),
+                  child: Text(
+                    l10n.musicError(error.code.name),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: KSpacing.s16),
+              IconButton.filled(
+                tooltip: state.playing
+                    ? l10n.musicPauseLabel
+                    : l10n.musicPlayLabel,
+                iconSize: 44,
+                icon: Icon(
+                  (state.playing ? KIcon.pause : KIcon.play).resolve(
+                    theme.family,
+                  ),
+                ),
+                onPressed: () => unawaited(player.togglePlayPause()),
+              ),
+              const SizedBox(height: KSpacing.s16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: l10n.musicSound,
+                    icon: const Icon(Icons.equalizer),
+                    onPressed: () => showSoundSheet(context),
+                  ),
+                  IconButton(
+                    tooltip: l10n.musicOutput,
+                    icon: const Icon(Icons.speaker_group_outlined),
+                    onPressed: () => showOutputSheet(context),
+                  ),
+                  IconButton(
+                    tooltip: l10n.musicSleepTimer,
+                    icon: const Icon(Icons.bedtime_outlined),
+                    onPressed: () => showSleepSheet(context),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The shell's mini player (B3 slot, `miniPlayerSlotProvider`).
 class MusicMiniPlayer extends ConsumerWidget {
   const MusicMiniPlayer({super.key});
@@ -697,10 +784,24 @@ class MusicMiniPlayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(musicPlayerStateProvider).value;
-    final t = s?.current;
-    if (s == null || t == null) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     final player = ref.read(musicPlayerProvider);
+    final station = s?.station;
+    if (s != null && station != null) {
+      return KMiniPlayer(
+        title: station.name,
+        subtitle: l10n.musicLive,
+        artwork: const Icon(Icons.radio),
+        playing: s.playing,
+        onPlayPause: () => unawaited(player.togglePlayPause()),
+        playLabel: l10n.musicPlayLabel,
+        pauseLabel: l10n.musicPauseLabel,
+        onOpen: () => openNowPlaying(context),
+        openLabel: l10n.musicOpenNowPlaying,
+      );
+    }
+    final t = s?.current;
+    if (s == null || t == null) return const SizedBox.shrink();
     final d = s.duration;
     return KMiniPlayer(
       title: t.title,

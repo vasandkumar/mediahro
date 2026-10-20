@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
@@ -11,6 +10,8 @@ import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
 import 'package:mediahro/features/music/ui/playlists.dart';
+import 'package:mediahro/features/music/ui/radio_tab.dart';
+import 'package:mediahro/features/music/ui/scrobble_settings.dart';
 import 'package:mediahro/ui/pending_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
@@ -94,6 +95,7 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       (l10n.musicTabComposers, const GroupsTab(field: GroupField.composer)),
       (l10n.musicTabYears, const GroupsTab(field: GroupField.year)),
       (l10n.musicTabFolders, const FoldersTab()),
+      (l10n.musicTabRadio, const RadioTab()),
     ];
     final songs = _songs;
     return DefaultTabController(
@@ -110,6 +112,8 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
                     showSoundSheet(context);
                   case 'alarms':
                     await openAlarms(context);
+                  case 'scrobble':
+                    await openScrobbleSettings(context);
                   case 'undoTags':
                     final messenger = ScaffoldMessenger.maybeOf(context);
                     await ref.read(tagEditorProvider).undoLast();
@@ -121,6 +125,10 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'sound', child: Text(l10n.musicSound)),
                 PopupMenuItem(value: 'alarms', child: Text(l10n.musicAlarms)),
+                PopupMenuItem(
+                  value: 'scrobble',
+                  child: Text(l10n.musicScrobbling),
+                ),
                 PopupMenuItem(
                   value: 'undoTags',
                   child: Text(l10n.musicTagUndo),
@@ -136,13 +144,11 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
                 onPressed: () => showQueueSheet(context),
               ),
           ],
-          bottom: songs == 0
-              ? null
-              : TabBar(
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  tabs: [for (final (label, _) in tabs) Tab(text: label)],
-                ),
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final (label, _) in tabs) Tab(text: label)],
+          ),
         ),
         body: Column(
           children: [
@@ -167,20 +173,9 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
                 ),
               ),
             Expanded(
-              child: switch (songs) {
-                null => const SizedBox.shrink(),
-                0 => KEmptyState(
-                  title: l10n.musicEmptyTitle,
-                  message: l10n.musicEmptyMessage,
-                  actions: [
-                    FilledButton(
-                      onPressed: () => context.go('/sources?add=folder'),
-                      child: Text(l10n.musicAddMusic),
-                    ),
-                  ],
-                ),
-                _ => TabBarView(children: [for (final (_, view) in tabs) view]),
-              },
+              child: songs == null
+                  ? const SizedBox.shrink()
+                  : TabBarView(children: [for (final (_, view) in tabs) view]),
             ),
           ],
         ),

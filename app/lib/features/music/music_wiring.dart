@@ -11,7 +11,9 @@ final List<Override> musicOverrides = [
   miniPlayerSlotProvider.overrideWith((ref) {
     if (!ref.watch(musicLibraryAvailableProvider)) return null;
     final hasTrack = ref.watch(
-      musicPlayerStateProvider.select((s) => s.value?.current != null),
+      musicPlayerStateProvider.select(
+        (s) => s.value?.current != null || s.value?.station != null,
+      ),
     );
     return hasTrack ? musicMiniPlayerSlot : null;
   }),

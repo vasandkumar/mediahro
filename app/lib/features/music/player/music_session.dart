@@ -7,6 +7,21 @@ import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+/// Music's link to the shared media-session owner (ADR-029,
+/// `mediaSessionOwnerProvider`): [claim] when music starts playing,
+/// [release] when it stops, [changes] when any player takes the session.
+final class SessionOwnerLink {
+  const SessionOwnerLink({
+    required this.claim,
+    required this.release,
+    required this.changes,
+  });
+
+  final void Function() claim;
+  final void Function() release;
+  final Stream<MediaSessionKind?> changes;
+}
+
 /// Connects the music player to the OS media session (SYS-001/002 through
 /// C4's [MediaSessionFacade]): lock screen, notification, headset and car
 /// buttons control the player, and the session shows what plays. Optional
@@ -17,7 +32,7 @@ final class MusicSessionBridge {
     required this.session,
     required this.art,
     this.widgets,
-    this.otherPlayer,
+    this.owner,
   });
 
   final MusicPlayer player;
@@ -25,16 +40,16 @@ final class MusicSessionBridge {
   final ArtworkStore art;
   final HomeWidgetsFacade? widgets;
 
-  /// State of the other player sharing the OS session (the video engine).
-  /// When it starts playing it takes the session over: music stops
-  /// answering lock-screen commands until music plays again.
-  final Stream<PlaybackState>? otherPlayer;
+  /// The shared session owner. When another player (video) claims the
+  /// session, music pauses and stops answering lock-screen commands until
+  /// music plays again.
+  final SessionOwnerLink? owner;
 
   StreamSubscription<MusicPlayerState>? _states;
   StreamSubscription<RemoteCommand>? _commands;
-  StreamSubscription<PlaybackState>? _other;
+  StreamSubscription<MediaSessionKind?>? _other;
   bool _active = false;
-  int? _shownItem;
+  String? _shownItem;
   NowPlaying? _shownNowPlaying;
   bool? _widgetPlaying;
   SessionPlaybackState? _shownState;
@@ -46,8 +61,8 @@ final class MusicSessionBridge {
 
   void start() {
     _commands ??= session.commands.listen(_onCommand);
-    _other ??= otherPlayer?.listen((s) {
-      if (s.status != PlaybackStatus.playing) return;
+    _other ??= owner?.changes.listen((kind) {
+      if (kind == null || kind == MediaSessionKind.music) return;
       // A film started: it takes the session (and the speakers) over.
       if (player.state.playing) unawaited(player.pause());
       if (_active) {
@@ -94,21 +109,38 @@ final class MusicSessionBridge {
 
   Future<void> _onState(MusicPlayerState s) async {
     final track = s.current;
-    if (track == null) return;
+    final station = s.station;
+    if (track == null && station == null) return;
     if (!_active && s.playing) {
       _active = true;
+      owner?.claim();
       await session.activate(MediaSessionKind.music);
     }
     if (!_active) return;
-    if (_shownItem != track.itemId) {
-      _shownItem = track.itemId;
-      final item = NowPlaying(
-        title: track.title,
-        artist: track.artist ?? track.albumArtist,
-        album: track.album,
-        duration: s.duration,
-        artwork: await _artwork(track.itemId),
-      );
+    if (s.playback.status == PlaybackStatus.idle ||
+        (s.playback.status == PlaybackStatus.ended && !s.hasNext)) {
+      // Music stopped: give the session back (ADR-029).
+      _active = false;
+      _shownItem = null;
+      _shownState = null;
+      _shownNext = null;
+      owner?.release();
+      await session.deactivate();
+      return;
+    }
+    final key = station != null ? 'st:${station.id}' : 'tr:${track!.itemId}';
+    if (_shownItem != key) {
+      _shownItem = key;
+      final item = station != null
+          // A radio stream (MUS-014): live, no duration.
+          ? NowPlaying(title: station.name, isLive: true)
+          : NowPlaying(
+              title: track!.title,
+              artist: track.artist ?? track.albumArtist,
+              album: track.album,
+              duration: s.duration,
+              artwork: await _artwork(track.itemId),
+            );
       await session.setNowPlaying(item);
       _shownNowPlaying = item;
       _widgetPlaying = s.playing;
