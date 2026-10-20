@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,13 +97,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum OrientationLockMsg {
-  auto,
-  landscape,
-  portrait,
-  followVideo;
-}
+enum OrientationLockMsg { auto, landscape, portrait, followVideo }
 
 class DisplayInfoMsg {
   DisplayInfoMsg({
@@ -142,7 +137,8 @@ class DisplayInfoMsg {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DisplayInfoMsg decode(Object result) {
     result as List<Object?>;
@@ -166,7 +162,13 @@ class DisplayInfoMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(name, other.name) && _deepEquals(refreshRate, other.refreshRate) && _deepEquals(supportedRefreshRates, other.supportedRefreshRates) && _deepEquals(hdr, other.hdr) && _deepEquals(peakNits, other.peakNits) && _deepEquals(isExternal, other.isExternal);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(refreshRate, other.refreshRate) &&
+        _deepEquals(supportedRefreshRates, other.supportedRefreshRates) &&
+        _deepEquals(hdr, other.hdr) &&
+        _deepEquals(peakNits, other.peakNits) &&
+        _deepEquals(isExternal, other.isExternal);
   }
 
   @override
@@ -180,20 +182,17 @@ class DisplayInfoMsg {
 }
 
 class DisplayListMsg {
-  DisplayListMsg({
-    required this.displays,
-  });
+  DisplayListMsg({required this.displays});
 
   List<DisplayInfoMsg> displays;
 
   List<Object?> _toList() {
-    return <Object?>[
-      displays,
-    ];
+    return <Object?>[displays];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DisplayListMsg decode(Object result) {
     result as List<Object?>;
@@ -225,26 +224,21 @@ class DisplayListMsg {
 }
 
 class PipStateMsg {
-  PipStateMsg({
-    required this.active,
-  });
+  PipStateMsg({required this.active});
 
   bool active;
 
   List<Object?> _toList() {
-    return <Object?>[
-      active,
-    ];
+    return <Object?>[active];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PipStateMsg decode(Object result) {
     result as List<Object?>;
-    return PipStateMsg(
-      active: result[0]! as bool,
-    );
+    return PipStateMsg(active: result[0]! as bool);
   }
 
   @override
@@ -269,7 +263,6 @@ class PipStateMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -277,16 +270,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is OrientationLockMsg) {
+    } else if (value is OrientationLockMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is DisplayInfoMsg) {
+    } else if (value is DisplayInfoMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is DisplayListMsg) {
+    } else if (value is DisplayListMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is PipStateMsg) {
+    } else if (value is PipStateMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -312,27 +305,30 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class DisplayHostApi {
   /// Constructor for [DisplayHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   DisplayHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<List<DisplayInfoMsg>> displays() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.displays$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.displays$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -342,104 +338,113 @@ class DisplayHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<DisplayInfoMsg>();
   }
 
   Future<bool> matchFrameRate(String displayId, double fps) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.matchFrameRate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.matchFrameRate$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[displayId, fps]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[displayId, fps],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<void> restoreDisplayMode(String displayId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.restoreDisplayMode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.restoreDisplayMode$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[displayId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[displayId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> keepScreenOn(bool on) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.keepScreenOn$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.keepScreenOn$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[on]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[on],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// 0–1, or null to follow the system brightness again.
   Future<void> setWindowBrightness(double? value) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.setWindowBrightness$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.setWindowBrightness$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[value]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[value],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> setOrientationLock(OrientationLockMsg lock) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.DisplayHostApi.setOrientationLock$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.DisplayHostApi.setOrientationLock$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[lock]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[lock],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -448,20 +453,21 @@ class PipHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   PipHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<bool> isSupported() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.isSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PipHostApi.isSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -471,35 +477,37 @@ class PipHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<bool> enter(double aspectRatio) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.enter$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PipHostApi.enter$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[aspectRatio]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[aspectRatio],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<void> exit() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.exit$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PipHostApi.exit$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -509,48 +517,51 @@ class PipHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> setAutoEnter(bool enabled) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.setAutoEnter$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PipHostApi.setAutoEnter$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[enabled],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// ADR-028: the video's shape, for auto-PiP and followVideo.
   Future<void> setAspectRatio(double aspectRatio) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.setAspectRatio$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PipHostApi.setAspectRatio$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[aspectRatio]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[aspectRatio],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -560,31 +571,34 @@ class PipHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<DisplayListMsg> displayChanges( {String instanceName = ''}) {
+Stream<DisplayListMsg> displayChanges({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel displayChangesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.DisplayEventsApi.displayChanges$instanceName', pigeonMethodCodec);
+  final EventChannel displayChangesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.DisplayEventsApi.displayChanges$instanceName',
+    pigeonMethodCodec,
+  );
   return displayChangesChannel.receiveBroadcastStream().map((dynamic event) {
     return event as DisplayListMsg;
   });
 }
-    
+
 /// Returns a broadcast [Stream] of events from the `pipStates` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<PipStateMsg> pipStates( {String instanceName = ''}) {
+Stream<PipStateMsg> pipStates({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel pipStatesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.DisplayEventsApi.pipStates$instanceName', pigeonMethodCodec);
+  final EventChannel pipStatesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.DisplayEventsApi.pipStates$instanceName',
+    pigeonMethodCodec,
+  );
   return pipStatesChannel.receiveBroadcastStream().map((dynamic event) {
     return event as PipStateMsg;
   });
 }
-    

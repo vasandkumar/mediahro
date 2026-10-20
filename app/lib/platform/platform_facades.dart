@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/platform/audio_output.dart';
 import 'package:mediahro/platform/auth_browser.dart';
+import 'package:mediahro/platform/caption_style.dart';
 import 'package:mediahro/platform/car_and_alarms.dart';
 import 'package:mediahro/platform/cast.dart';
 import 'package:mediahro/platform/display.dart';
@@ -16,6 +17,7 @@ import 'package:mediahro/platform/text_services.dart';
 
 export 'audio_output.dart';
 export 'auth_browser.dart';
+export 'caption_style.dart';
 export 'car_and_alarms.dart';
 export 'cast.dart';
 export 'display.dart';
@@ -151,6 +153,10 @@ final mediaBrowseProvider = Provider<MediaBrowseFacade>(
 );
 final alarmProvider = Provider<AlarmFacade>(
   (ref) => _unavailable('alarm'),
+  retry: _noRetry,
+);
+final captionStyleProvider = Provider<CaptionStyleFacade>(
+  (ref) => _unavailable('captionStyle'),
   retry: _noRetry,
 );
 

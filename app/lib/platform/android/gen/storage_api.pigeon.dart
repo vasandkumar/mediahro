@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,42 +97,16 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
+enum PickKindMsg { any, video, audio, image, subtitle, playlist }
 
-enum PickKindMsg {
-  any,
-  video,
-  audio,
-  image,
-  subtitle,
-  playlist;
-}
+enum DocumentModeMsg { read, write, readWrite }
 
-enum DocumentModeMsg {
-  read,
-  write,
-  readWrite;
-}
+enum MediaPermissionMsg { granted, limited, denied, notApplicable }
 
-enum MediaPermissionMsg {
-  granted,
-  limited,
-  denied,
-  notApplicable;
-}
-
-enum PhotoAccessMsg {
-  notDetermined,
-  limited,
-  full,
-  denied;
-}
+enum PhotoAccessMsg { notDetermined, limited, full, denied }
 
 class PickedFileMsg {
-  PickedFileMsg({
-    required this.uri,
-    required this.name,
-    this.size,
-  });
+  PickedFileMsg({required this.uri, required this.name, this.size});
 
   String uri;
 
@@ -140,15 +115,12 @@ class PickedFileMsg {
   int? size;
 
   List<Object?> _toList() {
-    return <Object?>[
-      uri,
-      name,
-      size,
-    ];
+    return <Object?>[uri, name, size];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PickedFileMsg decode(Object result) {
     result as List<Object?>;
@@ -168,7 +140,9 @@ class PickedFileMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(uri, other.uri) && _deepEquals(name, other.name) && _deepEquals(size, other.size);
+    return _deepEquals(uri, other.uri) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(size, other.size);
   }
 
   @override
@@ -195,15 +169,12 @@ class FolderGrantMsg {
   String displayName;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      uri,
-      displayName,
-    ];
+    return <Object?>[id, uri, displayName];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static FolderGrantMsg decode(Object result) {
     result as List<Object?>;
@@ -223,7 +194,9 @@ class FolderGrantMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(uri, other.uri) && _deepEquals(displayName, other.displayName);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(uri, other.uri) &&
+        _deepEquals(displayName, other.displayName);
   }
 
   @override
@@ -237,24 +210,19 @@ class FolderGrantMsg {
 }
 
 class TrashResultMsg {
-  TrashResultMsg({
-    required this.trashed,
-    this.undoToken,
-  });
+  TrashResultMsg({required this.trashed, this.undoToken});
 
   List<String> trashed;
 
   String? undoToken;
 
   List<Object?> _toList() {
-    return <Object?>[
-      trashed,
-      undoToken,
-    ];
+    return <Object?>[trashed, undoToken];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TrashResultMsg decode(Object result) {
     result as List<Object?>;
@@ -273,7 +241,8 @@ class TrashResultMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(trashed, other.trashed) && _deepEquals(undoToken, other.undoToken);
+    return _deepEquals(trashed, other.trashed) &&
+        _deepEquals(undoToken, other.undoToken);
   }
 
   @override
@@ -309,18 +278,12 @@ class DocumentEntryMsg {
   String? mimeType;
 
   List<Object?> _toList() {
-    return <Object?>[
-      uri,
-      name,
-      isDirectory,
-      size,
-      modifiedMs,
-      mimeType,
-    ];
+    return <Object?>[uri, name, isDirectory, size, modifiedMs, mimeType];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DocumentEntryMsg decode(Object result) {
     result as List<Object?>;
@@ -343,7 +306,12 @@ class DocumentEntryMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(uri, other.uri) && _deepEquals(name, other.name) && _deepEquals(isDirectory, other.isDirectory) && _deepEquals(size, other.size) && _deepEquals(modifiedMs, other.modifiedMs) && _deepEquals(mimeType, other.mimeType);
+    return _deepEquals(uri, other.uri) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(isDirectory, other.isDirectory) &&
+        _deepEquals(size, other.size) &&
+        _deepEquals(modifiedMs, other.modifiedMs) &&
+        _deepEquals(mimeType, other.mimeType);
   }
 
   @override
@@ -379,18 +347,12 @@ class MediaStoreEntryMsg {
   PickKindMsg kind;
 
   List<Object?> _toList() {
-    return <Object?>[
-      uri,
-      relativePath,
-      name,
-      size,
-      modifiedMs,
-      kind,
-    ];
+    return <Object?>[uri, relativePath, name, size, modifiedMs, kind];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MediaStoreEntryMsg decode(Object result) {
     result as List<Object?>;
@@ -413,7 +375,12 @@ class MediaStoreEntryMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(uri, other.uri) && _deepEquals(relativePath, other.relativePath) && _deepEquals(name, other.name) && _deepEquals(size, other.size) && _deepEquals(modifiedMs, other.modifiedMs) && _deepEquals(kind, other.kind);
+    return _deepEquals(uri, other.uri) &&
+        _deepEquals(relativePath, other.relativePath) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(size, other.size) &&
+        _deepEquals(modifiedMs, other.modifiedMs) &&
+        _deepEquals(kind, other.kind);
   }
 
   @override
@@ -452,19 +419,12 @@ class PhotoAssetMsg {
   bool isLive;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      uri,
-      createdMs,
-      width,
-      height,
-      isVideo,
-      isLive,
-    ];
+    return <Object?>[id, uri, createdMs, width, height, isVideo, isLive];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PhotoAssetMsg decode(Object result) {
     result as List<Object?>;
@@ -488,7 +448,13 @@ class PhotoAssetMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(uri, other.uri) && _deepEquals(createdMs, other.createdMs) && _deepEquals(width, other.width) && _deepEquals(height, other.height) && _deepEquals(isVideo, other.isVideo) && _deepEquals(isLive, other.isLive);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(uri, other.uri) &&
+        _deepEquals(createdMs, other.createdMs) &&
+        _deepEquals(width, other.width) &&
+        _deepEquals(height, other.height) &&
+        _deepEquals(isVideo, other.isVideo) &&
+        _deepEquals(isLive, other.isLive);
   }
 
   @override
@@ -503,24 +469,19 @@ class PhotoAssetMsg {
 
 /// A change under a watched grant (or `mediastore` for MediaStore).
 class StorageChangeMsg {
-  StorageChangeMsg({
-    required this.grantId,
-    required this.uri,
-  });
+  StorageChangeMsg({required this.grantId, required this.uri});
 
   String grantId;
 
   String uri;
 
   List<Object?> _toList() {
-    return <Object?>[
-      grantId,
-      uri,
-    ];
+    return <Object?>[grantId, uri];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static StorageChangeMsg decode(Object result) {
     result as List<Object?>;
@@ -552,7 +513,6 @@ class StorageChangeMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -560,37 +520,37 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PickKindMsg) {
+    } else if (value is PickKindMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is DocumentModeMsg) {
+    } else if (value is DocumentModeMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is MediaPermissionMsg) {
+    } else if (value is MediaPermissionMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is PhotoAccessMsg) {
+    } else if (value is PhotoAccessMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is PickedFileMsg) {
+    } else if (value is PickedFileMsg) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is FolderGrantMsg) {
+    } else if (value is FolderGrantMsg) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is TrashResultMsg) {
+    } else if (value is TrashResultMsg) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is DocumentEntryMsg) {
+    } else if (value is DocumentEntryMsg) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is MediaStoreEntryMsg) {
+    } else if (value is MediaStoreEntryMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is PhotoAssetMsg) {
+    } else if (value is PhotoAssetMsg) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is StorageChangeMsg) {
+    } else if (value is StorageChangeMsg) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
     } else {
@@ -633,46 +593,54 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class StorageHostApi {
   /// Constructor for [StorageHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   StorageHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
-  Future<List<PickedFileMsg>> pickFiles(List<PickKindMsg> kinds, bool multiple) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.pickFiles$pigeonVar_messageChannelSuffix';
+  Future<List<PickedFileMsg>> pickFiles(
+    List<PickKindMsg> kinds,
+    bool multiple,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.pickFiles$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kinds, multiple]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kinds, multiple],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<PickedFileMsg>();
   }
 
   Future<FolderGrantMsg?> pickFolder() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.pickFolder$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.pickFolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -682,35 +650,37 @@ class StorageHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as FolderGrantMsg?;
   }
 
   Future<String?> resolveGrant(String grantId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.resolveGrant$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.resolveGrant$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[grantId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[grantId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   Future<List<FolderGrantMsg>> grants() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.grants$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.grants$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -720,405 +690,463 @@ class StorageHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<FolderGrantMsg>();
   }
 
   Future<void> releaseGrant(String grantId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.releaseGrant$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.releaseGrant$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[grantId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[grantId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<TrashResultMsg> moveToTrash(List<String> uris) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.moveToTrash$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.moveToTrash$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uris]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uris],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as TrashResultMsg;
   }
 
   Future<void> restoreFromTrash(List<String> uris, String? undoToken) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.restoreFromTrash$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.restoreFromTrash$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uris, undoToken]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uris, undoToken],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> watch(String grantId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.watch$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.watch$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[grantId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[grantId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> unwatch(String grantId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.unwatch$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.unwatch$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[grantId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[grantId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<MediaPermissionMsg> mediaPermission(PickKindMsg kind) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.mediaPermission$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.mediaPermission$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kind],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as MediaPermissionMsg;
   }
 
   Future<MediaPermissionMsg> requestMediaPermission(PickKindMsg kind) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.requestMediaPermission$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.requestMediaPermission$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kind],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as MediaPermissionMsg;
   }
 
   Future<List<DocumentEntryMsg>> listDocuments(String directory) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.listDocuments$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.listDocuments$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[directory]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[directory],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<DocumentEntryMsg>();
   }
 
   Future<DocumentEntryMsg> statDocument(String uri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.statDocument$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.statDocument$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as DocumentEntryMsg;
   }
 
   Future<int> openDocumentFd(String uri, DocumentModeMsg mode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.openDocumentFd$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.openDocumentFd$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri, mode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri, mode],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as int;
   }
 
-  Future<String> createDocument(String parent, String name, String? mimeType, bool directory) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.createDocument$pigeonVar_messageChannelSuffix';
+  Future<String> createDocument(
+    String parent,
+    String name,
+    String? mimeType,
+    bool directory,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.createDocument$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parent, name, mimeType, directory]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[parent, name, mimeType, directory],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
   Future<String> renameDocument(String uri, String newName) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.renameDocument$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.renameDocument$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri, newName]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri, newName],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
-  Future<String> moveDocument(String uri, String fromParent, String toParent) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.moveDocument$pigeonVar_messageChannelSuffix';
+  Future<String> moveDocument(
+    String uri,
+    String fromParent,
+    String toParent,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.moveDocument$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri, fromParent, toParent]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri, fromParent, toParent],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
   Future<void> deleteDocument(String uri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.deleteDocument$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.deleteDocument$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// One page of MediaStore video/audio, newest first.
-  Future<List<MediaStoreEntryMsg>> mediaStorePage(List<PickKindMsg> kinds, int? modifiedSinceMs, int offset, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.mediaStorePage$pigeonVar_messageChannelSuffix';
+  Future<List<MediaStoreEntryMsg>> mediaStorePage(
+    List<PickKindMsg> kinds,
+    int? modifiedSinceMs,
+    int offset,
+    int limit,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.mediaStorePage$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kinds, modifiedSinceMs, offset, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kinds, modifiedSinceMs, offset, limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<MediaStoreEntryMsg>();
   }
 
   /// `ACTION_CREATE_DOCUMENT`; null when cancelled.
-  Future<String?> createSaveTarget(String suggestedName, String mimeType) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.createSaveTarget$pigeonVar_messageChannelSuffix';
+  Future<String?> createSaveTarget(
+    String suggestedName,
+    String mimeType,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.createSaveTarget$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[suggestedName, mimeType]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[suggestedName, mimeType],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
   /// Opens [uri] for writing; returns a write-session handle.
   Future<int> openWrite(String uri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.openWrite$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.openWrite$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as int;
   }
 
   Future<void> write(int handle, Uint8List data) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.write$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.write$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[handle, data]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[handle, data],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> closeWrite(int handle, bool abort) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.closeWrite$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.closeWrite$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[handle, abort]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[handle, abort],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> share(List<String> uris, String? subject) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.share$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.share$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uris, subject]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uris, subject],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<bool> openWith(String uri) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.StorageHostApi.openWith$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.StorageHostApi.openWith$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uri]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[uri],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 }
@@ -1128,20 +1156,21 @@ class PhotoLibraryHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   PhotoLibraryHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<PhotoAccessMsg> access() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.access$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.access$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1151,16 +1180,16 @@ class PhotoLibraryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as PhotoAccessMsg;
   }
 
   Future<PhotoAccessMsg> requestAccess() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.requestAccess$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.requestAccess$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1170,16 +1199,16 @@ class PhotoLibraryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as PhotoAccessMsg;
   }
 
   Future<void> manageLimitedSelection() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.manageLimitedSelection$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.manageLimitedSelection$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1189,50 +1218,53 @@ class PhotoLibraryHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// One page of MediaStore images and videos, newest first.
   Future<List<PhotoAssetMsg>> assetsPage(int offset, int limit) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.assetsPage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.assetsPage$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[offset, limit]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[offset, limit],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<PhotoAssetMsg>();
   }
 
   /// The Motion Photo video, extracted to the cache; null if none.
   Future<String?> pairedVideo(String assetId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.pairedVideo$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PhotoLibraryHostApi.pairedVideo$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[assetId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[assetId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 }
@@ -1243,14 +1275,15 @@ class PhotoLibraryHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<StorageChangeMsg> storageChanges( {String instanceName = ''}) {
+Stream<StorageChangeMsg> storageChanges({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel storageChangesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.StorageEventsApi.storageChanges$instanceName', pigeonMethodCodec);
+  final EventChannel storageChangesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.StorageEventsApi.storageChanges$instanceName',
+    pigeonMethodCodec,
+  );
   return storageChangesChannel.receiveBroadcastStream().map((dynamic event) {
     return event as StorageChangeMsg;
   });
 }
-    

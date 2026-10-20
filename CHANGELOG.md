@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Android subtitles: finds matching subtitle files next to videos (including on shares and granted folders), add a subtitle file by hand, choose and remember the character encoding per file (SUB-012, SUB-013).
 - Android music lyrics: synced karaoke-style lyrics from your files or (opt-in) LRCLIB, tap a line to seek, and a lyrics editor (MUS-005).
 - Android music: favourites and ratings, sound settings (EQ, volume levelling, crossfade), output picker, add to playlist, track info, sleep timer and wake-up alarms (MUS-006, MUS-011).
 - Android video: volume boost up to 300 % with mute, volume remembered per output device, sleep timer with fade-out (VID-066, VID-069).

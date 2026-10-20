@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,19 +97,9 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
+enum MediaSessionKindMsg { video, music, podcast }
 
-enum MediaSessionKindMsg {
-  video,
-  music,
-  podcast;
-}
-
-enum SessionStateMsg {
-  playing,
-  paused,
-  buffering,
-  stopped;
-}
+enum SessionStateMsg { playing, paused, buffering, stopped }
 
 enum RemoteCommandKindMsg {
   play,
@@ -119,7 +110,7 @@ enum RemoteCommandKindMsg {
   stop,
   seekTo,
   skipBy,
-  setRate;
+  setRate,
 }
 
 enum AudioDeviceKindMsg {
@@ -131,7 +122,7 @@ enum AudioDeviceKindMsg {
   spdif,
   airplay,
   cast,
-  other;
+  other,
 }
 
 enum AudioInterruptionKindMsg {
@@ -140,7 +131,7 @@ enum AudioInterruptionKindMsg {
   endedNoResume,
   duck,
   unduck,
-  becomingNoisy;
+  becomingNoisy,
 }
 
 class NowPlayingMsg {
@@ -166,18 +157,12 @@ class NowPlayingMsg {
   bool isLive;
 
   List<Object?> _toList() {
-    return <Object?>[
-      title,
-      artist,
-      album,
-      durationMs,
-      artwork,
-      isLive,
-    ];
+    return <Object?>[title, artist, album, durationMs, artwork, isLive];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static NowPlayingMsg decode(Object result) {
     result as List<Object?>;
@@ -200,7 +185,12 @@ class NowPlayingMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(title, other.title) && _deepEquals(artist, other.artist) && _deepEquals(album, other.album) && _deepEquals(durationMs, other.durationMs) && _deepEquals(artwork, other.artwork) && _deepEquals(isLive, other.isLive);
+    return _deepEquals(title, other.title) &&
+        _deepEquals(artist, other.artist) &&
+        _deepEquals(album, other.album) &&
+        _deepEquals(durationMs, other.durationMs) &&
+        _deepEquals(artwork, other.artwork) &&
+        _deepEquals(isLive, other.isLive);
   }
 
   @override
@@ -233,17 +223,12 @@ class PlaybackStatusMsg {
   bool canSkipPrevious;
 
   List<Object?> _toList() {
-    return <Object?>[
-      state,
-      positionMs,
-      rate,
-      canSkipNext,
-      canSkipPrevious,
-    ];
+    return <Object?>[state, positionMs, rate, canSkipNext, canSkipPrevious];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PlaybackStatusMsg decode(Object result) {
     result as List<Object?>;
@@ -265,7 +250,11 @@ class PlaybackStatusMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(state, other.state) && _deepEquals(positionMs, other.positionMs) && _deepEquals(rate, other.rate) && _deepEquals(canSkipNext, other.canSkipNext) && _deepEquals(canSkipPrevious, other.canSkipPrevious);
+    return _deepEquals(state, other.state) &&
+        _deepEquals(positionMs, other.positionMs) &&
+        _deepEquals(rate, other.rate) &&
+        _deepEquals(canSkipNext, other.canSkipNext) &&
+        _deepEquals(canSkipPrevious, other.canSkipPrevious);
   }
 
   @override
@@ -279,11 +268,7 @@ class PlaybackStatusMsg {
 }
 
 class RemoteCommandMsg {
-  RemoteCommandMsg({
-    required this.kind,
-    this.positionMs,
-    this.rate,
-  });
+  RemoteCommandMsg({required this.kind, this.positionMs, this.rate});
 
   RemoteCommandKindMsg kind;
 
@@ -293,15 +278,12 @@ class RemoteCommandMsg {
   double? rate;
 
   List<Object?> _toList() {
-    return <Object?>[
-      kind,
-      positionMs,
-      rate,
-    ];
+    return <Object?>[kind, positionMs, rate];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RemoteCommandMsg decode(Object result) {
     result as List<Object?>;
@@ -321,7 +303,9 @@ class RemoteCommandMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(positionMs, other.positionMs) && _deepEquals(rate, other.rate);
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(positionMs, other.positionMs) &&
+        _deepEquals(rate, other.rate);
   }
 
   @override
@@ -372,7 +356,8 @@ class AudioDeviceMsg {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AudioDeviceMsg decode(Object result) {
     result as List<Object?>;
@@ -396,7 +381,13 @@ class AudioDeviceMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(name, other.name) && _deepEquals(kind, other.kind) && _deepEquals(sampleRates, other.sampleRates) && _deepEquals(supportsExclusive, other.supportsExclusive) && _deepEquals(encodedFormats, other.encodedFormats) && _deepEquals(bluetoothCodec, other.bluetoothCodec);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(name, other.name) &&
+        _deepEquals(kind, other.kind) &&
+        _deepEquals(sampleRates, other.sampleRates) &&
+        _deepEquals(supportsExclusive, other.supportsExclusive) &&
+        _deepEquals(encodedFormats, other.encodedFormats) &&
+        _deepEquals(bluetoothCodec, other.bluetoothCodec);
   }
 
   @override
@@ -410,20 +401,17 @@ class AudioDeviceMsg {
 }
 
 class AudioDeviceListMsg {
-  AudioDeviceListMsg({
-    required this.devices,
-  });
+  AudioDeviceListMsg({required this.devices});
 
   List<AudioDeviceMsg> devices;
 
   List<Object?> _toList() {
-    return <Object?>[
-      devices,
-    ];
+    return <Object?>[devices];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AudioDeviceListMsg decode(Object result) {
     result as List<Object?>;
@@ -455,11 +443,7 @@ class AudioDeviceListMsg {
 }
 
 class AudioPathGrantMsg {
-  AudioPathGrantMsg({
-    required this.bitPerfect,
-    this.sampleRate,
-    this.bitDepth,
-  });
+  AudioPathGrantMsg({required this.bitPerfect, this.sampleRate, this.bitDepth});
 
   bool bitPerfect;
 
@@ -468,15 +452,12 @@ class AudioPathGrantMsg {
   int? bitDepth;
 
   List<Object?> _toList() {
-    return <Object?>[
-      bitPerfect,
-      sampleRate,
-      bitDepth,
-    ];
+    return <Object?>[bitPerfect, sampleRate, bitDepth];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AudioPathGrantMsg decode(Object result) {
     result as List<Object?>;
@@ -496,7 +477,9 @@ class AudioPathGrantMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(bitPerfect, other.bitPerfect) && _deepEquals(sampleRate, other.sampleRate) && _deepEquals(bitDepth, other.bitDepth);
+    return _deepEquals(bitPerfect, other.bitPerfect) &&
+        _deepEquals(sampleRate, other.sampleRate) &&
+        _deepEquals(bitDepth, other.bitDepth);
   }
 
   @override
@@ -510,26 +493,21 @@ class AudioPathGrantMsg {
 }
 
 class AudioInterruptionMsg {
-  AudioInterruptionMsg({
-    required this.kind,
-  });
+  AudioInterruptionMsg({required this.kind});
 
   AudioInterruptionKindMsg kind;
 
   List<Object?> _toList() {
-    return <Object?>[
-      kind,
-    ];
+    return <Object?>[kind];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AudioInterruptionMsg decode(Object result) {
     result as List<Object?>;
-    return AudioInterruptionMsg(
-      kind: result[0]! as AudioInterruptionKindMsg,
-    );
+    return AudioInterruptionMsg(kind: result[0]! as AudioInterruptionKindMsg);
   }
 
   @override
@@ -554,7 +532,6 @@ class AudioInterruptionMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -562,40 +539,40 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is MediaSessionKindMsg) {
+    } else if (value is MediaSessionKindMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is SessionStateMsg) {
+    } else if (value is SessionStateMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is RemoteCommandKindMsg) {
+    } else if (value is RemoteCommandKindMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is AudioDeviceKindMsg) {
+    } else if (value is AudioDeviceKindMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is AudioInterruptionKindMsg) {
+    } else if (value is AudioInterruptionKindMsg) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is NowPlayingMsg) {
+    } else if (value is NowPlayingMsg) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is PlaybackStatusMsg) {
+    } else if (value is PlaybackStatusMsg) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is RemoteCommandMsg) {
+    } else if (value is RemoteCommandMsg) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioDeviceMsg) {
+    } else if (value is AudioDeviceMsg) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioDeviceListMsg) {
+    } else if (value is AudioDeviceListMsg) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioPathGrantMsg) {
+    } else if (value is AudioPathGrantMsg) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioInterruptionMsg) {
+    } else if (value is AudioInterruptionMsg) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
     } else {
@@ -641,81 +618,90 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class MediaSessionHostApi {
   /// Constructor for [MediaSessionHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   MediaSessionHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<void> activate(MediaSessionKindMsg kind) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaSessionHostApi.activate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaSessionHostApi.activate$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[kind],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> setNowPlaying(NowPlayingMsg item) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaSessionHostApi.setNowPlaying$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaSessionHostApi.setNowPlaying$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[item]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[item],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> setPlaybackStatus(PlaybackStatusMsg status) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaSessionHostApi.setPlaybackStatus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaSessionHostApi.setPlaybackStatus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[status]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[status],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> deactivate() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaSessionHostApi.deactivate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaSessionHostApi.deactivate$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -725,11 +711,10 @@ class MediaSessionHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -738,20 +723,21 @@ class AudioOutputHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   AudioOutputHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<List<AudioDeviceMsg>> devices() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AudioOutputHostApi.devices$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AudioOutputHostApi.devices$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -761,35 +747,41 @@ class AudioOutputHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return (pigeonVar_replyValue! as List<Object?>).cast<AudioDeviceMsg>();
   }
 
-  Future<AudioPathGrantMsg> requestBitPerfect(String deviceId, int sampleRate, int? bitDepth) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AudioOutputHostApi.requestBitPerfect$pigeonVar_messageChannelSuffix';
+  Future<AudioPathGrantMsg> requestBitPerfect(
+    String deviceId,
+    int sampleRate,
+    int? bitDepth,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AudioOutputHostApi.requestBitPerfect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[deviceId, sampleRate, bitDepth]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[deviceId, sampleRate, bitDepth],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as AudioPathGrantMsg;
   }
 
   Future<void> releaseBitPerfect() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AudioOutputHostApi.releaseBitPerfect$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AudioOutputHostApi.releaseBitPerfect$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -799,34 +791,36 @@ class AudioOutputHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<bool> requestFocus(bool duckOthers) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AudioOutputHostApi.requestFocus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AudioOutputHostApi.requestFocus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[duckOthers]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[duckOthers],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<void> abandonFocus() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AudioOutputHostApi.abandonFocus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AudioOutputHostApi.abandonFocus$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -836,11 +830,10 @@ class AudioOutputHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -850,48 +843,57 @@ class AudioOutputHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<RemoteCommandMsg> remoteCommands( {String instanceName = ''}) {
+Stream<RemoteCommandMsg> remoteCommands({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel remoteCommandsChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.MediaEventsApi.remoteCommands$instanceName', pigeonMethodCodec);
+  final EventChannel remoteCommandsChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.MediaEventsApi.remoteCommands$instanceName',
+    pigeonMethodCodec,
+  );
   return remoteCommandsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as RemoteCommandMsg;
   });
 }
-    
+
 /// Returns a broadcast [Stream] of events from the `audioDeviceChanges` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<AudioDeviceListMsg> audioDeviceChanges( {String instanceName = ''}) {
+Stream<AudioDeviceListMsg> audioDeviceChanges({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel audioDeviceChangesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.MediaEventsApi.audioDeviceChanges$instanceName', pigeonMethodCodec);
-  return audioDeviceChangesChannel.receiveBroadcastStream().map((dynamic event) {
+  final EventChannel audioDeviceChangesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.MediaEventsApi.audioDeviceChanges$instanceName',
+    pigeonMethodCodec,
+  );
+  return audioDeviceChangesChannel.receiveBroadcastStream().map((
+    dynamic event,
+  ) {
     return event as AudioDeviceListMsg;
   });
 }
-    
+
 /// Returns a broadcast [Stream] of events from the `audioInterruptions` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<AudioInterruptionMsg> audioInterruptions( {String instanceName = ''}) {
+Stream<AudioInterruptionMsg> audioInterruptions({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel audioInterruptionsChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.MediaEventsApi.audioInterruptions$instanceName', pigeonMethodCodec);
-  return audioInterruptionsChannel.receiveBroadcastStream().map((dynamic event) {
+  final EventChannel audioInterruptionsChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.MediaEventsApi.audioInterruptions$instanceName',
+    pigeonMethodCodec,
+  );
+  return audioInterruptionsChannel.receiveBroadcastStream().map((
+    dynamic event,
+  ) {
     return event as AudioInterruptionMsg;
   });
 }
-    
