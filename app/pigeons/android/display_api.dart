@@ -69,6 +69,9 @@ abstract class PipHostApi {
   bool enter(double aspectRatio);
   void exit();
   void setAutoEnter(bool enabled);
+
+  /// ADR-028: the video's shape, for auto-PiP and followVideo.
+  void setAspectRatio(double aspectRatio);
 }
 
 @EventChannelApi(

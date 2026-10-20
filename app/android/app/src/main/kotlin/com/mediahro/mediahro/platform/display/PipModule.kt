@@ -52,6 +52,17 @@ class PipModule(private val context: Context, private val host: ActivityHost) : 
         }
     }
 
+    /** ADR-028: kept for auto-PiP and followVideo; resizes an open PiP window. */
+    override fun setAspectRatio(aspectRatio: Double) {
+        if (aspectRatio <= 0 || aspectRatio.isNaN() || aspectRatio.isInfinite()) return
+        VideoShape.aspectRatio = aspectRatio
+        if (!isSupported()) return
+        val activity = host.activity ?: return
+        if (activity.isInPictureInPictureMode || (autoEnter && Build.VERSION.SDK_INT >= 31)) {
+            activity.setPictureInPictureParams(params())
+        }
+    }
+
     /** Android 11 and older: auto-PiP when the user leaves (home, recents). */
     fun onUserLeaveHint(activity: FragmentActivity) {
         if (autoEnter && Build.VERSION.SDK_INT < 31 && isSupported() && !activity.isInPictureInPictureMode) {

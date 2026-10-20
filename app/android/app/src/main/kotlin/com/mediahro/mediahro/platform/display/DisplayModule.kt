@@ -150,7 +150,7 @@ class DisplayModule(private val context: Context, private val host: ActivityHost
             OrientationLockMsg.AUTO -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             OrientationLockMsg.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
             OrientationLockMsg.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
-            // The video's shape, as last given to PipFacade.enter (16:9 until then).
+            // The video's shape from PipFacade.setAspectRatio or enter (16:9 until then).
             OrientationLockMsg.FOLLOW_VIDEO ->
                 if (VideoShape.aspectRatio >= 1.0) {
                     ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE

@@ -533,6 +533,25 @@ class PipHostApi {
     )
     ;
   }
+
+  /// ADR-028: the video's shape, for auto-PiP and followVideo.
+  Future<void> setAspectRatio(double aspectRatio) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PipHostApi.setAspectRatio$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[aspectRatio]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
 }
 
 /// Returns a broadcast [Stream] of events from the `displayChanges` event channel.
