@@ -48,6 +48,9 @@ final StreamProviderFamily<List<PhotoEntry>, int> photoAlbumEntriesProvider =
       }
     });
 
+/// The two albums every library has, computed from the photos themselves.
+enum SystemAlbum { favourites, rejected }
+
 /// The Albums tab: Favourites, then the user's and smart albums (IMG-005).
 class AlbumsTab extends ConsumerStatefulWidget {
   const AlbumsTab({super.key});
@@ -87,10 +90,12 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
         .createSmartAlbum(result.$1, result.$2);
   }
 
-  void _open(PhotoAlbum? album) {
-    Navigator.of(
-      context,
-    ).push<void>(MaterialPageRoute(builder: (_) => AlbumScreen(album: album)));
+  void _open(PhotoAlbum? album, [SystemAlbum system = SystemAlbum.favourites]) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => AlbumScreen(album: album, system: system),
+      ),
+    );
   }
 
   @override
@@ -100,6 +105,7 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
     final all = ref.watch(photoEntriesProvider).value ?? const <PhotoEntry>[];
     final byId = {for (final e in all) e.id: e};
     final favourites = all.where((e) => e.favourite).length;
+    final rejected = all.where((e) => e.rejected).length;
     return Scaffold(
       body: ListView(
         children: [
@@ -109,6 +115,13 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
             subtitle: Text(l10n.photosAlbumCount(favourites)),
             onTap: () => _open(null),
           ),
+          if (rejected > 0)
+            ListTile(
+              leading: const Icon(Icons.block_outlined),
+              title: Text(l10n.photosRejected),
+              subtitle: Text(l10n.photosAlbumCount(rejected)),
+              onTap: () => _open(null, SystemAlbum.rejected),
+            ),
           for (final a in albums)
             ListTile(
               leading: SizedBox.square(
@@ -188,11 +201,16 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
   }
 }
 
-/// One album's photos; [album] null is the Favourites view.
+/// One album's photos; [album] null is the [system] album.
 class AlbumScreen extends ConsumerWidget {
-  const AlbumScreen({required this.album, super.key});
+  const AlbumScreen({
+    required this.album,
+    this.system = SystemAlbum.favourites,
+    super.key,
+  });
 
   final PhotoAlbum? album;
+  final SystemAlbum system;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -203,7 +221,7 @@ class AlbumScreen extends ConsumerWidget {
       entries = [
         for (final e
             in ref.watch(photoEntriesProvider).value ?? const <PhotoEntry>[])
-          if (e.favourite) e,
+          if (system == SystemAlbum.rejected ? e.rejected : e.favourite) e,
       ];
     } else {
       entries =
@@ -212,7 +230,12 @@ class AlbumScreen extends ConsumerWidget {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(a?.name ?? l10n.photosFavourites),
+        title: Text(
+          a?.name ??
+              (system == SystemAlbum.rejected
+                  ? l10n.photosRejected
+                  : l10n.photosFavourites),
+        ),
         actions: [
           const PhotoLayoutActions(),
           if (a != null)
@@ -270,7 +293,9 @@ class AlbumScreen extends ConsumerWidget {
         entries: entries,
         albumId: a != null && !a.smart ? a.id : null,
         emptyMessage: a == null
-            ? l10n.photosFavouritesEmpty
+            ? (system == SystemAlbum.rejected
+                  ? l10n.photosRejectedEmpty
+                  : l10n.photosFavouritesEmpty)
             : l10n.photosAlbumEmpty,
       ),
     );

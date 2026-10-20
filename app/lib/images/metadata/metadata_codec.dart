@@ -522,7 +522,7 @@ void _applyXmp(XmpPacket x, ImageMetadataEdit edit) {
   }
   if (edit.keywords != null) x.setBag('dc:subject', edit.keywords);
   if (edit.rating != null) {
-    x.setSimple('xmp:Rating', edit.rating!.clamp(0, 5).toString());
+    x.setSimple('xmp:Rating', edit.rating!.clamp(-1, 5).toString());
   }
   final label = edit.label;
   if (label != null) {

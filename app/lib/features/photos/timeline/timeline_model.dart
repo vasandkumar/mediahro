@@ -23,6 +23,7 @@ final class PhotoEntry {
     this.durationMs,
     this.orientation,
     this.favourite = false,
+    this.rejected = false,
     this.livePhoto = false,
     this.motionPhoto = false,
     this.hdr = false,
@@ -54,6 +55,9 @@ final class PhotoEntry {
   /// EXIF orientation 1–8 when known.
   final int? orientation;
   final bool favourite;
+
+  /// Marked as rejected while comparing (XMP rating -1).
+  final bool rejected;
   final bool livePhoto;
   final bool motionPhoto;
   final bool hdr;

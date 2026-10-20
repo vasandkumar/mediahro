@@ -347,5 +347,66 @@
         "type": "int"
       }
     }
-  }
+  },
+  "photosCompare": "Compare",
+  "photosCompareAdd": "Add to compare",
+  "photosCompareRemove": "Remove from compare",
+  "photosCompareAdded": "Added to compare: {count} of {max}",
+  "@photosCompareAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "photosCompareFull": "Compare holds up to 4 photos.",
+  "photosCompareNotAPhoto": "Videos can't be compared.",
+  "photosCompareOpen": "Compare now",
+  "photosCompareNeedTwo": "Choose 2 to 4 photos to compare.",
+  "photosCompareSideBySide": "Side by side",
+  "photosCompareSwipe": "Swipe",
+  "photosCompareOverlay": "Overlay",
+  "photosCompareDifference": "Difference",
+  "photosCompareResetZoom": "Reset zoom",
+  "photosCompareLoadFailed": "Couldn't open this photo.",
+  "photosCompareItem": "{number} · {name}",
+  "@photosCompareItem": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosCompareKeep": "Keep {name}",
+  "@photosCompareKeep": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosCompareReject": "Reject {name}",
+  "@photosCompareReject": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosCompareKeepOnly": "Keep only {name} and reject the others",
+  "@photosCompareKeepOnly": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosRejected": "Rejected",
+  "photosRejectedEmpty": "Photos you reject while comparing appear here. Nothing is deleted."
 }

@@ -385,6 +385,16 @@ void main() {
       expect(parseMetadata(cleared).metadata.rating, 3);
     });
 
+    test('IMG-008 rejected is XMP rating -1 and survives a round trip', () {
+      final out = writeMetadata(
+        sampleJpeg(),
+        const ImageMetadataEdit(rating: -1),
+      ).file!;
+      expect(parseMetadata(out).metadata.rating, -1);
+      final back = writeMetadata(out, const ImageMetadataEdit(rating: 0)).file!;
+      expect(parseMetadata(back).metadata.rating, 0);
+    });
+
     test('IMG-006 unrelated XMP properties survive an edit', () {
       final xmp = xmpDoc(
         ['<GPano:ProjectionType>equirectangular</GPano:ProjectionType>'].join(),
