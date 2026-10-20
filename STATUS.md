@@ -20,6 +20,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 | Batch | Features waiting for the device run | State |
 |---|---|---|
 | 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) · secure storage + biometrics facades (#33; c4a_android_security_test 6 + 2 manual checks needing a fingerprint or PIN; unblocks LIB-013, IMG-011, PRIV-006/008 A) · MUS-001, MUS-002 re-test with SAF/MediaStore sources (#34; c2_music_test) · VID-066, VID-069 (#35; c1_video_player_test 17 + 3 manual checks) · MUS-006, MUS-011 (#31; c2_now_playing_test, c2_music_test) · picker fix (#36; c4a_android_storage_test, now 14) · MUS-005 (#37; c2_lyrics_test) · SUB-012, SUB-013 (#38; c1_video_player_test 21 + 3 manual checks) · network status, multicast and auth browser facades (#39; c4a_android_network_test 6) · SUB-014, SUB-015, SUB-016 (#40; c1_video_player_test 24 + 3 manual checks; SUB-014 system-caption path waits on C4a's CaptionStyleFacade, ADR-030) | **full (25 of 25): device run next** |
+| 2 | TLS client and mutual-TLS server facades (#41; c4a_android_tls_test 6) · SUB-030 (#42; c1_video_player_test 23 + 3 manual checks) | collecting (1 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -423,6 +424,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C4a **#41** (TLS client 1.2/1.3 with pinning, AUTH TLS upgrade, FTPS session reuse, mutual-TLS server with Keystore identity; tools/check 496) and C1 **#42** (subtitle editor plus SRT/WebVTT/ASS/MicroDVD/LRC/SAMI parsers and writers in isolates with limits, plus a fuzz target; tools/check 507). Both go into device batch 2. ADR-031 accepted (engine subtitle text and extraction; B1 at its next slot). |
 | 2026-10-20 | Merged C1 **#40** (subtitle styling with every option defaulting to System, subtitle speed for frame-rate conversion, dual subtitles) and wired subtitleSettingsContributions in root.dart. Verified at 2a20a4e: tools/check 492 with the wiring. **Device batch 1 is full (25 features); running it on the Samsung.** |
 | 2026-10-20 | Merged C4a **#39** (Android network status with metered and Data Saver, Wi-Fi multicast lock per lease, Custom Tab sign-in with an RFC 8252 redirect). It also fixes release builds having **no INTERNET permission** (it was only in the debug manifest). Verified at ddf2e5d: tools/check 483, Gradle 6/6. |
 | 2026-10-20 | Merged C1 **#38** (subtitle sidecars for videos on shares and SAF folders, add a subtitle file, character encoding remembered per file, format names in the chooser). Verified at 68ee23c: tools/check 479. ADR-030 `CaptionStyleFacade` added (system caption style; Android implementation by C4a). Device batch 1: 22 of 25. |

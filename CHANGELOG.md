@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Subtitle editor: shift and stretch timing, split and merge lines, save as SRT, WebVTT or ASS; reads SRT, WebVTT, ASS/SSA, MicroDVD, LRC and SAMI (SUB-030).
 - Android subtitles: styling (font, size, colours, outline, position, all following the system by default), speed correction for frame-rate differences, two subtitles at once (SUB-014, SUB-015, SUB-016).
 - Android subtitles: finds matching subtitle files next to videos (including on shares and granted folders), add a subtitle file by hand, choose and remember the character encoding per file (SUB-012, SUB-013).
 - Android music lyrics: synced karaoke-style lyrics from your files or (opt-in) LRCLIB, tap a line to seek, and a lyrics editor (MUS-005).
