@@ -14,6 +14,7 @@ import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
+import 'package:mediahro/features/video/subtitles/audio_sync.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
 import 'package:mediahro/features/video/video_open.dart';
@@ -22,6 +23,7 @@ import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+import 'c1_audio.dart';
 import 'c1_engine.dart';
 import 'c1_platform.dart';
 
@@ -547,6 +549,7 @@ void videoPlayerSuite({
   Future<RecordingEngine> withSubtitleFile(
     WidgetTester tester, {
     List<Override> overrides = const [],
+    String srt = '1\n00:00:01,000 --> 00:00:02,000\nHello\n',
   }) async {
     final (engine, _) = await pumpPlayer(
       tester,
@@ -554,9 +557,7 @@ void videoPlayerSuite({
         subtitleFilePickerProvider.overrideWithValue(
           () async => PickedSubtitle(
             'Film.en.srt',
-            Uint8List.fromList(
-              utf8.encode('1\n00:00:01,000 --> 00:00:02,000\nHello\n'),
-            ),
+            Uint8List.fromList(utf8.encode(srt)),
           ),
         ),
         ...overrides,
@@ -632,5 +633,35 @@ void videoPlayerSuite({
     expect(added.title, 'Deutsch (translated)');
     expect(added.language, 'de');
     expect(engine.current.subtitleTrackId, added.id);
+  });
+
+  playerTest('SUB-050 sync to the audio previews the fix with undo', (
+    tester,
+  ) async {
+    const seconds = 60;
+    final turns = speechTurns(seconds, seed: 5);
+    final engine = await withSubtitleFile(
+      tester,
+      srt: turnsSrt(turns, shift: 1.8),
+      overrides: [
+        pcmSourceProvider.overrideWithValue(fakePcm(turns, seconds: seconds)),
+      ],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Sync to the audio'));
+    for (var i = 0; i < 100 && engine.subDelays.isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pump();
+    expect(engine.subDelays.last.$1.inMilliseconds, closeTo(-1800, 50));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.textContaining('Subtitles synced'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+    expect(engine.subDelays.last.$1, Duration.zero);
   });
 }

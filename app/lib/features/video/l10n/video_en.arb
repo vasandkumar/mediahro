@@ -568,6 +568,22 @@
   "videoSubtitlesChipOn": "Subtitles: on",
   "videoSubtitlesOff": "Off",
   "videoSubtitlesTitle": "Subtitles",
+  "videoSyncApplied": "Subtitles synced ({delay}). Kept for this video.",
+  "@videoSyncApplied": {
+    "placeholders": {
+      "delay": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSyncApplyAnyway": "Apply anyway",
+  "videoSyncDetail": "Lines the subtitles up with the speech",
+  "videoSyncFailed": "Couldn't sync these subtitles.",
+  "videoSyncNeedsEngine": "Coming with the next player engine update",
+  "videoSyncRunning": "Listening to the audio",
+  "videoSyncTitle": "Sync to the audio",
+  "videoSyncUnsureBody": "The subtitles don't clearly match the speech. They may belong to another version of this video.",
+  "videoSyncUnsureTitle": "No clear match",
   "videoTrackAudioDescription": "Audio description",
   "videoTrackChannels": "{count, plural, =1{Mono} =2{Stereo} other{{count} channels}}",
   "@videoTrackChannels": {

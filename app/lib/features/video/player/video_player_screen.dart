@@ -24,6 +24,7 @@ import 'package:mediahro/features/video/player/sleep_sheet.dart';
 import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/audio_sync.dart';
 import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_model.dart';
 import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_screen.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
@@ -152,6 +153,109 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     } else {
       context.go('/video');
     }
+  }
+
+  /// "Sync to the audio" (SUB-050): decode the audio faster than playback,
+  /// find where speech and subtitles line up, preview the correction as
+  /// the file's delay and speed, with Undo.
+  Future<void> _syncSubtitles() async {
+    final c = _c;
+    final text = _text;
+    final pcm = ref.read(pcmSourceProvider);
+    final request = c?.request;
+    if (c == null || text == null || pcm == null || request == null) return;
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    void say(String m) => messenger.showSnackBar(SnackBar(content: Text(m)));
+    final doc = await text.load();
+    if (doc == null) {
+      say(l.videoTranslateOnlyFiles);
+      return;
+    }
+    final AudioSyncRun run;
+    try {
+      run = await AudioSyncRun.start(
+        pcm: pcm,
+        source: await request.mediaSource(),
+        doc: doc,
+        duration: c.state.duration,
+      );
+    } on Object {
+      say(l.videoSyncFailed);
+      return;
+    }
+    if (!mounted) {
+      await run.cancel();
+      return;
+    }
+    BuildContext? dialog;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          dialog = context;
+          return AlertDialog(
+            title: Text(l.videoSyncRunning),
+            content: ListenableBuilder(
+              listenable: run,
+              builder: (context, _) =>
+                  LinearProgressIndicator(value: run.progress),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => unawaited(run.cancel()),
+                child: Text(l.videoCancel),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    SyncResult? result;
+    try {
+      result = await run.result;
+    } on SyncCancelled {
+      result = null;
+    } on Object {
+      say(l.videoSyncFailed);
+    }
+    if (dialog case final d? when d.mounted) Navigator.of(d).pop();
+    if (result == null || !mounted) return;
+    if (!result.confident) {
+      final apply = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l.videoSyncUnsureTitle),
+          content: Text(l.videoSyncUnsureBody),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l.videoCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l.videoSyncApplyAnyway),
+            ),
+          ],
+        ),
+      );
+      if (apply != true) return;
+    }
+    final preview = await SyncPreview.apply(c, result);
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 10),
+        content: Text(
+          l.videoSyncApplied(l.videoDelayValue(result.offset.inMilliseconds)),
+        ),
+        action: SnackBarAction(
+          label: l.videoEditorUndo,
+          onPressed: () => unawaited(preview.undo(c)),
+        ),
+      ),
+    );
   }
 
   /// "Translate subtitles" (SUB-053): the selected subtitle file into
@@ -810,6 +914,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               onEdit: _editSubtitles,
               speaker: _speaker,
               textSource: _text,
+              onSync: ref.read(pcmSourceProvider) == null
+                  ? null
+                  : _syncSubtitles,
               onTranslate:
                   _optional(() => ref.read(translationProvider)) == null
                   ? null
