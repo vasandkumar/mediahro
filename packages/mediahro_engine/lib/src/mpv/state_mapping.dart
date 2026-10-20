@@ -36,6 +36,7 @@ const Map<String, int> observedProperties = {
   'current-ao': MpvFormat.string,
   'audio-device': MpvFormat.string,
   'audio-exclusive': MpvFormat.flag,
+  'sub-text': MpvFormat.string,
   'secondary-sub-text': MpvFormat.string,
   'media-title': MpvFormat.string,
   'filtered-metadata': MpvFormat.node,
@@ -84,6 +85,10 @@ PlaybackState applyProperty(PlaybackState s, String name, Object? value) {
     case 'secondary-sub-delay':
       return s.copyWith(
         secondarySubtitleDelay: _seconds(value) ?? Duration.zero,
+      );
+    case 'sub-text':
+      return s.copyWith(
+        subtitleText: value is String && value.isNotEmpty ? value : null,
       );
     case 'secondary-sub-text':
       return s.copyWith(

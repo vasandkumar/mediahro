@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro_engine/src/api/audio_tap.dart';
@@ -429,6 +430,37 @@ final class FakePlaybackEngine implements PlaybackEngine {
   /// The PCM [decodeAudio] returns, in the rate and layout the test
   /// will request; `start` and `end` cut it (ADR-032).
   Float32List decodedAudio = Float32List(0);
+
+  /// What [extractSubtitles] writes (ADR-031); tests set the file content.
+  String extractedSubtitles = '1\n00:00:01,000 --> 00:00:02,000\nHello\n';
+
+  @override
+  Future<void> extractSubtitles(int trackId, Uri out) async {
+    _check('extractSubtitles');
+    final track = _state.tracks
+        .where((t) => t.type == TrackType.subtitle && t.id == trackId)
+        .firstOrNull;
+    if (openedSource == null || track == null) {
+      throw const EngineException(
+        EngineError(code: EngineErrorCode.invalidArgument),
+      );
+    }
+    if (const {
+      'hdmv_pgs_subtitle',
+      'dvd_subtitle',
+      'dvb_subtitle',
+    }.contains(track.codec)) {
+      throw const EngineException(
+        EngineError(code: EngineErrorCode.notSupported),
+      );
+    }
+    await File(out.toFilePath()).writeAsString(extractedSubtitles);
+  }
+
+  /// Sets what [PlaybackState.subtitleText] reports, as a cue change would
+  /// (ADR-031).
+  void setSubtitleText(String? text) =>
+      _emit(_state.copyWith(subtitleText: text));
 
   @override
   Stream<Float32List> decodeAudio(

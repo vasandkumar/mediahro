@@ -672,7 +672,10 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
           '-b:v',
           '1M',
           '-pix_fmt',
-          'yuv420p',
+          // Media Foundation's software HEVC encoder fails on this input;
+          // its hardware encoder takes NV12.
+          if (hevc == 'hevc_mf') 'nv12' else 'yuv420p',
+          if (hevc == 'hevc_mf') ...['-hw_encoding', '1'],
           '-tag:v',
           tag,
         ],
@@ -1144,6 +1147,43 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       },
     );
     // Image subtitles (SUB-011): VobSub and DVB re-encoded from the PGS
+    // MP4 timed text (SUB-001 text in MP4/3GP; ADR-031 extraction).
+    await item(
+      'mp4_movtext.mp4',
+      [
+        ..._video,
+        ..._tone,
+        '-i',
+        p('subs.srt'),
+        '-t',
+        '5',
+        '-map',
+        '0:v',
+        '-map',
+        '1:a',
+        '-map',
+        '2:s',
+        '-c:v',
+        'mpeg4',
+        '-q:v',
+        '5',
+        '-c:a',
+        'aac',
+        '-c:s',
+        'mov_text',
+        '-metadata:s:s:0',
+        'language=eng',
+      ],
+      needs: ['mov_text', 'mpeg4', 'aac'],
+      ids: ['SUB-001', 'SUB-030'],
+      category: c,
+      expect: {
+        'video': 1,
+        'audio': 1,
+        'sub': 1,
+        'subCodecs': ['mov_text'],
+      },
+    );
     // bitmaps (ffmpeg converts bitmap to bitmap only).
     for (final (name, codec, fmt) in [
       ('mkv_vobsub.mkv', 'dvdsub', 'dvd_subtitle'),

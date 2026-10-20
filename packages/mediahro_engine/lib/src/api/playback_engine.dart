@@ -111,6 +111,15 @@ abstract interface class PlaybackEngine {
     bool subtitles = false,
   });
 
+  /// Writes embedded text subtitle track [trackId] of the current item to
+  /// [out], a `file:` URI whose extension picks the format: `.srt`,
+  /// `.ass`/`.ssa` (ASS tracks keep their styles) or `.vtt` (ADR-031:
+  /// SUB-030, SUB-050 and SUB-053 on embedded tracks). Works without
+  /// disturbing playback. Throws [EngineException]: `notSupported` for
+  /// bitmap tracks, `invalidArgument` for an unknown track, another
+  /// extension or nothing open.
+  Future<void> extractSubtitles(int trackId, Uri out);
+
   /// Draws video into [target] (VID-031, ADR-022); [VideoTarget.texture] by
   /// default. Throws [EngineException] for an unregistered platform-view
   /// handle (`invalidArgument`) or where the platform has no such path yet

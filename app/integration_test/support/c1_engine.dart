@@ -220,6 +220,10 @@ final class RecordingEngine implements PlaybackEngine {
       fake.audioTap(frames: frames);
 
   @override
+  Future<void> extractSubtitles(int trackId, Uri out) =>
+      fake.extractSubtitles(trackId, out);
+
+  @override
   Stream<Float32List> decodeAudio(
     MediaSource source, {
     int? trackId,

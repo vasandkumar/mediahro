@@ -26,6 +26,7 @@ import 'package:mediahro_engine/src/mpv/software_renderer.dart';
 import 'package:mediahro_engine/src/mpv/state_mapping.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
+import 'package:mediahro_engine/src/mpv/subtitle_extract.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
@@ -1337,6 +1338,48 @@ final class MpvEngine implements PlaybackEngine {
         EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
       );
     }
+  }
+
+  @override
+  Future<void> extractSubtitles(int trackId, Uri out) async {
+    final src = _source;
+    final track = _state.tracks
+        .where((t) => t.type == TrackType.subtitle && t.id == trackId)
+        .firstOrNull;
+    if (src == null || track == null || track.isExternal) {
+      throw EngineException(
+        EngineError(
+          code: EngineErrorCode.invalidArgument,
+          detail: src == null
+              ? 'nothing open'
+              : 'no embedded subtitle track $trackId',
+        ),
+      );
+    }
+    if (out.scheme != 'file') {
+      throw const EngineException(
+        EngineError(
+          code: EngineErrorCode.invalidArgument,
+          detail: 'subtitles are written to a file: URI',
+        ),
+      );
+    }
+    await extractSubtitleTrack(
+      url: switch (src) {
+        UriSource(:final uri) =>
+          uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
+        VirtualFileSource() => '',
+      },
+      virtualFile: src is VirtualFileSource ? src.file : null,
+      headers: src is UriSource ? src.headers : const {},
+      trackId: trackId,
+      codec: track.codec ?? '',
+      audioTracks: _state.tracks
+          .where((t) => t.type == TrackType.audio && !t.isExternal)
+          .length,
+      out: File(out.toFilePath()),
+      libmpvPath: config.libmpvPath,
+    );
   }
 
   @override
