@@ -39,5 +39,25 @@ The interfaces froze at a138542. From here, changing anything in rule 5's files,
 | C4a Android · C4b Apple · C4c Windows · C4d Servers & casting | [C4-servers-cast-platform.md](C4-servers-cast-platform.md) |
 | C5 Supporter, privacy, B2B, engine packaging, store metadata | [C5-supporter-privacy-b2b.md](C5-supporter-privacy-b2b.md) |
 
-Shared CI capacity is the bottleneck, especially the macOS runners. Batch your work into one push per PR round, never push while your CI runs, and run `tools/check` locally first.
+### Speed rules (owner, 2026-10-20)
+
+Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 were cancelled; each native-library round took about 2 hours; and failures went lane → CI → orchestrator → lane before anyone fixed them. From now on:
+
+1. **Watch and fix your own CI.** After a push, run `gh pr checks <n> --watch` in the background. When it finishes, read the failures with `gh run view <run> --log-failed` and fix all of them in one batch. Don't wait for the orchestrator to relay them.
+2. **Never idle while CI runs.** Keep working locally on your next IDs, on a new branch or PR if you like. Don't push to a PR whose CI is still running, because a push cancels it.
+3. **Reproduce locally before pushing.**
+   - Everyone: `tools/check`.
+   - Windows: `flutter test integration_test -d windows`.
+   - Android: the local emulator.
+   - network-env: Docker Desktop and WSL Ubuntu are on this machine, so run `docker compose` in `packages/mediahro_ffi/test/network` locally.
+   - Only iOS and macOS need CI to prove them.
+4. **Small PRs** of 2–4 IDs or 1–2 facades. A PR touching only one platform's folders runs only that platform's jobs.
+5. **Message the orchestrator only** when a PR is green and ready to merge, when you are blocked, or when you need an ADR. It merges green PRs as soon as it has checked the evidence.
+6. **Disk: C: is nearly full, so nothing large goes there.** Your scratchpad lives under `C:\Users\...\Temp\claude`, so use it only for small notes and logs.
+   - Put build output, downloaded archives, generated media and caches inside your worktree on K:, under a gitignored `build/` or `.cache/` folder.
+   - A test file meant to be sparse must really be sparse: create it with `fsutil sparse setflag` and set its length, never by writing zeros, and check that its size on disk is near zero.
+   - Android emulators live on K: (`ANDROID_AVD_HOME=K:\Projects\.android-avd` in your shell).
+   - Delete large artefacts as soon as their test is done.
+   - Before any step that writes more than 1 GB, check free space and stop if C: has less than 10 GB.
+7. **At most 3 lane sessions run at once (owner).** The orchestrator schedules them. Never message another lane directly, because that wakes a paused session; send anything for another lane to the orchestrator.
 

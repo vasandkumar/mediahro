@@ -1,19 +1,24 @@
-# CI matrix (docs/10 §5). Every PR runs every job; a feature is proven on a
-# platform only by these jobs (docs/10 §8 rule 4).
+# CI matrix (docs/10 §5). A feature is proven on a platform only by these jobs
+# (docs/10 §8 rule 4). PRs that touch only one platform's native folders run
+# that platform's jobs plus the shared ones (`changes`); everything else, and
+# every push to main, runs the full matrix. Bookkeeping-only commits
+# (STATUS.md, CHANGELOG.md, docs) run status.yml instead.
 name: ci
 
 on:
   push:
     branches: [main]
-    paths: ['**', '!docs/**', '!**/*.md', 'STATUS.md']
+    paths: ['**', '!docs/**', '!**/*.md']
   pull_request:
-    paths: ['**', '!docs/**', '!**/*.md', 'STATUS.md']
+    paths: ['**', '!docs/**', '!**/*.md']
   workflow_dispatch:
   workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A new push to a PR replaces its running CI; main runs queue instead, so
+  # each merge gets a complete run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -22,6 +27,35 @@ env:
   PUB_CACHE: ${{ github.workspace }}/.pub-cache
 
 jobs:
+  # Which platform matrices a PR needs (ADR-025 §4 lane folders).
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      android: ${{ steps.scope.outputs.android }}
+      apple: ${{ steps.scope.outputs.apple }}
+      windows: ${{ steps.scope.outputs.windows }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            { echo android=true; echo apple=true; echo windows=true; } >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          a=false; i=false; w=false
+          while IFS= read -r f; do
+            case "$f" in
+              app/android/*|app/pigeons/android/*|app/lib/platform/android/*) a=true ;;
+              app/ios/*|app/macos/*|app/pigeons/apple/*|app/lib/platform/apple/*) i=true ;;
+              app/windows/*|app/pigeons/windows/*|app/lib/platform/windows/*) w=true ;;
+              *) a=true; i=true; w=true ;;
+            esac
+          done < <(git diff --name-only "$BASE"...HEAD)
+          { echo "android=$a"; echo "apple=$i"; echo "windows=$w"; } | tee -a "$GITHUB_OUTPUT"
+
   analyze:
     runs-on: ubuntu-24.04
     steps:
@@ -81,6 +115,8 @@ jobs:
         with: { name: sbom, path: build/sbom.cdx.json }
 
   build-android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -132,6 +168,8 @@ jobs:
   # iOS and both macOS flavours in one job: macOS runners are the scarcest
   # resource, so one setup and one queue slot per PR instead of three.
   build-apple:
+    needs: changes
+    if: needs.changes.outputs.apple == 'true'
     runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -160,6 +198,8 @@ jobs:
         with: { name: apple-builds, path: 'mediahro-*.zip' }
 
   build-windows:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2025
     strategy:
       fail-fast: false
@@ -183,6 +223,8 @@ jobs:
         with: { name: 'windows-${{ matrix.flavor }}', path: app/build/windows/x64/runner/Release }
 
   integration-android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     steps:
@@ -214,6 +256,8 @@ jobs:
 
   # iOS simulator and macOS integration in one job (one macOS queue slot).
   integration-apple:
+    needs: changes
+    if: needs.changes.outputs.apple == 'true'
     runs-on: macos-26
     timeout-minutes: 120
     steps:
@@ -240,6 +284,8 @@ jobs:
         run: ../tools/ci/run_integration.sh -d macos --dart-define=MEDIAHRO_FLAVOR=direct
 
   integration-windows:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2025
     timeout-minutes: 75
     defaults:
@@ -257,6 +303,8 @@ jobs:
   # runs under `flutter drive --profile` on the desktop reference runner and
   # asserts its budget when !kDebugMode. Mobile budgets: device lab.
   perf-windows:
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -306,11 +354,14 @@ jobs:
       - name: Start Samba, Apache WebDAV, Nextcloud, vsftpd (explicit + implicit FTPS), SFTP, MiniDLNA
         working-directory: packages/mediahro_ffi/test/network
         run: docker compose up -d --build --wait --wait-timeout 600
+      # Both suites run even if the other fails, so one round shows every failure.
       - name: FFI contract tests (NET-001 SMB, NET-002 NFS, FILE-004 archives over SMB)
+        if: ${{ !cancelled() }}
         working-directory: packages/mediahro_ffi
         env: { MEDIAHRO_NET_ENV: '1', LD_LIBRARY_PATH: '${{ runner.temp }}/native/lib' }
         run: dart test test/network test/native_contract_test.dart
       - name: App source tests (NET-003 WebDAV + Nextcloud, NET-004 FTP/FTPS, NET-005 DLNA)
+        if: ${{ !cancelled() }}
         working-directory: app
         env: { MEDIAHRO_NET_ENV: '1' }
         run: flutter test test/core/sources/network_env_test.dart

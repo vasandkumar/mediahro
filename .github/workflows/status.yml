@@ -1,0 +1,20 @@
+# Guard for bookkeeping-only commits (STATUS.md), which no longer start the
+# full ci matrix: checks every doc 04 ID is tracked with valid cells.
+name: status
+
+on:
+  push:
+    branches: [main]
+    paths: ['STATUS.md', 'tools/status/**']
+  pull_request:
+    paths: ['STATUS.md', 'tools/status/**']
+
+permissions:
+  contents: read
+
+jobs:
+  status-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/status/check_status.py

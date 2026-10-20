@@ -22,7 +22,7 @@ AUD-046, MUS-001…014, POD-001…003. MUS-015 is 1.1: leave it ☐ and don't bu
 8. **Sleep timer and alarms (MUS-011)** over `AlarmFacade`.
 9. **Widgets and quick controls (MUS-012)** over `HomeWidgetsFacade`.
 10. **Car (MUS-013):** implement `MediaBrowseProvider` (queues, playlists, albums, artists, folders, podcasts, voice search) over `MediaBrowseFacade`.
-11. **Internet radio (MUS-014):** user-added stations, plus an opt-in Radio Browser directory. No curated IPTV-style lists (docs/07).
+11. **Internet radio (MUS-014):** user-added stations only, with M3U/PLS import and no directory, per doc 04. Station metadata comes from ADR-027.
 12. **Podcasts and audiobooks:**
     - Audiobook and podcast mode (POD-001): chapters, per-book speed, skip silence through the engine, bookmarks.
     - Podcast feeds (POD-002): RSS/Atom parsed in an isolate, OPML import/export, background refresh within OS limits.
