@@ -172,6 +172,7 @@ final class ParsedMetadata {
     this.hasGainMap = false,
     this.motionVideoLength,
     this.livePhotoId,
+    this.label,
   });
 
   final MetadataBlocks blocks;
@@ -190,6 +191,9 @@ final class ParsedMetadata {
   /// Apple's ContentIdentifier (from the MakerNote), which pairs a Live
   /// Photo's still with its MOV (IMG-001).
   final String? livePhotoId;
+
+  /// The XMP colour label (`xmp:Label`), as the writer spelled it.
+  final String? label;
 }
 
 /// Reads and merges EXIF, IPTC, XMP and ICC (IMG-006). Precedence follows
@@ -285,6 +289,7 @@ ParsedMetadata parseMetadata(Uint8List bytes, {String? extension}) {
     hasGainMap: hdr,
     motionVideoLength: xmp?.motionPhotoVideoLength,
     livePhotoId: tiff == null ? null : appleContentIdentifier(tiff),
+    label: xmp?.label,
   );
 }
 
@@ -295,7 +300,7 @@ String? appleContentIdentifier(TiffStructure t) {
   if (note == null || note.raw.length < 24) return null;
   return guardUntrusted<String>(() {
     final r = note.raw;
-    if (String.fromCharCodes(r.sublist(0, 10)) != 'Apple iOS ') {
+    if (String.fromCharCodes(r.sublist(0, 10)) != 'Apple iOS\u0000') {
       return null;
     }
     final v = ByteView(r, bigEndian: r[12] == 0x4D);

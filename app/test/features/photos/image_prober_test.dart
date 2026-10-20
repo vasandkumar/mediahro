@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/library/tags.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/images/metadata/bytes.dart';
 import 'package:mediahro/images/metadata/tiff.dart';
@@ -160,5 +161,66 @@ void main() {
       prober().probe(io.add('v.mp4', Uint8List(10)), await row(id)),
       throwsArgumentError,
     );
+  });
+
+  group('IMG-005 organisation read from the file', () {
+    final xmp = xmpDoc(
+      [
+        '<xmp:Rating>4</xmp:Rating>',
+        '<xmp:Label>Green</xmp:Label>',
+        '<dc:subject><rdf:Bag><rdf:li>lake</rdf:li><rdf:li>dawn</rdf:li></rdf:Bag></dc:subject>',
+      ].join(),
+    );
+
+    test(
+      'IMG-005 a first look imports the stars, label and keywords',
+      () async {
+        final id = await seed.item('a.jpg', kind: ItemKind.image);
+        final f = io.add('a.jpg', sampleJpeg(xmp: xmp));
+        await prober().probe(f, await row(id));
+        expect((await db.select(db.ratings).getSingle()).value, 8);
+        expect(
+          (await db.select(db.labels).getSingle()).color,
+          LabelColor.green,
+        );
+        expect((await TagRepository(db).tagsOf(id)).toSet(), {'lake', 'dawn'});
+      },
+    );
+
+    test(
+      'IMG-005 what the user set in the library wins over the file',
+      () async {
+        final id = await seed.item('a.jpg', kind: ItemKind.image);
+        await db
+            .into(db.ratings)
+            .insert(RatingsCompanion.insert(itemId: Value(id), value: 2));
+        await TagRepository(db).addTag([id], 'mine');
+        final f = io.add('a.jpg', sampleJpeg(xmp: xmp));
+        await prober().probe(f, await row(id));
+        expect((await db.select(db.ratings).getSingle()).value, 2);
+        expect(await TagRepository(db).tagsOf(id), ['mine']);
+      },
+    );
+
+    test('IMG-005 re-reading an edited file does not re-import', () async {
+      final id = await seed.item('a.jpg', kind: ItemKind.image);
+      final f = io.add('a.jpg', sampleJpeg(xmp: xmp));
+      await prober().reprobe(await row(id), f);
+      await db.delete(db.ratings).go();
+      await prober().reprobe(await row(id), f);
+      expect(
+        await db.select(db.ratings).get(),
+        isEmpty,
+        reason: 'the user cleared it',
+      );
+    });
+
+    test('IMG-005 label names from photo programs map to library labels', () {
+      expect(labelFromXmp('Red'), LabelColor.red);
+      expect(labelFromXmp(' purple '), LabelColor.purple);
+      expect(labelFromXmp('Gray'), LabelColor.grey);
+      expect(labelFromXmp('Second'), isNull);
+      expect(labelFromXmp(null), isNull);
+    });
   });
 }

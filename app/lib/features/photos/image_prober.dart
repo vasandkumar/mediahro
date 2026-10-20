@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/index/index_writer.dart';
+import 'package:mediahro/core/library/tags.dart';
 import 'package:mediahro/core/scanner/probe_queue.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
@@ -17,11 +18,17 @@ import 'package:mediahro_ffi/mediahro_ffi.dart';
 /// and a gain-map still as `gainmap` HDR, so the timeline can badge both
 /// without new columns.
 final class ImageProber implements MediaProber {
-  ImageProber({required this.pipeline, required this.db, required this.io});
+  ImageProber({
+    required this.pipeline,
+    required this.db,
+    required this.io,
+    TagRepository? tags,
+  }) : tags = tags ?? TagRepository(db);
 
   final MediahroImagePipeline pipeline;
   final LibraryDatabase db;
   final ImageIo io;
+  final TagRepository tags;
 
   static const _videoPairExtensions = ['mov', 'MOV', 'mp4', 'MP4'];
 
@@ -54,6 +61,7 @@ final class ImageProber implements MediaProber {
             pairedVideoPath: Value(pair),
           ),
         );
+    if (!item.probed) await _importOrganisation(item.id, m, facts.parsed.label);
     return ProbeResult(
       width: info.width,
       height: info.height,
@@ -62,6 +70,42 @@ final class ImageProber implements MediaProber {
       videoCodec: info.isMotionPhoto ? 'mp4' : null,
       hdrType: info.range == ImageDynamicRange.sdr ? null : 'gainmap',
     );
+  }
+
+  /// First look at a file: its star rating, keywords and colour label become
+  /// the library's, unless the user already organised the photo here
+  /// (IMG-005: tags are XMP `dc:subject`).
+  Future<void> _importOrganisation(
+    int itemId,
+    ImageMetadata m,
+    String? xmpLabel,
+  ) async {
+    final stars = m.rating;
+    if (stars != null && stars > 0) {
+      await db
+          .into(db.ratings)
+          .insert(
+            RatingsCompanion.insert(
+              itemId: Value(itemId),
+              value: stars.clamp(1, 5) * 2,
+            ),
+            mode: InsertMode.insertOrIgnore,
+          );
+    }
+    final color = labelFromXmp(xmpLabel);
+    if (color != null) {
+      await db
+          .into(db.labels)
+          .insert(
+            LabelsCompanion.insert(itemId: Value(itemId), color: color),
+            mode: InsertMode.insertOrIgnore,
+          );
+    }
+    if (m.keywords.isNotEmpty && (await tags.tagsOf(itemId)).isEmpty) {
+      for (final k in m.keywords.take(64)) {
+        await tags.addTag([itemId], k);
+      }
+    }
   }
 
   /// `IMG_1234.MOV` next to `IMG_1234.HEIC`, as a path relative to the
@@ -88,4 +132,15 @@ final class ImageProber implements MediaProber {
     final r = await probe(file, item);
     await IndexWriter(db).applyProbe(item.id, r);
   }
+}
+
+/// Maps the colour names photo programs write in `xmp:Label` (Lightroom:
+/// Red, Yellow, Green, Blue, Purple; Bridge adds Orange) to a library label.
+LabelColor? labelFromXmp(String? name) {
+  if (name == null) return null;
+  final n = name.trim().toLowerCase();
+  for (final c in LabelColor.values) {
+    if (c.name == n || c.name == n.replaceAll('gray', 'grey')) return c;
+  }
+  return null;
 }
