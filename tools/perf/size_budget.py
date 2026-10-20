@@ -9,6 +9,7 @@ Usage: python tools/perf/size_budget.py {android|desktop} PATH [--key NAME]
 from __future__ import annotations
 
 import json
+import os
 import struct
 import sys
 import zipfile
@@ -82,13 +83,21 @@ def main() -> int:
     if baseline_file.exists():
         base = json.loads(baseline_file.read_text(encoding="utf-8")).get(key)
         if isinstance(base, (int, float)) and mb > base * 1.05:
-            print(
-                f"size: {key} grew > 5 % against baseline {base:.1f} MB. If the growth is a doc 04 feature,"
-                " update tools/perf/baseline.json in this PR and justify it with feature IDs (ADR-020);"
-                " otherwise optimise it away.",
-                file=sys.stderr,
+            msg = (
+                f"size: {key} grew > 5 % against baseline {base:.1f} MB ({mb:.1f} MB). If the growth is a doc 04"
+                " feature, the orchestrator raises tools/perf/baseline.json in the merge commit (ADR-020);"
+                " otherwise optimise it away."
             )
-            ok = False
+            if os.environ.get("GITHUB_EVENT_NAME") == "pull_request":
+                # Lanes don't edit baseline.json (docs/lanes rule 4): report on PRs, enforce on main.
+                print(f"::warning::{msg}")
+                summary = os.environ.get("GITHUB_STEP_SUMMARY")
+                if summary:
+                    with open(summary, "a", encoding="utf-8") as fh:
+                        fh.write(f"- size growth: {key} {base:.1f} → {mb:.1f} MB\n")
+            else:
+                print(msg, file=sys.stderr)
+                ok = False
     if mb > budget:
         print(f"size: over budget by {mb - budget:.1f} MB", file=sys.stderr)
     return 0 if ok else 1
