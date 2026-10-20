@@ -1,0 +1,135 @@
+{
+  "@@locale": "en",
+  "photosEmptyTitle": "No photos yet",
+  "photosEmptyMessage": "Add a folder with pictures, or your device's photo library, in Sources. Photos show up here as soon as they're found.",
+  "photosAddPhotos": "Add photos",
+  "photosToday": "Today",
+  "photosYesterday": "Yesterday",
+  "photosLayoutSquare": "Square grid",
+  "photosLayoutAspect": "Keep proportions",
+  "photosDensityLabel": "Photo size",
+  "photosDensityFewer": "Larger photos",
+  "photosDensityMore": "Smaller photos",
+  "photosScrubberLabel": "Jump to a date",
+  "photosTimelineLabel": "Photo timeline",
+  "photosTileLabel": "{kind, select, video{Video} photo{Photo} other{Photo}} from {date}",
+  "@photosTileLabel": {
+    "description": "Screen-reader label of a timeline tile; the date is already formatted.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "photosBadgeRaw": "RAW",
+  "photosBadgeLive": "Live",
+  "photosBadgeMotion": "Motion",
+  "photosBadgeHdr": "HDR",
+  "photosBack": "Back",
+  "photosInfo": "Details",
+  "photosFit": "Fit to screen",
+  "photosFill": "Fill screen",
+  "photosRotate": "Rotate",
+  "photosZoomPercent": "{percent}%",
+  "@photosZoomPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPosition": "{index} of {total}",
+  "@photosPosition": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosFilmstrip": "Filmstrip",
+  "photosFilmstripItem": "Go to photo {index}",
+  "@photosFilmstripItem": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "photosLoadFailedTitle": "This photo can't be shown",
+  "photosLoadFailedMessage": "The file may be damaged, or this device can't read its format.",
+  "photosLoadFailedSource": "The file isn't reachable right now. Check the connection to its source.",
+  "photosRetry": "Try again",
+  "photosPreviewOnly": "Showing the camera's preview",
+  "photosInfoTitle": "Details",
+  "photosInfoFile": "File",
+  "photosInfoName": "Name",
+  "photosInfoSize": "Size",
+  "photosInfoDimensions": "Dimensions",
+  "photosInfoMegapixels": "{mp} MP",
+  "@photosInfoMegapixels": {
+    "placeholders": {
+      "mp": {
+        "type": "String"
+      }
+    }
+  },
+  "photosInfoFormat": "Format",
+  "photosInfoTaken": "Taken",
+  "photosInfoCamera": "Camera",
+  "photosInfoLens": "Lens",
+  "photosInfoLocation": "Location",
+  "photosInfoColour": "Colour profile",
+  "photosInfoRating": "Rating",
+  "photosInfoKeywords": "Keywords",
+  "photosInfoDescription": "Description",
+  "photosInfoTitleField": "Title",
+  "photosInfoAllTags": "All metadata",
+  "photosInfoNoMetadata": "This file has no embedded metadata.",
+  "photosInfoMotionPhoto": "Motion Photo",
+  "photosInfoLivePhoto": "Live Photo",
+  "photosInfoPanorama": "Panorama",
+  "photosInfoHdr": "HDR (gain map)",
+  "photosEditMetadata": "Edit details",
+  "photosEditDate": "Date and time",
+  "photosEditPickDate": "Pick a date",
+  "photosEditPickTime": "Pick a time",
+  "photosEditLatitude": "Latitude",
+  "photosEditLongitude": "Longitude",
+  "photosEditClearLocation": "Remove location",
+  "photosEditKeywordsHint": "Separate keywords with commas",
+  "photosEditSave": "Save",
+  "photosEditCancel": "Cancel",
+  "photosEditInvalidCoordinates": "Enter a latitude from −90 to 90 and a longitude from −180 to 180.",
+  "photosEditSaved": "Details saved.",
+  "photosEditSavedSidecar": "Saved next to the photo as {name}, because this format can't hold edits.",
+  "@photosEditSavedSidecar": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosEditFailed": "Couldn't save the details. The source may be read-only.",
+  "photosRatingStars": "{count, plural, =0{No rating} =1{1 star} other{{count} stars}}",
+  "@photosRatingStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVideoDuration": "Video, {duration}",
+  "@photosVideoDuration": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  }
+}

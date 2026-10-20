@@ -47,3 +47,4 @@ export 'src/vfs/fd_io.dart';
 export 'src/vfs/isolate_file_system.dart';
 export 'src/vfs/local_file_system.dart';
 export 'src/vfs/virtual_file.dart';
+export 'src/vips/vips_codec.dart';

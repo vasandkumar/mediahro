@@ -48,6 +48,17 @@
       "edit_template": false
     },
     {
+      "name": "photos",
+      "slug": "photos",
+      "file_format": "arb",
+      "filemask": "app/lib/features/photos/l10n/photos_*.arb",
+      "template": "app/lib/features/photos/l10n/photos_en.arb",
+      "new_base": "app/lib/features/photos/l10n/photos_en.arb",
+      "source_language": "en",
+      "language_regex": "^(?!en$)[a-z]{2,3}(_[A-Za-z]+)?$",
+      "edit_template": false
+    },
+    {
       "name": "settings",
       "slug": "settings",
       "file_format": "arb",
