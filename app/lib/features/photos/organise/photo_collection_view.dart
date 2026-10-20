@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/features/photos/compare/compare_screen.dart';
 import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
@@ -202,6 +203,15 @@ class SelectionBar extends ConsumerWidget {
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
                       writeBack((w) => w.tags(chosen));
+                    case 'compare':
+                      final photos = chosen.where((e) => !e.isVideo).toList();
+                      if (photos.length < 2 || photos.length > 4) {
+                        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                          SnackBar(content: Text(l10n.photosCompareNeedTwo)),
+                        );
+                      } else {
+                        await openCompare(context, photos);
+                      }
                     case 'setLocation':
                       if (await setLocationFlow(context, ref, chosen) &&
                           context.mounted) {
@@ -225,6 +235,10 @@ class SelectionBar extends ConsumerWidget {
                   PopupMenuItem(
                     value: 'tags',
                     child: Text(l10n.photosTagsAction),
+                  ),
+                  PopupMenuItem(
+                    value: 'compare',
+                    child: Text(l10n.photosCompare),
                   ),
                   PopupMenuItem(
                     value: 'setLocation',

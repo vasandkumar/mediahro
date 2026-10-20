@@ -89,13 +89,14 @@ final class ImageProber implements MediaProber {
     String? xmpLabel,
   ) async {
     final stars = m.rating;
-    if (stars != null && stars > 0) {
+    if (stars != null && stars != 0) {
       await db
           .into(db.ratings)
           .insert(
             RatingsCompanion.insert(
               itemId: Value(itemId),
-              value: stars.clamp(1, 5) * 2,
+              // -1 is XMP's "rejected".
+              value: stars < 0 ? -1 : stars.clamp(1, 5) * 2,
             ),
             mode: InsertMode.insertOrIgnore,
           );

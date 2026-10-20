@@ -206,7 +206,7 @@ final photoEntriesProvider = StreamProvider<List<PhotoEntry>>((ref) async* {
   final vis = rules.Visibility(unlocked: unlocked);
   final query = db.customSelect(
     photoEntriesSql(vis),
-    readsFrom: {db.items, db.imageMeta, db.sources},
+    readsFrom: {db.items, db.imageMeta, db.ratings, db.sources},
   );
   var first = true;
   await for (final _ in query.watch().map((_) {})) {
@@ -221,8 +221,9 @@ String photoEntriesSql(rules.Visibility vis) =>
     'SELECT i.id, i.source_id, i.rel_path, i.name, i.ext, i.kind, i.size, '
     'i.mtime, i.taken_at, i.width, i.height, i.duration_ms, i.video_codec, '
     'i.hdr_type, im.orientation AS ori, im.favourite AS fav, '
-    'im.paired_video_path AS paired '
+    'im.paired_video_path AS paired, rt.value AS rating '
     'FROM item i LEFT JOIN image_meta im ON im.item_id = i.id '
+    'LEFT JOIN rating rt ON rt.item_id = i.id '
     "WHERE ${vis.sql} AND i.kind IN ('image', 'video') "
     'ORDER BY coalesce(i.taken_at, i.mtime) DESC, i.id DESC';
 
@@ -260,6 +261,7 @@ PhotoEntry photoEntryFromRow(QueryRow r) {
     durationMs: r.readNullable<int>('duration_ms'),
     orientation: r.readNullable<int>('ori'),
     favourite: r.readNullable<bool>('fav') ?? false,
+    rejected: (r.readNullable<int>('rating') ?? 0) < 0,
     livePhoto: r.readNullable<String>('paired') != null,
     // The prober records an embedded MP4 as the video codec of a still.
     motionPhoto: !isVideo && r.readNullable<String>('video_codec') == 'mp4',

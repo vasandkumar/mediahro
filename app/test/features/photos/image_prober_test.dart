@@ -211,6 +211,16 @@ void main() {
       },
     );
 
+    test('IMG-008 a rejected photo (XMP rating -1) arrives rejected', () async {
+      final id = await seed.item('r.jpg', kind: ItemKind.image);
+      final f = io.add(
+        'r.jpg',
+        sampleJpeg(xmp: xmpDoc('<xmp:Rating>-1</xmp:Rating>')),
+      );
+      await prober().probe(f, await row(id));
+      expect((await db.select(db.ratings).getSingle()).value, -1);
+    });
+
     test(
       'IMG-005 what the user set in the library wins over the file',
       () async {

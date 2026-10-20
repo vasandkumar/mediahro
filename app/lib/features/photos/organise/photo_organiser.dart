@@ -65,6 +65,34 @@ final class PhotoOrganiser {
     });
   }
 
+  /// Marks the items as rejected (the XMP convention: rating -1) or clears
+  /// the mark; a rejected photo is no longer a favourite. Star ratings are
+  /// replaced by the mark.
+  Future<void> setRejected(Iterable<int> itemIds, {required bool value}) async {
+    final ids = itemIds.toList();
+    if (ids.isEmpty) return;
+    if (value) {
+      await setFavourite(ids, value: false);
+      await db.batch((b) {
+        b.insertAllOnConflictUpdate(db.ratings, [
+          for (final id in ids)
+            RatingsCompanion.insert(itemId: Value(id), value: -1),
+        ]);
+      });
+    } else {
+      await (db.delete(
+        db.ratings,
+      )..where((r) => r.itemId.isIn(ids) & r.value.isSmallerThanValue(0))).go();
+    }
+  }
+
+  /// Keeps the items: a favourite, and not rejected.
+  Future<void> keep(Iterable<int> itemIds) async {
+    final ids = itemIds.toList();
+    await setRejected(ids, value: false);
+    await setFavourite(ids, value: true);
+  }
+
   /// Sets [stars] (0 clears) on every item.
   Future<void> setRating(Iterable<int> itemIds, int stars) async {
     final ids = itemIds.toList();

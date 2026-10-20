@@ -9,6 +9,8 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/library/widgets.dart'
     show openItemActionProvider;
+import 'package:mediahro/features/photos/compare/compare_screen.dart';
+import 'package:mediahro/features/photos/compare/compare_tray.dart';
 import 'package:mediahro/features/photos/info/info_sheet.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
@@ -190,6 +192,40 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
 
   static const double _stripItem = 60;
 
+  void _toggleCompare() {
+    final l10n = AppLocalizations.of(context);
+    final tray = ref.read(compareTrayProvider.notifier);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final text = switch (tray.toggle(_entry)) {
+      TrayChange.added => l10n.photosCompareAdded(
+        ref.read(compareTrayProvider).length,
+        CompareTray.capacity,
+      ),
+      TrayChange.removed => null,
+      TrayChange.full => l10n.photosCompareFull,
+      TrayChange.notAPhoto => l10n.photosCompareNotAPhoto,
+    };
+    if (text == null) return;
+    final ready = ref.read(compareTrayProvider);
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(text),
+          action: ready.length >= 2
+              ? SnackBarAction(
+                  label: l10n.photosCompareOpen,
+                  onPressed: () {
+                    final photos = ref.read(compareTrayProvider);
+                    tray.clear();
+                    unawaited(openCompare(context, photos));
+                  },
+                )
+              : null,
+        ),
+      );
+  }
+
   void _info() {
     final l10n = AppLocalizations.of(context);
     unawaited(
@@ -357,6 +393,17 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              IconButton(
+                                tooltip:
+                                    ref
+                                        .watch(compareTrayProvider)
+                                        .any((e) => e.id == _entry.id)
+                                    ? l10n.photosCompareRemove
+                                    : l10n.photosCompareAdd,
+                                color: Colors.white,
+                                icon: const Icon(Icons.compare),
+                                onPressed: _toggleCompare,
                               ),
                               KIconButton(
                                 icon: KIcon.info,
