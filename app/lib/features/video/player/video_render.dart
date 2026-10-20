@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
+import 'package:mediahro/features/video/player/bundled_shaders.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -134,24 +137,34 @@ const List<double?> aspectChoices = [
 /// A user-shader preset (VID-038): a name and the GLSL files it chains.
 @immutable
 final class ShaderChoice {
-  const ShaderChoice(this.id, this.name, this.files);
+  const ShaderChoice(this.id, this.name, this.files, {this.builtIn = false});
 
   final String id;
 
-  /// Display name: the file name for custom shaders.
+  /// The file name for custom shaders; for [builtIn] presets the key of
+  /// their localised name (`videoShaderPresetName`).
   final String name;
   final List<Uri> files;
+
+  /// Bundled with the app (ADR-034) rather than from the user's folder.
+  final bool builtIn;
 
   ShaderPreset get preset => ShaderPreset(id: id, shaders: files);
 }
 
-/// Shader presets available on this device: the bundled set (once its
-/// assets are approved; see the ADR request) plus every `.glsl` in the
-/// user's shader folder.
+/// Shader presets available on this device: the bundled MIT set
+/// (ADR-034) plus every `.glsl` in the user's shader folder.
 final shaderLibraryProvider =
-    Provider<Future<List<ShaderChoice>> Function(String folder)>(
-      (ref) => listCustomShaders,
-    );
+    Provider<Future<List<ShaderChoice>> Function(String folder)>((ref) {
+      final dir = Directory(
+        '${ref.watch(appDataDirectoryProvider).path}/shaders',
+      );
+      Future<List<ShaderChoice>>? builtIn;
+      return (folder) async => [
+        ...await (builtIn ??= bundledShaders(rootBundle, dir)),
+        ...await listCustomShaders(folder),
+      ];
+    });
 
 Future<List<ShaderChoice>> listCustomShaders(String folder) async {
   if (folder.isEmpty) return const [];

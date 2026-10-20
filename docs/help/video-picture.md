@@ -39,6 +39,13 @@ Brightness, contrast, saturation, gamma and hue, each from −100 to 100. **Rese
 
 Shaders are small programs, written by enthusiasts, that upscale or clean up the picture on the graphics processor. Mediahro uses mpv's `.glsl` user-shader format.
 
+Mediahro comes with these:
+
+- **Anime4K A**, **B** and **C**, for animation: A sharpens blurry anime, B cleans up heavily compressed anime, and C upscales clean anime. Each comes in a fast and a best version; choose fast on phones and older computers.
+- **FSR**, sharp upscaling for any video.
+
+You can add other shaders, such as NNEDI3 or SSimSuperRes, from a folder of your own:
+
 1. Put the `.glsl` files in a folder on your device.
 2. In **Picture → Shaders**, tap **Choose a shader folder** and pick that folder.
 3. Choose a shader from the list. **None** turns shaders off.
