@@ -158,6 +158,8 @@ final organisationWriteBackProvider = Provider<OrganisationWriteBack>(
     organiser: ref.watch(photoOrganiserProvider),
     enabled: () =>
         ref.read(settingsStoreProvider).get(PhotoSettings.writeOrganisation),
+    fileRating: (p) async =>
+        (await ref.read(photoFactsProvider(p).future)).parsed.metadata.rating,
   ),
 );
 

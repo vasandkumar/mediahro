@@ -191,7 +191,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> {
                 return Semantics(
                   button: true,
                   selected: selected,
-                  label: '${t.name}, ${l10n.photosTrashDaysLeft(left)}',
+                  label: l10n.photosTrashTileLabel(t.name, left),
                   excludeSemantics: true,
                   onTap: () => setState(
                     () => selected ? _chosen.remove(t.id) : _chosen.add(t.id),
