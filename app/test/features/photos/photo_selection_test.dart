@@ -5,12 +5,12 @@ void main() {
   final order = [10, 11, 12, 13, 14, 15];
 
   test('IMG-005 toggling selects and deselects, and notifies', () {
-    final s = PhotoSelection();
     var n = 0;
-    s.addListener(() => n++);
+    final s = PhotoSelection()..addListener(() => n++);
     expect(s.active, isFalse);
-    s.toggle(11);
-    s.toggle(13);
+    s
+      ..toggle(11)
+      ..toggle(13);
     expect(s.ids, {11, 13});
     expect(s.active, isTrue);
     s.toggle(11);
@@ -23,8 +23,8 @@ void main() {
   test(
     'IMG-005 a drag selects the range between the first tile and the finger',
     () {
-      final s = PhotoSelection()..toggle(10);
-      s
+      final s = PhotoSelection()
+        ..toggle(10)
         ..beginDrag(2, order)
         ..dragTo(4, order);
       expect(s.ids, {10, 12, 13, 14});
@@ -38,8 +38,8 @@ void main() {
   );
 
   test('IMG-005 dragging from a selected tile deselects the range', () {
-    final s = PhotoSelection()..selectAll(order);
-    s
+    final s = PhotoSelection()
+      ..selectAll(order)
       ..beginDrag(1, order)
       ..dragTo(3, order);
     expect(s.ids, {10, 14, 15});
@@ -48,8 +48,9 @@ void main() {
   });
 
   test('IMG-005 selectAll replaces the selection', () {
-    final s = PhotoSelection()..toggle(99);
-    s.selectAll([1, 2]);
+    final s = PhotoSelection()
+      ..toggle(99)
+      ..selectAll([1, 2]);
     expect(s.ids, {1, 2});
     expect(s.length, 2);
   });
