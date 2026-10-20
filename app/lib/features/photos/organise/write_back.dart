@@ -13,17 +13,40 @@ final class OrganisationWriteBack {
     required this.editor,
     required this.organiser,
     required this.enabled,
+    required this.fileRating,
   });
 
   final MetadataEditor editor;
   final PhotoOrganiser organiser;
   final bool Function() enabled;
 
+  /// The rating the file has now (null: none, or it cannot be read).
+  final Future<int?> Function(PhotoEntry) fileRating;
+
   /// Photos whose file could not be updated by the last call.
   int lastFailures = 0;
 
   Future<int> rating(List<PhotoEntry> photos, int stars) =>
       _each(photos, (_) async => ImageMetadataEdit(rating: stars));
+
+  /// Takes back a rejection in the files: only a file that still holds the
+  /// reject mark (-1) is touched, and gets the stars it had before ([stars],
+  /// by item id) or none. A file the rejection never reached, with stars of
+  /// its own, is left alone.
+  Future<int> unreject(List<PhotoEntry> photos, Map<int, int> stars) async {
+    if (!enabled()) return 0;
+    var failed = 0;
+    for (final p in photos) {
+      if (p.isVideo) continue;
+      try {
+        if (await fileRating(p) != -1) continue;
+        await editor.save(p, ImageMetadataEdit(rating: stars[p.id] ?? 0));
+      } on Object {
+        failed++;
+      }
+    }
+    return lastFailures = failed;
+  }
 
   Future<int> label(List<PhotoEntry> photos, LabelColor? color) => _each(
     photos,

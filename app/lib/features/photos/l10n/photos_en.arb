@@ -786,6 +786,17 @@
       }
     }
   },
+  "photosTrashTileLabel": "{name}, {count, plural, =1{1 day left} other{{count} days left}}",
+  "@photosTrashTileLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "photosTrashCount": "{count, plural, =0{Nothing here} =1{1 photo} other{{count} photos}}",
   "@photosTrashCount": {
     "placeholders": {

@@ -39,8 +39,12 @@ void main() {
     late _Edits edits;
     var on = true;
 
-    OrganisationWriteBack writer() =>
-        OrganisationWriteBack(editor: edits, organiser: org, enabled: () => on);
+    OrganisationWriteBack writer() => OrganisationWriteBack(
+      editor: edits,
+      organiser: org,
+      enabled: () => on,
+      fileRating: (_) async => null,
+    );
 
     setUp(() {
       db = LibraryDatabase.memory();
@@ -154,6 +158,7 @@ void main() {
           editor: edits,
           organiser: ref.watch(photoOrganiserProvider),
           enabled: () => on,
+          fileRating: (_) async => null,
         ),
       ),
     ];

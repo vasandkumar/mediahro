@@ -87,7 +87,10 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
     setState(() => _verdicts[p.id] = next);
     switch (next) {
       case _Verdict.keep:
-        await org.keep([p.id]);
+        final back = await org.keep([p.id]);
+        if (previous == _Verdict.reject) {
+          unawaited(write.unreject([p], back));
+        }
       case _Verdict.reject:
         await org.setRejected([p.id], value: true);
         unawaited(write.rating([p], -1));
@@ -95,8 +98,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
         if (previous == _Verdict.keep) {
           await org.setFavourite([p.id], value: false);
         } else {
-          await org.setRejected([p.id], value: false);
-          unawaited(write.rating([p], 0));
+          final back = await org.setRejected([p.id], value: false);
+          unawaited(write.unreject([p], back));
         }
     }
   }
@@ -106,6 +109,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
       for (final p in widget.photos)
         if (p.id != keeper.id) p,
     ];
+    final wasRejected = _verdicts[keeper.id] == _Verdict.reject;
     setState(() {
       _verdicts[keeper.id] = _Verdict.keep;
       for (final o in others) {
@@ -114,7 +118,8 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
     });
     final org = ref.read(photoOrganiserProvider);
     final write = ref.read(organisationWriteBackProvider);
-    await org.keep([keeper.id]);
+    final back = await org.keep([keeper.id]);
+    if (wasRejected) unawaited(write.unreject([keeper], back));
     await org.setRejected([for (final o in others) o.id], value: true);
     unawaited(write.rating(others, -1));
   }
