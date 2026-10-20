@@ -410,6 +410,63 @@ final class FakePlaybackEngine implements PlaybackEngine {
   @override
   Stream<AudioTapFrame> audioTap({int frames = 1024}) => _tap.stream;
 
+  /// What [decodeAudio] was asked for, in order.
+  final List<
+    ({
+      MediaSource source,
+      int? trackId,
+      int sampleRate,
+      bool mono,
+      Duration? start,
+      Duration? end,
+    })
+  >
+  decodeRequests = [];
+
+  /// When set, [decodeAudio] fails with it (e.g. an [EngineException]).
+  Exception? decodeAudioError;
+
+  /// The PCM [decodeAudio] returns, in the rate and layout the test
+  /// will request; `start` and `end` cut it (ADR-032).
+  Float32List decodedAudio = Float32List(0);
+
+  @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) async* {
+    _check('decodeAudio');
+    decodeRequests.add((
+      source: source,
+      trackId: trackId,
+      sampleRate: sampleRate,
+      mono: mono,
+      start: start,
+      end: end,
+    ));
+    final error = decodeAudioError;
+    if (error != null) throw error;
+    final channels = mono ? 1 : 2;
+    int at(Duration? d, int fallback) => d == null
+        ? fallback
+        : (d.inMicroseconds * sampleRate ~/ 1000000 * channels).clamp(
+            0,
+            decodedAudio.length,
+          );
+    final from = at(start, 0);
+    final to = at(end, decodedAudio.length);
+    final chunk = sampleRate ~/ 2 * channels;
+    for (var i = from; i < to; i += chunk) {
+      yield Float32List.fromList(
+        decodedAudio.sublist(i, i + chunk < to ? i + chunk : to),
+      );
+    }
+  }
+
   /// Sets what [PlaybackState.mediaTitle] / [PlaybackState.mediaMetadata]
   /// report, as an ICY or HLS ID3 update would (MUS-014).
   void setMediaMetadata(String? title, Map<String, String> metadata) =>

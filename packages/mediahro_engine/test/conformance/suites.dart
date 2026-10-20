@@ -1,4 +1,5 @@
 import 'adr027.dart';
+import 'adr032.dart';
 import 'api_additions.dart';
 import 'audio.dart';
 import 'cast.dart';
@@ -22,4 +23,5 @@ void runConformanceSuites() {
   castSuite();
   apiAdditionsSuite();
   adr027Suite();
+  adr032Suite();
 }

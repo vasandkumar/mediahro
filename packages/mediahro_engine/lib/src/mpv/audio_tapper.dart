@@ -6,8 +6,8 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
+import 'package:mediahro_engine/src/mpv/pcm_storage.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
-import 'package:mediahro_engine/src/mpv/tap_storage.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
 import 'package:mediahro_ffi/src/mpv/mpv.dart' show Libmpv;
@@ -26,7 +26,7 @@ const tapBands = 64;
 /// audio being played a second time, on a silent libmpv core that exists
 /// only while someone listens (an unused tap costs nothing). The core writes
 /// raw PCM (`ao=pcm`, s16 stereo at [tapSampleRate], about 86 KB/s) to
-/// [TapStorage], RAM-backed where the OS offers it, and each window is cut
+/// [PcmStorage], RAM-backed where the OS offers it, and each window is cut
 /// from it at the playback position.
 ///
 /// The core decodes 3 s slices just ahead of playback, one after the other,
@@ -78,7 +78,7 @@ final class AnalysisTap {
   MpvClient? _client;
   StreamSubscription<MpvEvent>? _events;
   Completer<void>? _ended;
-  TapStorage? _storage;
+  PcmStorage? _storage;
   RandomAccessFile? _raf;
   // Playback time of the first sample in the PCM file.
   Duration _start0 = Duration.zero;
@@ -147,10 +147,11 @@ final class AnalysisTap {
     }
     final storage = _storage!;
     // Each slice overwrites the previous one, which has been decoded.
-    if (!await dumpCache(a, b, storage.slicePath) || storage.sliceLength == 0) {
+    if (!await dumpCache(a, b, storage.slicePath!) ||
+        storage.sliceLength == 0) {
       return;
     }
-    await _client!.loadfile(storage.slicePath);
+    await _client!.loadfile(storage.slicePath!);
     await ended.future.timeout(const Duration(seconds: 10));
   }
 
@@ -196,7 +197,7 @@ final class AnalysisTap {
   Future<void> _restart(Duration from, {required bool local}) async {
     await _destroy();
     if (source() == null) return;
-    final storage = _storage = await TapStorage.create();
+    final storage = _storage = await PcmStorage.create();
     final client = await MpvClient.create(
       options: {
         'config': 'no',

@@ -5,8 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
+import 'package:mediahro_engine/src/mpv/pcm_storage.dart';
 import 'package:mediahro_engine/src/mpv/state_mapping.dart';
-import 'package:mediahro_engine/src/mpv/tap_storage.dart';
 import 'package:mediahro_engine/testing.dart';
 
 /// ADR-027: visualiser tap analysis (AUD-046) and stream metadata (MUS-014).
@@ -82,7 +82,7 @@ void main() {
 
   group('AUD-046 tap storage', () {
     test('AUD-046 tap PCM stays off flash where the OS allows', () async {
-      final storage = await TapStorage.create();
+      final storage = await PcmStorage.create();
       expect(
         storage.inMemory,
         Platform.isAndroid || Platform.isLinux,
@@ -94,8 +94,8 @@ void main() {
         ..writeAsBytesSync([5, 6], mode: FileMode.append);
       expect(storage.pcmLength, 6);
       expect(pcm.readAsBytesSync(), [1, 2, 3, 4, 5, 6]);
-      File(storage.slicePath).writeAsBytesSync([9, 9, 9]);
-      File(storage.slicePath).writeAsBytesSync([7]);
+      File(storage.slicePath!).writeAsBytesSync([9, 9, 9]);
+      File(storage.slicePath!).writeAsBytesSync([7]);
       expect(storage.sliceLength, 1);
       await storage.dispose();
       if (!storage.inMemory) expect(pcm.parent.existsSync(), isFalse);

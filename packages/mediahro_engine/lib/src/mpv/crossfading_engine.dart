@@ -407,6 +407,23 @@ final class CrossfadingEngine implements PlaybackEngine {
   });
 
   @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) => _a.decodeAudio(
+    source,
+    trackId: trackId,
+    sampleRate: sampleRate,
+    mono: mono,
+    start: start,
+    end: end,
+  );
+
+  @override
   Future<List<EngineAudioDevice>> audioDevices() async {
     await _ensure();
     return await _a.audioDevices();
