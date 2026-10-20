@@ -18,6 +18,7 @@ import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/trash_screen.dart';
+import 'package:mediahro/features/photos/vault/vault_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// A grid of photos with the selection bar that appears on top of it once
@@ -209,6 +210,11 @@ class SelectionBar extends ConsumerWidget {
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
                       writeBack((w) => w.tags(chosen));
+                    case 'vault':
+                      if (await moveToVaultFlow(context, ref, chosen) &&
+                          context.mounted) {
+                        selection.clear();
+                      }
                     case 'delete':
                       if (await deletePhotosFlow(context, ref, chosen) &&
                           context.mounted) {
@@ -271,6 +277,10 @@ class SelectionBar extends ConsumerWidget {
                       child: Text(l10n.photosApplyLook),
                     ),
                   PopupMenuItem(value: 'share', child: Text(l10n.photosShare)),
+                  PopupMenuItem(
+                    value: 'vault',
+                    child: Text(l10n.photosVaultMove),
+                  ),
                   PopupMenuItem(
                     value: 'delete',
                     child: Text(l10n.photosMoveToTrash),

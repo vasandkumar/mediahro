@@ -837,5 +837,96 @@
         "type": "int"
       }
     }
+  },
+  "photosVault": "Vault",
+  "photosVaultSubtitle": "Private photos behind your fingerprint or screen lock",
+  "photosVaultIntro": "Keep private photos behind your fingerprint, face or screen lock. They are encrypted on this device and kept out of the gallery and out of backups.",
+  "photosVaultSetUp": "Set up the vault",
+  "photosVaultSetUpNote": "Photos you move here are encrypted and taken out of the folders they were in. If the screen lock of this device is reset or removed, they cannot be recovered.",
+  "photosVaultUnlock": "Unlock",
+  "photosVaultUnlockReason": "Open your vault",
+  "photosVaultUsePin": "Use PIN",
+  "photosVaultPinTitle": "Enter PIN",
+  "photosVaultWrongPin": "That PIN doesn't work.",
+  "photosVaultCancelled": "The vault stayed locked.",
+  "photosVaultFailed": "The vault can't be opened. Its key is no longer available.",
+  "photosVaultUnavailable": "Set a screen lock, fingerprint or face unlock on this device to use the vault.",
+  "photosVaultNotSupported": "The vault isn't available on this device yet.",
+  "photosVaultLock": "Lock",
+  "photosVaultAdd": "Add photos",
+  "photosVaultEmptyTitle": "The vault is empty",
+  "photosVaultEmptyMessage": "Move photos here from the viewer menu or from a selection, or add them with the plus button.",
+  "photosVaultMove": "Move to vault",
+  "photosVaultMoveTitle": "{count, plural, =1{Move this photo to the vault?} other{Move {count} photos to the vault?}}",
+  "@photosVaultMoveTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoveBody": "They are encrypted and taken out of the gallery, the timeline and every other app. The originals are deleted from where they are now.",
+  "photosVaultMoveConfirm": "Move",
+  "photosVaultMoved": "{count, plural, =1{1 photo is in the vault.} other{{count} photos are in the vault.}}",
+  "@photosVaultMoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoveFailed": "{count, plural, =1{1 photo could not be moved and stays where it was.} other{{count} photos could not be moved and stay where they were.}}",
+  "@photosVaultMoveFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultNoVideos": "Videos can't go in the vault yet.",
+  "photosVaultAdded": "{count, plural, =1{1 photo added.} other{{count} photos added.}}",
+  "@photosVaultAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultTakeOut": "Take out",
+  "photosVaultTakenOut": "{count, plural, =1{1 photo taken out of the vault.} other{{count} photos taken out of the vault.}}",
+  "@photosVaultTakenOut": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultDeleteForever": "Delete for good",
+  "photosVaultDeleteConfirm": "{count, plural, =1{Delete this photo for good? This can't be undone.} other{Delete these {count} photos for good? This can't be undone.}}",
+  "@photosVaultDeleteConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultOpenFailed": "This photo can't be opened.",
+  "photosVaultDecoy": "Decoy vault",
+  "photosVaultDecoyBody": "A second, separate vault that opens with a PIN instead of your fingerprint. Show it if someone makes you open the vault. It stays off until you set it up.",
+  "photosVaultDecoyCreate": "Set up with a PIN",
+  "photosVaultDecoyPin": "PIN, 4 to 12 digits",
+  "photosVaultDecoyPinRepeat": "Repeat the PIN",
+  "photosVaultDecoyMismatch": "The two PINs differ.",
+  "photosVaultDecoyShort": "Use 4 to 12 digits.",
+  "photosVaultDecoyRemove": "Remove the decoy vault",
+  "photosVaultDecoyRemoveConfirm": "The decoy vault and everything in it will be deleted.",
+  "photosVaultDecoyReady": "Decoy vault ready. Use PIN on the lock screen opens it.",
+  "photosVaultInfoTaken": "Taken {date}",
+  "@photosVaultInfoTaken": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

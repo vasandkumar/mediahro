@@ -8,12 +8,13 @@ import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/trash_screen.dart';
+import 'package:mediahro/features/photos/vault/vault_screen.dart';
 import 'package:mediahro/features/settings/settings_providers.dart'
     show settingsStoreProvider;
 import 'package:mediahro/platform/imaging.dart';
 
 /// What the output menu can do to the photos in front of the user.
-enum OutputAction { share, wallpaper, print, copy, delete }
+enum OutputAction { share, wallpaper, print, copy, vault, delete }
 
 /// The items of the output menu for [support]: share and copy always, the
 /// rest where the OS offers them.
@@ -25,6 +26,7 @@ List<OutputAction> outputActionsFor(
   if (single && support.wallpaperTargets.isNotEmpty) OutputAction.wallpaper,
   if (support.print) OutputAction.print,
   if (single) OutputAction.copy,
+  OutputAction.vault,
   OutputAction.delete,
 ];
 
@@ -33,6 +35,7 @@ String outputActionLabel(AppLocalizations l10n, OutputAction a) => switch (a) {
   OutputAction.wallpaper => l10n.photosWallpaper,
   OutputAction.print => l10n.photosPrint,
   OutputAction.copy => l10n.photosCopyImage,
+  OutputAction.vault => l10n.photosVaultMove,
   OutputAction.delete => l10n.photosMoveToTrash,
 };
 
@@ -52,6 +55,10 @@ Future<void> runOutputAction(
       await printFlow(context, ref, photos);
     case OutputAction.copy:
       await copyFlow(context, ref, photos.first);
+    case OutputAction.vault:
+      if (await moveToVaultFlow(context, ref, photos) && context.mounted) {
+        await Navigator.of(context).maybePop();
+      }
     case OutputAction.delete:
       if (await deletePhotosFlow(context, ref, photos) && context.mounted) {
         await Navigator.of(context).maybePop();
