@@ -37,7 +37,22 @@ plugins {
 // mediahroNativeLibs=libvips.so,libsmb2.so in app/android/gradle.properties.
 // Without either source the plugin builds and the engine reports libraryMissing.
 val mediahroDeps = file("$projectDir/../../../.deps-cache").canonicalFile
-val mediahroAbis = listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+// Only the ABIs this build targets: Flutter passes -Ptarget-platform (e.g.
+// android-x64 for an emulator run, all three for release builds and ABI
+// splits). Without it every ABI with libraries in .deps-cache is staged.
+val mediahroAbis =
+    (findProperty("target-platform") as String?)
+        ?.split(',')
+        ?.mapNotNull {
+            when (it.trim()) {
+                "android-arm64" -> "arm64-v8a"
+                "android-arm" -> "armeabi-v7a"
+                "android-x64" -> "x86_64"
+                else -> null
+            }
+        }
+        ?.takeIf { it.isNotEmpty() }
+        ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64")
 val mediahroRoots =
     listOf("libmpv.so") +
         (findProperty("mediahroNativeLibs") as String?)
@@ -99,6 +114,7 @@ fun closure(dir: File, roots: List<String>): Set<String> {
 val stageLibmpv =
     tasks.register<Sync>("mediahroStageLibmpv") {
         inputs.property("roots", mediahroRoots)
+        inputs.property("abis", mediahroAbis)
         for (abi in mediahroAbis) {
             val src =
                 listOf(File(mediahroDeps, "android-$abi/lib"), File(mediahroDeps, "bootstrap/android-$abi/lib"))
