@@ -47,9 +47,12 @@ services:
     ports: ["21:21", "21100-21110:21100-21110"]
     volumes: ["./data/media:/srv/media"]
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "21"]
+      # IPv4 literal: listen=YES binds IPv4 only, and "localhost" may be ::1.
+      # The greeting proves vsftpd answers, not just that the port is open.
+      test: ["CMD-SHELL", "printf 'QUIT\r\n' | nc -w 3 127.0.0.1 21 | grep -q '^220'"]
       interval: 2s
       retries: 30
+      start_period: 5s
 
   ftps-implicit:
     build: ./vsftpd
@@ -57,9 +60,11 @@ services:
     ports: ["990:990", "21111-21120:21111-21120"]
     volumes: ["./data/media:/srv/media"]
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "990"]
+      # Implicit TLS: the greeting is inside TLS, so the port is the signal.
+      test: ["CMD", "nc", "-z", "127.0.0.1", "990"]
       interval: 2s
       retries: 30
+      start_period: 5s
 
   sftp:
     build: ./sftp
@@ -68,7 +73,7 @@ services:
       - "./data/media:/srv/media"
       - "./data/ssh/authorized_keys:/home/test/.ssh/authorized_keys:ro"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "22"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "22"]
       interval: 2s
       retries: 30
 
