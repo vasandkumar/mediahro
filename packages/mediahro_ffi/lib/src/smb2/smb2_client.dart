@@ -8,6 +8,7 @@ import 'package:mediahro_ffi/src/native/posix.dart';
 import 'package:mediahro_ffi/src/smb2/smb2_bindings.dart';
 import 'package:mediahro_ffi/src/vfs/isolate_file_system.dart';
 import 'package:mediahro_ffi/src/vfs/virtual_file.dart';
+import 'package:meta/meta.dart';
 
 /// Connection options for an SMB2/3 share (NET-001).
 final class SmbOptions {
@@ -106,12 +107,16 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
       if (user != null) {
         _b.smb2_set_user(_ctx, user.toNativeUtf8(allocator: a).cast());
       }
-      _b.smb2_set_password(
-        _ctx,
-        (options.guest ? '' : options.password ?? '')
-            .toNativeUtf8(allocator: a)
-            .cast(),
-      );
+      // Guest: no password at all. libsmb2 sends an anonymous NTLMSSP
+      // (null session) only when the password is NULL; an empty string makes
+      // it authenticate as "Guest" with a derived session key and sign with
+      // it, which servers that granted a key-less guest session reject.
+      if (!options.guest) {
+        _b.smb2_set_password(
+          _ctx,
+          (options.password ?? '').toNativeUtf8(allocator: a).cast(),
+        );
+      }
       final server = options.port == null
           ? options.server
           : '${options.server}:${options.port}';
@@ -123,8 +128,16 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
       );
       if (rc < 0) {
         final err = _error();
+        // A fresh context: its NT status is this connect's. libsmb2 turns
+        // NT statuses into errno lossily (LOGON_FAILURE is not EACCES), so
+        // map the status itself first.
+        final nt = _b.smb2_get_nterror(_ctx) & 0xffffffff;
         _b.smb2_destroy_context(_ctx);
-        throw VirtualFileException(_map(rc, connect: true), _uri(''), err);
+        throw VirtualFileException(
+          smbNtStatusError(nt, connect: true) ?? _map(rc, connect: true),
+          _uri(''),
+          err,
+        );
       }
     });
     _maxRead = _b.smb2_get_max_read_size(_ctx).clamp(64 * 1024, 8 << 20);
@@ -390,6 +403,46 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
     if (s.contains('DISK_FULL')) return VirtualFileError.noSpace;
     return VirtualFileError.io;
   }
+}
+
+/// NT statuses that mean the credentials (or the account) were refused.
+const Set<int> _ntLogonRefused = {
+  0xC000006D, // LOGON_FAILURE
+  0xC000006A, // WRONG_PASSWORD
+  0xC0000064, // NO_SUCH_USER
+  0xC000006E, // ACCOUNT_RESTRICTION
+  0xC000006F, // INVALID_LOGON_HOURS
+  0xC0000070, // INVALID_WORKSTATION
+  0xC0000071, // PASSWORD_EXPIRED
+  0xC0000072, // ACCOUNT_DISABLED
+  0xC0000193, // ACCOUNT_EXPIRED
+  0xC0000224, // PASSWORD_MUST_CHANGE
+  0xC0000234, // ACCOUNT_LOCKED_OUT
+  0xC000015B, // LOGON_TYPE_NOT_GRANTED
+};
+
+/// [VirtualFileError] for an SMB NT status, or null when it says nothing
+/// more than the errno would. [connect]: the status came from negotiate,
+/// session setup or tree connect, where ACCESS_DENIED means "not with
+/// these credentials".
+@visibleForTesting
+VirtualFileError? smbNtStatusError(int status, {bool connect = false}) {
+  if (_ntLogonRefused.contains(status)) {
+    return VirtualFileError.authenticationRequired;
+  }
+  return switch (status) {
+    0xC0000022 => // ACCESS_DENIED
+      connect
+          ? VirtualFileError.authenticationRequired
+          : VirtualFileError.permissionDenied,
+    0xC00000CC || // BAD_NETWORK_NAME (no such share)
+    0xC0000034 || // OBJECT_NAME_NOT_FOUND
+    0xC000003A || // OBJECT_PATH_NOT_FOUND
+    0xC000000F => VirtualFileError.notFound, // NO_SUCH_FILE
+    0xC0000035 => VirtualFileError.alreadyExists, // OBJECT_NAME_COLLISION
+    0xC000007F => VirtualFileError.noSpace, // DISK_FULL
+    _ => null,
+  };
 }
 
 /// `smb://[domain;user@]server[:port]/share/path` as an [IsolateFileSystem].
