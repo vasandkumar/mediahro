@@ -293,6 +293,7 @@ WorkerHandler defaultImageWorker() {
   } on NativeLibraryUnavailable {
     // LibRaw missing.
   }
+  codecs.add(const SmallFormatsPixelCodec());
   return imageJobHandler(CompositePixelCodec(codecs));
 }
 

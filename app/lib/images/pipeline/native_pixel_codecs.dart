@@ -5,6 +5,7 @@ import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
 import 'package:mediahro/images/pipeline/pixel_ops.dart';
+import 'package:mediahro/images/pipeline/small_decoders.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 /// The whole file as bytes (these libraries decode from memory).
@@ -231,4 +232,70 @@ final class RawPixelCodec implements PixelCodec {
   @override
   Uint8List encode(PixelFrame image, EncodeFormat format, int quality) =>
       throw const CodecUnsupported('RAW is read-only');
+}
+
+/// QOI, TGA, PNM, PSD and DDS in plain Dart (IMG-001); always available.
+final class SmallFormatsPixelCodec implements PixelCodec {
+  const SmallFormatsPixelCodec();
+
+  static const Set<ImageFormat> formats = {
+    ImageFormat.qoi,
+    ImageFormat.tga,
+    ImageFormat.pnm,
+    ImageFormat.psd,
+    ImageFormat.dds,
+  };
+
+  @override
+  String get name => 'small';
+
+  @override
+  bool canRead(ImageFormat format) => formats.contains(format);
+
+  @override
+  bool canWrite(EncodeFormat format) => false;
+
+  PixelFrame _decode(ImageInput input, ImageFormat format) {
+    final b = _bytes(input);
+    return switch (format) {
+      ImageFormat.qoi => decodeQoi(b),
+      ImageFormat.tga => decodeTga(b),
+      ImageFormat.pnm => decodePnm(b),
+      ImageFormat.psd => decodePsd(b),
+      ImageFormat.dds => decodeDds(b),
+      _ => throw CodecUnsupported('small decoders do not read $format'),
+    };
+  }
+
+  @override
+  PixelHeader header(ImageInput input, ImageFormat format) {
+    final f = _decode(input, format);
+    return PixelHeader(width: f.width, height: f.height);
+  }
+
+  @override
+  PixelFrame thumbnail(ImageInput input, int edge, ImageFormat format) {
+    final f = _decode(input, format);
+    final t = downscaleToEdge(f, edge);
+    return PixelFrame(
+      width: t.width,
+      height: t.height,
+      rgba: t.rgba,
+      sourceWidth: f.width,
+      sourceHeight: f.height,
+    );
+  }
+
+  @override
+  PixelFrame decode(
+    ImageInput input,
+    ImageFormat format, {
+    ImageRegion? region,
+    double scale = 1,
+    int frame = 0,
+  }) => regionAndScale(_decode(input, format), region, scale);
+
+  @override
+  Uint8List encode(PixelFrame image, EncodeFormat format, int quality) =>
+      throw const CodecUnsupported('these formats are read-only');
 }
