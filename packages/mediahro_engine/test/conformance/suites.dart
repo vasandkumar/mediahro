@@ -4,6 +4,7 @@ import 'api_additions.dart';
 import 'audio.dart';
 import 'cast.dart';
 import 'disc.dart';
+import 'stall.dart';
 import 'subtitles.dart';
 import 'vid_formats.dart';
 import 'vid_hdr.dart';
@@ -15,6 +16,7 @@ import 'vid_playback.dart';
 void runConformanceSuites() {
   vidFormatsSuite();
   vidPlaybackSuite();
+  decoderStallSuite();
   discSuite();
   discImageSuite();
   vidHdrSuite();
