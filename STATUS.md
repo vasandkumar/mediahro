@@ -424,6 +424,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Rotation: C1 paused with its work committed locally; **B4a resumed** for the FFmpeg component-name fix (movtext, ccaption), CLD3 and Bergamot for Android (C1's shims), and v2026.10.5 plus the Android deps.lock pin. Running: C4a, B1, B4a. |
 | 2026-10-20 | Merged C1 **#60** (our own film-grain shader under the app licence as the 8th built-in preset; app/assets/shaders/SOURCES.md with source, licence and SHA-256 for every file, both as-downloaded and stored LF hashes). Verified at ee8aea3: tools/check 617, clean. |
 | 2026-10-20 | Merged C4a **#59** (Android thermal level + battery saver, ADR-033). Verified at 5ca251b: tools/check 617, clean. |
 | 2026-10-20 | Merged C1 **#57** (ADR-034 text services: Tesseract, CLD3 and Bergamot bindings via our C shims, one TextWorker isolate, OpenTextRecognition and OpenTranslation with an English pivot and consent-gated downloads) and **#58** (11 Anime4K v4.0.1 files + FSR.glsl + licences, 788 KB). Wiring: pubspec `assets/shaders/`, `registerShaderLicences()` in main.dart; text_services.dart docs updated to ADR-034. Verified: tools/check 616, clean. Next for B4a: build the CLD3 and Bergamot shims (notes/c1-text-shims.md); for C4a/b/c: add `...openTextServiceOverrides()` to bindings. |
