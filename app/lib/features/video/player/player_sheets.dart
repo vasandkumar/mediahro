@@ -9,6 +9,7 @@ import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
@@ -235,6 +236,37 @@ Future<void> showSubtitleSheet(
             onTap: () {
               Navigator.of(sheetContext).pop();
               unawaited(showCharsetSheet(player, c));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.speed_rounded),
+            title: Text(l.videoSubSpeedTitle),
+            subtitle: Text(subtitleSpeedLabel(l, c.subtitleSpeed)),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              unawaited(showSubtitleSpeedSheet(player, c));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.subtitles_outlined),
+            title: Text(l.videoSubSecondaryTitle),
+            subtitle: Text(switch (c
+                .tracksOf(TrackType.subtitle)
+                .indexed
+                .where((e) => e.$2.id == c.state.secondarySubtitleTrackId)
+                .firstOrNull) {
+              final (int, Track) e? => trackLabel(l, e.$2, e.$1),
+              null => l.videoSubtitlesOff,
+            }),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              unawaited(
+                showSecondarySubtitleSheet(
+                  player,
+                  c,
+                  label: (t, i) => trackLabel(l, t, i),
+                ),
+              );
             },
           ),
           const Divider(),

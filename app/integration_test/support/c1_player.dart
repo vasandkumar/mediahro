@@ -15,6 +15,7 @@ import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -104,6 +105,14 @@ Future<(RecordingEngine, SettingsStore)> pumpPlayer(
 
 Finder iconButton(String label) =>
     find.byWidgetPredicate((w) => w is KIconButton && w.label == label);
+
+/// Scrolls [f] into view (sheets are taller than a landscape phone) and
+/// taps it.
+Future<void> tapVisible(WidgetTester tester, Finder f) async {
+  await tester.ensureVisible(f);
+  await tester.pumpAndSettle();
+  await tester.tap(f);
+}
 
 Future<void> doubleTapAt(WidgetTester tester, Offset at) async {
   await tester.tapAt(at);
@@ -254,7 +263,7 @@ void videoPlayerSuite({
     await tester.tap(find.text('日本語'));
     await tester.pumpAndSettle();
     expect(engine.selections.last.$2, 2);
-    await tester.tap(find.text('Off'));
+    await tapVisible(tester, find.widgetWithText(RadioListTile<int>, 'Off'));
     await tester.pumpAndSettle();
     expect(engine.selections.last.$2, isNull);
   });
@@ -410,7 +419,7 @@ void videoPlayerSuite({
     await tester.tap(find.text('Subtitles'));
     await tester.pumpAndSettle();
     expect(find.text('Detect automatically'), findsOneWidget);
-    await tester.tap(find.text('Character encoding'));
+    await tapVisible(tester, find.text('Character encoding'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Cyrillic (Windows-1251)'),
@@ -440,7 +449,7 @@ void videoPlayerSuite({
     );
     await tester.tap(find.text('Subtitles'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add a subtitle file'));
+    await tapVisible(tester, find.text('Add a subtitle file'));
     // The file is written to the cache with real I/O: alternate real time
     // and frames until the track arrives.
     for (var i = 0; i < 20 && engine.externalTracks.isEmpty; i++) {
@@ -455,5 +464,50 @@ void videoPlayerSuite({
       engine.current.subtitleTrackId,
       engine.current.tracks.lastWhere((t) => t.type == TrackType.subtitle).id,
     );
+  });
+
+  playerTest('SUB-014 changing a subtitle setting restyles at once', (
+    tester,
+  ) async {
+    final (engine, store) = await pumpPlayer(tester);
+    store.set(SubtitleSettings.size, SubSize.huge);
+    await tester.pumpAndSettle();
+    expect(engine.styles.last.$1.scale, 2);
+    store.set(SubtitleSettings.background, SubBackground.box);
+    await tester.pumpAndSettle();
+    expect(
+      engine.styles.last.$1.borderStyle,
+      SubtitleBorderStyle.backgroundBox,
+    );
+  });
+
+  playerTest('SUB-015 the subtitle speed converts frame rates', (tester) async {
+    final (engine, _) = await pumpPlayer(tester);
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Subtitle speed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('From 23.976 to 25 fps'));
+    await tester.pumpAndSettle();
+    expect(engine.fake.subSpeed, closeTo(25 / 23.976, 1e-9));
+  });
+
+  playerTest('SUB-016 second subtitles: chosen in the sheet, drawn by the '
+      'player', (tester) async {
+    final (engine, _) = await pumpPlayer(tester);
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Second subtitles'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('日本語'));
+    await tester.pumpAndSettle();
+    expect(engine.selections.last, (
+      TrackType.subtitle,
+      2,
+      SubtitleSlot.secondary,
+    ));
+    engine.emit(engine.current.copyWith(secondarySubtitleText: 'こんにちは'));
+    await tester.pumpAndSettle();
+    expect(find.text('こんにちは'), findsOneWidget);
   });
 }
