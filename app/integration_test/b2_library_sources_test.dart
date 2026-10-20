@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
@@ -125,6 +126,50 @@ void main() {
       if (!Platform.isIOS && !Platform.isMacOS) {
         expect(r.compileOptions, contains('ENABLE_FTS5'));
       }
+    },
+  );
+
+  testWidgets(
+    'LIB-002/FILE-001 positional fd reads (SAF and MediaStore path) on the device',
+    (tester) async {
+      if (Platform.isWindows) {
+        return markTestSkipped(
+          'Windows hands out no fds (SAF and MediaStore are Android)',
+        );
+      }
+      final f = File('${media.path}/fd.bin')
+        ..writeAsBytesSync(List.generate(70000, (i) => i % 253));
+      // libc's own allocator: the app does not depend on package:ffi.
+      final libc = DynamicLibrary.process();
+      final cMalloc = libc
+          .lookupFunction<
+            Pointer<Uint8> Function(IntPtr),
+            Pointer<Uint8> Function(int)
+          >('malloc');
+      final cFree = libc
+          .lookupFunction<
+            Void Function(Pointer<Uint8>),
+            void Function(Pointer<Uint8>)
+          >('free');
+      final open = libc
+          .lookupFunction<
+            Int32 Function(Pointer<Uint8>, Int32),
+            int Function(Pointer<Uint8>, int)
+          >('open');
+      final bytes = utf8.encode(f.path);
+      final path = cMalloc(bytes.length + 1);
+      path.asTypedList(bytes.length + 1)
+        ..setAll(0, bytes)
+        ..[bytes.length] = 0;
+      final fd = open(path, 0); // O_RDONLY
+      cFree(path);
+      expect(fd, greaterThanOrEqualTo(0));
+      final io = PosixFdIo();
+      expect(io.size(fd), 70000);
+      expect(io.pread(fd, 69998, 10), [69998 % 253, 69999 % 253]);
+      expect(io.pread(fd, 65536, 3), [65536 % 253, 65537 % 253, 65538 % 253]);
+      expect(io.pread(fd, 70000, 4), isEmpty);
+      io.close(fd);
     },
   );
 

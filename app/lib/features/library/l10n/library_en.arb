@@ -57,6 +57,27 @@
   },
   "libraryDuplicates": "Duplicates",
   "libraryDuplicatesIntro": "Find copies across your sources. Nothing is deleted until you choose.",
+  "libraryExportAs": "Export as {format}",
+  "@libraryExportAs": {
+    "description": "format is a file type name such as M3U8, PLS or XSPF; not translated.",
+    "placeholders": {
+      "format": {
+        "type": "String",
+        "example": "M3U8"
+      }
+    }
+  },
+  "libraryExportPlaylist": "Export playlist",
+  "libraryExported": "Saved {name}.",
+  "@libraryExported": {
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Road trip.m3u8"
+      }
+    }
+  },
+  "libraryFilePickerUnavailable": "Files can't be picked or saved on this device yet.",
   "libraryFilterHdr": "HDR",
   "libraryFilterRated": "Rated",
   "libraryFilterResolution": "{resolution, select, sd{SD} hd{720p} fullHd{1080p} qhd{1440p} uhd{4K} uhd8k{8K} other{Resolution}}",
@@ -79,6 +100,8 @@
       }
     }
   },
+  "libraryImportFailed": "This playlist file could not be read.",
+  "libraryImportPlaylist": "Import playlist",
   "libraryKeepSuggestion": "Suggested to keep",
   "libraryKindLabel": "{kind, select, video{Video} audio{Music} image{Photos} playlist{Playlist} subtitle{Subtitles} archive{Archive} other{File}}",
   "@libraryKindLabel": {
@@ -131,6 +154,8 @@
   "libraryNoPlaylists": "No playlists yet.",
   "libraryNoQueues": "No queues yet.",
   "libraryOk": "OK",
+  "libraryOpenWith": "Open in another app",
+  "libraryOpenWithNone": "No app on this device can open this file.",
   "libraryParental": "Parental controls",
   "libraryParentalIntro": "Hide chosen sources and folders behind a PIN. Hidden items stay out of search and home rows.",
   "libraryParentalUnavailable": "Parental controls need secure storage, which this build does not have yet.",
@@ -197,6 +222,8 @@
     }
   },
   "librarySetPin": "Set PIN",
+  "libraryShare": "Share",
+  "libraryShareUnavailable": "Files on network sources can't be handed to other apps. Download them first.",
   "librarySmartPlaylist": "Smart playlist",
   "librarySort": "Sort",
   "librarySortBy": "{sort, select, name{Name} modified{Date} size{Size} fileType{Type} other{Name}}",

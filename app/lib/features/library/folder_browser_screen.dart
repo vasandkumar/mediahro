@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/files/batch.dart';
 import 'package:mediahro/core/files/file_operations.dart';
+import 'package:mediahro/core/files/picked_files.dart';
 import 'package:mediahro/core/index/media_kind.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/library/widgets.dart';
 import 'package:mediahro/features/sources/errors.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
@@ -153,11 +155,52 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
     );
   }
 
+  StorageFacade? get _storage {
+    try {
+      return ref.read(storageProvider);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// FILE-002 share / open in: hands the OS a URI other apps can read.
+  Future<void> _handOver({required bool openWith}) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final storage = _storage;
+    final uris = <Uri>[];
+    for (final u in _selected) {
+      if (await shareableUri(widget.fileSystem, u) case final s?) uris.add(s);
+    }
+    if (storage == null || uris.isEmpty || uris.length < _selected.length) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.libraryShareUnavailable)),
+      );
+      return;
+    }
+    try {
+      if (openWith) {
+        if (!await storage.openWith(uris.single)) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(l10n.libraryOpenWithNone)),
+          );
+        }
+      } else {
+        await storage.share(uris);
+      }
+    } on Exception {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.sourcesErrorIo)));
+    }
+  }
+
   Future<void> _delete() async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final uris = _selected.toList();
-    final local = uris.every((u) => u.scheme == 'file');
+    // Local files and device media go to the OS trash (undoable).
+    final local = uris.every(
+      (u) => u.scheme == 'file' || u.scheme == 'mediastore',
+    );
     var permanent = false;
     if (!local) {
       final ok = await showDialog<bool>(
@@ -290,6 +333,19 @@ class _FolderBrowserScreenState extends ConsumerState<FolderBrowserScreen> {
               )
             : null,
         actions: [
+          if (selecting) ...[
+            IconButton(
+              tooltip: l10n.libraryShare,
+              icon: const Icon(Icons.share_outlined),
+              onPressed: () => _handOver(openWith: false),
+            ),
+            if (_selected.length == 1)
+              IconButton(
+                tooltip: l10n.libraryOpenWith,
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () => _handOver(openWith: true),
+              ),
+          ],
           if (selecting && _mutable) ...[
             if (_selected.length == 1)
               IconButton(

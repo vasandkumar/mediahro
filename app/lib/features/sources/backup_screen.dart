@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/backup/backup_crypto.dart';
+import 'package:mediahro/core/files/picked_files.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -52,20 +53,22 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     }
     setState(() => _busy = true);
     try {
-      final folder = await storage.pickFolder();
-      if (folder == null) return;
       final bytes = await ref
           .read(backupServiceProvider)
           .export(_pass.text, includeCredentials: _credentials);
       final stamp = DateTime.now().toIso8601String().substring(0, 10);
-      final target = folder.uri.resolve(
-        Uri.encodeComponent('mediahro-backup-$stamp.mhrobackup'),
+      final name = 'mediahro-backup-$stamp.mhrobackup';
+      // The system save dialog: works in SAF trees, sandboxes and pickers.
+      final saved = await storage.saveFile(
+        suggestedName: name,
+        mimeType: 'application/octet-stream',
+        content: Stream.value(bytes),
       );
-      final w = await const LocalFileSystem().create(target);
-      await w.write(bytes);
-      await w.close();
-      setState(() => _message = l10n.sourcesBackupDone(folder.displayName));
+      if (saved == null) return;
+      setState(() => _message = l10n.sourcesBackupSaved(name));
     } on VirtualFileException {
+      setState(() => _message = l10n.sourcesErrorIo);
+    } on Exception {
       setState(() => _message = l10n.sourcesErrorIo);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -82,10 +85,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     try {
       final picked = await storage.pickFiles();
       if (picked.isEmpty) return;
-      final f = await const LocalFileSystem().open(picked.first.uri);
-      final len = await f.length() ?? 0;
-      final bytes = await f.read(0, len);
-      await f.close();
+      final bytes = await readPickedFile(
+        storage,
+        picked.first.uri,
+        io: ref.read(fdIoProvider),
+      );
       final r = await ref
           .read(backupServiceProvider)
           .restore(bytes, _pass.text);
@@ -96,6 +100,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           r.unmatchedItems,
         ),
       );
+    } on VirtualFileException {
+      setState(() => _message = l10n.sourcesErrorIo);
     } on BackupDecryptError catch (e) {
       setState(
         () => _message = e.reason == 'wrongPassphrase'

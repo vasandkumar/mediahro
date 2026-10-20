@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/files/file_systems.dart';
+import 'package:mediahro/core/files/media_store_file_system.dart';
 import 'package:mediahro/core/files/sidecars.dart';
 import 'package:mediahro/core/index/index_writer.dart';
 import 'package:mediahro/core/library/item_locator.dart';
@@ -20,7 +21,8 @@ final class DeleteResult {
     this.trash,
   });
 
-  /// Moved to the OS trash / Recycle Bin: undoable.
+  /// Moved to the OS trash / Recycle Bin / MediaStore trash: undoable.
+  /// These are the URIs the user browsed (`file:`, `mediastore:`).
   final List<Uri> trashed;
 
   /// Permanently deleted (network shares without a trash; the UI confirmed).
@@ -174,27 +176,31 @@ final class FileOperations {
     List<Uri> uris, {
     bool allowPermanent = false,
   }) async {
-    final local = [
+    // Local files and Android device media (its content URIs) have an OS
+    // trash; everything else is deleted permanently after confirmation.
+    final trashable = [
       for (final u in uris)
-        if (u.scheme == 'file') u,
+        if (u.scheme == 'file' || u.scheme == 'mediastore') u,
     ];
     final remote = [
       for (final u in uris)
-        if (u.scheme != 'file') u,
+        if (u.scheme != 'file' && u.scheme != 'mediastore') u,
     ];
     TrashResult? trash;
     final s = storage;
-    if (local.isNotEmpty) {
+    if (trashable.isNotEmpty) {
       if (s != null) {
-        trash = await s.moveToTrash(local);
-      } else if (!allowPermanent) {
+        trash = await s.moveToTrash([
+          for (final u in trashable) await _trashUri(u),
+        ]);
+      } else if (!allowPermanent || trashable.any((u) => u.scheme != 'file')) {
         throw VirtualFileException(
           VirtualFileError.unsupported,
-          local.first,
+          trashable.first,
           'no trash available',
         );
       } else {
-        for (final u in local) {
+        for (final u in trashable) {
           await _mutable(u).delete(u, recursive: true);
         }
       }
@@ -209,16 +215,28 @@ final class FileOperations {
     for (final u in remote) {
       await _mutable(u).delete(u, recursive: true);
     }
-    await _markMissing([
-      ...?trash?.trashed,
-      ...remote,
-      if (s == null) ...local,
-    ]);
+    final trashed = trash == null ? const <Uri>[] : trashable;
+    await _markMissing([...trashed, ...remote, if (s == null) ...trashable]);
     return DeleteResult(
-      trashed: trash?.trashed ?? const [],
-      deleted: [...remote, if (s == null) ...local],
+      trashed: trashed,
+      deleted: [...remote, if (s == null) ...trashable],
       trash: trash,
     );
+  }
+
+  /// What the OS trash takes for [u]: the file itself, or a device-media
+  /// entry's content URI.
+  Future<Uri> _trashUri(Uri u) async {
+    if (u.scheme != 'mediastore') return u;
+    final fs = fileSystems.forUri(u);
+    if (fs is! MediaStoreFileSystem) {
+      throw VirtualFileException(
+        VirtualFileError.unsupported,
+        u,
+        'not mounted',
+      );
+    }
+    return await fs.contentUri(u);
   }
 
   Future<void> undoDelete(DeleteResult result) async {
@@ -226,7 +244,7 @@ final class FileOperations {
     final s = storage;
     if (t == null || s == null) return;
     await s.restoreFromTrash(t);
-    for (final u in t.trashed) {
+    for (final u in result.trashed) {
       final item = await _locator.itemFor(u);
       if (item != null) {
         await (db.update(db.items)..where((i) => i.id.equals(item.id))).write(

@@ -113,6 +113,17 @@ void main() {
       expect(find.text('Add a server'), findsOneWidget);
       await tester.tap(find.text('Add source'));
       await tester.pumpAndSettle();
+      // Flutter tests run as Android: device media (MediaStore) is offered.
+      expect(find.text('Device media'), findsOneWidget);
+      final sheet = find.descendant(
+        of: find.byType(BottomSheet),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Media server on this network'),
+        100,
+        scrollable: sheet,
+      );
       expect(find.text('Media server on this network'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Open URL'),

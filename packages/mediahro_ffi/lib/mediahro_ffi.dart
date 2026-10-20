@@ -38,6 +38,7 @@ export 'src/nfs/nfs_client.dart'
         nfsFindLocalServers;
 export 'src/smb2/smb2_client.dart';
 export 'src/uchardet/charset_detector.dart';
+export 'src/vfs/fd_io.dart';
 export 'src/vfs/isolate_file_system.dart';
 export 'src/vfs/local_file_system.dart';
 export 'src/vfs/virtual_file.dart';

@@ -3,6 +3,8 @@
   "sourcesAdd": "Add source",
   "sourcesAddCloud": "Cloud drive",
   "sourcesAddCloudHint": "Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk",
+  "sourcesAddDeviceMedia": "Device media",
+  "sourcesAddDeviceMediaHint": "Videos and music saved on this device",
   "sourcesAddDlna": "Media server on this network",
   "sourcesAddDlnaHint": "DLNA and UPnP servers, TVs and NAS boxes",
   "sourcesAddFolder": "Add a folder",
@@ -14,14 +16,6 @@
   "sourcesBackup": "Backup and restore",
   "sourcesBackupCredentials": "Include saved passwords",
   "sourcesBackupCredentialsHint": "They are stored inside the encrypted file. Leave this off to type them again after restoring.",
-  "sourcesBackupDone": "Backup saved to {folder}.",
-  "@sourcesBackupDone": {
-    "placeholders": {
-      "folder": {
-        "type": "String"
-      }
-    }
-  },
   "sourcesBackupExport": "Back up",
   "sourcesBackupIntro": "Save playback positions, playlists, ratings, tags and settings to one encrypted file. Restore it on any device.",
   "sourcesBackupInvalid": "This file is not a Mediahro backup.",
@@ -30,10 +24,20 @@
   "sourcesBackupPassRepeat": "Repeat passphrase",
   "sourcesBackupPassShort": "Use at least 8 characters.",
   "sourcesBackupRestore": "Restore",
+  "sourcesBackupSaved": "Backup saved as {name}.",
+  "@sourcesBackupSaved": {
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "mediahro-backup-2026-10-20.mhrobackup"
+      }
+    }
+  },
   "sourcesBackupWrongPass": "Wrong passphrase, or the file is damaged.",
   "sourcesBrowse": "Browse files",
   "sourcesCancel": "Cancel",
   "sourcesCredentialsNote": "Passwords are kept in this device's secure storage, never in the library file.",
+  "sourcesDeviceMediaName": "Device media",
   "sourcesDiscoveredVia": "{protocol} · {host}",
   "@sourcesDiscoveredVia": {
     "placeholders": {
@@ -137,6 +141,7 @@
     }
   },
   "sourcesLoadError": "Couldn't load your sources.",
+  "sourcesMediaPermissionDenied": "Mediahro can't see the videos and music on this device. Allow access in Settings, then try again.",
   "sourcesMore": "More",
   "sourcesName": "Name (optional)",
   "sourcesNothingFound": "Nothing found yet. You can enter the address below.",

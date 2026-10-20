@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/files/picked_files.dart';
 import 'package:mediahro/core/library/playlists.dart';
+import 'package:mediahro/core/parsers/playlist_parser.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/smart_rule.dart';
 import 'package:mediahro/features/library/widgets.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// Manual and smart playlists (LIB-007).
@@ -54,6 +58,43 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
     setState(() {});
   }
 
+  /// LIB-007 import: M3U/M3U8/PLS/XSPF/CUE from the system picker.
+  Future<void> _import() async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final storage = _storage(ref);
+    if (storage == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.libraryFilePickerUnavailable)),
+      );
+      return;
+    }
+    try {
+      final picked = await storage.pickFiles(kinds: const {PickKind.playlist});
+      if (picked.isEmpty) return;
+      final file = picked.first;
+      final format = playlistFormatFor(file.name);
+      if (format == null) throw const PlaylistFormatException('format');
+      final bytes = await readPickedFile(
+        storage,
+        file.uri,
+        maxBytes: maxPlaylistBytes,
+        io: ref.read(fdIoProvider),
+      );
+      final dot = file.name.lastIndexOf('.');
+      await ref
+          .read(playlistRepositoryProvider)
+          .import(
+            dot > 0 ? file.name.substring(0, dot) : file.name,
+            bytes,
+            format,
+          );
+      if (mounted) setState(() {});
+    } on Exception {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.libraryImportFailed)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -62,6 +103,11 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen> {
       appBar: AppBar(
         title: Text(l10n.libraryPlaylists),
         actions: [
+          IconButton(
+            tooltip: l10n.libraryImportPlaylist,
+            icon: const Icon(Icons.file_open_outlined),
+            onPressed: _import,
+          ),
           IconButton(
             tooltip: l10n.libraryNewSmartPlaylist,
             icon: const Icon(Icons.auto_awesome_outlined),
@@ -134,6 +180,42 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
     if (mounted) setState(() => _tracks = t);
   }
 
+  /// LIB-007 export through the system save dialog.
+  Future<void> _export(PlaylistFormat format) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final storage = _storage(ref);
+    if (storage == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.libraryFilePickerUnavailable)),
+      );
+      return;
+    }
+    final text = await ref
+        .read(playlistRepositoryProvider)
+        .export(widget.playlist.id, format);
+    final (ext, mime) = switch (format) {
+      PlaylistFormat.pls => ('pls', 'audio/x-scpls'),
+      PlaylistFormat.xspf => ('xspf', 'application/xspf+xml'),
+      _ => ('m3u8', 'application/vnd.apple.mpegurl'),
+    };
+    final name = '${widget.playlist.name}.$ext';
+    try {
+      final saved = await storage.saveFile(
+        suggestedName: name,
+        mimeType: mime,
+        content: Stream.value(utf8.encode(text)),
+      );
+      if (saved != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.libraryExported(name))),
+        );
+      }
+    } on Exception {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.sourcesErrorIo)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -144,6 +226,22 @@ class _PlaylistScreenState extends ConsumerState<PlaylistScreen> {
       appBar: AppBar(
         title: Text(widget.playlist.name),
         actions: [
+          PopupMenuButton<PlaylistFormat>(
+            tooltip: l10n.libraryExportPlaylist,
+            icon: const Icon(Icons.ios_share),
+            onSelected: _export,
+            itemBuilder: (_) => [
+              for (final (f, label) in const [
+                (PlaylistFormat.m3u, 'M3U8'),
+                (PlaylistFormat.pls, 'PLS'),
+                (PlaylistFormat.xspf, 'XSPF'),
+              ])
+                PopupMenuItem(
+                  value: f,
+                  child: Text(l10n.libraryExportAs(label)),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: l10n.libraryDelete,
             icon: const Icon(Icons.delete_outline),
@@ -416,5 +514,13 @@ class _SmartRuleEditorState extends State<SmartRuleEditor> {
         ],
       ),
     );
+  }
+}
+
+StorageFacade? _storage(WidgetRef ref) {
+  try {
+    return ref.read(storageProvider);
+  } on Object {
+    return null;
   }
 }

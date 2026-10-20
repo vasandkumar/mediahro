@@ -29,6 +29,7 @@ import 'package:mediahro/core/sources/source_builders.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
 import 'package:mediahro/core/sources/url_open.dart';
 import 'package:mediahro/platform/platform_facades.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show FdIo, PosixFdIo;
 
 // Lane B2 core services. main.dart (orchestrator) overrides the three
 // roots after start-up: libraryDatabaseProvider (LibraryDatabase.open in
@@ -68,13 +69,42 @@ T? _optional<T>(T Function() read) {
 
 /// LAN discovery (NET-001, NET-005). C4 may wrap these to hold the Android
 /// multicast lock while they run; tests replace them.
-final shareDiscoveryProvider = Provider<Stream<DiscoveredShare> Function()>(
-  (ref) => discoverShares,
-);
-final mediaServerDiscoveryProvider = Provider<Stream<UpnpDevice> Function()>(
-  (ref) =>
-      () => discoverMediaServers(HttpSession(ref.read(networkGatewayProvider))),
-);
+final shareDiscoveryProvider = Provider<Stream<DiscoveredShare> Function()>((
+  ref,
+) {
+  final multicast = _optional(() => ref.watch(multicastProvider));
+  return () => withMulticast(multicast, 'mediahro-discovery', discoverShares);
+});
+final mediaServerDiscoveryProvider = Provider<Stream<UpnpDevice> Function()>((
+  ref,
+) {
+  final multicast = _optional(() => ref.watch(multicastProvider));
+  return () => withMulticast(
+    multicast,
+    'mediahro-ssdp',
+    () => discoverMediaServers(HttpSession(ref.read(networkGatewayProvider))),
+  );
+});
+
+/// Runs [discover] while holding a multicast lease (Android drops
+/// multicast on Wi-Fi without the lock); released when the stream ends or
+/// its listener cancels.
+Stream<T> withMulticast<T>(
+  MulticastFacade? multicast,
+  String tag,
+  Stream<T> Function() discover,
+) async* {
+  final lease = await multicast?.acquire(tag);
+  try {
+    yield* discover();
+  } finally {
+    await lease?.release();
+  }
+}
+
+/// Positional I/O on fds the platform hands out (Android SAF, MediaStore,
+/// picked `content://` files); tests replace it.
+final fdIoProvider = Provider<FdIo>((ref) => PosixFdIo());
 
 final mountsProvider = Provider<MountedFileSystems>(
   (ref) => MountedFileSystems(),
@@ -85,6 +115,8 @@ final sourceResolverProvider = Provider<SourceResolver>(
     builders: defaultFileSystemBuilders(
       tls: _optional(() => ref.watch(tlsSocketProvider)),
       sftp: _optional(() => ref.watch(sftpProvider)),
+      storage: _optional(() => ref.watch(storageProvider)),
+      fdIo: ref.watch(fdIoProvider),
     ),
     storage: _optional(() => ref.watch(storageProvider)),
     secureStorage: _optional(() => ref.watch(secureStorageProvider)),

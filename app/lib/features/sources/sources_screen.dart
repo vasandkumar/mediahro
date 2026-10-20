@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -132,6 +133,28 @@ Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
   }
 }
 
+/// Device media (LIB-002 Android): MediaStore video and audio as a source.
+Future<void> _addDeviceMedia(BuildContext context, WidgetRef ref) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final id = await ref
+        .read(sourceRepositoryProvider)
+        .addDeviceMedia(l10n.sourcesDeviceMediaName);
+    if (id == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.sourcesMediaPermissionDenied)),
+      );
+    } else {
+      unawaited(ref.read(scanServiceProvider).scan(id));
+    }
+  } on PlatformCapabilityUnavailable {
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.sourcesFolderPickerUnavailable)),
+    );
+  }
+}
+
 void _addShare(BuildContext context) =>
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const AddShareScreen()));
@@ -159,6 +182,13 @@ Future<void> showAddSourceSheet(BuildContext context, WidgetRef ref) =>
                 subtitle: Text(l10n.sourcesAddFolderHint),
                 onTap: () => go(() => _addFolder(context, ref)),
               ),
+              if (defaultTargetPlatform == TargetPlatform.android)
+                ListTile(
+                  leading: const Icon(Icons.perm_media_outlined),
+                  title: Text(l10n.sourcesAddDeviceMedia),
+                  subtitle: Text(l10n.sourcesAddDeviceMediaHint),
+                  onTap: () => go(() => _addDeviceMedia(context, ref)),
+                ),
               ListTile(
                 leading: const Icon(Icons.lan_outlined),
                 title: Text(l10n.sourcesAddShare),

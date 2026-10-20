@@ -7,6 +7,7 @@ import 'package:mediahro/core/sources/discovery/ssdp.dart';
 import 'package:mediahro/core/sources/dlna/renderer.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 
 final class _Lan implements NetworkPolicy {
   @override
@@ -271,10 +272,56 @@ void main() {
     },
   );
 
+  test(
+    'NET-005 the renderer holds the multicast lease only while running',
+    () async {
+      final leases = <String>[];
+      var released = 0;
+      final r = DlnaRenderer(
+        friendlyName: 'Lease',
+        uuid: 'lease-1',
+        sink: sink,
+        gateway: gw,
+        ssdpListenPort: 0,
+        advertiseAddress: InternetAddress.loopbackIPv4,
+        multicast: _Multicast(leases.add, () => released++),
+      );
+      await r.start();
+      await r.start();
+      expect(leases, ['mediahro-dlna-renderer'], reason: 'one lease per run');
+      await r.stop();
+      expect(released, 1);
+      await r.stop();
+      expect(released, 1);
+    },
+  );
+
   test('NET-005 UPnP time format', () {
     expect(
       formatUpnpTime(const Duration(hours: 1, minutes: 2, seconds: 3)),
       '1:02:03',
     );
   });
+}
+
+final class _Multicast implements MulticastFacade {
+  _Multicast(this.onAcquire, this.onRelease);
+
+  final void Function(String) onAcquire;
+  final void Function() onRelease;
+
+  @override
+  Future<MulticastLease> acquire(String tag) async {
+    onAcquire(tag);
+    return _Lease(onRelease);
+  }
+}
+
+final class _Lease implements MulticastLease {
+  _Lease(this.onRelease);
+
+  final void Function() onRelease;
+
+  @override
+  Future<void> release() async => onRelease();
 }
