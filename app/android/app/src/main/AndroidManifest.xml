@@ -75,6 +75,21 @@
         <receiver
             android:name=".platform.media.AlarmReceiver"
             android:exported="false" />
+        <!-- Now-playing home-screen widget (MUS-012). -->
+        <receiver
+            android:name=".platform.widgets.NowPlayingWidget"
+            android:exported="true"
+            android:label="@string/mediahro_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/mediahro_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".platform.widgets.WidgetActionReceiver"
+            android:exported="false" />
         <!-- Android Auto media app (MUS-013). -->
         <meta-data
             android:name="com.google.android.gms.car.application"

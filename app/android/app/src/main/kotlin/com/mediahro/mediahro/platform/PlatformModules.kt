@@ -7,6 +7,7 @@ import com.mediahro.mediahro.pigeon.AlarmHostApi
 import com.mediahro.mediahro.pigeon.AlarmsFiredStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
 import com.mediahro.mediahro.pigeon.MediaBrowseFlutterApi
+import com.mediahro.mediahro.pigeon.HomeWidgetsHostApi
 import com.mediahro.mediahro.pigeon.MediaBrowseHostApi
 import com.mediahro.mediahro.pigeon.AuthBrowserHostApi
 import com.mediahro.mediahro.pigeon.MulticastHostApi
@@ -49,6 +50,7 @@ import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.sftp.SftpModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
 import com.mediahro.mediahro.platform.tls.TlsHub
+import com.mediahro.mediahro.platform.widgets.HomeWidgetsModule
 import com.mediahro.mediahro.platform.tls.TlsServerModule
 import com.mediahro.mediahro.platform.tls.TlsSocketModule
 import com.mediahro.mediahro.platform.storage.StorageModule
@@ -114,6 +116,7 @@ object PlatformModules {
 
         AlarmHostApi.setUp(messenger, AlarmModule(context.applicationContext, host))
         AlarmsFiredStreamHandler.register(messenger, AlarmHub.handler)
+        HomeWidgetsHostApi.setUp(messenger, HomeWidgetsModule(context.applicationContext))
 
         audio?.dispose()
         val audioModule = AudioOutputModule(context.applicationContext).also { audio = it }

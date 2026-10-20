@@ -4,4 +4,14 @@
 <resources>
     <!-- Notification channel and fallback title for wake alarms (MUS-011). -->
     <string name="mediahro_alarm_channel">Alarms</string>
+    <!-- Now-playing widget (MUS-012): name in the widget picker, idle text,
+         and accessibility labels for its controls. -->
+    <string name="mediahro_widget_name">Now playing</string>
+    <string name="mediahro_widget_description">Shows what is playing, with play, pause, next and previous.</string>
+    <string name="mediahro_widget_idle">Nothing playing</string>
+    <string name="mediahro_widget_artwork">Album art</string>
+    <string name="mediahro_widget_play">Play</string>
+    <string name="mediahro_widget_pause">Pause</string>
+    <string name="mediahro_widget_next">Next</string>
+    <string name="mediahro_widget_previous">Previous</string>
 </resources>

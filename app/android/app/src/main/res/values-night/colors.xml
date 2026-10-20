@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mediahro_widget_surface">#F21B1B1F</color>
+    <color name="mediahro_widget_text">#FFE4E1E6</color>
+    <color name="mediahro_widget_text_secondary">#FFC6C5D0</color>
+</resources>
