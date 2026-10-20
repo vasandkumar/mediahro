@@ -26,6 +26,28 @@ void main() {
     expect(has('SET_WALLPAPER_HINTS'), isFalse);
   });
 
+  test('SYS-011 large screens: resizable, no orientation or aspect locks', () {
+    expect(manifest.contains('android:resizeableActivity="true"'), isTrue);
+    // API 36 ignores these on large screens; the manifest never sets them.
+    expect(manifest.contains('android:screenOrientation'), isFalse);
+    expect(manifest.contains('android:maxAspectRatio'), isFalse);
+    expect(manifest.contains('android:minAspectRatio'), isFalse);
+    final changes = RegExp('android:configChanges="([^"]*)"')
+        .firstMatch(manifest)!
+        .group(1)!
+        .split('|');
+    // Fold, resize, rotate and density changes are handled without a restart.
+    for (final c in [
+      'orientation',
+      'screenSize',
+      'smallestScreenSize',
+      'screenLayout',
+      'density',
+    ]) {
+      expect(changes, contains(c));
+    }
+  });
+
   test('SYS-007 legacy storage permission stops at API 32', () {
     expect(
       RegExp(r'READ_EXTERNAL_STORAGE"\s+android:maxSdkVersion="32"')
