@@ -4,11 +4,17 @@ import android.content.Context
 import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.DisplayChangesStreamHandler
+import com.mediahro.mediahro.pigeon.DisplayHostApi
+import com.mediahro.mediahro.pigeon.PipHostApi
+import com.mediahro.mediahro.pigeon.PipStatesStreamHandler
 import com.mediahro.mediahro.pigeon.MediaSessionHostApi
 import com.mediahro.mediahro.pigeon.PhotoLibraryHostApi
 import com.mediahro.mediahro.pigeon.RemoteCommandsStreamHandler
 import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
+import com.mediahro.mediahro.platform.display.DisplayModule
+import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
 import com.mediahro.mediahro.platform.media.MediaSessionModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
@@ -24,6 +30,12 @@ object PlatformModules {
     @Volatile private var activityHost: ActivityHost? = null
     private var storage: StorageModule? = null
     private var session: MediaSessionModule? = null
+
+    private var display: DisplayModule? = null
+
+    /** The live PiP module (MainActivity forwards PiP callbacks to it). */
+    var pip: PipModule? = null
+        private set
 
     /** The live audio module (debug hooks drive its focus listener). */
     var audio: AudioOutputModule? = null
@@ -53,6 +65,15 @@ object PlatformModules {
         AudioOutputHostApi.setUp(messenger, audioModule)
         AudioDeviceChangesStreamHandler.register(messenger, audioModule.devicesHandler)
         AudioInterruptionsStreamHandler.register(messenger, audioModule.interruptionsHandler)
+
+        display?.dispose()
+        val displayModule = DisplayModule(context.applicationContext, host).also { display = it }
+        DisplayHostApi.setUp(messenger, displayModule)
+        DisplayChangesStreamHandler.register(messenger, displayModule.changesHandler)
+
+        val pipModule = PipModule(context.applicationContext, host).also { pip = it }
+        PipHostApi.setUp(messenger, pipModule)
+        PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
         debugHooks(host, engine)
     }
 

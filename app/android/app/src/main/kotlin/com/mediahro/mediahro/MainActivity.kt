@@ -1,5 +1,6 @@
 package com.mediahro.mediahro
 
+import android.content.res.Configuration
 import android.os.Bundle
 import com.mediahro.mediahro.platform.PlatformModules
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -23,6 +24,16 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         PlatformModules.host(applicationContext).attach(this)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        PlatformModules.pip?.onUserLeaveHint(this)
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        PlatformModules.pip?.onPictureInPictureModeChanged(isInPictureInPictureMode)
     }
 
     override fun onDestroy() {
