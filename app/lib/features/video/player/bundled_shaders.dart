@@ -6,6 +6,16 @@ import 'package:mediahro/features/video/player/video_render.dart';
 
 /// Where the bundled shaders live in the app's assets (ADR-034: only
 /// MIT-licensed shaders, with their licence notices next to them).
+///
+/// Sources (owner approved 2026-10-20; SHA-256 of the downloads):
+/// - Anime4K v4.0.1, `Anime4K_v4.0.zip` from github.com/bloc97/Anime4K
+///   releases (`139cd282…62d7ed7`), MIT © 2019 bloc97: only the files
+///   [bundledPresets] use; `LICENSE-Anime4K.txt` is the repository's
+///   LICENSE at v4.0.1 (`5bad448b…6953f5`).
+/// - `FSR.glsl`, AMD FidelityFX FSR 1.0.2 ported to mpv by agyild
+///   (gist 82219c54…, revision f1794d72; `56d8597f…16929b9e`), MIT
+///   © 2021 Advanced Micro Devices; `LICENSE-FSR.txt` is its header
+///   notice.
 const shaderAssetDir = 'assets/shaders';
 
 /// A built-in shader preset (VID-038): the GLSL files it chains, in order.
