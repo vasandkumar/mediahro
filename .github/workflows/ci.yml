@@ -301,7 +301,8 @@ jobs:
         working-directory: packages/mediahro_ffi
         run: dart run test/network/seed.dart test/network/data
       - name: NFS v3/v4 on the host (kernel nfsd)
-        run: sudo packages/mediahro_ffi/test/network/nfs_host.sh packages/mediahro_ffi/test/network/data
+        # sudo resets the environment; keep GITHUB_ENV so nfs_host.sh can export NFS_EXPORT.
+        run: sudo --preserve-env=GITHUB_ENV packages/mediahro_ffi/test/network/nfs_host.sh packages/mediahro_ffi/test/network/data
       - name: Start Samba, Apache WebDAV, Nextcloud, vsftpd (explicit + implicit FTPS), SFTP, MiniDLNA
         working-directory: packages/mediahro_ffi/test/network
         run: docker compose up -d --build --wait --wait-timeout 600
