@@ -2272,7 +2272,16 @@ mixin _$VideoFilterChain {
 
  ToneMapping get toneMapping; Scaler get scaler; bool get deband; Deinterlace get deinterlace; double get sharpen; double get brightness; double get contrast; double get saturation; double get gamma; double get hue;/// Clockwise degrees: 0, 90, 180, 270.
  int get rotate; bool get flipHorizontal; bool get flipVertical;/// e.g. 16/9; null keeps the container aspect.
- double? get aspectOverride; double get zoom; double get panX; double get panY; bool get interpolation;
+ double? get aspectOverride; double get zoom; double get panX; double get panY; bool get interpolation;/// VID-037: fractions of the frame cut from each edge (0…0.45 each).
+ ({double bottom, double left, double right, double top,})? get crop;/// VID-040 (M W): colour-manage to the display's ICC profile.
+ bool get iccAuto;/// VID-040: an explicit ICC profile (`file:` URI); wins over [iccAuto].
+ Uri? get iccProfile;/// VID-040: a 3D LUT file (`file:` URI, e.g. `.cube`) and how to read it.
+ Uri? get lut3d; Lut3dType get lutType;/// VID-041: stereoscopic 3D shown as 2D (one eye) or as red/cyan
+/// anaglyph.
+ StereoMode get stereo;/// VID-041: 360°/180° video shown as a flat view looking [yaw] degrees
+/// right and [pitch] degrees up with a horizontal field of view of
+/// [fov] degrees.
+ Projection get projection; double get yaw; double get pitch; double get fov;
 /// Create a copy of VideoFilterChain
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -2284,20 +2293,20 @@ $VideoFilterChainCopyWith<VideoFilterChain> get copyWith => _$VideoFilterChainCo
 @override
 bool operator ==(Object other) {
   final _this = this as VideoFilterChain;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is VideoFilterChain&&(identical(other.toneMapping, _this.toneMapping) || other.toneMapping == _this.toneMapping)&&(identical(other.scaler, _this.scaler) || other.scaler == _this.scaler)&&(identical(other.deband, _this.deband) || other.deband == _this.deband)&&(identical(other.deinterlace, _this.deinterlace) || other.deinterlace == _this.deinterlace)&&(identical(other.sharpen, _this.sharpen) || other.sharpen == _this.sharpen)&&(identical(other.brightness, _this.brightness) || other.brightness == _this.brightness)&&(identical(other.contrast, _this.contrast) || other.contrast == _this.contrast)&&(identical(other.saturation, _this.saturation) || other.saturation == _this.saturation)&&(identical(other.gamma, _this.gamma) || other.gamma == _this.gamma)&&(identical(other.hue, _this.hue) || other.hue == _this.hue)&&(identical(other.rotate, _this.rotate) || other.rotate == _this.rotate)&&(identical(other.flipHorizontal, _this.flipHorizontal) || other.flipHorizontal == _this.flipHorizontal)&&(identical(other.flipVertical, _this.flipVertical) || other.flipVertical == _this.flipVertical)&&(identical(other.aspectOverride, _this.aspectOverride) || other.aspectOverride == _this.aspectOverride)&&(identical(other.zoom, _this.zoom) || other.zoom == _this.zoom)&&(identical(other.panX, _this.panX) || other.panX == _this.panX)&&(identical(other.panY, _this.panY) || other.panY == _this.panY)&&(identical(other.interpolation, _this.interpolation) || other.interpolation == _this.interpolation));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is VideoFilterChain&&(identical(other.toneMapping, _this.toneMapping) || other.toneMapping == _this.toneMapping)&&(identical(other.scaler, _this.scaler) || other.scaler == _this.scaler)&&(identical(other.deband, _this.deband) || other.deband == _this.deband)&&(identical(other.deinterlace, _this.deinterlace) || other.deinterlace == _this.deinterlace)&&(identical(other.sharpen, _this.sharpen) || other.sharpen == _this.sharpen)&&(identical(other.brightness, _this.brightness) || other.brightness == _this.brightness)&&(identical(other.contrast, _this.contrast) || other.contrast == _this.contrast)&&(identical(other.saturation, _this.saturation) || other.saturation == _this.saturation)&&(identical(other.gamma, _this.gamma) || other.gamma == _this.gamma)&&(identical(other.hue, _this.hue) || other.hue == _this.hue)&&(identical(other.rotate, _this.rotate) || other.rotate == _this.rotate)&&(identical(other.flipHorizontal, _this.flipHorizontal) || other.flipHorizontal == _this.flipHorizontal)&&(identical(other.flipVertical, _this.flipVertical) || other.flipVertical == _this.flipVertical)&&(identical(other.aspectOverride, _this.aspectOverride) || other.aspectOverride == _this.aspectOverride)&&(identical(other.zoom, _this.zoom) || other.zoom == _this.zoom)&&(identical(other.panX, _this.panX) || other.panX == _this.panX)&&(identical(other.panY, _this.panY) || other.panY == _this.panY)&&(identical(other.interpolation, _this.interpolation) || other.interpolation == _this.interpolation)&&(identical(other.crop, _this.crop) || other.crop == _this.crop)&&(identical(other.iccAuto, _this.iccAuto) || other.iccAuto == _this.iccAuto)&&(identical(other.iccProfile, _this.iccProfile) || other.iccProfile == _this.iccProfile)&&(identical(other.lut3d, _this.lut3d) || other.lut3d == _this.lut3d)&&(identical(other.lutType, _this.lutType) || other.lutType == _this.lutType)&&(identical(other.stereo, _this.stereo) || other.stereo == _this.stereo)&&(identical(other.projection, _this.projection) || other.projection == _this.projection)&&(identical(other.yaw, _this.yaw) || other.yaw == _this.yaw)&&(identical(other.pitch, _this.pitch) || other.pitch == _this.pitch)&&(identical(other.fov, _this.fov) || other.fov == _this.fov));
 }
 
 
 @override
 int get hashCode {
   final _this = this as VideoFilterChain;
-  return Object.hash(runtimeType,_this.toneMapping,_this.scaler,_this.deband,_this.deinterlace,_this.sharpen,_this.brightness,_this.contrast,_this.saturation,_this.gamma,_this.hue,_this.rotate,_this.flipHorizontal,_this.flipVertical,_this.aspectOverride,_this.zoom,_this.panX,_this.panY,_this.interpolation);
+  return Object.hashAll([runtimeType,_this.toneMapping,_this.scaler,_this.deband,_this.deinterlace,_this.sharpen,_this.brightness,_this.contrast,_this.saturation,_this.gamma,_this.hue,_this.rotate,_this.flipHorizontal,_this.flipVertical,_this.aspectOverride,_this.zoom,_this.panX,_this.panY,_this.interpolation,_this.crop,_this.iccAuto,_this.iccProfile,_this.lut3d,_this.lutType,_this.stereo,_this.projection,_this.yaw,_this.pitch,_this.fov]);
 }
 
 @override
 String toString() {
   final _this = this as VideoFilterChain;
-  return 'VideoFilterChain(toneMapping: ${_this.toneMapping}, scaler: ${_this.scaler}, deband: ${_this.deband}, deinterlace: ${_this.deinterlace}, sharpen: ${_this.sharpen}, brightness: ${_this.brightness}, contrast: ${_this.contrast}, saturation: ${_this.saturation}, gamma: ${_this.gamma}, hue: ${_this.hue}, rotate: ${_this.rotate}, flipHorizontal: ${_this.flipHorizontal}, flipVertical: ${_this.flipVertical}, aspectOverride: ${_this.aspectOverride}, zoom: ${_this.zoom}, panX: ${_this.panX}, panY: ${_this.panY}, interpolation: ${_this.interpolation})';
+  return 'VideoFilterChain(toneMapping: ${_this.toneMapping}, scaler: ${_this.scaler}, deband: ${_this.deband}, deinterlace: ${_this.deinterlace}, sharpen: ${_this.sharpen}, brightness: ${_this.brightness}, contrast: ${_this.contrast}, saturation: ${_this.saturation}, gamma: ${_this.gamma}, hue: ${_this.hue}, rotate: ${_this.rotate}, flipHorizontal: ${_this.flipHorizontal}, flipVertical: ${_this.flipVertical}, aspectOverride: ${_this.aspectOverride}, zoom: ${_this.zoom}, panX: ${_this.panX}, panY: ${_this.panY}, interpolation: ${_this.interpolation}, crop: ${_this.crop}, iccAuto: ${_this.iccAuto}, iccProfile: ${_this.iccProfile}, lut3d: ${_this.lut3d}, lutType: ${_this.lutType}, stereo: ${_this.stereo}, projection: ${_this.projection}, yaw: ${_this.yaw}, pitch: ${_this.pitch}, fov: ${_this.fov})';
 }
 
 
@@ -2308,7 +2317,7 @@ abstract mixin class $VideoFilterChainCopyWith<$Res>  {
   factory $VideoFilterChainCopyWith(VideoFilterChain value, $Res Function(VideoFilterChain) _then) = _$VideoFilterChainCopyWithImpl;
 @useResult
 $Res call({
- ToneMapping toneMapping, Scaler scaler, bool deband, Deinterlace deinterlace, double sharpen, double brightness, double contrast, double saturation, double gamma, double hue, int rotate, bool flipHorizontal, bool flipVertical, double? aspectOverride, double zoom, double panX, double panY, bool interpolation
+ ToneMapping toneMapping, Scaler scaler, bool deband, Deinterlace deinterlace, double sharpen, double brightness, double contrast, double saturation, double gamma, double hue, int rotate, bool flipHorizontal, bool flipVertical, double? aspectOverride, double zoom, double panX, double panY, bool interpolation, ({double bottom, double left, double right, double top,})? crop, bool iccAuto, Uri? iccProfile, Uri? lut3d, Lut3dType lutType, StereoMode stereo, Projection projection, double yaw, double pitch, double fov
 });
 
 
@@ -2325,7 +2334,7 @@ class _$VideoFilterChainCopyWithImpl<$Res>
 
 /// Create a copy of VideoFilterChain
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? toneMapping = null,Object? scaler = null,Object? deband = null,Object? deinterlace = null,Object? sharpen = null,Object? brightness = null,Object? contrast = null,Object? saturation = null,Object? gamma = null,Object? hue = null,Object? rotate = null,Object? flipHorizontal = null,Object? flipVertical = null,Object? aspectOverride = freezed,Object? zoom = null,Object? panX = null,Object? panY = null,Object? interpolation = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? toneMapping = null,Object? scaler = null,Object? deband = null,Object? deinterlace = null,Object? sharpen = null,Object? brightness = null,Object? contrast = null,Object? saturation = null,Object? gamma = null,Object? hue = null,Object? rotate = null,Object? flipHorizontal = null,Object? flipVertical = null,Object? aspectOverride = freezed,Object? zoom = null,Object? panX = null,Object? panY = null,Object? interpolation = null,Object? crop = freezed,Object? iccAuto = null,Object? iccProfile = freezed,Object? lut3d = freezed,Object? lutType = null,Object? stereo = null,Object? projection = null,Object? yaw = null,Object? pitch = null,Object? fov = null,}) {
   return _then(VideoFilterChain(
 toneMapping: null == toneMapping ? _self.toneMapping : toneMapping // ignore: cast_nullable_to_non_nullable
 as ToneMapping,scaler: null == scaler ? _self.scaler : scaler // ignore: cast_nullable_to_non_nullable
@@ -2345,7 +2354,17 @@ as double?,zoom: null == zoom ? _self.zoom : zoom // ignore: cast_nullable_to_no
 as double,panX: null == panX ? _self.panX : panX // ignore: cast_nullable_to_non_nullable
 as double,panY: null == panY ? _self.panY : panY // ignore: cast_nullable_to_non_nullable
 as double,interpolation: null == interpolation ? _self.interpolation : interpolation // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,crop: freezed == crop ? _self.crop : crop // ignore: cast_nullable_to_non_nullable
+as ({double bottom, double left, double right, double top,})?,iccAuto: null == iccAuto ? _self.iccAuto : iccAuto // ignore: cast_nullable_to_non_nullable
+as bool,iccProfile: freezed == iccProfile ? _self.iccProfile : iccProfile // ignore: cast_nullable_to_non_nullable
+as Uri?,lut3d: freezed == lut3d ? _self.lut3d : lut3d // ignore: cast_nullable_to_non_nullable
+as Uri?,lutType: null == lutType ? _self.lutType : lutType // ignore: cast_nullable_to_non_nullable
+as Lut3dType,stereo: null == stereo ? _self.stereo : stereo // ignore: cast_nullable_to_non_nullable
+as StereoMode,projection: null == projection ? _self.projection : projection // ignore: cast_nullable_to_non_nullable
+as Projection,yaw: null == yaw ? _self.yaw : yaw // ignore: cast_nullable_to_non_nullable
+as double,pitch: null == pitch ? _self.pitch : pitch // ignore: cast_nullable_to_non_nullable
+as double,fov: null == fov ? _self.fov : fov // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 
@@ -2430,10 +2449,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation,  ({double bottom, double left, double right, double top,})? crop,  bool iccAuto,  Uri? iccProfile,  Uri? lut3d,  Lut3dType lutType,  StereoMode stereo,  Projection projection,  double yaw,  double pitch,  double fov)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _VideoFilterChain() when $default != null:
-return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation);case _:
+return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation,_that.crop,_that.iccAuto,_that.iccProfile,_that.lut3d,_that.lutType,_that.stereo,_that.projection,_that.yaw,_that.pitch,_that.fov);case _:
   return orElse();
 
 }
@@ -2451,10 +2470,10 @@ return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation,  ({double bottom, double left, double right, double top,})? crop,  bool iccAuto,  Uri? iccProfile,  Uri? lut3d,  Lut3dType lutType,  StereoMode stereo,  Projection projection,  double yaw,  double pitch,  double fov)  $default,) {final _that = this;
 switch (_that) {
 case _VideoFilterChain():
-return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation);case _:
+return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation,_that.crop,_that.iccAuto,_that.iccProfile,_that.lut3d,_that.lutType,_that.stereo,_that.projection,_that.yaw,_that.pitch,_that.fov);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -2471,10 +2490,10 @@ return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_t
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ToneMapping toneMapping,  Scaler scaler,  bool deband,  Deinterlace deinterlace,  double sharpen,  double brightness,  double contrast,  double saturation,  double gamma,  double hue,  int rotate,  bool flipHorizontal,  bool flipVertical,  double? aspectOverride,  double zoom,  double panX,  double panY,  bool interpolation,  ({double bottom, double left, double right, double top,})? crop,  bool iccAuto,  Uri? iccProfile,  Uri? lut3d,  Lut3dType lutType,  StereoMode stereo,  Projection projection,  double yaw,  double pitch,  double fov)?  $default,) {final _that = this;
 switch (_that) {
 case _VideoFilterChain() when $default != null:
-return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation);case _:
+return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_that.sharpen,_that.brightness,_that.contrast,_that.saturation,_that.gamma,_that.hue,_that.rotate,_that.flipHorizontal,_that.flipVertical,_that.aspectOverride,_that.zoom,_that.panX,_that.panY,_that.interpolation,_that.crop,_that.iccAuto,_that.iccProfile,_that.lut3d,_that.lutType,_that.stereo,_that.projection,_that.yaw,_that.pitch,_that.fov);case _:
   return null;
 
 }
@@ -2486,7 +2505,7 @@ return $default(_that.toneMapping,_that.scaler,_that.deband,_that.deinterlace,_t
 
 
 class _VideoFilterChain implements VideoFilterChain {
-  const _VideoFilterChain({this.toneMapping = ToneMapping.bt2390, this.scaler = Scaler.spline36, this.deband = false, this.deinterlace = Deinterlace.auto, this.sharpen = 0, this.brightness = 0, this.contrast = 0, this.saturation = 0, this.gamma = 0, this.hue = 0, this.rotate = 0, this.flipHorizontal = false, this.flipVertical = false, this.aspectOverride, this.zoom = 0, this.panX = 0, this.panY = 0, this.interpolation = false});
+  const _VideoFilterChain({this.toneMapping = ToneMapping.bt2390, this.scaler = Scaler.spline36, this.deband = false, this.deinterlace = Deinterlace.auto, this.sharpen = 0, this.brightness = 0, this.contrast = 0, this.saturation = 0, this.gamma = 0, this.hue = 0, this.rotate = 0, this.flipHorizontal = false, this.flipVertical = false, this.aspectOverride, this.zoom = 0, this.panX = 0, this.panY = 0, this.interpolation = false, this.crop, this.iccAuto = false, this.iccProfile, this.lut3d, this.lutType = Lut3dType.auto, this.stereo = StereoMode.off, this.projection = Projection.flat, this.yaw = 0, this.pitch = 0, this.fov = 90});
   
 
 @override@JsonKey() final  ToneMapping toneMapping;
@@ -2509,6 +2528,25 @@ class _VideoFilterChain implements VideoFilterChain {
 @override@JsonKey() final  double panX;
 @override@JsonKey() final  double panY;
 @override@JsonKey() final  bool interpolation;
+/// VID-037: fractions of the frame cut from each edge (0…0.45 each).
+@override final  ({double bottom, double left, double right, double top,})? crop;
+/// VID-040 (M W): colour-manage to the display's ICC profile.
+@override@JsonKey() final  bool iccAuto;
+/// VID-040: an explicit ICC profile (`file:` URI); wins over [iccAuto].
+@override final  Uri? iccProfile;
+/// VID-040: a 3D LUT file (`file:` URI, e.g. `.cube`) and how to read it.
+@override final  Uri? lut3d;
+@override@JsonKey() final  Lut3dType lutType;
+/// VID-041: stereoscopic 3D shown as 2D (one eye) or as red/cyan
+/// anaglyph.
+@override@JsonKey() final  StereoMode stereo;
+/// VID-041: 360°/180° video shown as a flat view looking [yaw] degrees
+/// right and [pitch] degrees up with a horizontal field of view of
+/// [fov] degrees.
+@override@JsonKey() final  Projection projection;
+@override@JsonKey() final  double yaw;
+@override@JsonKey() final  double pitch;
+@override@JsonKey() final  double fov;
 
 /// Create a copy of VideoFilterChain
 /// with the given fields replaced by the non-null parameter values.
@@ -2520,18 +2558,18 @@ _$VideoFilterChainCopyWith<_VideoFilterChain> get copyWith => __$VideoFilterChai
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VideoFilterChain&&(identical(other.toneMapping, toneMapping) || other.toneMapping == toneMapping)&&(identical(other.scaler, scaler) || other.scaler == scaler)&&(identical(other.deband, deband) || other.deband == deband)&&(identical(other.deinterlace, deinterlace) || other.deinterlace == deinterlace)&&(identical(other.sharpen, sharpen) || other.sharpen == sharpen)&&(identical(other.brightness, brightness) || other.brightness == brightness)&&(identical(other.contrast, contrast) || other.contrast == contrast)&&(identical(other.saturation, saturation) || other.saturation == saturation)&&(identical(other.gamma, gamma) || other.gamma == gamma)&&(identical(other.hue, hue) || other.hue == hue)&&(identical(other.rotate, rotate) || other.rotate == rotate)&&(identical(other.flipHorizontal, flipHorizontal) || other.flipHorizontal == flipHorizontal)&&(identical(other.flipVertical, flipVertical) || other.flipVertical == flipVertical)&&(identical(other.aspectOverride, aspectOverride) || other.aspectOverride == aspectOverride)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.panX, panX) || other.panX == panX)&&(identical(other.panY, panY) || other.panY == panY)&&(identical(other.interpolation, interpolation) || other.interpolation == interpolation));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _VideoFilterChain&&(identical(other.toneMapping, toneMapping) || other.toneMapping == toneMapping)&&(identical(other.scaler, scaler) || other.scaler == scaler)&&(identical(other.deband, deband) || other.deband == deband)&&(identical(other.deinterlace, deinterlace) || other.deinterlace == deinterlace)&&(identical(other.sharpen, sharpen) || other.sharpen == sharpen)&&(identical(other.brightness, brightness) || other.brightness == brightness)&&(identical(other.contrast, contrast) || other.contrast == contrast)&&(identical(other.saturation, saturation) || other.saturation == saturation)&&(identical(other.gamma, gamma) || other.gamma == gamma)&&(identical(other.hue, hue) || other.hue == hue)&&(identical(other.rotate, rotate) || other.rotate == rotate)&&(identical(other.flipHorizontal, flipHorizontal) || other.flipHorizontal == flipHorizontal)&&(identical(other.flipVertical, flipVertical) || other.flipVertical == flipVertical)&&(identical(other.aspectOverride, aspectOverride) || other.aspectOverride == aspectOverride)&&(identical(other.zoom, zoom) || other.zoom == zoom)&&(identical(other.panX, panX) || other.panX == panX)&&(identical(other.panY, panY) || other.panY == panY)&&(identical(other.interpolation, interpolation) || other.interpolation == interpolation)&&(identical(other.crop, crop) || other.crop == crop)&&(identical(other.iccAuto, iccAuto) || other.iccAuto == iccAuto)&&(identical(other.iccProfile, iccProfile) || other.iccProfile == iccProfile)&&(identical(other.lut3d, lut3d) || other.lut3d == lut3d)&&(identical(other.lutType, lutType) || other.lutType == lutType)&&(identical(other.stereo, stereo) || other.stereo == stereo)&&(identical(other.projection, projection) || other.projection == projection)&&(identical(other.yaw, yaw) || other.yaw == yaw)&&(identical(other.pitch, pitch) || other.pitch == pitch)&&(identical(other.fov, fov) || other.fov == fov));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,toneMapping,scaler,deband,deinterlace,sharpen,brightness,contrast,saturation,gamma,hue,rotate,flipHorizontal,flipVertical,aspectOverride,zoom,panX,panY,interpolation);
+    return Object.hashAll([runtimeType,toneMapping,scaler,deband,deinterlace,sharpen,brightness,contrast,saturation,gamma,hue,rotate,flipHorizontal,flipVertical,aspectOverride,zoom,panX,panY,interpolation,crop,iccAuto,iccProfile,lut3d,lutType,stereo,projection,yaw,pitch,fov]);
 }
 
 @override
 String toString() {
-    return 'VideoFilterChain(toneMapping: $toneMapping, scaler: $scaler, deband: $deband, deinterlace: $deinterlace, sharpen: $sharpen, brightness: $brightness, contrast: $contrast, saturation: $saturation, gamma: $gamma, hue: $hue, rotate: $rotate, flipHorizontal: $flipHorizontal, flipVertical: $flipVertical, aspectOverride: $aspectOverride, zoom: $zoom, panX: $panX, panY: $panY, interpolation: $interpolation)';
+    return 'VideoFilterChain(toneMapping: $toneMapping, scaler: $scaler, deband: $deband, deinterlace: $deinterlace, sharpen: $sharpen, brightness: $brightness, contrast: $contrast, saturation: $saturation, gamma: $gamma, hue: $hue, rotate: $rotate, flipHorizontal: $flipHorizontal, flipVertical: $flipVertical, aspectOverride: $aspectOverride, zoom: $zoom, panX: $panX, panY: $panY, interpolation: $interpolation, crop: $crop, iccAuto: $iccAuto, iccProfile: $iccProfile, lut3d: $lut3d, lutType: $lutType, stereo: $stereo, projection: $projection, yaw: $yaw, pitch: $pitch, fov: $fov)';
 }
 
 
@@ -2542,7 +2580,7 @@ abstract mixin class _$VideoFilterChainCopyWith<$Res> implements $VideoFilterCha
   factory _$VideoFilterChainCopyWith(_VideoFilterChain value, $Res Function(_VideoFilterChain) _then) = __$VideoFilterChainCopyWithImpl;
 @override @useResult
 $Res call({
- ToneMapping toneMapping, Scaler scaler, bool deband, Deinterlace deinterlace, double sharpen, double brightness, double contrast, double saturation, double gamma, double hue, int rotate, bool flipHorizontal, bool flipVertical, double? aspectOverride, double zoom, double panX, double panY, bool interpolation
+ ToneMapping toneMapping, Scaler scaler, bool deband, Deinterlace deinterlace, double sharpen, double brightness, double contrast, double saturation, double gamma, double hue, int rotate, bool flipHorizontal, bool flipVertical, double? aspectOverride, double zoom, double panX, double panY, bool interpolation, ({double bottom, double left, double right, double top,})? crop, bool iccAuto, Uri? iccProfile, Uri? lut3d, Lut3dType lutType, StereoMode stereo, Projection projection, double yaw, double pitch, double fov
 });
 
 
@@ -2559,7 +2597,7 @@ class __$VideoFilterChainCopyWithImpl<$Res>
 
 /// Create a copy of VideoFilterChain
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? toneMapping = null,Object? scaler = null,Object? deband = null,Object? deinterlace = null,Object? sharpen = null,Object? brightness = null,Object? contrast = null,Object? saturation = null,Object? gamma = null,Object? hue = null,Object? rotate = null,Object? flipHorizontal = null,Object? flipVertical = null,Object? aspectOverride = freezed,Object? zoom = null,Object? panX = null,Object? panY = null,Object? interpolation = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? toneMapping = null,Object? scaler = null,Object? deband = null,Object? deinterlace = null,Object? sharpen = null,Object? brightness = null,Object? contrast = null,Object? saturation = null,Object? gamma = null,Object? hue = null,Object? rotate = null,Object? flipHorizontal = null,Object? flipVertical = null,Object? aspectOverride = freezed,Object? zoom = null,Object? panX = null,Object? panY = null,Object? interpolation = null,Object? crop = freezed,Object? iccAuto = null,Object? iccProfile = freezed,Object? lut3d = freezed,Object? lutType = null,Object? stereo = null,Object? projection = null,Object? yaw = null,Object? pitch = null,Object? fov = null,}) {
   return _then(_VideoFilterChain(
 toneMapping: null == toneMapping ? _self.toneMapping : toneMapping // ignore: cast_nullable_to_non_nullable
 as ToneMapping,scaler: null == scaler ? _self.scaler : scaler // ignore: cast_nullable_to_non_nullable
@@ -2579,7 +2617,17 @@ as double?,zoom: null == zoom ? _self.zoom : zoom // ignore: cast_nullable_to_no
 as double,panX: null == panX ? _self.panX : panX // ignore: cast_nullable_to_non_nullable
 as double,panY: null == panY ? _self.panY : panY // ignore: cast_nullable_to_non_nullable
 as double,interpolation: null == interpolation ? _self.interpolation : interpolation // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,crop: freezed == crop ? _self.crop : crop // ignore: cast_nullable_to_non_nullable
+as ({double bottom, double left, double right, double top,})?,iccAuto: null == iccAuto ? _self.iccAuto : iccAuto // ignore: cast_nullable_to_non_nullable
+as bool,iccProfile: freezed == iccProfile ? _self.iccProfile : iccProfile // ignore: cast_nullable_to_non_nullable
+as Uri?,lut3d: freezed == lut3d ? _self.lut3d : lut3d // ignore: cast_nullable_to_non_nullable
+as Uri?,lutType: null == lutType ? _self.lutType : lutType // ignore: cast_nullable_to_non_nullable
+as Lut3dType,stereo: null == stereo ? _self.stereo : stereo // ignore: cast_nullable_to_non_nullable
+as StereoMode,projection: null == projection ? _self.projection : projection // ignore: cast_nullable_to_non_nullable
+as Projection,yaw: null == yaw ? _self.yaw : yaw // ignore: cast_nullable_to_non_nullable
+as double,pitch: null == pitch ? _self.pitch : pitch // ignore: cast_nullable_to_non_nullable
+as double,fov: null == fov ? _self.fov : fov // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 

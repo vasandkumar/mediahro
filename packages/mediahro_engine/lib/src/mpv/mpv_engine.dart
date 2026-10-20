@@ -15,6 +15,7 @@ import 'package:mediahro_engine/src/disc/disc_reader.dart';
 import 'package:mediahro_engine/src/mpv/audio_decoder.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
 import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
+import 'package:mediahro_engine/src/mpv/display_icc.dart';
 import 'package:mediahro_engine/src/mpv/exporter.dart';
 import 'package:mediahro_engine/src/mpv/mp4_gapless.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
@@ -239,6 +240,7 @@ final class MpvEngine implements PlaybackEngine {
         library: Libmpv.open(path: config.libmpvPath),
       );
       _client = client;
+      _appliedFilterProps.clear();
       client.events.listen(_onEvent);
       for (final MapEntry(:key, :value) in observedProperties.entries) {
         try {
@@ -1084,10 +1086,40 @@ final class MpvEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> setVideoFilters(VideoFilterChain chain) async {
-    final c = await _live();
-    if (c == null) return;
-    await _setAll(c, videoFilterProperties(chain));
+  Future<void> setVideoFilters(VideoFilterChain chain) {
+    _wantedFilters = chain;
+    // Head moves in 360° video arrive many times a second (VID-041): a
+    // running update finishes with the latest chain instead of queueing.
+    return _filtersRunning ??= _applyFilters().whenComplete(
+      () => _filtersRunning = null,
+    );
+  }
+
+  VideoFilterChain _wantedFilters = const VideoFilterChain();
+  Future<void>? _filtersRunning;
+  // What mpv has, so an update sets only what changed (a new `vf` rebuilds
+  // the filter chain).
+  final _appliedFilterProps = <String, String>{};
+  String? _displayIcc;
+
+  Future<void> _applyFilters() async {
+    VideoFilterChain? applied;
+    while (applied != _wantedFilters) {
+      final chain = _wantedFilters;
+      final c = await _live();
+      if (c == null) return;
+      if (chain.iccAuto && chain.iccProfile == null) {
+        _displayIcc ??= displayIccProfilePath();
+      }
+      final props = videoFilterProperties(chain, iccProfilePath: _displayIcc);
+      final changed = {
+        for (final MapEntry(:key, :value) in props.entries)
+          if (_appliedFilterProps[key] != value) key: value,
+      };
+      await _setAll(c, changed);
+      _appliedFilterProps.addAll(changed);
+      applied = chain;
+    }
   }
 
   @override
