@@ -84,4 +84,11 @@ void main() {
       expect(isSubtitleName('x.txt'), isFalse, reason: 'too generic alone');
     });
   });
+
+  test('SUB-012 the language in a file name', () {
+    expect(languageOfName('Film.en.srt'), 'en');
+    expect(languageOfName('Film.2024.English.forced.ass'), 'en');
+    expect(languageOfName('Film.ger.sdh.srt'), 'de');
+    expect(languageOfName('Film.srt'), isNull);
+  });
 }

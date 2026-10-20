@@ -372,6 +372,10 @@
   "videoPip": "Picture in picture",
   "videoPlay": "Play",
   "videoPlayNow": "Play now",
+  "videoReadAloud": "Read subtitles aloud",
+  "videoReadAloudDetail": "Speaks each line with your device's voice",
+  "videoReadAloudRateDescription": "How fast subtitles are read aloud, relative to your system voice",
+  "videoReadAloudRateTitle": "Reading speed",
   "videoRemaining": "-{time}",
   "@videoRemaining": {
     "placeholders": {
@@ -598,6 +602,48 @@
   },
   "videoTrackSurround51": "5.1",
   "videoTrackSurround71": "7.1",
+  "videoTranslate": "Translate subtitles",
+  "videoTranslateDownload": "Download",
+  "videoTranslateDownloadBody": "Translating {from} into {to} needs a language pack from your device's maker. Translation then runs on this device; your subtitles are not sent anywhere.",
+  "@videoTranslateDownloadBody": {
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "to": {
+        "type": "String"
+      }
+    }
+  },
+  "videoTranslateDownloadTitle": "Download a language pack?",
+  "videoTranslateFailed": "Couldn't translate these subtitles.",
+  "videoTranslateFrom": "Translate from",
+  "videoTranslateNoPairs": "This device can't translate from {language}.",
+  "@videoTranslateNoPairs": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "videoTranslateOnlyFiles": "For subtitle files; built-in subtitles are not supported yet",
+  "videoTranslateTo": "Translate into",
+  "videoTranslatedTitle": "{language} (translated)",
+  "@videoTranslatedTitle": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
+  "videoTranslating": "Translating into {language}",
+  "@videoTranslating": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      }
+    }
+  },
   "videoUnlock": "Unlock touch controls",
   "videoUnmute": "Unmute",
   "videoVolumeBoostHint": "Above 100 % the sound is amplified; a limiter keeps loud parts clean.",
