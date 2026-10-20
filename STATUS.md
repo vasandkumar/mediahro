@@ -107,8 +107,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| VID-001 | Containers | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head). A I M ⛔ bootstrap gaps (§3) |
-| VID-002 | Video codecs | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ VC-1/VVC samples; A I M bootstrap gaps (§3) |
+| VID-001 | Containers | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 |
+| VID-002 | Video codecs | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no VC-1/VVC samples (LGPL FFmpeg has no encoders) (§3) |
 | VID-003 | Audio codecs in video | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ DTS-HD MA/HRA/DTS:X samples (§3) |
 | VID-004 | Audio passthrough | B1 | ⛔ | — | ⛔ | ⛔ | ⛔ needs HDMI/SPDIF device lab (§3) |
 | VID-005 | Playback edge cases | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
@@ -119,7 +119,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| VID-030 | GPU renderer | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-030 | GPU renderer | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ device lab: zero-copy hwdec and the 4K60 budget (§3). CI proves frames reach the texture through the bridge on A I M W, and the backend reaches VideoStats.renderBackend |
 | VID-031 | HDR10 / HLG | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native HDR: Flutter textures are 8-bit (§3); tone mapping passes W |
 | VID-032 | HDR10+ | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no HDR10+ samples (§3) |
 | VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
@@ -157,13 +157,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| SUB-010 | Text formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
-| SUB-011 | Image formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
-| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
-| SUB-013 | Encoding detection | B1 → C1 | ⛔ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1. A ⛔ no cp1251/SJIS/GBK conversion in bionic iconv (§3) |
-| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
-| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
-| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. I M ⛔ bootstrap mpv (§3) |
+| SUB-010 | Text formats | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
+| SUB-011 | Image formats | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
+| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
+| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (A: engine run 39364109420, Windows-1251, Shift-JIS, UTF-8 BOM on android.4; I M W: 39355966616); UI → C1. The A ⛔ is cleared |
+| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
+| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
+| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
 | SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -176,11 +176,11 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| AUD-001 | Formats | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ APE/TAK/MPC/SACD/MIDI samples; A I M bootstrap gaps (§3) |
-| AUD-002 | Gapless | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). W: iTunSMPB test pending. A I M ⛔ bootstrap gaps |
+| AUD-001 | Formats | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no APE/TAK/MPC/SACD ISO/MIDI samples (§3); all other formats pass A W. I M also bootstrap (B4b) |
+| AUD-002 | Gapless | B1 | ☑ | ⛔ | ⛔ | ☑ | A W ☑ engine run 39355966616; I M ⛔ bootstrap libmpv (B4b) |
 | AUD-003 | Crossfade | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
-| AUD-004 | Loudness | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). ; A I M ⛔ bootstrap gaps |
-| AUD-005 | DSP chain | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). ; A I M ⛔ bootstrap gaps |
+| AUD-004 | Loudness | B1 | ☑ | ⛔ | ⛔ | ☑ | A W ☑ engine run 39355966616; I M ⛔ bootstrap libmpv (B4b) |
+| AUD-005 | DSP chain | B1 | ☑ | ⛔ | ⛔ | ☑ | A W ☑ engine run 39355966616; I M ⛔ bootstrap libmpv (B4b) |
 | AUD-006 | Output quality indicator | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 | AUD-040 | Bit-perfect Android | B1 | ⛔ | — | — | — | ⛔ USB DAC device lab (§3) |
 | AUD-041 | Bit-perfect Apple | B1 | — | ⛔ | ⛔ | — | ⛔ device lab (§3) |
@@ -271,7 +271,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CAST-002 | AirPlay | C4 | — | ☐ | ☐ | — |  |
 | CAST-003 | DLNA renderer push | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CAST-004 | External display | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| CAST-005 | Local transcoding | B1 | ☑ | ☐ | ☐ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
+| CAST-005 | Local transcoding | B1 | ☑ | ⛔ | ⛔ | ☑ | A W ☑ engine run 39355966616 (OS H.264: h264_mediacodec, h264_mf); I M ⛔ bootstrap has no encoders (B4b) |
 
 ### 10. SYS — Platform integration
 
@@ -337,7 +337,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | 2026-10-19 | B1 | AUD-043 native DSD/DoP (A I M W) | mpv's audio outputs cannot emit DoP or native DSD | ADR: custom DoP output stage | DSD→PCM with selectable low-pass, tested on CI |
 | 2026-10-19 | B1 | AUD-044 metadata/absolute volume, AUD-045 focus and interruptions | Media session, AVRCP and audio focus belong to C4's platform modules | Lane C4 (Phase C) | Engine exposes pause/volume/latency hooks |
 | 2026-10-19 | B1 | VID-001/002/003, SUB-010/011, AUD-001/002/004/005 on A I M; SUB-016 on I M | The ADR-004 bootstrap prebuilts for Android and Apple (media_kit, mpv 0.36–0.38) lack libopenmpt, the lavfi audio filters (EQ, limiter, ebur128) and, on Android, all encoders (CAST-005); their gapless join loses ~60 ms; on Apple, libass ignores Matroska font attachments, external PGS (.sup) draws nothing and `secondary-sub-text` stays empty (fine on mpv master and the mediahro-deps Android mpv). Since 2026-10-19 the bootstrap uses the LGPL "full" variants (all decoders/demuxers) instead of "default", which lacked MXF/RealMedia, FFV1/HAP/ProRes/E-AC-3/TrueHD/SAMI | Lane B4: mediahro-deps archives (FFmpeg 8.1 LGPL full config, mpv 0.41+) pinned in deps.lock; the plugin builds pick them up unchanged | Same suites pass on Windows (LGPL build with the full FFmpeg); the A/I/M jobs report each missing component |
-| 2026-10-20 | B1 + B4a | SUB-013 (A) | Android bionic iconv converts only UTF-8/16/32, ASCII and Latin-1, so mpv cannot convert cp1251, Shift-JIS, GBK, Big5, EUC-KR subtitles even when uchardet detects them or the user forces a code page | B4a: GNU libiconv (LGPL-2.1, shared) in the Android archive, mpv and FFmpeg built against it | UTF-8 and Latin-1 subtitles work; others show mojibake |
+| 2026-10-20 | B1 + B4a | SUB-013 (A) | ~~Android bionic iconv converts only UTF-8/16/32, ASCII and Latin-1, so mpv cannot convert cp1251, Shift-JIS, GBK, Big5, EUC-KR subtitles even when uchardet detects them or the user forces a code page~~ **Resolved** by mediahro-deps v2026.10.3-android.4 (libiconv): engine run 39364109420 passes Windows-1251 / Shift-JIS / UTF-8 BOM on Android | B4a: GNU libiconv (LGPL-2.1, shared) in the Android archive, mpv and FFmpeg built against it | UTF-8 and Latin-1 subtitles work; others show mojibake |
 | 2026-10-19 | B1 | Bootstrap libmpv (ADR-004) on all platforms | `deps.lock` has no mediahro-deps release yet; the Windows bootstrap release (zhongfly/mpv-winbuild 2026-10-19) is kept upstream for about 30 days | Lane B4 archives pinned in deps.lock | Plugin builds already prefer `.deps-cache/<target>` (lib/*.so, bin/*.dll, *.xcframework) |
 | 2026-10-20 | B1 + B4a | All Android cells of PR #3 (install-size budget, docs/11 §5) | APK with all mediahro-deps libraries is 102.3 MB per ABI vs the 40 MB budget | B4a: per-library size table, strip, FFmpeg `--disable-everything` + explicit components, trimmed libvips; B1: no duplicate libraries | None — budget is not relaxed; owner sees the numbers if 40 MB proves impossible |
 | 2026-10-19 | B3 | CORE-001 A (API 33–35) | Predictive back below API 36 needs `android:enableOnBackInvokedCallback="true"` in the manifest (app/android, lane C4). API 36 has it by default; the shell does not intercept back | Owner: lane C4 (Phase C): manifest flag | Theme already uses predictive-back page transitions |
