@@ -50,6 +50,7 @@ object DebugHooks {
         SessionHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         WindowHooks.install(host, engine.dartExecutor.binaryMessenger)
         SecureHooks.install(host.context, engine.dartExecutor.binaryMessenger)
+        NetHooks.install(host.context, engine.dartExecutor.binaryMessenger)
     }
 
     private fun answer(contract: ActivityResultContract<*, *>): Result<Any?>? {
