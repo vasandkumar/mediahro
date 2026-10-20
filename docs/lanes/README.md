@@ -53,4 +53,11 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
    - Only iOS and macOS need CI to prove them.
 4. **Small PRs** of 2–4 IDs or 1–2 facades. A PR touching only one platform's folders runs only that platform's jobs.
 5. **Message the orchestrator only** when a PR is green and ready to merge, when you are blocked, or when you need an ADR. It merges green PRs as soon as it has checked the evidence.
+6. **Disk: C: is nearly full, so nothing large goes there.** Your scratchpad lives under `C:\Users\...\Temp\claude`, so use it only for small notes and logs.
+   - Put build output, downloaded archives, generated media and caches inside your worktree on K:, under a gitignored `build/` or `.cache/` folder.
+   - A test file meant to be sparse must really be sparse: create it with `fsutil sparse setflag` and set its length, never by writing zeros, and check that its size on disk is near zero.
+   - Android emulators live on K: (`ANDROID_AVD_HOME=K:\Projects\.android-avd` in your shell).
+   - Delete large artefacts as soon as their test is done.
+   - Before any step that writes more than 1 GB, check free space and stop if C: has less than 10 GB.
+7. **At most 3 lane sessions run at once (owner).** The orchestrator schedules them. Never message another lane directly, because that wakes a paused session; send anything for another lane to the orchestrator.
 
