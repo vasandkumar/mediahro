@@ -21,6 +21,7 @@ import 'package:mediahro/features/video/player/sleep_sheet.dart';
 import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -88,6 +89,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       settings: ref.read(settingsStoreProvider),
       progress: ref.read(videoProgressProvider),
       onClose: _close,
+      sidecars: ref.read(sidecarLoaderProvider),
       systemLanguages: [
         for (final l in PlatformDispatcher.instance.locales) l.languageCode,
       ],
@@ -121,6 +123,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     } else {
       context.go('/video');
     }
+  }
+
+  /// "Add a subtitle file" (SUB-012): pick, cache, add, show.
+  Future<void> _addSubtitleFile() async {
+    final pick = ref.read(subtitleFilePickerProvider);
+    final c = _c;
+    if (pick == null || c == null) return;
+    final picked = await pick();
+    if (picked == null) return;
+    final file = await ref
+        .read(sidecarLoaderProvider)
+        .store(picked.name, picked.bytes);
+    if (file == null) return;
+    await c.addSubtitleFile(file.uri, title: picked.name, select: true);
   }
 
   void _onPip() {
@@ -502,7 +518,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               ? l.videoSubtitlesChipOff
               : l.videoSubtitlesChipOn,
           onDark: true,
-          onPressed: () => unawaited(showSubtitleSheet(context, c)),
+          onPressed: () => unawaited(
+            showSubtitleSheet(
+              context,
+              c,
+              onAddFile: ref.read(subtitleFilePickerProvider) == null
+                  ? null
+                  : _addSubtitleFile,
+            ),
+          ),
         ),
         KChip(
           label: l.videoAudioTitle,

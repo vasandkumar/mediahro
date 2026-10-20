@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -399,5 +401,59 @@ void videoPlayerSuite({
     await tester.tap(find.text('Off'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(KChip, 'Pauses in 15:00'), findsNothing);
+  });
+
+  playerTest('SUB-013 the subtitle sheet forces a character set', (
+    tester,
+  ) async {
+    final (engine, _) = await pumpPlayer(tester);
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    expect(find.text('Detect automatically'), findsOneWidget);
+    await tester.tap(find.text('Character encoding'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Cyrillic (Windows-1251)'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Cyrillic (Windows-1251)'));
+    await tester.pumpAndSettle();
+    expect(engine.fake.subtitleCodepage, 'cp1251');
+  });
+
+  playerTest('SUB-012 a picked subtitle file is added and shown', (
+    tester,
+  ) async {
+    final (engine, _) = await pumpPlayer(
+      tester,
+      overrides: [
+        subtitleFilePickerProvider.overrideWithValue(
+          () async => PickedSubtitle(
+            'Extra.fr.srt',
+            Uint8List.fromList(
+              utf8.encode('1\n00:00:01,000 --> 00:00:02,000\nSalut\n'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add a subtitle file'));
+    // The file is written to the cache with real I/O: alternate real time
+    // and frames until the track arrives.
+    for (var i = 0; i < 20 && engine.externalTracks.isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(engine.externalTracks.single.$2.pathSegments.last, 'Extra.fr.srt');
+    expect(
+      engine.current.subtitleTrackId,
+      engine.current.tracks.lastWhere((t) => t.type == TrackType.subtitle).id,
+    );
   });
 }

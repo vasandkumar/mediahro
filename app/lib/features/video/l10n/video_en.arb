@@ -37,6 +37,27 @@
     }
   },
   "videoChaptersTitle": "Chapters and bookmarks",
+  "videoCharsetAuto": "Detect automatically",
+  "videoCharsetNamed": "{script} ({name})",
+  "@videoCharsetNamed": {
+    "placeholders": {
+      "script": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "videoCharsetScript": "{script, select, unicode{Unicode} western{Western} centralEuropean{Central European} cyrillic{Cyrillic} greek{Greek} turkish{Turkish} hebrew{Hebrew} arabic{Arabic} baltic{Baltic} vietnamese{Vietnamese} chineseSimplified{Chinese, simplified} chineseTraditional{Chinese, traditional} japanese{Japanese} korean{Korean} thai{Thai} other{Other}}",
+  "@videoCharsetScript": {
+    "placeholders": {
+      "script": {
+        "type": "String"
+      }
+    }
+  },
+  "videoCharsetTitle": "Character encoding",
   "videoChooseAnother": "Choose another",
   "videoCopyDetails": "Copy details",
   "videoDelayEarlier": "Earlier",
@@ -338,6 +359,7 @@
     }
   },
   "videoStartOver": "Start over",
+  "videoSubtitleAddFile": "Add a subtitle file",
   "videoSubtitleDelay": "Subtitle delay",
   "videoSubtitleDelayValue": "Subtitles {ms} ms",
   "@videoSubtitleDelayValue": {

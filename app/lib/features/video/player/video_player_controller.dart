@@ -6,6 +6,7 @@ import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
+import 'package:mediahro/features/video/subtitles/sidecar_loader.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -36,6 +37,7 @@ final class VideoPlayerController extends ChangeNotifier {
     this.progress,
     this.onClose,
     this.systemLanguages = const [],
+    this.sidecars,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now {
     _sub = engine.state.listen(_onState);
@@ -53,6 +55,9 @@ final class VideoPlayerController extends ChangeNotifier {
 
   /// Called when the sleep timer stopped playback at the end of an item.
   VoidCallback? onSleep;
+
+  /// Subtitle files next to streamed videos (SUB-012); null skips them.
+  final SidecarLoader? sidecars;
 
   /// The device's languages (BCP 47 primary subtags), last resort for the
   /// audio track default.
@@ -158,9 +163,123 @@ final class VideoPlayerController extends ChangeNotifier {
     if (m.subtitleDelay case final d?) await engine.setSubDelay(d);
     if (m.audioDelay case final d?) await engine.setAudioDelay(d);
     await _applyDeviceVolume(engine.current);
+    if (m.subtitleCodepage case final cp?) {
+      await engine.setSubtitleCodepage(cp);
+    }
+    if (m.subtitleSpeed case final sp?) await engine.setSubSpeed(sp);
     final rate = _initialRate(m);
     if (rate != 1) await engine.setRate(rate);
+    unawaited(_loadSidecars(request));
   }
+
+  /// Finds and adds the request's subtitle files (SUB-012): sidecars of
+  /// videos the engine reads as streams, and the user's subtitle folder.
+  /// Then picks the track: what the user chose before, else the preferred
+  /// languages, else the first sidecar; "off" stays off.
+  Future<void> _loadSidecars(PlayRequest r) async {
+    final loader = sidecars;
+    final locate = r.locate;
+    if (loader == null || locate == null) return;
+    final video = await locate();
+    if (video == null || !identical(_request, r)) return;
+    final folder = settings.get(VideoSettings.subtitleFolder);
+    final found = await loader.find(
+      video,
+      ownFolder: video.scheme != 'file',
+      userFolder: folder.isEmpty ? null : Uri.parse(folder),
+    );
+    if (found.isEmpty || !identical(_request, r) || _disposed) return;
+    final before = _state.subtitleTrackId;
+    for (final f in found) {
+      await addSubtitleFile(f.file, title: f.title, language: f.language);
+    }
+    final mem = _trackMemory(r);
+    if (mem.subtitlesOff) {
+      await engine.selectTrack(TrackType.subtitle, null);
+      return;
+    }
+    if (before != null) {
+      await engine.selectTrack(TrackType.subtitle, before);
+      return;
+    }
+    final added = [
+      for (final t in engine.current.tracks)
+        if (t.type == TrackType.subtitle && t.isExternal) t,
+    ];
+    if (added.isEmpty) return;
+    final wanted = [
+      ?mem.subtitleLanguage,
+      ...settings.get(VideoSettings.subtitleLanguages),
+    ];
+    Track? pick;
+    for (final lang in wanted) {
+      pick = added.where((t) => _sameLanguage(t.language, lang)).firstOrNull;
+      if (pick != null) break;
+    }
+    pick ??= added.first;
+    await engine.selectTrack(TrackType.subtitle, pick.id);
+  }
+
+  static bool _sameLanguage(String? a, String b) =>
+      a != null &&
+      a.toLowerCase().split(RegExp('[-_]')).first ==
+          b.toLowerCase().split(RegExp('[-_]')).first;
+
+  /// Adds a subtitle file (picked, dropped or found) as a track (SUB-012)
+  /// and returns it once the engine lists it; [select] shows it.
+  Future<Track?> addSubtitleFile(
+    Uri file, {
+    String? title,
+    String? language,
+    bool select = false,
+  }) async {
+    Set<int> subs(PlaybackState s) => {
+      for (final t in s.tracks)
+        if (t.type == TrackType.subtitle) t.id,
+    };
+    Track? added(PlaybackState s, Set<int> before) => s.tracks
+        .where((t) => t.type == TrackType.subtitle && !before.contains(t.id))
+        .lastOrNull;
+    final before = subs(engine.current);
+    await engine.addExternalTrack(
+      TrackType.subtitle,
+      file,
+      title: title,
+      language: language,
+    );
+    var track = added(engine.current, before);
+    if (track == null) {
+      try {
+        final s = await engine.state
+            .firstWhere((s) => added(s, before) != null)
+            .timeout(const Duration(seconds: 3));
+        track = added(s, before);
+      } on TimeoutException {
+        return null;
+      }
+    }
+    if (select && track != null) await selectSubtitle(track);
+    return track;
+  }
+
+  /// Forces the subtitle character set, or null for detection (SUB-013);
+  /// remembered per file.
+  Future<void> setSubtitleCodepage(String? codepage) async {
+    await engine.setSubtitleCodepage(codepage);
+    final key = _request?.memoryKey;
+    if (key != null) {
+      memory.updateItem(
+        key,
+        (m) => m.copyWith(subtitleCodepage: () => codepage),
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Current forced character set of this item (SUB-013).
+  String? get subtitleCodepage => _request == null
+      ? null
+      : memory.item(_request!.memoryKey).subtitleCodepage;
 
   /// Track choices for [r]: per series when it has one, else per item
   /// (VID-065).
