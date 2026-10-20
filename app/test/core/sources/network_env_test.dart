@@ -135,7 +135,7 @@ void main() {
         session,
         d.service(UpnpDevice.contentDirectory)!,
       );
-      final root = Uri.parse('dlna://${d.udn}/');
+      final root = dlnaRootUri(d.udn);
       final top = await fs.list(root).toList();
       expect(top, isNotEmpty);
       // MiniDLNA indexes only files its parser opens: the seeded WAV

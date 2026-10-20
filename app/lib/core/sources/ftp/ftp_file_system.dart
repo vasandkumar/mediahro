@@ -355,6 +355,18 @@ final class FtpConnection {
   static void _drop(Future<FtpStream> data) =>
       unawaited(data.then<void>((s) => s.destroy(), onError: (Object _) {}));
 
+  /// Closes our side of a data stream the server has finished. On a TLS
+  /// channel this is our close_notify: vsftpd (and other servers doing a
+  /// bidirectional TLS shutdown) answer 226 only after it, so it must come
+  /// before [finish].
+  static Future<void> closeData(FtpStream data) async {
+    try {
+      await data.close();
+    } on Object catch (_) {
+      data.destroy();
+    }
+  }
+
   /// The final reply of a transfer whose data stream ended.
   Future<void> finish(Uri uri) async {
     final r = await _next();
@@ -392,6 +404,7 @@ final class FtpConnection {
       destroy();
       throw VirtualFileException(VirtualFileError.io, uri, '$e');
     }
+    await closeData(data);
     await finish(uri);
     return out.takeBytes();
   }
@@ -846,7 +859,8 @@ final class _Retr {
       },
       onDone: () {
         _done = true;
-        _finished = _conn.finish(_uri);
+        _finished = FtpConnection.closeData(_data)
+            .then((_) => _conn.finish(_uri));
         _signal();
       },
     );

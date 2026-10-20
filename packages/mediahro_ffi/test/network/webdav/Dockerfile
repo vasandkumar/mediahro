@@ -1,5 +1,6 @@
 FROM httpd:2.4.65-alpine
-RUN apk add --no-cache apache2-utils \
+# apr-util-dbm_gdbm: mod_dav_fs's lock database (Alpine's apr-util uses gdbm).
+RUN apk add --no-cache apache2-utils apr-util-dbm_gdbm \
  && htpasswd -bc /usr/local/apache2/conf/dav.passwd test testpass \
  && printf 'test:dav:%s\n' "$(printf 'test:dav:testpass' | md5sum | cut -d' ' -f1)" > /usr/local/apache2/conf/dav.digest \
  && mkdir -p /var/lib/davlock && chown daemon:daemon /var/lib/davlock
