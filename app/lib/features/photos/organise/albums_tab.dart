@@ -8,6 +8,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/smart_rule.dart';
 import 'package:mediahro/features/library/playlists_screen.dart'
     show SmartRuleEditor;
+import 'package:mediahro/features/photos/duplicates/duplicates_screen.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_collection_view.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
@@ -123,6 +124,14 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
               subtitle: Text(l10n.photosAlbumCount(rejected)),
               onTap: () => _open(null, SystemAlbum.rejected),
             ),
+          ListTile(
+            leading: const Icon(Icons.content_copy_outlined),
+            title: Text(l10n.photosDuplicates),
+            subtitle: Text(l10n.photosDuplicatesSubtitle),
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const PhotoDuplicatesScreen()),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.delete_outline),
             title: Text(l10n.photosTrashTitle),
