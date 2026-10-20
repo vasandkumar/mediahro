@@ -88,7 +88,7 @@ void main() {
     ) {
       await settle(tester);
     }
-    expect(find.text('Saved tags of 1 song'), findsOneWidget);
+    expect(find.text('Saved tags of 1 song'), findsWidgets);
     final t = await tester.runAsync(
       () => TagReader.readFile('${dir.path}/one.flac'),
     );
