@@ -103,6 +103,8 @@ dependencies {
     implementation("androidx.media3:media3-session:1.11.1")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.browser:browser:1.8.0")
+    // HEIC encode (IMG-010/015, ADR-037): the platform encoder behind a small wrapper; Apache-2.0.
+    implementation("androidx.heifwriter:heifwriter:1.1.0")
     // SFTP (ADR-017): sshj over the platform JCA; no bundled crypto provider.
     implementation("com.hierynomus:sshj:0.41.2") {
         exclude(group = "org.bouncycastle")
