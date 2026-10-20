@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
-import 'package:mediahro/core/sources/ftp/ftp_file_system.dart';
 import 'package:mediahro/core/sources/sftp/sftp_file_system.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -122,14 +121,7 @@ final class SourceRepository {
       try {
         return (await fs.list(access.root).toList()).length;
       } finally {
-        switch (fs) {
-          case final IsolateFileSystem f:
-            await f.close();
-          case final FtpFileSystem f:
-            await f.close();
-          case final SftpFileSystem f:
-            await f.close();
-        }
+        if (fs case final ClosableFileSystem f) await f.close();
       }
     } finally {
       if (temp != null) await _deleteCredential(temp);

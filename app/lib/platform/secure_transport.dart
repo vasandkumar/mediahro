@@ -47,6 +47,12 @@ abstract interface class TlsSocket {
   /// False for a [TlsSocketFacade.connectPlain] socket not yet upgraded.
   bool get isTls;
 
+  /// Negotiated protocol, `TLSv1.2` or `TLSv1.3`; empty while [isTls] is
+  /// false. From `SSLSession.getProtocol()` (A), `sec_protocol_metadata_get_
+  /// negotiated_tls_protocol_version` (I M), `SecPkgContext_ConnectionInfo`
+  /// (W). NET-004 asserts TLS 1.2 or newer; CAST-001 likewise.
+  String get protocolVersion;
+
   /// SHA-256 of the peer certificate, shown for trust-on-first-use prompts;
   /// empty while [isTls] is false.
   String get peerCertificateSha256;

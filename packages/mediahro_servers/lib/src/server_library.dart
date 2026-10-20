@@ -157,6 +157,26 @@ final class ServerException implements Exception {
       'ServerException(${code.name}${detail == null ? '' : ': $detail'})';
 }
 
+/// One item's per-user play state on a server (LIB-010).
+@immutable
+final class ServerUserData {
+  const ServerUserData({
+    required this.itemId,
+    required this.played,
+    this.position,
+    this.playCount = 0,
+    this.lastPlayed,
+  });
+
+  final String itemId;
+  final bool played;
+
+  /// Resume position; null when not started or finished.
+  final Duration? position;
+  final int playCount;
+  final DateTime? lastPlayed;
+}
+
 /// Common contract over every media server client (docs/05 §9).
 abstract interface class ServerLibrary {
   ServerAccount get account;
@@ -188,6 +208,16 @@ abstract interface class ServerLibrary {
   });
 
   Future<void> setPlayed(String itemId, {required bool played});
+
+  /// Watched state and positions the server changed since [changedSince]
+  /// (all when null), for the pull side of LIB-010 progress sync. Jellyfin /
+  /// Emby: `Items` with `UserData` and `MinDateLastSaved`; Plex:
+  /// `viewOffset` / `viewCount` / `lastViewedAt` from the library sections.
+  /// Lane C4 implements it per server; an empty list where unsupported.
+  Future<List<ServerUserData>> userData({
+    DateTime? changedSince,
+    int limit = 500,
+  });
 
   /// Direct download URI for offline copies (NET-018).
   Future<Uri> downloadUri(String itemId);

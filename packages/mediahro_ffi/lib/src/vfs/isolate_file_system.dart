@@ -33,7 +33,7 @@ typedef SyncFileSystemFactory = SyncFileSystem Function();
 
 /// Async [MutableFileSystem] over a [SyncFileSystem] hosted on a worker
 /// isolate. URIs below [root] map to paths by their decoded segments.
-final class IsolateFileSystem implements MutableFileSystem {
+final class IsolateFileSystem implements MutableFileSystem, ClosableFileSystem {
   IsolateFileSystem({
     required this.root,
     required this._factory,
@@ -216,6 +216,7 @@ final class IsolateFileSystem implements MutableFileSystem {
   }
 
   /// Ends the worker and its connection.
+  @override
   Future<void> close() async {
     final w = _worker;
     if (w == null) return;

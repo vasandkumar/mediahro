@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/sources/connection_health.dart';
 import 'package:mediahro/core/sources/downloads.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 import '../fakes.dart';
@@ -48,12 +49,17 @@ final class _Flaky implements VirtualFile {
   Future<void> close() async {}
 }
 
-final class _Metered implements NetworkStatus {
-  @override
-  Future<bool> get isMetered async => true;
+final class _Metered implements NetworkStatusFacade {
+  static const _state = NetworkState(
+    transport: NetworkTransport.cellular,
+    metered: true,
+  );
 
   @override
-  Future<bool> get isWifiOrEthernet async => false;
+  Future<NetworkState> current() async => _state;
+
+  @override
+  Stream<NetworkState> changes() => const Stream.empty();
 }
 
 void main() {

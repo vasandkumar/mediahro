@@ -114,6 +114,11 @@ final class _FakeTlsSocket implements TlsSocket {
   @override
   final bool isTls;
 
+  // Stand-in value: dart:io does not report the negotiated protocol (the
+  // real facade does); the network-env suite checks it with openssl.
+  @override
+  String get protocolVersion => isTls ? 'TLSv1.3' : '';
+
   @override
   String get peerCertificateSha256 => switch (_s) {
     final SecureSocket t when t.peerCertificate != null =>

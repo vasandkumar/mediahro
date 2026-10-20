@@ -22,7 +22,7 @@ extension type const SftpSecretRefs(String credentialKey) {
   String get keyPassphrase => '$credentialKey/keyPassphrase';
 }
 
-final class SftpFileSystem implements MutableFileSystem {
+final class SftpFileSystem implements MutableFileSystem, ClosableFileSystem {
   SftpFileSystem(this.facade, this.endpoint);
 
   final SftpFacade facade;
@@ -245,6 +245,7 @@ final class SftpFileSystem implements MutableFileSystem {
     return _SftpWriter(this, uri, await s.openWrite(path(uri)));
   });
 
+  @override
   Future<void> close() => _drop();
 }
 
