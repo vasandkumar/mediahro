@@ -1159,6 +1159,25 @@ final class MpvEngine implements PlaybackEngine {
       item: () => _itemSerial,
       position: () => _state.position,
       playing: () => _state.status == PlaybackStatus.playing,
+      isLocal: () => switch (_source) {
+        UriSource(:final uri) => uri.scheme == 'file',
+        _ => false,
+      },
+      dumpCache: (a, b, path) async {
+        final c = _client;
+        if (c == null) return false;
+        try {
+          await c.command([
+            'dump-cache',
+            secondsValue(a),
+            secondsValue(b),
+            path,
+          ]);
+          return true;
+        } on MpvException {
+          return false;
+        }
+      },
       libmpvPath: config.libmpvPath,
     )).stream;
   }
@@ -1166,6 +1185,10 @@ final class MpvEngine implements PlaybackEngine {
   /// Whether a visualiser tap's analysis core is running (tests).
   @visibleForTesting
   bool get audioTapActive => _taps.values.any((t) => t.active);
+
+  /// PCM bytes the visualiser taps have written (tests: write rate).
+  @visibleForTesting
+  int get audioTapBytes => _taps.values.fold(0, (n, t) => n + t.bytesWritten);
 
   @override
   Future<List<EngineAudioDevice>> audioDevices() async {

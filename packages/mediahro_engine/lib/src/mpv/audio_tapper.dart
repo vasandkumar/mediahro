@@ -7,7 +7,6 @@ import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
-import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
 import 'package:mediahro_ffi/src/mpv/mpv.dart' show Libmpv;
@@ -22,14 +21,22 @@ const tapChannels = 2;
 /// Number of log-spaced bands in [AudioTapFrame.bands].
 const tapBands = 64;
 
-/// AUD-046 (ADR-027): libmpv has no PCM callback, so the tap runs a second,
-/// silent libmpv core over the same source while someone listens. It decodes
-/// to raw PCM (`ao=pcm`, float32 stereo at [tapSampleRate]) into a temporary
-/// file, kept 1–3 s ahead of the playback position, and cuts each window at
-/// the playback position. The core starts with the first listener and is
-/// destroyed with the last one, so an unused tap costs nothing. It restarts
-/// on seeks, item changes and every minute (bounding the file). Network
-/// sources are fetched a second time while the tap runs.
+/// AUD-046 (ADR-027): libmpv has no PCM callback, so the tap decodes the
+/// audio being played a second time, on a silent libmpv core that exists
+/// only while someone listens (an unused tap costs nothing). The core writes
+/// raw PCM (`ao=pcm`, float32 stereo at [tapSampleRate]) to a temporary file,
+/// and each window is cut from it at the playback position.
+///
+/// The core decodes 3 s slices just ahead of playback, one after the other,
+/// appending their PCM, so it writes at the pace of playback:
+/// - Local files ([isLocal]): each slice is the file itself between `start`
+///   and `end`.
+/// - Everything else (HTTP, radio, servers, network shares): the source is
+///   never fetched twice. Each slice is the main core's demuxer cache for
+///   that range (`dump-cache`, [dumpCache]).
+///
+/// The PCM file is restarted on seeks, item changes and every minute, which
+/// bounds it to about 10 MB.
 final class AnalysisTap {
   AnalysisTap({
     required this.frames,
@@ -37,6 +44,8 @@ final class AnalysisTap {
     required this.item,
     required this.position,
     required this.playing,
+    required this.isLocal,
+    required this.dumpCache,
     this.libmpvPath,
     this.period = const Duration(milliseconds: 33),
   }) {
@@ -51,6 +60,13 @@ final class AnalysisTap {
   final int Function() item;
   final Duration Function() position;
   final bool Function() playing;
+
+  /// Whether the current item is a local file the tap may read directly.
+  final bool Function() isLocal;
+
+  /// Writes the main core's cached range a…b to a file (mpv `dump-cache`);
+  /// false when nothing could be written.
+  final Future<bool> Function(Duration a, Duration b, String path) dumpCache;
   final String? libmpvPath;
   final Duration period;
 
@@ -58,18 +74,30 @@ final class AnalysisTap {
   Timer? _timer;
   bool _busy = false;
   MpvClient? _client;
-  MpvStreamProtocol? _protocol;
+  StreamSubscription<MpvEvent>? _events;
+  Completer<void>? _ended;
   Directory? _dir;
   File? _pcm;
   RandomAccessFile? _raf;
+  // Playback time of the first sample in the PCM file.
   Duration _start0 = Duration.zero;
   int _item = -1;
-  bool _paused = false;
+  bool _local = true;
+  int _chunk = 0;
 
   Stream<AudioTapFrame> get stream => _controller.stream;
 
   /// Whether the analysis core is running (tests).
   bool get active => _client != null;
+
+  // PCM bytes of earlier files (rotations), for the write-rate measurement.
+  int _rotatedBytes = 0;
+
+  /// PCM bytes written since the tap started (tests measure the rate).
+  int get bytesWritten {
+    final f = _pcm;
+    return _rotatedBytes + (f != null && f.existsSync() ? f.lengthSync() : 0);
+  }
 
   void _start() {
     _timer ??= Timer.periodic(period, (_) => unawaited(_tick()));
@@ -79,38 +107,62 @@ final class AnalysisTap {
     if (_busy) return;
     _busy = true;
     try {
-      await _step();
+      if (!playing()) return;
+      final p = position();
+      await _stepSlices(p, local: isLocal());
+      await _emit(p);
     } on Object {
       // Analysis is best effort: a failing core is rebuilt on the next tick.
-      await _destroy();
+      await _destroy().catchError((Object _) {});
     } finally {
       _busy = false;
     }
   }
 
-  Future<void> _step() async {
-    if (!playing()) return;
-    final p = position();
-    final written = await _writtenFrames();
-    final ahead = _start0 + _frameTime(written) - p;
+  Future<void> _stepSlices(Duration p, {required bool local}) async {
+    final covered = _start0 + _frameTime(await _writtenFrames());
     final stale =
         _client == null ||
+        local != _local ||
         item() != _item ||
         p < _start0 ||
-        p - _start0 > const Duration(minutes: 1) ||
-        ahead > const Duration(seconds: 10);
+        p > covered + const Duration(seconds: 2) ||
+        p - _start0 > const Duration(minutes: 1);
     if (stale) {
-      await _restart(p);
+      await _restart(p, local: local);
       return;
     }
-    final c = _client!;
-    if (ahead < const Duration(seconds: 1) && _paused) {
-      _paused = false;
-      await c.setProperty('pause', 'no');
-    } else if (ahead > const Duration(seconds: 3) && !_paused) {
-      _paused = true;
-      await c.setProperty('pause', 'yes');
+    if (covered - p > const Duration(milliseconds: 1500)) return;
+    // The next slice starts where the PCM ends, so packet-boundary cuts do
+    // not accumulate.
+    final a = covered;
+    final b = covered + const Duration(seconds: 3);
+    final ended = _ended = Completer<void>();
+    if (local) {
+      final src = source();
+      if (src is! UriSource || src.uri.scheme != 'file') return;
+      await _client!.loadfile(
+        src.uri.toFilePath(),
+        options: 'start=${secondsValue(a)},end=${secondsValue(b)}',
+      );
+      await ended.future.timeout(const Duration(seconds: 10));
+      return;
     }
+    final slice = File(
+      '${_dir!.path}${Platform.pathSeparator}slice${_chunk++}.mkv',
+    );
+    if (!await dumpCache(a, b, slice.path) ||
+        !slice.existsSync() ||
+        slice.lengthSync() == 0) {
+      return;
+    }
+    await _client!.loadfile(slice.path);
+    await ended.future.timeout(const Duration(seconds: 10));
+    await slice.delete().catchError((Object _) => slice);
+  }
+
+  Future<void> _emit(Duration p) async {
+    final written = await _writtenFrames();
     final end = ((p - _start0).inMicroseconds * tapSampleRate / 1e6).round();
     final begin = end - frames;
     if (begin < 0 || end > written) return;
@@ -144,10 +196,9 @@ final class AnalysisTap {
     return await f.length() ~/ (tapChannels * 4);
   }
 
-  Future<void> _restart(Duration from) async {
+  Future<void> _restart(Duration from, {required bool local}) async {
     await _destroy();
-    final src = source();
-    if (src == null) return;
+    if (source() == null) return;
     final dir = _dir = await Directory.systemTemp.createTemp('mediahro-tap');
     final pcm = _pcm = File('${dir.path}${Platform.pathSeparator}tap.pcm');
     final client = await MpvClient.create(
@@ -162,40 +213,48 @@ final class AnalysisTap {
         'ao': 'pcm',
         'ao-pcm-file': pcm.path,
         'ao-pcm-waveheader': 'no',
+        // Slices are decoded one after the other into the same file.
+        'ao-pcm-append': 'yes',
         'audio-format': 'float',
         'audio-channels': 'stereo',
         'audio-samplerate': '$tapSampleRate',
-        'start': secondsValue(from),
         'hr-seek': 'yes',
       },
       library: Libmpv.open(path: libmpvPath),
     );
     _client = client;
-    final protocol = _protocol = MpvStreamProtocol.register(client);
+    _events = client.events.listen((e) {
+      if (e is MpvEndFile) {
+        final ended = _ended;
+        if (ended != null && !ended.isCompleted) ended.complete();
+      }
+    });
     _start0 = from;
     _item = item();
-    _paused = false;
-    final url = switch (src) {
-      UriSource(:final uri) =>
-        uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
-      VirtualFileSource(:final file) => protocol?.urlFor(file),
-    };
-    if (url == null) {
-      await _destroy();
-      return;
-    }
-    await client.loadfile(url);
+    _local = local;
+    _chunk = 0;
   }
 
   Future<void> _destroy() async {
-    await _raf?.close();
+    final pcm = _pcm;
+    if (pcm != null && pcm.existsSync()) _rotatedBytes += pcm.lengthSync();
+    final raf = _raf;
     _raf = null;
+    if (raf != null) {
+      try {
+        await raf.close();
+      } on FileSystemException {
+        // Already closed.
+      }
+    }
+    await _events?.cancel();
+    _events = null;
+    final ended = _ended;
+    if (ended != null && !ended.isCompleted) ended.complete();
+    _ended = null;
     final client = _client;
     _client = null;
-    _protocol?.shutdown();
     if (client != null) await client.destroy();
-    await _protocol?.dispose();
-    _protocol = null;
     final dir = _dir;
     _dir = null;
     _pcm = null;
