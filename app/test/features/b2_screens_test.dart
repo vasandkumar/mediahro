@@ -273,7 +273,7 @@ void main() {
     tester,
   ) async {
     final dir = Directory.systemTemp.createTempSync('mediahro_browser');
-    addTearDown(() => dir.deleteSync(recursive: true));
+    addTearDown(() => _deleteBrowsed(tester, dir));
     File('${dir.path}/b.mkv').writeAsBytesSync([1, 2]);
     File('${dir.path}/a.mkv').writeAsBytesSync([1]);
     Directory('${dir.path}/Sub').createSync();
@@ -328,5 +328,24 @@ void main() {
     await tester.tap(find.text('Statistics'));
     await tester.pumpAndSettle();
     expect(find.text('Plays'), findsOneWidget);
+  });
+}
+
+/// Deletes a temp folder a screen was browsing. Windows refuses while a
+/// listing still has the folder open ("directory is not empty"), so the
+/// screen is unmounted first, its pending I/O allowed to finish, and the
+/// delete retried for up to two seconds.
+Future<void> _deleteBrowsed(WidgetTester tester, Directory dir) async {
+  await tester.pumpWidget(const SizedBox());
+  await tester.runAsync(() async {
+    for (var i = 0; ; i++) {
+      try {
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+        return;
+      } on FileSystemException {
+        if (i >= 20) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
   });
 }
