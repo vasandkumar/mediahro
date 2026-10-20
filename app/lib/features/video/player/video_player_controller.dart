@@ -179,8 +179,15 @@ final class VideoPlayerController extends ChangeNotifier {
     await applyVideoFilters();
     final rate = _initialRate(m);
     if (rate != 1) await engine.setRate(rate);
-    unawaited(_loadSidecars(request));
+    _sidecarScan = _loadSidecars(request);
+    unawaited(_sidecarScan);
   }
+
+  Future<void> _sidecarScan = Future<void>.value();
+
+  /// Completes when the subtitle files found for the current item have
+  /// been added and a track picked (SUB-012).
+  Future<void> get sidecarsLoaded => _sidecarScan;
 
   /// With system captions on, turns subtitles on when nothing chose them:
   /// the preferred language, else the default track, else the first one

@@ -153,12 +153,12 @@ void main() {
 
     // The loader copies files with real I/O: wait for [tracks] sidecars,
     // then for the selection that follows them.
+    // Waits for the scan itself, however slow the machine, then lets the
+    // engine's track events arrive.
     Future<void> settle({int tracks = 5}) async {
-      for (var i = 0; i < 200; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 20));
-        if (engine.externalTracks.length >= tracks) break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await c.sidecarsLoaded;
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.externalTracks, hasLength(greaterThanOrEqualTo(tracks)));
     }
 
     test(
