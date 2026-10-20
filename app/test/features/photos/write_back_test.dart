@@ -138,7 +138,8 @@ void main() {
       expect(PhotoSettings.writeOrganisation.defaultValue, isFalse);
       final row = photoSettingsContributions.single;
       expect(row.section, SettingsSectionId.photos);
-      expect(row.entries.single, isA<ToggleSetting>());
+      expect(row.entries, everyElement(isA<ToggleSetting>()));
+      expect(PhotoSettings.stripOnShare.defaultValue, isFalse);
     });
   });
 
