@@ -3,6 +3,7 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/index/index_writer.dart';
 import 'package:mediahro/core/library/tags.dart';
 import 'package:mediahro/core/scanner/probe_queue.dart';
+import 'package:mediahro/features/photos/map/place_resolver.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
@@ -23,12 +24,17 @@ final class ImageProber implements MediaProber {
     required this.db,
     required this.io,
     TagRepository? tags,
+    this.places,
   }) : tags = tags ?? TagRepository(db);
 
   final MediahroImagePipeline pipeline;
   final LibraryDatabase db;
   final ImageIo io;
   final TagRepository tags;
+
+  /// Names the place of a geotagged photo (IMG-007); none in tests that do
+  /// not care.
+  final PlaceResolver? places;
 
   static const _videoPairExtensions = ['mov', 'MOV', 'mp4', 'MP4'];
 
@@ -44,6 +50,7 @@ final class ImageProber implements MediaProber {
     final pair = facts.parsed.livePhotoId == null
         ? null
         : await _pairedVideo(file.uri);
+    final placeId = await places?.resolve(m.latitude, m.longitude);
     final camera = [
       m.cameraMake,
       m.cameraModel,
@@ -58,6 +65,7 @@ final class ImageProber implements MediaProber {
             orientation: Value(facts.parsed.orientation),
             latitude: Value(m.latitude),
             longitude: Value(m.longitude),
+            placeId: Value(placeId),
             pairedVideoPath: Value(pair),
           ),
         );

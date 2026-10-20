@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
+import 'package:mediahro/features/photos/map/location_picker.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
@@ -92,6 +93,22 @@ class _EditMetadataDialogState extends State<EditMetadataDialog> {
     _lat.dispose();
     _lon.dispose();
     super.dispose();
+  }
+
+  Future<void> _chooseOnMap() async {
+    final lat = double.tryParse(_lat.text.trim());
+    final lon = double.tryParse(_lon.text.trim());
+    final spot = await pickLocation(
+      context,
+      initial: lat != null && lon != null ? (lat: lat, lon: lon) : null,
+    );
+    if (spot == null || !mounted) return;
+    setState(() {
+      _clearLocation = false;
+      _badCoordinates = false;
+      _lat.text = spot.lat.toStringAsFixed(6);
+      _lon.text = spot.lon.toStringAsFixed(6);
+    });
   }
 
   Future<void> _pickDate() async {
@@ -263,6 +280,14 @@ class _EditMetadataDialogState extends State<EditMetadataDialog> {
                 ),
               ),
             ],
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              onPressed: _clearLocation ? null : _chooseOnMap,
+              icon: const Icon(Icons.map_outlined),
+              label: Text(l10n.photosEditChooseOnMap),
+            ),
           ),
           if (_badCoordinates)
             Padding(

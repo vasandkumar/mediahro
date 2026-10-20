@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/library/tags.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
+import 'package:mediahro/features/photos/map/gazetteer.dart';
+import 'package:mediahro/features/photos/map/place_resolver.dart';
 import 'package:mediahro/images/metadata/bytes.dart';
 import 'package:mediahro/images/metadata/tiff.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
@@ -69,6 +71,28 @@ void main() {
       expect(meta.pairedVideoPath, isNull);
     },
   );
+
+  test('IMG-007 a geotagged photo is given its place by the prober', () async {
+    final gazetteer = Gazetteer.parse(
+      File('assets/gazetteer/places.bin').readAsBytesSync(),
+    );
+    final id = await seed.item('a.jpg', kind: ItemKind.image);
+    final f = io.add('a.jpg', sampleJpeg(exif: sampleExif()));
+    final places = PlaceResolver(db, () async => gazetteer);
+    await ImageProber(
+      pipeline: pipeline,
+      db: db,
+      io: io,
+      places: places,
+    ).probe(f, await row(id));
+    final meta = await metaOf(id);
+    expect(meta.placeId, isNotNull);
+    final place = await (db.select(
+      db.places,
+    )..where((p) => p.id.equals(meta.placeId!))).getSingle();
+    expect(place.name, 'Bengaluru');
+    expect(place.country, 'India');
+  });
 
   test('IMG-003 the prober leaves phash and favourite alone', () async {
     final id = await seed.item('a.jpg', kind: ItemKind.image);

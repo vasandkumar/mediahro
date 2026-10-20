@@ -10,11 +10,16 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
+import 'package:mediahro/features/photos/map/map_providers.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
+import 'package:mediahro/features/photos/organise/write_back.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
+import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
+import 'package:mediahro/features/settings/settings_providers.dart'
+    show settingsStoreProvider;
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/metadata/metadata_codec.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
@@ -140,6 +145,16 @@ final photoOrganiserProvider = Provider<PhotoOrganiser>(
   ),
 );
 
+/// Saves ratings, labels and tags into the files when the setting is on.
+final organisationWriteBackProvider = Provider<OrganisationWriteBack>(
+  (ref) => OrganisationWriteBack(
+    editor: ref.watch(metadataEditServiceProvider),
+    organiser: ref.watch(photoOrganiserProvider),
+    enabled: () =>
+        ref.read(settingsStoreProvider).get(PhotoSettings.writeOrganisation),
+  ),
+);
+
 /// The photo albums with their sizes, refreshed when albums, their photos,
 /// ratings or favourites change (smart albums follow their rules).
 final photoAlbumsProvider = StreamProvider<List<PhotoAlbum>>((ref) async* {
@@ -170,6 +185,7 @@ final imageProberProvider = Provider<ImageProber>(
     pipeline: ref.watch(imagePipelineProvider),
     db: ref.watch(libraryDatabaseProvider),
     io: MountedImageIo(ref.watch(mountsProvider)),
+    places: ref.watch(placeResolverProvider),
   ),
 );
 
