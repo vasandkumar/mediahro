@@ -55,4 +55,11 @@ void main() {
       isTrue,
     );
   });
+
+  test('CORE-001 predictive back is enabled for the app', () {
+    expect(
+      manifest.contains('android:enableOnBackInvokedCallback="true"'),
+      isTrue,
+    );
+  });
 }

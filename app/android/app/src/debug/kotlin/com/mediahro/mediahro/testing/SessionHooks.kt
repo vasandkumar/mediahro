@@ -46,6 +46,13 @@ internal object SessionHooks {
             "notification" -> reply(
                 context.getSystemService(NotificationManager::class.java).activeNotifications.isNotEmpty(),
             )
+            // A system back, as the gesture or the back button sends it
+            // (predictive back, CORE-001): through the activity's dispatcher.
+            "systemBack" -> {
+                val activity = PlatformModules.host(context).activity
+                activity?.onBackPressedDispatcher?.onBackPressed()
+                reply(activity != null)
+            }
             "notificationDiag" -> reply(notificationDiag(context))
             "notificationPrompt" -> {
                 MediaSessionModule.askForNotifications = arg as Boolean
