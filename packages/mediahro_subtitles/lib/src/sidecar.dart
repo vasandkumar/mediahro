@@ -148,6 +148,20 @@ List<SidecarMatch> matchSidecars(
   return out;
 }
 
+/// The language a subtitle file name carries in its dot-separated tags
+/// (`Film.en.srt`, `Film.English.forced.ass`), as ISO 639-1; null when
+/// none.
+String? languageOfName(String name) {
+  final parts = _stem(name).split(RegExp(r'[._\-\s]+'));
+  for (final t in parts.skip(1).toList().reversed) {
+    final l = t.toLowerCase();
+    if (l == 'forced' || l == 'sdh' || l == 'cc' || l == 'hi') continue;
+    final lang = _language(l);
+    if (lang != null) return lang;
+  }
+  return null;
+}
+
 String? _language(String tag) {
   if (_names.containsKey(tag)) return _names[tag];
   if (_iso639_2.containsKey(tag)) return _iso639_2[tag];

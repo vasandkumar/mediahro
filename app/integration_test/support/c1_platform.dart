@@ -127,3 +127,59 @@ final class FakeOrientation implements OrientationRequests {
   @override
   Future<void> lock(OrientationLock lock) async => locks.add(lock);
 }
+
+final class FakeSpeech implements SpeechSynthesisFacade {
+  final List<(String, String?, double)> spoken = [];
+  int stops = 0;
+
+  @override
+  Future<List<SpeechVoice>> voices() async => const [
+    SpeechVoice(id: 'en', name: 'English', languageTag: 'en-US'),
+  ];
+
+  @override
+  Future<void> speak(
+    String text, {
+    String? languageTag,
+    String? voiceId,
+    double rate = 1,
+  }) async => spoken.add((text, languageTag, rate));
+
+  @override
+  Future<void> stop() async => stops++;
+}
+
+/// Translates by prefixing the target language: "de: Hello".
+base class FakeTranslation implements TranslationFacade {
+  FakeTranslation({this.ready = false});
+
+  bool ready;
+  final List<(String, String)> prepared = [];
+  final List<int> batches = [];
+
+  @override
+  Future<List<TranslationPair>> supportedPairs() async => const [
+    TranslationPair('en', 'de'),
+    TranslationPair('en', 'fr'),
+    TranslationPair('de', 'en'),
+  ];
+
+  @override
+  Future<bool> isReady(String from, String to) async => ready;
+
+  @override
+  Future<void> prepare(String from, String to) async {
+    prepared.add((from, to));
+    ready = true;
+  }
+
+  @override
+  Future<List<String>> translate(
+    List<String> lines, {
+    required String from,
+    required String to,
+  }) async {
+    batches.add(lines.length);
+    return [for (final l in lines) '$to: $l'];
+  }
+}
