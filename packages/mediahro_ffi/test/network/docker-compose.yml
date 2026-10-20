@@ -53,7 +53,7 @@ services:
 
   ftps-implicit:
     build: ./vsftpd
-    command: ["/usr/sbin/vsftpd", "/etc/vsftpd/implicit.conf"]
+    command: ["/etc/vsftpd/run.sh", "/etc/vsftpd/implicit.conf"]
     ports: ["990:990", "21111-21120:21111-21120"]
     volumes: ["./data/media:/srv/media"]
     healthcheck:

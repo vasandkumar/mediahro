@@ -34,6 +34,10 @@ Future<void> main(List<String> args) async {
     'Music/Artist/01 Song.mp3',
     Uint8List.fromList(List.generate(200000, seedByte)),
   );
+  // A real, tiny media file for MiniDLNA (NET-005), which indexes only what
+  // its parser opens: 16-bit mono PCM WAV. Bytes from 44 on follow
+  // seedByte, so range reads stay verifiable.
+  await put('Music/Artist/02 Tone.wav', wavSeeded(64000));
   await put(
     'Comics/issue 1.cbz',
     zipStored({
@@ -80,4 +84,35 @@ Future<void> main(List<String> args) async {
     await Process.run('chmod', ['644', '${ssh.path}/authorized_keys']);
   }
   stdout.writeln('seeded ${root.path}');
+}
+
+/// RIFF/WAVE header (PCM, 1 channel, 8 kHz, 16-bit) over [dataBytes] of
+/// [seedByte] content; the whole file is seedByte from offset 44.
+Uint8List wavSeeded(int dataBytes) {
+  final out = Uint8List(44 + dataBytes);
+  for (var i = 44; i < out.length; i++) {
+    out[i] = seedByte(i);
+  }
+  final h = ByteData.sublistView(out, 0, 44);
+  void tag(int at, String t) {
+    for (var k = 0; k < 4; k++) {
+      h.setUint8(at + k, t.codeUnitAt(k));
+    }
+  }
+
+  tag(0, 'RIFF');
+  h.setUint32(4, 36 + dataBytes, Endian.little);
+  tag(8, 'WAVE');
+  tag(12, 'fmt ');
+  h
+    ..setUint32(16, 16, Endian.little)
+    ..setUint16(20, 1, Endian.little) // PCM
+    ..setUint16(22, 1, Endian.little) // mono
+    ..setUint32(24, 8000, Endian.little)
+    ..setUint32(28, 16000, Endian.little) // byte rate
+    ..setUint16(32, 2, Endian.little) // block align
+    ..setUint16(34, 16, Endian.little); // bits per sample
+  tag(36, 'data');
+  h.setUint32(40, dataBytes, Endian.little);
+  return out;
 }
