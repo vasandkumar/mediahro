@@ -43,6 +43,7 @@ Mediahro comes with these:
 
 - **Anime4K A**, **B** and **C**, for animation: A sharpens blurry anime, B cleans up heavily compressed anime, and C upscales clean anime. Each comes in a fast and a best version; choose fast on phones and older computers.
 - **FSR**, sharp upscaling for any video.
+- **Film grain**, a subtle, moving grain for a film look; it can also hide banding in dark scenes.
 
 You can add other shaders, such as NNEDI3 or SSimSuperRes, from a folder of your own:
 
