@@ -11,6 +11,8 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Read subtitles aloud with the system voice, translate subtitles on the device (SUB-040, SUB-053).
+- Edit music tags and covers, one file or many at once, with undo; fill tags from file names or rename files from tags (MUS-003).
 - Subtitle editor: shift and stretch timing, split and merge lines, save as SRT, WebVTT or ASS; reads SRT, WebVTT, ASS/SSA, MicroDVD, LRC and SAMI (SUB-030).
 - Android subtitles: styling (font, size, colours, outline, position, all following the system by default), speed correction for frame-rate differences, two subtitles at once (SUB-014, SUB-015, SUB-016).
 - Android subtitles: finds matching subtitle files next to videos (including on shares and granted folders), add a subtitle file by hand, choose and remember the character encoding per file (SUB-012, SUB-013).

@@ -20,7 +20,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 | Batch | Features waiting for the device run | State |
 |---|---|---|
 | 1 | Ran on the Samsung at main 475f3df: all 14 functional test files pass (100+ tests); library perf passes; shell perf harness can't reach the VM service over wireless adb (CORE-001 stays ⛔). Ticked: VID-036, VID-060…065, VID-072, MUS-001, MUS-002, MUS-005, MUS-006, LIB-003, LIB-005. **Waiting for the owner's manual checks** (docs/release/android-batch-1-checks.md): VID-066, VID-067, VID-068, VID-069, VID-070, SUB-012…016. Not ticked: MUS-011 (Android AlarmFacade missing), SYS-011 (needs a foldable or tablet), VID-074 (only the session part is done). | automated done; manual checks pending |
-| 2 | TLS client and mutual-TLS server facades (#41; c4a_android_tls_test 6) · SUB-030 (#42; c1_video_player_test 23 + 3 manual checks) | collecting (1 of 25) |
+| 2 | TLS client and mutual-TLS server facades (#41; c4a_android_tls_test 6) · SUB-030 (#42; c1_video_player_test 23 + 3 manual checks) · SUB-040, SUB-053 (#43; c1_video_player_test 25; real entries appear once C4a's TTS/translation facades land) · MUS-003 (#44; c2_tag_edit_test, c2_music_test) | collecting (4 of 25) |
 
 ### Phase A (M0) deliverables
 
@@ -424,6 +424,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C1 **#43** (read subtitles aloud, on-device translation with consent before any language-pack download; tools/check 516) and C2 **#44** (tag editing for ID3v2.4/FLAC/Ogg/MP4/APE/WMA/WAV/AIFF/DSF with verify-then-swap and undo, batch edits, tags from filename, rename from tags; tools/check 539). Device batch 2: 4 of 25. ADR-032 accepted (offline audio decode for SUB-050/052; B1). |
 | 2026-10-20 | **Device batch 1 ran on the Samsung**: all 14 functional suites pass, plus library perf (scan 1.95 s, search median 17.5 ms). 13 Android cells ticked. 11 more wait for the owner's manual checklist; sample files are in Download/MediahroTest, and a release build of main 291b894 is installed. The shell perf test (CORE-001) couldn't attach to the VM service over wireless adb; that's a harness fix for B3. |
 | 2026-10-20 | Merged C4a **#41** (TLS client 1.2/1.3 with pinning, AUTH TLS upgrade, FTPS session reuse, mutual-TLS server with Keystore identity; tools/check 496) and C1 **#42** (subtitle editor plus SRT/WebVTT/ASS/MicroDVD/LRC/SAMI parsers and writers in isolates with limits, plus a fuzz target; tools/check 507). Both go into device batch 2. ADR-031 accepted (engine subtitle text and extraction; B1 at its next slot). |
 | 2026-10-20 | Merged C1 **#40** (subtitle styling with every option defaulting to System, subtitle speed for frame-rate conversion, dual subtitles) and wired subtitleSettingsContributions in root.dart. Verified at 2a20a4e: tools/check 492 with the wiring. **Device batch 1 is full (25 features); running it on the Samsung.** |
