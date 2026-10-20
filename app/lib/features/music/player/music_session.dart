@@ -7,6 +7,16 @@ import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+/// Music's link to the shared media-session owner (ADR-029,
+/// `mediaSessionOwnerProvider`): [claim] when music starts playing,
+/// [changes] when any player takes the session.
+final class SessionOwnerLink {
+  const SessionOwnerLink({required this.claim, required this.changes});
+
+  final void Function() claim;
+  final Stream<MediaSessionKind?> changes;
+}
+
 /// Connects the music player to the OS media session (SYS-001/002 through
 /// C4's [MediaSessionFacade]): lock screen, notification, headset and car
 /// buttons control the player, and the session shows what plays. Optional
@@ -17,7 +27,7 @@ final class MusicSessionBridge {
     required this.session,
     required this.art,
     this.widgets,
-    this.otherPlayer,
+    this.owner,
   });
 
   final MusicPlayer player;
@@ -25,14 +35,14 @@ final class MusicSessionBridge {
   final ArtworkStore art;
   final HomeWidgetsFacade? widgets;
 
-  /// State of the other player sharing the OS session (the video engine).
-  /// When it starts playing it takes the session over: music stops
-  /// answering lock-screen commands until music plays again.
-  final Stream<PlaybackState>? otherPlayer;
+  /// The shared session owner. When another player (video) claims the
+  /// session, music pauses and stops answering lock-screen commands until
+  /// music plays again.
+  final SessionOwnerLink? owner;
 
   StreamSubscription<MusicPlayerState>? _states;
   StreamSubscription<RemoteCommand>? _commands;
-  StreamSubscription<PlaybackState>? _other;
+  StreamSubscription<MediaSessionKind?>? _other;
   bool _active = false;
   String? _shownItem;
   NowPlaying? _shownNowPlaying;
@@ -46,8 +56,8 @@ final class MusicSessionBridge {
 
   void start() {
     _commands ??= session.commands.listen(_onCommand);
-    _other ??= otherPlayer?.listen((s) {
-      if (s.status != PlaybackStatus.playing) return;
+    _other ??= owner?.changes.listen((kind) {
+      if (kind == null || kind == MediaSessionKind.music) return;
       // A film started: it takes the session (and the speakers) over.
       if (player.state.playing) unawaited(player.pause());
       if (_active) {
@@ -98,6 +108,7 @@ final class MusicSessionBridge {
     if (track == null && station == null) return;
     if (!_active && s.playing) {
       _active = true;
+      owner?.claim();
       await session.activate(MediaSessionKind.music);
     }
     if (!_active) return;

@@ -110,12 +110,22 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   }
   final session = _optional(() => ref.read(mediaSessionProvider));
   if (session != null) {
+    // One session owner for music and video (ADR-029).
+    final owners = StreamController<MediaSessionKind?>.broadcast();
+    ref
+      ..listen(mediaSessionOwnerProvider, (_, next) => owners.add(next))
+      ..onDispose(() => unawaited(owners.close()));
     final bridge = MusicSessionBridge(
       player: p,
       session: session,
       art: ref.watch(artworkStoreProvider),
       widgets: _optional(() => ref.read(homeWidgetsProvider)),
-      otherPlayer: ref.read(playbackEngineProvider(EngineRole.video)).state,
+      owner: SessionOwnerLink(
+        claim: () => ref
+            .read(mediaSessionOwnerProvider.notifier)
+            .claim(MediaSessionKind.music),
+        changes: owners.stream,
+      ),
     )..start();
     ref.onDispose(() => unawaited(bridge.dispose()));
   }

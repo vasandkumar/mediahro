@@ -2,13 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/library/playlists.dart';
 import 'package:mediahro/core/library/progress.dart';
 import 'package:mediahro/core/library/queues.dart';
+import 'package:mediahro/core/providers.dart';
+import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
+import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -290,10 +294,11 @@ void main() {
       'over and music ignores lock-screen commands until it plays again',
       () async {
         final session = _FakeSession();
-        final video = StreamController<PlaybackState>.broadcast();
+        final owners = StreamController<MediaSessionKind?>.broadcast();
+        var claims = 0;
         final dir = await Directory.systemTemp.createTemp('c2_own');
         addTearDown(() async {
-          await video.close();
+          await owners.close();
           try {
             await dir.delete(recursive: true);
           } on FileSystemException {
@@ -304,14 +309,18 @@ void main() {
           player: player,
           session: session,
           art: ArtworkStore(db, dir),
-          otherPlayer: video.stream,
+          owner: SessionOwnerLink(
+            claim: () => claims++,
+            changes: owners.stream,
+          ),
         )..start();
         await player.playTracks(album);
         await eventually(() => session.status != null);
         expect(bridge.owns, isTrue);
+        expect(claims, 1);
 
         // A film starts: music pauses and lets go of the session.
-        video.add(const PlaybackState(status: PlaybackStatus.playing));
+        owners.add(MediaSessionKind.video);
         await eventually(() => engine.current.status == PlaybackStatus.paused);
         expect(bridge.owns, isFalse);
         session
@@ -327,11 +336,45 @@ void main() {
         await player.play();
         await eventually(() => session.activations > activations);
         expect(bridge.owns, isTrue);
+        expect(claims, 2);
         session.send(const PauseCommand());
         await eventually(() => engine.current.status == PlaybackStatus.paused);
         await bridge.dispose();
       },
     );
+
+    test('MUS-006 ADR-029 music claims the shared session owner, and a '
+        'video claim pauses it', () async {
+      final session = _FakeSession();
+      final dir = await Directory.systemTemp.createTemp('c2_owner');
+      final c = ProviderContainer(
+        overrides: [
+          libraryDatabaseProvider.overrideWithValue(db),
+          appDataDirectoryProvider.overrideWithValue(dir),
+          sourceResolverProvider.overrideWithValue(
+            localMusicFiles(db).resolver,
+          ),
+          playbackEngineFactoryProvider.overrideWithValue((_) => engine),
+          mediaSessionProvider.overrideWithValue(session),
+        ],
+      );
+      addTearDown(() async {
+        c.dispose();
+        try {
+          await dir.delete(recursive: true);
+        } on FileSystemException {
+          // Best effort on Windows.
+        }
+      });
+      final player = c.read(musicPlayerProvider);
+      await player.init();
+      await player.playTracks(album);
+      await eventually(() => session.kind != null);
+      expect(c.read(mediaSessionOwnerProvider), MediaSessionKind.music);
+      c.read(mediaSessionOwnerProvider.notifier).claim(MediaSessionKind.video);
+      await eventually(() => engine.current.status == PlaybackStatus.paused);
+      expect(engine.current.status, PlaybackStatus.paused);
+    });
   });
 }
 
