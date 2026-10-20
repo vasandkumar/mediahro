@@ -182,18 +182,22 @@ void main() {
 
   test('NET-005 GENA subscriptions receive LastChange events', () async {
     final callback = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    final events = <String>[];
-    final got = Completer<void>();
+    // NOTIFYs are handled concurrently, so their arrival order here is not
+    // their send order: record each with its SEQ and wait for the one that
+    // carries the PLAYING change instead of taking the latest.
+    final events = <(String?, String)>[];
+    final playing = Completer<void>();
     callback.listen((r) async {
-      events.add(
-        await r
-            .cast<List<int>>()
-            .transform(const SystemEncoding().decoder)
-            .join(),
-      );
+      final body = await r
+          .cast<List<int>>()
+          .transform(const SystemEncoding().decoder)
+          .join();
+      events.add((r.headers.value('seq'), body));
       r.response.statusCode = 200;
       await r.response.close();
-      if (events.length >= 2 && !got.isCompleted) got.complete();
+      if (body.contains('PLAYING') && !playing.isCompleted) {
+        playing.complete();
+      }
     });
     final client = HttpClient();
     final req = await client.openUrl(
@@ -208,11 +212,64 @@ void main() {
     await res.drain<void>();
     expect(res.headers.value('sid'), startsWith('uuid:'));
     await sink.play();
-    await got.future.timeout(const Duration(seconds: 3));
-    expect(events.last, contains('PLAYING'));
+    await playing.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => fail('no LastChange with PLAYING; got $events'),
+    );
+    // The initial event (SEQ 0) carries the state before the change.
+    expect(events.map((e) => e.$1), contains('0'));
+    expect(
+      events.where((e) => e.$2.contains('PLAYING')).map((e) => e.$1),
+      everyElement(isNot('0')),
+    );
     client.close(force: true);
     await callback.close(force: true);
   });
+
+  test(
+    'NET-005 GENA event keys count from 0 per subscription and arrive in order',
+    () async {
+      final callback = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final seqs = <String, List<int>>{};
+      final enough = Completer<void>();
+      callback.listen((r) async {
+        await r.drain<void>();
+        final sid = r.headers.value('sid')!;
+        (seqs[sid] ??= []).add(int.parse(r.headers.value('seq')!));
+        r.response.statusCode = 200;
+        await r.response.close();
+        if (seqs.length == 2 &&
+            seqs.values.every((l) => l.length >= 3) &&
+            !enough.isCompleted) {
+          enough.complete();
+        }
+      });
+      final client = HttpClient();
+      for (final service in ['avt', 'rc']) {
+        final req = await client.openUrl(
+          'SUBSCRIBE',
+          renderer.location.resolve('/$service/event'),
+        );
+        req.headers
+          ..set('CALLBACK', '<http://127.0.0.1:${callback.port}/cb>')
+          ..set('NT', 'upnp:event')
+          ..set('TIMEOUT', 'Second-300');
+        await (await req.close()).drain<void>();
+      }
+      await sink.play();
+      await sink.setVolume(40);
+      await sink.pause();
+      await enough.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => fail('too few events: $seqs'),
+      );
+      for (final l in seqs.values) {
+        expect(l.take(3), [0, 1, 2], reason: '$seqs');
+      }
+      client.close(force: true);
+      await callback.close(force: true);
+    },
+  );
 
   test('NET-005 UPnP time format', () {
     expect(

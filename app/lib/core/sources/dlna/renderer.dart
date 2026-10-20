@@ -118,9 +118,8 @@ final class DlnaRenderer {
   RawDatagramSocket? _ssdp;
   Timer? _alive;
   StreamSubscription<RendererStatus>? _statusSub;
-  final _subs = <String, (Uri, String, DateTime)>{};
+  final _subs = <String, _Subscription>{};
   final _random = Random.secure();
-  int _eventKey = 0;
   InternetAddress? _address;
 
   bool get isRunning => _http != null;
@@ -386,11 +385,8 @@ final class DlnaRenderer {
     final existing = r.headers.value('sid');
     final res = r.response;
     if (existing != null && _subs.containsKey(existing)) {
-      final (u, s, _) = _subs[existing]!;
-      _subs[existing] = (
-        u,
-        s,
-        DateTime.now().add(const Duration(seconds: 1800)),
+      _subs[existing]!.expires = DateTime.now().add(
+        const Duration(seconds: 1800),
       );
       res.headers.set('SID', existing);
     } else {
@@ -401,12 +397,13 @@ final class DlnaRenderer {
       }
       final sid =
           'uuid:${List.generate(16, (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
-      _subs[sid] = (
+      _subs[sid] = _Subscription(
         uri,
         service,
         DateTime.now().add(const Duration(seconds: 1800)),
       );
       res.headers.set('SID', sid);
+      // The initial event (SEQ 0) goes first on this subscription's chain.
       Timer.run(() => unawaited(_send(sid)));
     }
     res.headers.set('TIMEOUT', 'Second-1800');
@@ -418,11 +415,21 @@ final class DlnaRenderer {
     }
   }
 
-  Future<void> _send(String sid) async {
+  /// UPnP GENA: each subscription's events are numbered from 0 and
+  /// delivered one at a time, in order.
+  Future<void> _send(String sid) {
     final sub = _subs[sid];
-    if (sub == null) return;
-    final (uri, service, expires) = sub;
-    if (DateTime.now().isAfter(expires)) {
+    if (sub == null) return Future.value();
+    final next = sub.tail.then((_) => _deliver(sid, sub));
+    sub.tail = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _deliver(String sid, _Subscription sub) async {
+    if (!identical(_subs[sid], sub)) return;
+    final uri = sub.callback;
+    final service = sub.service;
+    if (DateTime.now().isAfter(sub.expires)) {
       _subs.remove(sid);
       return;
     }
@@ -449,7 +456,7 @@ final class DlnaRenderer {
             'NT': 'upnp:event',
             'NTS': 'upnp:propchange',
             'SID': sid,
-            'SEQ': '${_eventKey++}',
+            'SEQ': '${sub.seq++}',
           },
           body: utf8.encode(body),
         ),
@@ -538,4 +545,20 @@ Duration? _parseTime(String t) {
     minutes: int.parse(m.group(2)!),
     seconds: int.parse(m.group(3)!),
   );
+}
+
+final class _Subscription {
+  _Subscription(this.callback, this.service, this.expires);
+
+  final Uri callback;
+
+  /// `avt` or `rc`.
+  final String service;
+  DateTime expires;
+
+  /// Next SEQ (GENA event key), per subscription, starting at 0.
+  int seq = 0;
+
+  /// Delivery chain: one NOTIFY in flight per subscription, in order.
+  Future<void> tail = Future.value();
 }
