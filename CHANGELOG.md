@@ -11,6 +11,7 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Internet radio with your own stations and M3U/PLS import; opt-in scrobbling to ListenBrainz, Libre.fm or Last.fm with an offline queue (MUS-014, MUS-009).
 - Smart music playlists with a rule editor and live match count (MUS-008).
 - Read subtitles aloud with the system voice, translate subtitles on the device (SUB-040, SUB-053).
 - Edit music tags and covers, one file or many at once, with undo; fill tags from file names or rename files from tags (MUS-003).
