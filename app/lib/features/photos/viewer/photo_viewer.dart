@@ -109,13 +109,16 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   int _turns = 0;
   int _percent = 0;
   Timer? _hide;
+  bool _started = false;
 
   List<PhotoEntry> get _entries => widget.args.entries;
   PhotoEntry get _entry => _entries[_index];
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
     _scheduleHide();
   }
 

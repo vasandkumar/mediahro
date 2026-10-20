@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +7,6 @@ import 'package:mediahro/features/photos/info/edit_metadata_dialog.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
-import 'package:mediahro/images/metadata/metadata_codec.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// The details sheet of the viewer (IMG-006): file facts, camera, location,
@@ -25,44 +22,14 @@ class PhotoInfoSheet extends ConsumerStatefulWidget {
 }
 
 class _PhotoInfoSheetState extends ConsumerState<PhotoInfoSheet> {
-  ({ImageInfo info, ParsedMetadata parsed})? _facts;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    try {
-      final pipeline = ref.read(imagePipelineProvider);
-      final src = await ref.read(photoFilesProvider).open(widget.entry);
-      try {
-        final info = await pipeline.info(src);
-        final parsed = await pipeline.parsedMetadata(src);
-        if (mounted) setState(() => _facts = (info: info, parsed: parsed));
-      } finally {
-        await src.file.close();
-      }
-    } on Object catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
-
-  Future<void> _edit() async {
-    final facts = _facts;
-    if (facts == null) return;
+  Future<void> _edit(PhotoFacts facts) async {
     final saved = await showEditMetadata(
       context,
       ref,
       widget.entry,
       facts.parsed.metadata,
     );
-    if (saved && mounted) {
-      setState(() => _facts = null);
-      unawaited(_load());
-    }
+    if (saved && mounted) ref.invalidate(photoFactsProvider(widget.entry));
   }
 
   @override
@@ -70,13 +37,14 @@ class _PhotoInfoSheetState extends ConsumerState<PhotoInfoSheet> {
     final l10n = AppLocalizations.of(context);
     final locale = Localizations.localeOf(context).toLanguageTag();
     final e = widget.entry;
-    final facts = _facts;
-    if (_error != null) {
+    final async = ref.watch(photoFactsProvider(e));
+    if (async.hasError) {
       return Padding(
         padding: const EdgeInsets.all(KSpacing.s16),
         child: Text(l10n.photosLoadFailedMessage),
       );
     }
+    final facts = async.value;
     if (facts == null) {
       return const Padding(
         padding: EdgeInsets.all(KSpacing.s24),
@@ -161,20 +129,25 @@ class _PhotoInfoSheetState extends ConsumerState<PhotoInfoSheet> {
             child: Text(l10n.photosInfoNoMetadata),
           )
         else
-          ExpansionTile(
-            title: Text(l10n.photosInfoAllTags),
-            children: [
-              for (final entry
-                  in (m.exif.entries.toList()
-                    ..sort((a, b) => a.key.compareTo(b.key))))
-                _InfoRow(label: entry.key, value: entry.value, dense: true),
-            ],
+          // The sheet paints its own background; the tile needs a Material
+          // of its own for ink.
+          Material(
+            type: MaterialType.transparency,
+            child: ExpansionTile(
+              title: Text(l10n.photosInfoAllTags),
+              children: [
+                for (final entry
+                    in (m.exif.entries.toList()
+                      ..sort((a, b) => a.key.compareTo(b.key))))
+                  _InfoRow(label: entry.key, value: entry.value, dense: true),
+              ],
+            ),
           ),
         const SizedBox(height: KSpacing.s8),
         KButton(
           label: l10n.photosEditMetadata,
           icon: KIcon.edit,
-          onPressed: _edit,
+          onPressed: () => _edit(facts),
         ),
         const SizedBox(height: KSpacing.s16),
       ],

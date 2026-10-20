@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
-    show ProviderException, ProviderFamily;
+    show FutureProviderFamily, ProviderException, ProviderFamily;
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
@@ -13,6 +13,9 @@ import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/viewer/viewer_image.dart';
+import 'package:mediahro/images/image_pipeline.dart';
+import 'package:mediahro/images/metadata/metadata_codec.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
@@ -90,6 +93,43 @@ final ProviderFamily<ThumbnailSource, int> thumbnailSourceProvider =
       ),
     );
 
+/// Opens one image for the viewer; the returned [ViewerImage] closes the
+/// file when disposed. Tests replace it.
+typedef ViewerImageLoader = Future<ViewerImage> Function(PhotoEntry entry);
+
+final viewerImageLoaderProvider = Provider<ViewerImageLoader>((ref) {
+  final files = ref.watch(photoFilesProvider);
+  final pipeline = ref.watch(imagePipelineProvider);
+  return (entry) async {
+    final src = await files.open(entry);
+    try {
+      return await loadViewerImage(pipeline, src, onDispose: src.file.close);
+    } on Object {
+      await src.file.close();
+      rethrow;
+    }
+  };
+});
+
+/// What the details sheet shows about one photo.
+typedef PhotoFacts = ({ImageInfo info, ParsedMetadata parsed});
+
+final FutureProviderFamily<PhotoFacts, PhotoEntry> photoFactsProvider =
+    FutureProvider.autoDispose.family<PhotoFacts, PhotoEntry>((
+      ref,
+      entry,
+    ) async {
+      final pipeline = ref.watch(imagePipelineProvider);
+      final src = await ref.watch(photoFilesProvider).open(entry);
+      try {
+        final info = await pipeline.info(src);
+        final parsed = await pipeline.parsedMetadata(src);
+        return (info: info, parsed: parsed);
+      } finally {
+        await src.file.close();
+      }
+    });
+
 /// Reads image facts for the library (plug into the probe queue for images).
 final imageProberProvider = Provider<ImageProber>(
   (ref) => ImageProber(
@@ -99,7 +139,7 @@ final imageProberProvider = Provider<ImageProber>(
   ),
 );
 
-final metadataEditServiceProvider = Provider<MetadataEditService>(
+final metadataEditServiceProvider = Provider<MetadataEditor>(
   (ref) => MetadataEditService(
     files: ref.watch(photoFilesProvider),
     pipeline: ref.watch(imagePipelineProvider),

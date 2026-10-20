@@ -5,10 +5,15 @@ import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 
+/// Saves metadata edits; faked in tests.
+abstract interface class MetadataEditor {
+  Future<MetadataWriteOutcome> save(PhotoEntry entry, ImageMetadataEdit edit);
+}
+
 /// Saves metadata edits (IMG-006): writes them into the file (or an XMP
 /// sidecar for RAW and formats that cannot hold them), then re-reads the
 /// file so the timeline shows the new capture time and title.
-final class MetadataEditService {
+final class MetadataEditService implements MetadataEditor {
   MetadataEditService({
     required this.files,
     required this.pipeline,
@@ -21,6 +26,7 @@ final class MetadataEditService {
   final ImageProber prober;
   final LibraryDatabase db;
 
+  @override
   Future<MetadataWriteOutcome> save(
     PhotoEntry entry,
     ImageMetadataEdit edit,

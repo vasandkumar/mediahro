@@ -17,6 +17,7 @@ final class ViewerImage {
     required this.info,
     this.tileLoader,
     this.previewOnly = false,
+    this.onDispose,
   });
 
   final ui.Image base;
@@ -29,7 +30,14 @@ final class ViewerImage {
   /// A RAW shown from its embedded preview.
   final bool previewOnly;
 
-  void dispose() => base.dispose();
+  /// Closes the file the tile loader reads from.
+  final Future<void> Function()? onDispose;
+
+  void dispose() {
+    base.dispose();
+    final close = onDispose;
+    if (close != null) unawaited(close());
+  }
 }
 
 /// RGBA pixels as a `dart:ui` image.
@@ -50,8 +58,9 @@ Future<ui.Image> uiImageFrom(DecodedImage d) {
 /// embedded preview.
 Future<ViewerImage> loadViewerImage(
   MediahroImagePipeline pipeline,
-  ImageSource src,
-) async {
+  ImageSource src, {
+  Future<void> Function()? onDispose,
+}) async {
   final info = await pipeline.info(src);
   final format = await pipeline.formatOf(src);
   if (format == ImageFormat.raw) {
@@ -61,6 +70,7 @@ Future<ViewerImage> loadViewerImage(
       fullSize: ui.Size(d.width.toDouble(), d.height.toDouble()),
       info: info,
       previewOnly: true,
+      onDispose: onDispose,
     );
   }
   final plan = ViewerPlan.forSize(info.width, info.height);
@@ -104,5 +114,6 @@ Future<ViewerImage> loadViewerImage(
     fullSize: size,
     info: info,
     tileLoader: loader,
+    onDispose: onDispose,
   );
 }

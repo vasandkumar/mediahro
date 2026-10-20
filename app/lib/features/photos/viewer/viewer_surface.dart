@@ -83,6 +83,9 @@ class _ViewerSurfaceState extends State<ViewerSurface>
   bool _atFit = true;
   bool _initialised = false;
 
+  /// Layout resets the zoom; listeners hear about it after the frame.
+  bool _quiet = false;
+
   // Gesture state.
   late ZoomState _startZoom;
   ui.Offset _startFocal = ui.Offset.zero;
@@ -122,7 +125,7 @@ class _ViewerSurfaceState extends State<ViewerSurface>
         old.quarterTurns != widget.quarterTurns ||
         old.fullSize != widget.fullSize) {
       _rebuildGeometry();
-      _zoom.value = _geometry.initial;
+      _resetQuietly();
     }
     if (old.base != widget.base) _clearTiles();
   }
@@ -140,6 +143,18 @@ class _ViewerSurfaceState extends State<ViewerSurface>
     super.dispose();
   }
 
+  /// Back to the fit zoom without notifying during a build; listeners hear
+  /// about it right after the frame.
+  void _resetQuietly() {
+    _quiet = true;
+    _zoom.value = _geometry.initial;
+    _quiet = false;
+    _atFit = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onZoom();
+    });
+  }
+
   void _rebuildGeometry() {
     _geometry = ZoomGeometry(
       image: _displaySize,
@@ -150,6 +165,7 @@ class _ViewerSurfaceState extends State<ViewerSurface>
   }
 
   void _onZoom() {
+    if (_quiet) return;
     final s = _zoom.value;
     final atFit = _geometry.isAtFit(s);
     if (atFit != _atFit) {
@@ -351,15 +367,10 @@ class _ViewerSurfaceState extends State<ViewerSurface>
       builder: (context, constraints) {
         final size = constraints.biggest;
         if (size != _viewport || !_initialised) {
-          final first = !_initialised;
           _viewport = size;
           _rebuildGeometry();
           _initialised = true;
-          _zoom.value = _geometry.initial;
-          if (first) {
-            _atFit = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) => _onZoom());
-          }
+          _resetQuietly();
         }
         return Listener(
           onPointerSignal: _onPointerSignal,

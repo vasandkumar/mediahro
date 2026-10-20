@@ -10,7 +10,6 @@ import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/photos/viewer/viewer_surface.dart';
 import 'package:mediahro/features/photos/viewer/zoom_math.dart';
-import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart' show VirtualFileException;
 
@@ -58,7 +57,6 @@ class PhotoPage extends ConsumerStatefulWidget {
 class _PhotoPageState extends ConsumerState<PhotoPage> {
   ViewerImage? _image;
   Object? _error;
-  ImageSource? _source;
   int _generation = 0;
 
   @override
@@ -81,9 +79,6 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
     _image?.dispose();
     _image = null;
     _error = null;
-    final s = _source;
-    _source = null;
-    if (s != null) unawaited(s.file.close());
   }
 
   @override
@@ -98,13 +93,7 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
       _error = null;
     });
     try {
-      final src = await ref.read(photoFilesProvider).open(widget.entry);
-      if (!mounted || gen != _generation) {
-        unawaited(src.file.close());
-        return;
-      }
-      _source = src;
-      final image = await loadViewerImage(ref.read(imagePipelineProvider), src);
+      final image = await ref.read(viewerImageLoaderProvider)(widget.entry);
       if (!mounted || gen != _generation) {
         image.dispose();
         return;
