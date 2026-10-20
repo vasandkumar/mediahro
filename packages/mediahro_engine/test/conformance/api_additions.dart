@@ -22,12 +22,30 @@ void apiAdditionsSuite() {
         await e.setDucking(0.25);
         final ducked = await waitFor(e, (s) => s.ducked);
         expect(ducked.volume, closeTo(0.8, 1e-9), reason: 'user volume');
-        expect(await prop(e, 'volume'), closeTo(80, 1e-6));
-        expect(await prop(e, 'volume-gain'), closeTo(-12.04, 0.01));
+        // mpv >= 0.36 ducks through volume-gain and leaves `volume` alone;
+        // older builds (the Apple bootstrap) scale `volume` instead.
+        final gain = await _volumeGain(e);
+        if (gain != null) {
+          expect(gain, closeTo(-12.04, 0.01));
+          expect(await prop(e, 'volume'), closeTo(80, 1e-6));
+        } else {
+          expect(await prop(e, 'volume'), closeTo(20, 1e-6));
+        }
+        // Changing the user volume while ducked keeps both apart.
+        await e.setVolume(0.6);
+        final changed = await waitFor(
+          e,
+          (s) => (s.volume - 0.6).abs() < 1e-9,
+          reason: 'user volume while ducked',
+        );
+        expect(changed.ducked, isTrue);
         await e.setDucking(1);
         final restored = await waitFor(e, (s) => !s.ducked);
-        expect(restored.volume, closeTo(0.8, 1e-9));
-        expect(await prop(e, 'volume-gain'), closeTo(0, 1e-6));
+        expect(restored.volume, closeTo(0.6, 1e-9));
+        expect(await prop(e, 'volume'), closeTo(60, 1e-6));
+        if (gain != null) {
+          expect(await _volumeGain(e), closeTo(0, 1e-6));
+        }
       },
       skip: skip,
     );
@@ -118,4 +136,14 @@ void apiAdditionsSuite() {
       );
     }, skip: blocked);
   });
+}
+
+/// mpv's `volume-gain`, or null where this libmpv has no such property.
+Future<double?> _volumeGain(MpvEngine e) async {
+  try {
+    final v = await prop(e, 'volume-gain');
+    return v is num ? v.toDouble() : null;
+  } on Object {
+    return null;
+  }
 }

@@ -134,8 +134,12 @@ final class MpvEngine implements PlaybackEngine {
   var _cacheByBitrate = false;
   // Local files the engine opened as VirtualFiles; closed on the next open.
   final _ownedFiles = <VirtualFile>[];
-  // Audio-focus ducking gain (AUD-045); mpv's volume-gain, never `volume`.
+  // Audio-focus ducking gain (AUD-045): mpv's volume-gain where it exists
+  // (mpv >= 0.36); older builds scale mpv's `volume` instead while the state
+  // keeps reporting the user's volume.
   double _duck = 1;
+  var _duckViaVolume = false;
+  double _userVolume = 1;
   // Bluetooth codec of the active output, from the AudioBridge (AUD-044).
   String? _bluetoothCodec;
   // Where video is drawn (VID-031): the texture or a platform view.
@@ -652,6 +656,10 @@ final class MpvEngine implements PlaybackEngine {
     if (_state.ducked != _duck < 1) {
       _state = _state.copyWith(ducked: _duck < 1);
     }
+    // The state reports the user's volume, never the ducked output.
+    if (_duckViaVolume && _state.volume != _userVolume) {
+      _state = _state.copyWith(volume: _userVolume);
+    }
     if (_state.audio.bluetoothCodec != _bluetoothCodec) {
       _state = _state.copyWith(
         audio: _state.audio.copyWith(bluetoothCodec: _bluetoothCodec),
@@ -914,8 +922,8 @@ final class MpvEngine implements PlaybackEngine {
   Future<void> setVolume(double volume) async {
     final c = await _live();
     if (c == null) return;
-    final v = volume.clamp(0.0, 3.0) * 100;
-    await _quiet(c.setProperty('volume', v.toStringAsFixed(2)));
+    _userVolume = volume.clamp(0.0, 3.0);
+    await _applyVolume(c);
   }
 
   @override
@@ -1112,8 +1120,23 @@ final class MpvEngine implements PlaybackEngine {
     final c = await _live();
     if (c == null) return;
     _duck = gain.clamp(0.0, 1.0);
-    await _quiet(c.setProperty('volume-gain', duckingGainDb(_duck)));
+    if (!_duckViaVolume) {
+      try {
+        await c.setProperty('volume-gain', duckingGainDb(_duck));
+      } on MpvException {
+        // No volume-gain in this libmpv: duck through `volume` instead.
+        _duckViaVolume = true;
+      }
+    }
+    if (_duckViaVolume) await _applyVolume(c);
     _scheduleEmit();
+  }
+
+  /// mpv `volume`: the user's volume, times the ducking gain when ducking
+  /// cannot use `volume-gain` (AUD-045).
+  Future<void> _applyVolume(MpvClient c) async {
+    final v = _userVolume * (_duckViaVolume ? _duck : 1) * 100;
+    await _quiet(c.setProperty('volume', v.toStringAsFixed(2)));
   }
 
   @override
