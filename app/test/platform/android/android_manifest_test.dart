@@ -39,4 +39,20 @@ void main() {
     expect(manifest.contains('androidx.core.content.FileProvider'), isTrue);
     expect(manifest.contains(r'${applicationId}.files'), isTrue);
   });
+
+  test('SYS-006 mediaPlayback foreground service for the Media3 session', () {
+    expect(has('FOREGROUND_SERVICE'), isTrue);
+    expect(has('FOREGROUND_SERVICE_MEDIA_PLAYBACK'), isTrue);
+    expect(has('POST_NOTIFICATIONS'), isTrue);
+    expect(
+      RegExp(
+        r'PlaybackService"\s+android:exported="true"\s+android:foregroundServiceType="mediaPlayback"',
+      ).hasMatch(manifest),
+      isTrue,
+    );
+    expect(
+      manifest.contains('androidx.media3.session.MediaLibraryService'),
+      isTrue,
+    );
+  });
 }

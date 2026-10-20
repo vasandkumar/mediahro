@@ -1,9 +1,16 @@
 package com.mediahro.mediahro.platform
 
 import android.content.Context
+import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
+import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
+import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.MediaSessionHostApi
 import com.mediahro.mediahro.pigeon.PhotoLibraryHostApi
+import com.mediahro.mediahro.pigeon.RemoteCommandsStreamHandler
 import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
+import com.mediahro.mediahro.platform.media.AudioOutputModule
+import com.mediahro.mediahro.platform.media.MediaSessionModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
 import com.mediahro.mediahro.platform.storage.StorageModule
 import io.flutter.embedding.engine.FlutterEngine
@@ -16,6 +23,11 @@ import io.flutter.embedding.engine.FlutterEngine
 object PlatformModules {
     @Volatile private var activityHost: ActivityHost? = null
     private var storage: StorageModule? = null
+    private var session: MediaSessionModule? = null
+
+    /** The live audio module (debug hooks drive its focus listener). */
+    var audio: AudioOutputModule? = null
+        private set
 
     fun host(context: Context): ActivityHost =
         activityHost ?: synchronized(this) {
@@ -30,6 +42,17 @@ object PlatformModules {
         StorageHostApi.setUp(messenger, storageModule)
         StorageChangesStreamHandler.register(messenger, storageModule.changesHandler)
         PhotoLibraryHostApi.setUp(messenger, PhotoLibraryModule(context.applicationContext, host))
+
+        session?.dispose()
+        val sessionModule = MediaSessionModule(context.applicationContext).also { session = it }
+        MediaSessionHostApi.setUp(messenger, sessionModule)
+        RemoteCommandsStreamHandler.register(messenger, sessionModule.commandsHandler)
+
+        audio?.dispose()
+        val audioModule = AudioOutputModule(context.applicationContext).also { audio = it }
+        AudioOutputHostApi.setUp(messenger, audioModule)
+        AudioDeviceChangesStreamHandler.register(messenger, audioModule.devicesHandler)
+        AudioInterruptionsStreamHandler.register(messenger, audioModule.interruptionsHandler)
         debugHooks(host, engine)
     }
 
