@@ -1,0 +1,40 @@
+From f3351cada088cb4087433652161c0aa5ae61ba93 Mon Sep 17 00:00:00 2001
+From: Mediahro <mediahro@invalid>
+Date: Tue, 20 Oct 2026 02:29:33 +0530
+Subject: [PATCH] avformat/mov: do not trim iTunSMPB padding twice
+
+The iTunSMPB end padding is discarded from (duration - remainder), which
+assumes the media duration still contains the padding, as iTunes writes
+it. Files whose stts/mdhd already end at priming + samples (for example
+FFmpeg 6.x AAC output, which shortens the last frame, tagged afterwards
+with iTunSMPB) then lose "remainder" real samples at the end of every
+track, breaking gapless playback.
+
+Discard from priming + samples when that lies after (duration -
+remainder), bounded by the duration. Files written like iTunes are
+unchanged (both values are equal there).
+---
+ libavformat/mov.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/libavformat/mov.c b/libavformat/mov.c
+index 79bbdb0..dfd5f57 100644
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -5861,7 +5861,15 @@ static int mov_read_custom(MOVContext *c, AVIOContext *pb, MOVAtom atom)
+                     samples = av_rescale_q(samples, st->time_base,
+                                            (AVRational){ 1, st->codecpar->sample_rate });
+                     if (duration > remainder && duration > samples) {
+-                        ffstream(st)->first_discard_sample = duration - remainder;
++                        /* The padding is counted back from the media duration,
++                         * which only holds while the duration still includes
++                         * it (as iTunes writes it). When stts/mdhd already end
++                         * at priming + samples, discard from there instead of
++                         * cutting real samples. */
++                        int64_t end = duration - remainder;
++                        if (priming > 0 && priming < 16384 && samples > 0)
++                            end = FFMIN(FFMAX(end, priming + samples), duration);
++                        ffstream(st)->first_discard_sample = end;
+                         ffstream(st)->last_discard_sample = duration;
+                     }
+                 }

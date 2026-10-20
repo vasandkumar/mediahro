@@ -66,7 +66,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-008 | Localisation | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: pipeline (fragments, ICU checks, placeholder checks), pseudo-locales en-XA/ar-XB in tests, missing-string report in CI summary, Weblate components, locale formatting helpers. The 12 translations themselves come from Weblate (D5) |
 | CORE-009 | Keyboard shortcuts | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: action catalogue (docs/06 §6.2) with platform defaults, remapping UI, conflict detection, cheat sheet on ? with copyable text; ShortcutScopeWidget for lanes Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
-| CORE-011 | Crash resilience | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-011 | Crash resilience | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
@@ -107,24 +107,24 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| VID-001 | Containers | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-002 | Video codecs | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-003 | Audio codecs in video | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-004 | Audio passthrough | B1 | ☐ | — | ☐ | ☐ |  |
-| VID-005 | Playback edge cases | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-006 | Network playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-007 | DVD/Blu-ray folder playback | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-001 | Containers | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head). A I M ⛔ bootstrap gaps (§3) |
+| VID-002 | Video codecs | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ VC-1/VVC samples; A I M bootstrap gaps (§3) |
+| VID-003 | Audio codecs in video | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ DTS-HD MA/HRA/DTS:X samples (§3) |
+| VID-004 | Audio passthrough | B1 | ⛔ | — | ⛔ | ⛔ | ⛔ needs HDMI/SPDIF device lab (§3) |
+| VID-005 | Playback edge cases | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
+| VID-006 | Network playback | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
+| VID-007 | DVD/Blu-ray folder playback | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 
 ### 4.2 Rendering, HDR, quality
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | VID-030 | GPU renderer | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-031 | HDR10 / HLG | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-032 | HDR10+ | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-034 | Dolby Vision profile 5 | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-031 | HDR10 / HLG | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native HDR: Flutter textures are 8-bit (§3); tone mapping passes W |
+| VID-032 | HDR10+ | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no HDR10+ samples (§3) |
+| VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
+| VID-034 | Dolby Vision profile 5 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples, libdovi (§3) |
+| VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
 | VID-036 | Auto frame-rate and resolution matching | C1 | ☐ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) |
 | VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -157,13 +157,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| SUB-010 | Text formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-011 | Image formats | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-010 | Text formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
+| SUB-011 | Image formats | B1 → C1 | ⛔ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. A I M ⛔ bootstrap gaps |
+| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-013 | Encoding detection | B1 → C1 | ⛔ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1. A ⛔ no cp1251/SJIS/GBK conversion in bionic iconv (§3) |
+| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | M W engine side passes (engine run 39299903436); UI → C1 |
+| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | W engine side passes (engine run 39299903436); UI → C1. I M ⛔ bootstrap mpv (§3) |
 | SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -176,18 +176,18 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| AUD-001 | Formats | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-002 | Gapless | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-003 | Crossfade | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-004 | Loudness | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-005 | DSP chain | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-006 | Output quality indicator | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-040 | Bit-perfect Android | B1 | ☐ | — | — | — |  |
-| AUD-041 | Bit-perfect Apple | B1 | — | ☐ | ☐ | — |  |
-| AUD-042 | Bit-perfect Windows | B1 | — | — | — | ☐ |  |
-| AUD-043 | DSD | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-044 | Bluetooth | B1 | ☐ | ☐ | ☐ | ☐ |  |
-| AUD-045 | Audio focus and interruptions | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| AUD-001 | Formats | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ APE/TAK/MPC/SACD/MIDI samples; A I M bootstrap gaps (§3) |
+| AUD-002 | Gapless | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). W: iTunSMPB test pending. A I M ⛔ bootstrap gaps |
+| AUD-003 | Crossfade | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
+| AUD-004 | Loudness | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). ; A I M ⛔ bootstrap gaps |
+| AUD-005 | DSP chain | B1 | ☑ | ⛔ | ⛔ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head). ; A I M ⛔ bootstrap gaps |
+| AUD-006 | Output quality indicator | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
+| AUD-040 | Bit-perfect Android | B1 | ⛔ | — | — | — | ⛔ USB DAC device lab (§3) |
+| AUD-041 | Bit-perfect Apple | B1 | — | ⛔ | ⛔ | — | ⛔ device lab (§3) |
+| AUD-042 | Bit-perfect Windows | B1 | — | — | — | ⛔ | ⛔ ASIO licence; exclusive mode needs device lab (§3) |
+| AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W |
+| AUD-044 | Bluetooth | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) |
+| AUD-045 | Audio focus and interruptions | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) |
 | AUD-046 | Visualiser | C2 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 6.2 Music library and player UI
@@ -271,7 +271,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CAST-002 | AirPlay | C4 | — | ☐ | ☐ | — |  |
 | CAST-003 | DLNA renderer push | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CAST-004 | External display | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| CAST-005 | Local transcoding | B1 | ☐ | ☐ | ☐ | ☐ |  |
+| CAST-005 | Local transcoding | B1 | ☑ | ☐ | ☐ | ☑ | AW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 
 ### 10. SYS — Platform integration
 
@@ -328,6 +328,16 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
+| 2026-10-19 | B1 | VID-031 native HDR on HDR displays (A I M W) | Flutter external textures are 8-bit only (Windows `FlutterDesktopGpuSurfaceDescriptor` BGRA/RGBA, Apple `CVPixelBuffer` BGRA, Android `SurfaceProducer` RGBA8), so a 10-bit/PQ frame cannot reach an HDR swap chain through the compositor | ADR: Flutter engine support for 10-bit/FP16 external textures, or an HDR platform-view surface | Tone mapping to SDR on every platform (bt.2390 default, all six curves, peak detection), tested on CI |
+| 2026-10-19 | B1 | VID-032…035 (A I M W) | No CC0/CC BY Dolby Vision (P5, P7 MEL/FEL, P8.1/8.4) or HDR10+ samples in `test-media/corpus`; DV P5 reshaping also needs libplacebo built with libdovi | Owner or a D lane: source licensed samples into Git LFS; B4: libdovi in libplacebo | Detection (profile, HDR10+ MaxRGB, P7 notice) unit-tested; suite runs automatically once samples land (`category: hdr-lfs`) |
+| 2026-10-19 | B1 | VID-001 ISO images; VID-002 VC-1/VVC/HAP; VID-003 DTS-HD MA/HRA/DTS:X; AUD-001 APE/TAK/MPC/SACD ISO/MIDI (A I M W) | LGPL FFmpeg has no encoders for these, so the generated corpus lacks samples; ISO images need a UDF reader (B1 next); MIDI needs a soundfont synth in the deps build | Licensed samples in `test-media/corpus`; B4: a MIT/LGPL soundfont synth (e.g. TinySoundFont) | Every other container/codec of these rows passes on CI from the generated corpus |
+| 2026-10-19 | B1 | VID-004, AUD-040, AUD-041, AUD-042, AUD-044 (hardware paths) | HDMI/SPDIF passthrough, USB DAC bit-perfect, exclusive device modes and Bluetooth codecs need real devices; CI runners have none | Device lab (§4) manual checklists, docs/11 §4 | Engine configuration (audio-spdif, audio-exclusive, rate switching, Android mixer/iOS session requests, BT latency offset) tested on CI |
+| 2026-10-19 | B1 | AUD-042 ASIO (W) | mpv has no ASIO output and the Steinberg ASIO SDK is GPLv3 or proprietary | Owner: Steinberg licence agreement decision; then an ASIO AO | WASAPI exclusive and shared via mpv |
+| 2026-10-19 | B1 | AUD-043 native DSD/DoP (A I M W) | mpv's audio outputs cannot emit DoP or native DSD | ADR: custom DoP output stage | DSD→PCM with selectable low-pass, tested on CI |
+| 2026-10-19 | B1 | AUD-044 metadata/absolute volume, AUD-045 focus and interruptions | Media session, AVRCP and audio focus belong to C4's platform modules | Lane C4 (Phase C) | Engine exposes pause/volume/latency hooks |
+| 2026-10-19 | B1 | VID-001/002/003, SUB-010/011, AUD-001/002/004/005 on A I M; SUB-016 on I M | The ADR-004 bootstrap prebuilts for Android and Apple (media_kit, mpv 0.36–0.38) lack libopenmpt, the lavfi audio filters (EQ, limiter, ebur128) and, on Android, all encoders (CAST-005); their gapless join loses ~60 ms; on Apple, libass ignores Matroska font attachments, external PGS (.sup) draws nothing and `secondary-sub-text` stays empty (fine on mpv master and the mediahro-deps Android mpv). Since 2026-10-19 the bootstrap uses the LGPL "full" variants (all decoders/demuxers) instead of "default", which lacked MXF/RealMedia, FFV1/HAP/ProRes/E-AC-3/TrueHD/SAMI | Lane B4: mediahro-deps archives (FFmpeg 8.1 LGPL full config, mpv 0.41+) pinned in deps.lock; the plugin builds pick them up unchanged | Same suites pass on Windows (LGPL build with the full FFmpeg); the A/I/M jobs report each missing component |
+| 2026-10-20 | B1 + B4a | SUB-013 (A) | Android bionic iconv converts only UTF-8/16/32, ASCII and Latin-1, so mpv cannot convert cp1251, Shift-JIS, GBK, Big5, EUC-KR subtitles even when uchardet detects them or the user forces a code page | B4a: GNU libiconv (LGPL-2.1, shared) in the Android archive, mpv and FFmpeg built against it | UTF-8 and Latin-1 subtitles work; others show mojibake |
+| 2026-10-19 | B1 | Bootstrap libmpv (ADR-004) on all platforms | `deps.lock` has no mediahro-deps release yet; the Windows bootstrap release (zhongfly/mpv-winbuild 2026-10-19) is kept upstream for about 30 days | Lane B4 archives pinned in deps.lock | Plugin builds already prefer `.deps-cache/<target>` (lib/*.so, bin/*.dll, *.xcframework) |
 | 2026-10-20 | B1 + B4a | All Android cells of PR #3 (install-size budget, docs/11 §5) | APK with all mediahro-deps libraries is 102.3 MB per ABI vs the 40 MB budget | B4a: per-library size table, strip, FFmpeg `--disable-everything` + explicit components, trimmed libvips; B1: no duplicate libraries | None — budget is not relaxed; owner sees the numbers if 40 MB proves impossible |
 | 2026-10-19 | B3 | CORE-001 A (API 33–35) | Predictive back below API 36 needs `android:enableOnBackInvokedCallback="true"` in the manifest (app/android, lane C4). API 36 has it by default; the shell does not intercept back | Owner: lane C4 (Phase C): manifest flag | Theme already uses predictive-back page transitions |
 | 2026-10-19 | B3 | CORE-007 W | Mica needs the Windows runner to set `DWMWA_SYSTEMBACKDROP_TYPE` and extend the frame (app/windows, lane C4) | Owner: lane C4 (Phase C): runner change, then report it through `platformAppearanceProvider.micaActive` | Shell and sidebar are transparent when Mica is reported; solid surfaces until then |
@@ -347,6 +357,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Signing certificates and secrets: Apple distribution + Developer ID (G2 Sub-CA), Fastlane `match` repo, Play upload key, Azure Artifact Signing / OV cert, Sparkle EdDSA key, F-Droid key registration; add to GitHub environments | Before M7 | Signed CI artefacts, TestFlight, notarisation | Open |
 | Apple entitlement requests: multicast networking (SSDP/DLNA), CarPlay audio | M1 (request early) | NET-005, CAST-003 on iOS; MUS-013 on iOS | Open |
 | Counsel: confirm export-compliance answers (App Store `ITSAppUsesNonExemptEncryption`, encryption inventory) given ADR-017 and the BoringSSL embedded in the Flutter engine for dart:io TLS | Before App Store submission | App Store submission | Open |
+| Source licensed Dolby Vision (P5, P7 MEL/FEL, P8.1/8.4) and HDR10+ test samples into Git LFS (test-media/), or approve a vendor | Before M3 gate | VID-032…035 on all platforms | Open |
+| Decide on a Steinberg ASIO SDK licence (GPLv3 or proprietary agreement) | Before M4 gate | AUD-042 ASIO path (WASAPI exclusive works without it) | Open |
 | Third-party API keys and terms acceptance: OpenSubtitles.com, TMDB, TVDB, AcoustID, Last.fm, ListenBrainz, Libre.fm, OSM tile provider, IntroDB, Google Cast receiver app ID | Before beta | SUB-020, LIB-011, MUS-009/010, IMG-007, VID-073, CAST-001 live tests | Open |
 | MDM test tenant (Android Enterprise, Apple MDM, Intune) | M7 | B2B-001/002 manual verification | Open |
 | Device lab per docs/11 §3 (HDR panels, DACs, receivers, car head units, foldables) | M8 | Manual release checklists | Open |
@@ -381,6 +393,16 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Requested by | Topic | State |
 |---|---|---|
+| B1 | Apple render path: mpv's OpenGL (ES) render API into IOSurface `CVPixelBuffer`s (mpv exposes no Metal/Vulkan render API), instead of MoltenVK/Metal in docs/05 §4.3 | Accepted, ADR-021 (2026-10-20) |
+| B1 | Windows render path uses mpv's D3D11 render API (mpv master after 0.41.0, pinned 6a262d11f6): mediahro-deps must build that mpv or newer | Accepted, ADR-021 (2026-10-20) |
+| B1 | Android render path: `vo=gpu-next` drawing into the `SurfaceProducer` Surface (`wid`, Vulkan then GL) instead of `mpv_render_context` | Accepted, ADR-021 (2026-10-20) |
+| B1 | VirtualFile stream protocol: a C shim compiled by the engine's Dart build hook (native assets) blocks mpv's demuxer thread while Dart serves reads | Accepted, ADR-021 (2026-10-20) |
+| B1 | Engine example app + `.github/workflows/engine.yml` are the per-platform CI proof for the engine (conformance suites shared with desktop FFI tests) | Accepted, ADR-021 (2026-10-20) |
+| B1 | CAST-005 transcodes with libmpv's encoding mode and OS H.264 encoders (MediaCodec, VideoToolbox, Media Foundation) + FFmpeg AAC; remux plans transcode until mediahro-deps ships dynamic libavformat | Accepted, ADR-021 (2026-10-20) |
+| B1 | VID-007: own IFO/MPLS/CLPI parsers; DVD titles play as a VirtualFile over cell ranges, Blu-ray as EDL files; chapters via `OpenOptions.chapters` | Accepted, ADR-021 (2026-10-20) |
+| B1 | AUD-004 scan uses FFmpeg's `ebur128` filter (the libebur128 algorithm) inside a headless mpv core instead of libebur128 FFI | Accepted, ADR-021 (2026-10-20) |
+| B1 | SUB-016: mpv has no secondary subtitle size; the engine exposes `secondarySubtitleText` for C1 to draw at an independent size | Accepted, ADR-021 (2026-10-20) |
+| B1 | `sub-font-provider=auto` (CoreText, DirectWrite, fontconfig per platform) instead of fontconfig on Windows/Android in docs/05 §4.1 | Accepted, ADR-021 (2026-10-20) |
 | B4a | TLS / crypto for native protocol clients on Android (curl FTPS, libssh2 SFTP): one crypto/TLS library on Android only, or SFTP/FTPS through the Android platform module over JCA (§3) | Resolved by ADR-017 (2026-10-20) |
 | B4a | TLS stack of the Open Screen Cast sender: libcast requires BoringSSL (§3) | Resolved by ADR-017 (2026-10-20) |
 | B4a | The Flutter engine (`libflutter.so`, `Flutter.framework`, `flutter_windows.dll`) statically contains BoringSSL for `dart:io` TLS. docs/05 §4.1 ("no OpenSSL/mbedTLS ships") and the docs/07 rule 12 encryption inventory should state this exception explicitly | Resolved by ADR-017 (2026-10-20) |
@@ -389,6 +411,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | **Merged B1** (PR #3, engine M1: MpvEngine, render bridges on A/I/M/W, VirtualFile streaming, disc folders, audio DSP/gapless/crossfade, casting pipeline; ci + engine green on 7bc4f9b). Ticks re-verified from engine run 39355966616 at the merge head: +36 cells. ADR-021…023 recorded (engine choices, native HDR via platform views, DoP). Also merged B3 #10 (CORE-015 live policy, CORE-001 profile benchmark), B2 #8/#12, B4a deps#3/#4/#6 and mediahro#7/#11 (deps.lock → v2026.10.3-android.4). |
 | 2026-10-20 | **Merged B2** (PR #1, library index, scanner, search, sources, file browser; 16/16 CI green on 9971a48) and **B3** (PR #2, design system, shell, settings, themes, l10n tooling, shortcuts, privacy dashboard; 16/16 green on 24d9404). First verified cells: 15 (B3). Bookkeeping (STATUS, CHANGELOG, size baseline) is now orchestrator-only; CI cut to 2 macOS jobs per PR. |
 | 2026-10-19 | Phase A started. Read CLAUDE.md order (01, 04, 05, 06, 07, 09, 10, 11; 03, 13 as needed). Flutter 3.47.7 pinned via FVM. |
 | 2026-10-20 | Found three stalls: my `--no-dds` CI change broke Android integration on every PR (reverted, 6aa7fad); B1's PR #3 had 9 red jobs including a 102 MB Android APK (budget 40 MB) — B1 and B4a briefed. |

@@ -1,7 +1,23 @@
 // swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// Engine plugin (lane B1). libmpv and its dependencies are dynamic
+// xcframeworks staged into Frameworks/ by tool/stage_native.py from the
+// pinned mediahro-deps archive (deps.lock) or, until then, the ADR-004
+// bootstrap. LGPL libraries stay dynamic (docs/09 §2). Without staged
+// frameworks the plugin still builds and the engine reports libraryMissing.
 
+import Foundation
 import PackageDescription
+
+let frameworksDir = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Frameworks")
+let xcframeworks = ((try? FileManager.default.contentsOfDirectory(
+    atPath: frameworksDir.path)) ?? [])
+    .filter { $0.hasSuffix(".xcframework") }
+    .sorted()
+let binaryTargets: [Target] = xcframeworks.map {
+    .binaryTarget(name: String($0.dropLast(".xcframework".count)), path: "Frameworks/\($0)")
+}
 
 let package = Package(
     name: "mediahro_engine",
@@ -19,18 +35,15 @@ let package = Package(
             name: "mediahro_engine",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework")
-            ],
+            ] + binaryTargets.map { .target(name: $0.name) },
             resources: [
-                // If your plugin requires a privacy manifest, for example if it uses any required
-                // reason APIs, update the PrivacyInfo.xcprivacy file to describe your plugin's
-                // privacy impact, and then uncomment these lines. For more information, see
-                // https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-                // .process("PrivacyInfo.xcprivacy"),
-
-                // If you have other resources that need to be bundled with your plugin, refer to
-                // the following instructions to add them:
-                // https://developer.apple.com/documentation/xcode/bundling-resources-with-a-swift-package
+                .process("PrivacyInfo.xcprivacy")
+            ],
+            linkerSettings: [
+                .linkedFramework("OpenGLES"),
+                .linkedFramework("CoreVideo"),
+                .linkedFramework("IOSurface"),
             ]
         )
-    ]
+    ] + binaryTargets
 )

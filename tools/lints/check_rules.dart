@@ -95,14 +95,19 @@ void main(List<String> args) {
   for (final dirName in ['app/lib', 'packages']) {
     final dir = Directory('${root.path}/$dirName');
     if (!dir.existsSync()) continue;
-    for (final f in dir.listSync(recursive: true).whereType<File>()) {
+    for (final f
+        in dir
+            .listSync(recursive: true, followLinks: false)
+            .whereType<File>()) {
       if (!f.path.endsWith('.dart')) continue;
       final rel = f.path
           .replaceAll(r'\', '/')
           .substring(root.path.replaceAll(r'\', '/').length + 1);
       if (rel.contains('/.dart_tool/') ||
           rel.contains('/build/') ||
-          rel.contains('/test/')) {
+          rel.contains('/test/') ||
+          rel.contains('/ephemeral/') ||
+          rel.contains('/.plugin_symlinks/')) {
         continue;
       }
       final active = rules.where((r) => r.covers(rel)).toList();

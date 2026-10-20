@@ -31,3 +31,10 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
+
+# Native libraries staged by tool/stage_native.py (never committed)
+/ios/mediahro_engine/Frameworks/
+/macos/mediahro_engine/Frameworks/
+/example/assets/corpus/**
+!/example/assets/corpus/**/
+!/example/assets/corpus/**/.keep

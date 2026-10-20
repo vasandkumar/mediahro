@@ -44,6 +44,26 @@ enum AudioOutputPath { bitPerfect, resampled, mixed, passthrough, unknown }
 
 enum ScreenshotFormat { png, jpegXl, webp, jpeg }
 
+/// Informational notes surfaced once per item; mapped to copy by the UI.
+enum EngineNotice {
+  /// Dolby Vision profile 7: base layer played, enhancement layer ignored
+  /// (VID-035).
+  enhancementLayerIgnored,
+
+  /// Hardware decode was unavailable and software decode took over (VID-002).
+  softwareDecodeFallback,
+
+  /// Passthrough was refused by the device; audio is decoded (VID-004).
+  passthroughFallback,
+
+  /// HEVC has no hardware or OS decoder on this Windows device and software
+  /// HEVC is off by default (docs/09 §4).
+  hevcSoftwareDecodeOff,
+
+  /// Encrypted disc structure detected; only unencrypted discs play (VID-007).
+  encryptedDisc,
+}
+
 /// Error categories mapped to user-facing copy (docs/06 §8).
 enum EngineErrorCode {
   unsupportedFormat,
@@ -96,6 +116,14 @@ abstract class Track with _$Track {
     @Default(false) bool isExternal,
     @Default(false) bool isAudioDescription,
     @Default(false) bool isHearingImpaired,
+
+    /// Technical Dolby Vision profile of a video track (5, 7, 8); UI copy
+    /// never uses the trademark (docs/09 §4).
+    int? dolbyVisionProfile,
+
+    /// ReplayGain tags read by the demuxer (AUD-004).
+    double? replayGainTrackDb,
+    double? replayGainAlbumDb,
   }) = _Track;
 }
 
@@ -121,6 +149,16 @@ abstract class VideoStats with _$VideoStats {
     /// e.g. 5, 7, 8 — profile string only, shown as "HDR (dynamic metadata, profile 8)".
     int? dolbyVisionProfile,
     String? subtitleRenderer,
+
+    /// Render path of the video surface (VID-030, VID-072 info overlay):
+    /// "d3d11" and "opengl-iosurface" (zero-copy), "d3d11-copy",
+    /// "opengl-readback" (iOS Simulator only), "android-surface", "software";
+    /// null without a surface.
+    String? renderBackend,
+
+    /// Mastering display peak (cd/m²) and MaxCLL from HDR10 metadata.
+    double? peakNits,
+    double? maxCll,
   }) = _VideoStats;
 }
 
@@ -133,6 +171,9 @@ abstract class AudioOutputInfo with _$AudioOutputInfo {
     int? bitDepth,
     int? channels,
     @Default(AudioOutputPath.unknown) AudioOutputPath path,
+
+    /// Engine audio output in use (`wasapi`, `aaudio`, `coreaudio`, …).
+    String? output,
   }) = _AudioOutputInfo;
 }
 
@@ -157,9 +198,25 @@ abstract class PlaybackState with _$PlaybackState {
     @Default(<Chapter>[]) List<Chapter> chapters,
     @Default(Duration.zero) Duration audioDelay,
     @Default(Duration.zero) Duration subtitleDelay,
+    @Default(Duration.zero) Duration secondarySubtitleDelay,
+
+    /// Current secondary subtitle line (SUB-016). The UI draws it with its own
+    /// size and position; the engine does not burn it in.
+    String? secondarySubtitleText,
     @Default(VideoStats()) VideoStats video,
     @Default(AudioOutputInfo()) AudioOutputInfo audio,
     EngineError? error,
+
+    /// One-time informational notes for the current item (e.g. VID-035).
+    @Default(<EngineNotice>{}) Set<EngineNotice> notices,
+
+    /// True when the next item is preloaded for gapless or crossfade
+    /// (AUD-002, AUD-003).
+    @Default(false) bool nextPrepared,
+
+    /// Increments each time an item starts, including gapless and crossfade
+    /// advances, so queues can follow transitions.
+    @Default(0) int item,
   }) = _PlaybackState;
 }
 
@@ -176,6 +233,15 @@ abstract class OpenOptions with _$OpenOptions {
 
     /// Read-ahead cache budget; null lets the engine size it by bitrate (VID-006).
     int? cacheBytes,
+
+    /// Chapters known from outside the container (disc IFO/MPLS, VID-007);
+    /// used when the stream itself has none.
+    @Default(<Chapter>[]) List<Chapter> chapters,
+
+    /// Gain from the library's background EBU R128 scan for items without
+    /// ReplayGain tags (AUD-004, `LoudnessScanner`); applied when loudness
+    /// normalisation is on.
+    double? loudnessGainDb,
   }) = _OpenOptions;
 }
 
@@ -260,7 +326,23 @@ abstract class AudioDspChain with _$AudioDspChain {
     @Default(0) double trebleDb,
     @Default(1) double pitch,
     @Default(false) bool skipSilence,
+
+    /// Channel mixer: one row per output channel, one gain per input channel
+    /// (AUD-005). Empty keeps the layout.
+    @Default(<List<double>>[]) List<List<double>> channelMatrix,
   }) = _AudioDspChain;
+}
+
+/// Post-conversion low-pass for DSD played as PCM (AUD-043).
+enum DsdFilter {
+  /// 24 kHz cutoff, the common DAC default.
+  standard,
+
+  /// 20 kHz steep cutoff.
+  sharp,
+
+  /// 30 kHz gentle cutoff for high-rate PCM.
+  slow,
 }
 
 /// Output device selection and exclusivity (VID-004, AUD-040…043).
@@ -272,6 +354,16 @@ abstract class AudioOutputConfig with _$AudioOutputConfig {
     @Default(false) bool exclusive,
     @Default(<String>[]) List<String> passthroughCodecs,
     @Default(false) bool nativeDsd,
+
+    /// Low-pass applied after DSD→PCM conversion (AUD-043).
+    @Default(DsdFilter.standard) DsdFilter dsdFilter,
+
+    /// Switch the device to the source sample rate when exclusive
+    /// (AUD-040…042).
+    @Default(true) bool matchSampleRate,
+
+    /// Extra output latency compensation, e.g. Bluetooth A/V sync (AUD-044).
+    @Default(Duration.zero) Duration latencyOffset,
   }) = _AudioOutputConfig;
 }
 
@@ -291,5 +383,31 @@ abstract class SubtitleStyle with _$SubtitleStyle {
     /// 0 = bottom, 100 = top.
     double? verticalPosition,
     @Default(false) bool overrideAssStyles,
+
+    /// Horizontal alignment and margins (SUB-014).
+    SubtitleAlignX? alignX,
+    double? marginX,
+    double? marginY,
+    @Default(SubtitleBorderStyle.outlineAndShadow)
+    SubtitleBorderStyle borderStyle,
   }) = _SubtitleStyle;
+}
+
+enum SubtitleAlignX { left, center, right }
+
+enum SubtitleBorderStyle { outlineAndShadow, opaqueBox, backgroundBox }
+
+/// Track transition rules for the music role (AUD-002, AUD-003).
+@freezed
+abstract class TransitionConfig with _$TransitionConfig {
+  const factory TransitionConfig({
+    /// Crossfade on natural track end, 0–12 s; zero means gapless.
+    @Default(Duration.zero) Duration naturalEnd,
+
+    /// Crossfade on a manual skip, 0–12 s.
+    @Default(Duration.zero) Duration manualSkip,
+
+    /// Crossfade even between consecutive tracks of a gapless album (opt-in).
+    @Default(false) bool crossfadeGaplessAlbums,
+  }) = _TransitionConfig;
 }

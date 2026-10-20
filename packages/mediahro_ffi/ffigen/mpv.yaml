@@ -1,0 +1,39 @@
+# libmpv client, render and stream_cb APIs (lane B1). Headers are the public,
+# ISC-licensed mpv headers pinned to mpv commit 6a262d11f6 (post-0.41 master with the
+# D3D11 render API used by the Windows bridge; mediahro-deps builds this or newer).
+# Regenerate: dart run ffigen --config ffigen/mpv.yaml
+name: MpvBindings
+description: Bindings to libmpv (client.h, render.h, render_gl.h, render_d3d11.h, stream_cb.h).
+output: ../lib/src/mpv/bindings/mpv_bindings.dart
+headers:
+  entry-points:
+    - ../lib/src/mpv/include/mpv/client.h
+    - ../lib/src/mpv/include/mpv/render.h
+    - ../lib/src/mpv/include/mpv/render_gl.h
+    - ../lib/src/mpv/include/mpv/render_d3d11.h
+    - ../lib/src/mpv/include/mpv/stream_cb.h
+  include-directives:
+    - ../lib/src/mpv/include/mpv/*.h
+compiler-opts:
+  - -I../lib/src/mpv/include
+functions:
+  include:
+    - mpv_.*
+structs:
+  include:
+    - mpv_.*
+enums:
+  include:
+    - mpv_.*
+unions:
+  include:
+    - mpv_.*
+macros:
+  include:
+    - MPV_.*
+typedefs:
+  include:
+    - mpv_.*
+preamble: |
+  // libmpv headers: Copyright (C) the mpv developers, ISC licence.
+  // ignore_for_file: type=lint, unused_field, unused_element

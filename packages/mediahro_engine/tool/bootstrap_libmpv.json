@@ -1,0 +1,53 @@
+{
+  "comment": "ADR-004 bootstrap: prebuilt LGPL libmpv used by lane B1 until mediahro-deps archives are pinned in deps.lock. Only the engine workflow and local development fetch these; app builds bundle libmpv from .deps-cache/<target> (deps.lock) only. The media_kit variants are the LGPL \"full\" builds (all decoders/demuxers); all are LGPL builds (no encoders-gpl, no GPL configure flags).",
+  "targets": {
+    "windows-x64": {
+      "url": "https://github.com/zhongfly/mpv-winbuild/releases/download/2026-10-19-6a262d11f6/mpv-dev-lgpl-x86_64-20261019-git-6a262d11f6.7z",
+      "sha256": "95420b393fd86dc39853d5df6b03bed318720c501a089930231058558ec40bf2",
+      "licence": "LGPL-2.1-or-later (mpv -Dgpl=false, FFmpeg --enable-version3 without --enable-gpl)",
+      "layout": {"libmpv-2.dll": "lib/libmpv-2.dll"}
+    },
+    "android-arm64-v8a": {
+      "url": "https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.11/full-arm64-v8a.jar",
+      "sha256": "cdb54c5cf24725623ca717bbbd6d991031d625a377460bd128f19c2dffe189bd",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"lib/arm64-v8a/libmpv.so": "lib/libmpv.so"}
+    },
+    "android-armeabi-v7a": {
+      "url": "https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.11/full-armeabi-v7a.jar",
+      "sha256": "b658f2ff91169f8dad0e09e0240ebe200bb3df999da5712f8fab96ad11a4fbec",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"lib/armeabi-v7a/libmpv.so": "lib/libmpv.so"}
+    },
+    "android-x86_64": {
+      "url": "https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.11/full-x86_64.jar",
+      "sha256": "848936cfd7333077f21759adaca4a9e1a5647891da2e42ab211c5bdc30f4535d",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"lib/x86_64/libmpv.so": "lib/libmpv.so"}
+    },
+    "macos-dylibs": {
+      "url": "https://github.com/media-kit/libmpv-darwin-build/releases/download/v0.7.3/libmpv-libs_v0.7.3_macos-universal-video-full.tar.gz",
+      "sha256": "f570695d8ba8534835dd4cba0b6e275579c1c22c01a9da0442748ca37e2daac1",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"libmpv-libs_v0.7.3_macos-universal-video-full/": "lib/"}
+    },
+    "macos-xcframeworks": {
+      "url": "https://github.com/media-kit/libmpv-darwin-build/releases/download/v0.7.3/libmpv-xcframeworks_v0.7.3_macos-universal-video-full.tar.gz",
+      "sha256": "088c5a75e5ee0e39277f04723179b721cac20387a57cc7b9a899fd47b830c0a2",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"libmpv-xcframeworks_v0.7.3_macos-universal-video-full/": "Frameworks/"}
+    },
+    "ios-xcframeworks": {
+      "url": "https://github.com/media-kit/libmpv-darwin-build/releases/download/v0.7.3/libmpv-xcframeworks_v0.7.3_ios-universal-video-full.tar.gz",
+      "sha256": "8d9068dd553b39f07ed9efe67f9acd212e7f7cebaba1caa39320e99ef85757a9",
+      "licence": "LGPL (media_kit 'full' variant: FFmpeg --disable-gpl/--enable-version3 with all decoders and demuxers; no GPL inputs)",
+      "layout": {"libmpv-xcframeworks_v0.7.3_ios-universal-video-full/": "Frameworks/"}
+    },
+    "ffmpeg-windows-x64": {
+      "url": "https://github.com/zhongfly/mpv-winbuild/releases/download/2026-10-19-6a262d11f6/ffmpeg-lgpl-x86_64-git-8b3525e71.7z",
+      "sha256": "dcf72be90c4f2c38e912523ddb7bb4e21ae03a522a7220b96499dae13962ff98",
+      "licence": "LGPL-3.0-or-later; build tool for generating test media only, never shipped",
+      "layout": {"ffmpeg.exe": "bin/ffmpeg.exe"}
+    }
+  }
+}

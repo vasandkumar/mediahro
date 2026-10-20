@@ -5,6 +5,18 @@ All notable changes are grouped by feature area and reference feature IDs from `
 ## [Unreleased]
 
 ### Added
+- Engine (lane B1, M1): `MpvEngine` over libmpv with own ffigen bindings and an event isolate; render bridges for Windows (D3D11 shared textures), Android (SurfaceProducer) and iOS/macOS (IOSurface pixel buffers) (VID-001…007, VID-030/031, CORE-011).
+- Seekable playback from any `VirtualFile` source through the `mhvf://` stream protocol, including files over 20 GB (VID-005, VID-006).
+- Gapless AAC trims its padding once when a file has both an iTunSMPB tag and a container duration that already excludes the padding (AUD-002).
+- Network read-ahead cache sized to each file's bitrate within the memory budgets; index-less AVI files play and seek (VID-005, VID-006).
+- DVD `VIDEO_TS` and Blu-ray `BDMV` folder playback with title selection and chapters, without GPL code (VID-007).
+- Subtitles: every text format incl. TTML/DFXP, LRC, TXT and MicroDVD, image subtitles, external lookup, charset detection with override, styling, timing, dual subtitles (SUB-010…016, engine side).
+- Audio: sample-accurate gapless, crossfade, ReplayGain and EBU R128 scan, 10-band and 32-band parametric EQ with AutoEq import, DSP chain, truthful output indicator, DSD→PCM, bit-perfect requests on Android and iOS (AUD-001…006, AUD-040…045 engine side).
+- Casting pipeline: local cast server with byte ranges, passthrough/remux/transcode decision, OS-encoder transcoding to HLS, WebVTT subtitles (CAST-005).
+- Apple render bridge falls back to GL readback on the iOS Simulator only; devices and macOS stay zero-copy (VID-030).
+- `VideoStats.renderBackend` reports the render path for the info overlay (VID-030, VID-072).
+- Android packages native libraries only for the ABIs a build targets (VID-030).
+- Shift-JIS subtitles detected or forced (SUB-013).
 - The library checks at start-up that the device's database engine supports full-text search, and explains what to do if it doesn't (LIB-001).
 - iOS and macOS use the system's SQLite, which keeps the app smaller (LIB-001, LIB-005).
 - Design system (lane B3, SYS-008, SYS-011): component library (`KButton`, `KSeekBar`, `KSheet`, `KGrid`, `KRow`, `KChip`, `KSidebar`, `KPlayerChrome`, `KMiniPlayer`, `KCompareView`, `KTimelineScrubber`, settings rows, skeletons, empty and error states) with semantics, platform target sizes, focus rings, reduced motion and transparency, 200 % text and RTL; window size classes, list-detail and tabletop layouts; golden matrix per platform family.

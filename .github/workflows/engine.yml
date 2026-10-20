@@ -1,0 +1,194 @@
+# Engine proof (lane B1, docs/10 §8 rule 4; docs/11 §1): FFI contract tests
+# and the media corpus driving MpvEngine on real libmpv per platform, plus the
+# engine example app's integration tests on A/I/M/W (the Apple proofs share
+# one macOS runner: integration-apple).
+#
+# libmpv comes from .deps-cache/<target> once deps.lock pins a mediahro-deps
+# release; until then from the ADR-004 bootstrap
+# (packages/mediahro_engine/tool/bootstrap_libmpv.json, SHA-256 pinned).
+name: engine
+
+on:
+  pull_request:
+    paths:
+      - 'packages/mediahro_engine/**'
+      - 'packages/mediahro_ffi/lib/src/mpv/**'
+      - 'packages/mediahro_ffi/ffigen/mpv.yaml'
+      - 'app/lib/engine/**'
+      - 'tools/corpus/**'
+      - 'test-media/**'
+      - 'deps.lock'
+      - '.github/workflows/engine.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mediahro_engine/**'
+      - 'packages/mediahro_ffi/lib/src/mpv/**'
+      - 'app/lib/engine/**'
+      - 'tools/corpus/**'
+      - 'deps.lock'
+      - '.github/workflows/engine.yml'
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: engine-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PUB_CACHE: ${{ github.workspace }}/.pub-cache
+
+jobs:
+  corpus:
+    name: corpus (generate)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - name: Install ffmpeg (test-media generation only; nothing generated ships)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+      - run: dart run tools/corpus/generate.dart --ffmpeg ffmpeg --out test-media/generated
+      - name: UDF disc images (pycdlib, test media only)
+        run: python3 -m pip install --quiet pycdlib==1.22.0 && python3 tools/corpus/make_iso.py test-media/generated
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: engine-corpus, path: test-media/generated, retention-days: 7 }
+
+  ffi:
+    name: ffi + corpus (windows)
+    needs: corpus
+    runs-on: windows-2025
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: engine-corpus, path: test-media/generated }
+      - name: libmpv (deps.lock archive, else ADR-004 bootstrap)
+        run: |
+          dir=$(python packages/mediahro_engine/tool/fetch_libmpv.py --print-path windows-x64 | tail -1)
+          echo "MEDIAHRO_LIBMPV=$dir/lib/libmpv-2.dll" >> "$GITHUB_ENV"
+      - name: Engine tests (unit + FFI contract + corpus)
+        working-directory: packages/mediahro_engine
+        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-windows.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: engine-report-windows
+          path: |
+            build/engine-tests-*.json
+            build/corpus-report.json
+          if-no-files-found: ignore
+
+  integration-windows:
+    timeout-minutes: 90
+    name: integration (windows)
+    needs: corpus
+    runs-on: windows-2025
+    defaults:
+      run: { shell: bash }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: engine-corpus, path: test-media/generated }
+      - name: libmpv and corpus into the example app
+        run: |
+          python packages/mediahro_engine/tool/fetch_libmpv.py windows-x64
+          python packages/mediahro_engine/tool/stage_corpus.py
+      - name: Integration tests (render bridge + conformance suites)
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d windows
+
+  # One macOS runner for every Apple proof (macOS runners are the CI
+  # bottleneck): FFI + corpus on macOS, then the example app on the iOS
+  # Simulator and on macOS. Later steps run even when an earlier one failed,
+  # so one run reports all three; the job fails if any of them does.
+  integration-apple:
+    timeout-minutes: 150
+    name: integration-apple
+    needs: corpus
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: engine-corpus, path: test-media/generated }
+      - name: libmpv (macOS dylibs for FFI; xcframeworks for the apps) and corpus
+        id: mpv
+        run: |
+          dir=$(python3 packages/mediahro_engine/tool/fetch_libmpv.py --print-path macos-dylibs | tail -1)
+          echo "dylibs=$dir" >> "$GITHUB_OUTPUT"
+          python3 packages/mediahro_engine/tool/fetch_libmpv.py ios-xcframeworks macos-xcframeworks
+          python3 packages/mediahro_engine/tool/stage_native.py ios
+          python3 packages/mediahro_engine/tool/stage_native.py macos
+          python3 packages/mediahro_engine/tool/stage_corpus.py
+      - name: macOS engine tests (unit + FFI contract + corpus)
+        working-directory: packages/mediahro_engine
+        env:
+          MEDIAHRO_LIBMPV: ${{ steps.mpv.outputs.dylibs }}/lib/libmpv.dylib
+          DYLD_FALLBACK_LIBRARY_PATH: ${{ steps.mpv.outputs.dylibs }}/lib
+        run: flutter test --reporter github --file-reporter json:../../build/engine-tests-macos.json
+      - name: Boot iOS Simulator
+        id: sim
+        if: success() || failure()
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+      - name: iOS Simulator integration tests (render bridge + conformance suites)
+        if: (success() || failure()) && steps.sim.outcome == 'success'
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d ${{ steps.sim.outputs.udid }}
+      - name: macOS integration tests (render bridge + conformance suites)
+        if: success() || failure()
+        run: packages/mediahro_engine/tool/run_example_tests.sh -d macos
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: engine-report-macos
+          path: build/engine-tests-*.json
+          if-no-files-found: ignore
+
+  integration-android:
+    timeout-minutes: 120
+    needs: corpus
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with: { distribution: temurin, java-version: '21' }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: .fvmrc, cache: true }
+      - run: tools/bootstrap
+      - name: Install NDK r28
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" > /dev/null
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: engine-corpus, path: test-media/generated }
+      - name: libmpv and corpus into the example app
+        run: |
+          python3 packages/mediahro_engine/tool/fetch_libmpv.py android-x86_64 android-arm64-v8a
+          python3 packages/mediahro_engine/tool/stage_corpus.py
+      - name: Integration tests on API 36 (16 KB page-size image)
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 36
+          target: google_apis_ps16k
+          arch: x86_64
+          disable-animations: true
+          script: packages/mediahro_engine/tool/android_integration.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with: { name: engine-logcat, path: build/engine-logcat.txt, if-no-files-found: ignore }

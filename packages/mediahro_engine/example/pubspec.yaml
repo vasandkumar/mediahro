@@ -1,0 +1,35 @@
+name: mediahro_engine_example
+description: Engine test bed (lane B1) - runs the engine conformance suite and render-bridge integration tests on Android, iOS, macOS and Windows.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  mediahro_engine:
+    path: ../
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:
+  uses-material-design: true
+  # Filled by tool/stage_corpus.py before device builds (CI); empty otherwise.
+  assets:
+    - assets/corpus/
+    - assets/corpus/ext_subs/
+    - assets/corpus/ext_subs/Subs/
+    - assets/corpus/dvd/VIDEO_TS/
+    - assets/corpus/bluray/BDMV/
+    - assets/corpus/bluray/BDMV/PLAYLIST/
+    - assets/corpus/bluray/BDMV/CLIPINF/
+    - assets/corpus/bluray/BDMV/STREAM/

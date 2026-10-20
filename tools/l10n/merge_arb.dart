@@ -68,7 +68,7 @@ void main(List<String> args) {
 
   final fragments =
       libDir
-          .listSync(recursive: true)
+          .listSync(recursive: true, followLinks: false)
           .whereType<File>()
           .where((f) => f.path.endsWith('.arb'))
           .where(
