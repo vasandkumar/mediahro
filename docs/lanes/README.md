@@ -77,8 +77,8 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
     - **Lane proof is Dart-level:** `tools/check` plus unit and widget tests. Only the Android platform lane (C4a) builds APKs, to compile its Kotlin. Device runs and release builds are the orchestrator's.
     - **Keep your build folders while you are active** (fast incremental builds); they're deleted when your lane is paused or if the project goes over its 30 GB budget on K:.
     - **Never start an emulator, never start a GitHub workflow, nothing large on C:** (rules 6, 8, 9).
-12. **Models (owner, 2026-10-20).** Lanes run on **Sonnet 5.5**; the orchestrator stays on Opus.
-    - No session changes model mid-flight, because the cache would be lost.
-    - For a genuinely hard sub-problem, a Sonnet lane hands that piece to an **Opus subagent** (Agent tool, `model: "opus"`) and continues with the result.
+12. **Models: choose by complexity (owner, 2026-10-20/21).** Lanes run on **Sonnet 5.5**; the orchestrator (Opus) only coordinates, decides and merges, and does no hands-on work.
+    - Delegate by complexity: **Haiku** subagents (Agent tool, `model: "haiku"`) for simple, mechanical chores such as cleanup, deleting build output, file moves, renames, routine commands and formatting fixes; Sonnet (yourself) for normal coding, tests and builds; an **Opus** subagent (`model: "opus"`) only for genuinely hard problems, such as native, linker or concurrency bugs, architecture questions or licence analysis.
+    - No session changes model mid-flight, because the cache would be lost. Hand off through a new session instead.
     - Every lane has a handoff file in `docs/lanes/handoff/` saying where it stands.
 
