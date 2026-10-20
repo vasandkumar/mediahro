@@ -4,7 +4,9 @@
 //
 // Mutates seed files of every tag container (ID3v2.2–2.4, ID3v1, APE, FLAC,
 // Ogg, MP4, ASF, WAV, AIFF, DSF) and asserts that TagReader.read never
-// throws, hangs or allocates past its limits. The reader is pure Dart and
+// throws, hangs or allocates past its limits, and that TagWriter.plan
+// either plans a rewrite or refuses with TagFormatException /
+// TagWriteUnsupported (MUS-003). The reader is pure Dart and
 // lives in the app package.
 // ignore_for_file: depend_on_referenced_packages
 import 'dart:io';
@@ -12,7 +14,10 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:mediahro/features/music/tags/byte_reader.dart';
+import 'package:mediahro/features/music/tags/audio_tags.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro/features/music/tags/writer/tag_edit.dart';
+import 'package:mediahro/features/music/tags/writer/tag_writer.dart';
 
 import '../../../app/test/features/music/tag_fixtures.dart';
 
@@ -73,6 +78,13 @@ List<Uint8List> _seeds() => [
   ),
 ];
 
+const _edit = TagEdit(
+  fields: {
+    TagField.title: ['Fuzz'],
+    TagField.trackNumber: ['3'],
+  },
+);
+
 void main(List<String> args) {
   final i = args.indexOf('--iterations');
   final iterations = i >= 0 ? int.parse(args[i + 1]) : 10000;
@@ -96,7 +108,16 @@ void main(List<String> args) {
     final input = Uint8List.sublistView(b, 0, cut);
     final t = Stopwatch()..start();
     try {
-      TagReader.read(MemoryByteReader(input));
+      final r = MemoryByteReader(input);
+      final before = TagReader.read(r);
+      // Writers must refuse broken files cleanly (MUS-003).
+      try {
+        TagWriter.plan(r, before, _edit);
+      } on TagFormatException {
+        // refused
+      } on TagWriteUnsupported {
+        // refused
+      }
     } on Object catch (e, s) {
       stderr
         ..writeln('music_tags_fuzz: iteration $n threw $e')

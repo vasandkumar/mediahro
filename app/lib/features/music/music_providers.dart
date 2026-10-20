@@ -48,6 +48,7 @@ final musicFilesProvider = Provider<MusicFiles>((ref) {
   final f = MusicFiles(
     ref.watch(libraryDatabaseProvider),
     ref.watch(sourceResolverProvider),
+    mounts: ref.watch(mountsProvider),
   );
   ref.onDispose(() => unawaited(f.close()));
   return f;

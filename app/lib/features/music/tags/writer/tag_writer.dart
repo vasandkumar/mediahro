@@ -2,6 +2,7 @@ import 'package:mediahro/features/music/tags/ape.dart';
 import 'package:mediahro/features/music/tags/audio_tags.dart';
 import 'package:mediahro/features/music/tags/byte_reader.dart';
 import 'package:mediahro/features/music/tags/id3.dart';
+import 'package:mediahro/features/music/tags/mpeg_duration.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
 import 'package:mediahro/features/music/tags/writer/id3_writer.dart';
 import 'package:mediahro/features/music/tags/writer/mp4_writer.dart';
@@ -14,7 +15,29 @@ import 'package:mediahro/features/music/tags/writer/vorbis_writer.dart';
 /// `ilst` for MP4, APEv2 for Monkey's Audio/WavPack/Musepack (and MP3s that
 /// already have one), ASF objects for WMA, chunks for WAV/AIFF.
 abstract final class TagWriter {
+  /// Throws [TagFormatException] for files too broken to rewrite and
+  /// [TagWriteUnsupported] for containers that can't hold the edit; never
+  /// anything else.
   static WritePlan plan(ByteReader r, AudioTags before, TagEdit edit) {
+    try {
+      return _plan(r, before, edit);
+      // Index and arithmetic slips on corrupt input refuse the edit instead
+      // of crashing the batch.
+      // ignore: avoid_catching_errors
+    } on ArgumentError {
+      throw const TagFormatException('corrupt container');
+      // Same for NaN/Infinity conversions.
+      // ignore: avoid_catching_errors
+    } on UnsupportedError {
+      throw const TagFormatException('corrupt container');
+      // Same for empty iterables (`first` on nothing).
+      // ignore: avoid_catching_errors
+    } on StateError {
+      throw const TagFormatException('corrupt container');
+    }
+  }
+
+  static WritePlan _plan(ByteReader r, AudioTags before, TagEdit edit) {
     final after = edit.applyTo(before);
     return switch (TagReader.detect(r)) {
       AudioContainer.flac => planFlac(r, after, edit),
@@ -32,6 +55,11 @@ abstract final class TagWriter {
   /// MP3: ID3v2.4 at the start; an existing APE tag (and ID3v1) at the
   /// end is kept in step.
   static WritePlan _mpeg(ByteReader r, AudioTags after, TagEdit edit) {
+    // Never tag a file that is not audio: it must already carry an ID3v2
+    // tag or start with MPEG audio frames.
+    if (id3v2Size(r, 0) == null && mpegDuration(r) == null) {
+      throw const TagWriteUnsupported('not MPEG audio');
+    }
     final v1 = hasId3v1(r);
     final ape = findApeTag(r, v1 ? r.length - 128 : r.length);
     if (ape == null) return planId3File(r, after, edit);

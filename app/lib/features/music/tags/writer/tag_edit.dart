@@ -129,3 +129,9 @@ String? numberWithTotal(AudioTags t, String numberKey, String totalKey) {
       t.first(totalKey) ?? RegExp(r'/\s*(\d+)').firstMatch(n)?.group(1);
   return total == null ? num : '$num/$total';
 }
+
+/// Latin-1 bytes of [s]; characters outside Latin-1 become `?`.
+Uint8List latin1Bytes(String s) => Uint8List.fromList([
+  for (final u in s.codeUnits)
+    if (u <= 0xFF) u else 0x3F,
+]);

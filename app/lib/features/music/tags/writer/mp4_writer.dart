@@ -45,7 +45,7 @@ Set<String> _atomsOf(String key) => switch (key) {
 
 List<int> _atom(String type, List<int> body) => [
   ..._u32(body.length + 8),
-  ...latin1.encode(type),
+  ...latin1Bytes(type),
   ...body,
 ];
 

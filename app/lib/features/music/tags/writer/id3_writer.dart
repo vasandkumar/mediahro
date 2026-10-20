@@ -196,7 +196,7 @@ void _writeField(BytesBuilder out, String key, AudioTags t) {
         Uint8List.fromList([
           ...latin1.encode('http://musicbrainz.org'),
           0,
-          ...latin1.encode(values.first),
+          ...latin1Bytes(values.first),
         ]),
       );
     default:
@@ -229,7 +229,7 @@ Uint8List _langText(String text) => Uint8List.fromList([
 
 Uint8List _apic(EmbeddedPicture p) => Uint8List.fromList([
   3,
-  ...latin1.encode(p.mimeType),
+  ...latin1Bytes(p.mimeType),
   0,
   p.type.index,
   ...utf8.encode(p.description),

@@ -39,7 +39,7 @@ Uint8List buildVorbisComment(
 
 /// FLAC PICTURE block data (also the base64 payload in Ogg).
 Uint8List flacPictureBlock(EmbeddedPicture p) {
-  final mime = latin1.encode(p.mimeType);
+  final mime = latin1Bytes(p.mimeType);
   final desc = utf8.encode(p.description);
   return (BytesBuilder(copy: false)
         ..u32be(p.type.index)

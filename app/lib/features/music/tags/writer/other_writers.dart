@@ -55,6 +55,12 @@ WritePlan planApe(ByteReader r, AudioTags after, TagEdit edit) {
   final items = BytesBuilder(copy: false);
   var count = 0;
   void item(String key, int flags, List<int> value) {
+    // APE keys: 2–255 printable ASCII characters.
+    if (key.length < 2 ||
+        key.length > 255 ||
+        key.codeUnits.any((u) => u < 0x20 || u > 0x7E)) {
+      return;
+    }
     items
       ..u32le(value.length)
       ..u32le(flags)
