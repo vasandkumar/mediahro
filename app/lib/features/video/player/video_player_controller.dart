@@ -38,6 +38,7 @@ final class VideoPlayerController extends ChangeNotifier {
     this.onClose,
     this.systemLanguages = const [],
     this.sidecars,
+    this.systemCaptionsOn,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now {
     _sub = engine.state.listen(_onState);
@@ -58,6 +59,11 @@ final class VideoPlayerController extends ChangeNotifier {
 
   /// Subtitle files next to streamed videos (SUB-012); null skips them.
   final SidecarLoader? sidecars;
+
+  /// True when the user turned captions on in the system (docs/06 §7):
+  /// videos start with subtitles unless turned off for the item.
+  final bool Function()? systemCaptionsOn;
+  bool _captionsChecked = false;
 
   /// The device's languages (BCP 47 primary subtags), last resort for the
   /// audio track default.
@@ -136,6 +142,7 @@ final class VideoPlayerController extends ChangeNotifier {
     _videoOffFrom = null;
     _subDelay = _audioDelay = _secondaryDelay = null;
     _subtitleFiles.clear();
+    _captionsChecked = false;
     _lastSave = null;
     final m = memory.item(request.memoryKey);
     final resume = settings.get(VideoSettings.resume) == ResumeMode.always
@@ -171,6 +178,32 @@ final class VideoPlayerController extends ChangeNotifier {
     final rate = _initialRate(m);
     if (rate != 1) await engine.setRate(rate);
     unawaited(_loadSidecars(request));
+  }
+
+  /// With system captions on, turns subtitles on when nothing chose them:
+  /// the preferred language, else the default track, else the first one
+  /// that isn't forced-only. Not remembered as the user's choice.
+  Future<void> _systemCaptionsDefault(PlaybackState s) async {
+    final r = _request;
+    if (r == null || !(systemCaptionsOn?.call() ?? false)) return;
+    if (s.subtitleTrackId != null || _trackMemory(r).subtitlesOff) return;
+    final subs = tracksOf(TrackType.subtitle);
+    if (subs.isEmpty) return;
+    final wanted = [
+      ?_trackMemory(r).subtitleLanguage,
+      ...settings.get(VideoSettings.subtitleLanguages),
+      ...systemLanguages,
+    ];
+    Track? pick;
+    for (final lang in wanted) {
+      pick = subs
+          .where((t) => !t.isForced && _sameLanguage(t.language, lang))
+          .firstOrNull;
+      if (pick != null) break;
+    }
+    pick ??= subs.where((t) => t.isDefault).firstOrNull;
+    pick ??= subs.where((t) => !t.isForced).firstOrNull ?? subs.first;
+    await engine.selectTrack(TrackType.subtitle, pick.id);
   }
 
   /// Finds and adds the request's subtitle files (SUB-012): sidecars of
@@ -801,6 +834,10 @@ final class VideoPlayerController extends ChangeNotifier {
   void _onState(PlaybackState s) {
     final prev = _state;
     _state = s;
+    if (!_captionsChecked && _request != null && s.tracks.isNotEmpty) {
+      _captionsChecked = true;
+      unawaited(_systemCaptionsDefault(s));
+    }
     if (s.audio.device != prev.audio.device && _request != null) {
       unawaited(_applyDeviceVolume(s));
     }

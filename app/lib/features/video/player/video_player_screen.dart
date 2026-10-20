@@ -105,6 +105,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       progress: ref.read(videoProgressProvider),
       onClose: _close,
       sidecars: ref.read(sidecarLoaderProvider),
+      systemCaptionsOn: () =>
+          ref.read(captionPrefsProvider)?.captionsOn ?? false,
       systemLanguages: [
         for (final l in PlatformDispatcher.instance.locales) l.languageCode,
       ],
@@ -117,6 +119,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       pip: _optional(() => ref.read(pipProvider)),
       session: _optional(() => ref.read(mediaSessionProvider)),
       otherAudio: ref.exists(music) ? ref.read(music) : null,
+      sessionOwner: _VideoSessionOwner(
+        ProviderScope.containerOf(context, listen: false),
+      ),
       isPhone: () => _phone,
     );
     platform.inPip.addListener(_onPip);
@@ -870,6 +875,28 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     }
     return null;
   }
+}
+
+/// The video player's hold on the shared media session (ADR-029). Reads
+/// through the container, which outlives this screen's dispose.
+final class _VideoSessionOwner implements SessionOwnership {
+  _VideoSessionOwner(this._container);
+
+  final ProviderContainer _container;
+
+  @override
+  bool get ownedByVideo =>
+      _container.read(mediaSessionOwnerProvider) == MediaSessionKind.video;
+
+  @override
+  void claim() => _container
+      .read(mediaSessionOwnerProvider.notifier)
+      .claim(MediaSessionKind.video);
+
+  @override
+  void release() => _container
+      .read(mediaSessionOwnerProvider.notifier)
+      .release(MediaSessionKind.video);
 }
 
 class _VideoSurface extends StatelessWidget {

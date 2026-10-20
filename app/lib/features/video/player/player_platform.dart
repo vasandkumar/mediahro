@@ -8,6 +8,14 @@ import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+/// The video player's side of the shared media-session owner (ADR-029,
+/// `mediaSessionOwnerProvider`).
+abstract interface class SessionOwnership {
+  bool get ownedByVideo;
+  void claim();
+  void release();
+}
+
 /// Rotation without a display facade (desktop has none to do; iOS until
 /// C4b's lands): Flutter's own orientation request.
 abstract interface class OrientationRequests {
@@ -51,6 +59,7 @@ final class PlayerPlatform with WidgetsBindingObserver {
     this.session,
     this.otherAudio,
     this.orientation = const SystemChromeOrientation(),
+    this.sessionOwner,
     this.isPhone = _always,
   });
 
@@ -66,6 +75,9 @@ final class PlayerPlatform with WidgetsBindingObserver {
   /// over each other.
   final PlaybackEngine? otherAudio;
   final OrientationRequests orientation;
+
+  /// The shared session owner (ADR-029); null where there is no session.
+  final SessionOwnership? sessionOwner;
 
   /// Phones get portrait back after a landscape video (VID-070).
   final bool Function() isPhone;
@@ -263,9 +275,17 @@ final class PlayerPlatform with WidgetsBindingObserver {
     final ses = session;
     final r = controller.request;
     if (ses == null || r == null) return;
+    final owner = sessionOwner;
+    if (_sessionActive && owner != null && !owner.ownedByVideo) {
+      // Music took the session: let go until the video plays again.
+      _sessionActive = false;
+      _shownItem = null;
+      _shownState = null;
+    }
     if (!_sessionActive) {
       if (s.status != PlaybackStatus.playing) return;
       _sessionActive = true;
+      owner?.claim();
       await ses.activate(MediaSessionKind.video);
     }
     if (_shownItem != s.item || _shownTitle != r.title) {
@@ -301,8 +321,10 @@ final class PlayerPlatform with WidgetsBindingObserver {
   }
 
   Future<void> _onCommand(RemoteCommand c) async {
-    // The music player shares the session; act only while video owns it.
+    // The music player shares the session; act only while video owns it
+    // (ADR-029).
     if (!_sessionActive) return;
+    if (sessionOwner case final o? when !o.ownedByVideo) return;
     final ctl = controller;
     switch (c) {
       case PlayCommand():
@@ -338,7 +360,10 @@ final class PlayerPlatform with WidgetsBindingObserver {
     await d?.keepScreenOn(on: false);
     await d?.setWindowBrightness(null);
     if (_autoPip) await pip?.setAutoEnter(enabled: false);
-    if (_sessionActive) await session?.deactivate();
+    if (_sessionActive) {
+      sessionOwner?.release();
+      await session?.deactivate();
+    }
     // After a landscape video a phone with auto-rotate off would stay in
     // landscape: ask for portrait first, then hand rotation back.
     if (_lock == OrientationLock.landscape && isPhone()) {

@@ -42,6 +42,8 @@ void main() {
   PlayRequest req(String name, {List<PlayRequest> next = const []}) =>
       PlayRequest.uri(Uri.parse('file:///v/$name.mkv'), next: next);
 
+  _Owner? owner;
+
   Future<void> build({List<Track>? tracks}) async {
     engine = RecordingEngine(
       mediaDuration: const Duration(minutes: 10),
@@ -60,6 +62,7 @@ void main() {
       session: session,
       otherAudio: music,
       isPhone: () => phone,
+      sessionOwner: owner,
     );
     await p.start();
   }
@@ -72,6 +75,7 @@ void main() {
     session = FakeMediaSession();
     music = FakePlaybackEngine(role: EngineRole.music);
     phone = true;
+    owner = null;
   });
 
   tearDown(() async {
@@ -362,4 +366,75 @@ void main() {
       expect(session.deactivations, 1);
     });
   });
+
+  group('ADR-029 one owner for the media session', () {
+    test('ADR-029 the video claims the session when it plays', () async {
+      owner = _Owner();
+      await build();
+      await c.open(req('film'));
+      await settle();
+      expect(owner!.kind, 'video');
+      expect(session.activated, [MediaSessionKind.video]);
+    });
+
+    test(
+      'ADR-029 while music owns it, video ignores remote commands',
+      () async {
+        owner = _Owner();
+        await build();
+        await c.open(req('film'));
+        await settle();
+        owner!.kind = 'music';
+        session.send(const PauseCommand());
+        await settle();
+        expect(c.state.status, PlaybackStatus.playing);
+      },
+    );
+
+    test('ADR-029 playing again takes the session back and re-shows the '
+        'video', () async {
+      owner = _Owner();
+      await build();
+      await c.open(req('film'));
+      await settle();
+      owner!.kind = 'music';
+      await engine.pause();
+      await settle();
+      await engine.play();
+      await settle();
+      expect(owner!.kind, 'video');
+      expect(session.activated, hasLength(2));
+      expect(session.nowPlaying, hasLength(2));
+      session.send(const PauseCommand());
+      await settle();
+      expect(c.state.status, PlaybackStatus.paused);
+    });
+
+    test('ADR-029 leaving releases only its own ownership', () async {
+      owner = _Owner();
+      await build();
+      await c.open(req('film'));
+      await settle();
+      await p.dispose();
+      expect(owner!.kind, isNull);
+      expect(owner!.releases, 1);
+    });
+  });
+}
+
+final class _Owner implements SessionOwnership {
+  String? kind;
+  int releases = 0;
+
+  @override
+  bool get ownedByVideo => kind == 'video';
+
+  @override
+  void claim() => kind = 'video';
+
+  @override
+  void release() {
+    releases++;
+    if (kind == 'video') kind = null;
+  }
 }
