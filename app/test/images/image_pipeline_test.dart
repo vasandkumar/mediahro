@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/images/edit/edit_recipe.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/metadata/jpeg.dart';
 import 'package:mediahro/images/metadata/metadata_codec.dart';
@@ -418,18 +419,64 @@ void main() {
       expect(JpegFile.parse(io.files[dest]!).exif, isNull);
     });
 
+    test('IMG-009 export applies edit operations (a quarter turn)', () async {
+      final p = pipeline();
+      final dest = Uri.parse('smb://nas/photos/turned.png');
+      await p.export(
+        source(io.add('a.png', fakeImage(4, 2))),
+        const [RotateOp(90)],
+        dest,
+        const EncodeOptions(format: EncodeFormat.png, stripMetadata: true),
+      );
+      final out = io.files[dest]!;
+      expect((out[1], out[2]), (2, 4), reason: 'width and height swapped');
+    });
+
+    test('IMG-009 renderEdited crops, adjusts and encodes', () async {
+      final p = pipeline();
+      final out = await p.renderEdited(
+        source(io.add('a.png', fakeImage(8, 4))),
+        const EditRecipe(
+          crop: NormRect(0, 0, 0.5, 0.5),
+          curves: CurveSet(master: [(0, 1), (1, 0)]),
+        ),
+        const EncodeOptions(format: EncodeFormat.png, stripMetadata: true),
+      );
+      expect((out[1], out[2]), (4, 2));
+      // The fake source has blue 50; the inverted curve makes it 205.
+      expect(out[3 + 2], closeTo(205, 2));
+      expect(out[3 + 3], 255);
+    });
+
+    test('IMG-009 renderEdited with no edits is a plain re-encode', () async {
+      final p = pipeline();
+      final out = await p.renderEdited(
+        source(io.add('a.png', fakeImage(3, 3, seed: 5))),
+        EditRecipe.none,
+        const EncodeOptions(format: EncodeFormat.png, stripMetadata: true),
+      );
+      expect((out[1], out[2]), (3, 3));
+      expect(out[3], 5);
+    });
+
     test(
-      'IMG-009 export refuses edit operations until the editor supplies them',
+      'IMG-009 the editor preview runs in a worker and keeps the input',
       () async {
         final p = pipeline();
-        await expectLater(
-          p.export(
-            source(io.add('a.png', fakeImage(4, 2))),
-            const [RotateOp(90)],
-            Uri.parse('smb://nas/photos/out.jpg'),
-            const EncodeOptions(format: EncodeFormat.jpeg),
-          ),
-          throwsUnsupportedError,
+        final frame = PixelFrame(
+          width: 2,
+          height: 1,
+          rgba: Uint8List.fromList([100, 100, 100, 255, 100, 100, 100, 255]),
+        );
+        final out = await p.editFrame(
+          frame,
+          const EditRecipe(adjust: {AdjustKind.exposure: 0.5}),
+        );
+        expect(out.rgba[0], greaterThan(100));
+        expect(frame.rgba[0], 100);
+        expect(
+          identical(await p.editFrame(frame, EditRecipe.none), frame),
+          isTrue,
         );
       },
     );
