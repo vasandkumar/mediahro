@@ -479,6 +479,13 @@ final class MpvEngine implements PlaybackEngine {
         _state = applyProperty(_state, name, value);
         _onVideoSize();
         return;
+      case 'volume':
+        // While ducking scales mpv's volume (no volume-gain), the state still
+        // carries the user's volume, also between emits (AUD-045).
+        _state = _duckViaVolume
+            ? _state.copyWith(volume: _userVolume)
+            : applyProperty(_state, name, value);
+        return;
       default:
         _state = applyProperty(_state, name, value);
         return;
