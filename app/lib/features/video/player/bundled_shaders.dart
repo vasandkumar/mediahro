@@ -16,6 +16,8 @@ import 'package:mediahro/features/video/player/video_render.dart';
 ///   (gist 82219c54…, revision f1794d72; `56d8597f…16929b9e`), MIT
 ///   © 2021 Advanced Micro Devices; `LICENSE-FSR.txt` is its header
 ///   notice.
+/// - `Mediahro_FilmGrain.glsl`: ours. `SOURCES.md` lists every file's
+///   SHA-256.
 const shaderAssetDir = 'assets/shaders';
 
 /// A built-in shader preset (VID-038): the GLSL files it chains, in order.
@@ -31,7 +33,7 @@ final class BundledPreset {
 }
 
 /// Anime4K v4 modes (fast and high-quality strengths) and AMD FSR, the
-/// MIT set ADR-034 allows. Each file list follows Anime4K's mpv
+/// MIT set ADR-034 allows, and Mediahro's own film grain. Each file list follows Anime4K's mpv
 /// instructions; a preset shows only when all of its files are bundled.
 const bundledPresets = <BundledPreset>[
   BundledPreset('anime4kAFast', [
@@ -81,6 +83,8 @@ const bundledPresets = <BundledPreset>[
     'Anime4K_Upscale_CNN_x2_M.glsl',
   ]),
   BundledPreset('fsr', ['FSR.glsl']),
+  // Our own shader (doc 04 film grain), under the app's licence.
+  BundledPreset('filmGrain', ['Mediahro_FilmGrain.glsl']),
 ];
 
 /// The bundled presets whose files are all in [bundle], copied into

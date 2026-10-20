@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -88,7 +89,25 @@ void main() {
       for (final f in dir.listSync().whereType<File>()) f.uri.pathSegments.last,
     };
     final needed = {for (final p in bundledPresets) ...p.files};
-    expect(present, {...needed, 'LICENSE-Anime4K.txt', 'LICENSE-FSR.txt'});
+    expect(present, {
+      ...needed,
+      'LICENSE-Anime4K.txt',
+      'LICENSE-FSR.txt',
+      'SOURCES.md',
+    });
+    // SOURCES.md records the SHA-256 of every file as bundled.
+    final sources = File('${dir.path}/SOURCES.md').readAsStringSync();
+    for (final f in present.where((f) => f != 'SOURCES.md')) {
+      final hash = sha256
+          .convert(File('${dir.path}/$f').readAsBytesSync())
+          .toString();
+      expect(sources, contains('| $f | `$hash` |'), reason: f);
+      expect(
+        File('${dir.path}/$f').readAsStringSync(),
+        isNot(contains('\r\n')),
+        reason: '$f: stored with LF, so the hash holds on every checkout',
+      );
+    }
     for (final f in needed) {
       expect(
         File('${dir.path}/$f').readAsStringSync(),
@@ -110,7 +129,9 @@ void main() {
     for (final p in bundledPresets) {
       for (final f in p.files) {
         expect(
-          f.startsWith('Anime4K_') || f == 'FSR.glsl',
+          f.startsWith('Anime4K_') ||
+              f == 'FSR.glsl' ||
+              f.startsWith('Mediahro_'),
           isTrue,
           reason: '${p.key}: $f',
         );
