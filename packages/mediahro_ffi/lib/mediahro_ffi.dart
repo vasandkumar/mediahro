@@ -14,6 +14,7 @@ export 'src/archive/archive_reader.dart'
         SyncArchiveSource,
         archiveFileSystem,
         normaliseEntryPath;
+export 'src/avif/avif_codec.dart';
 export 'src/bergamot/bergamot_translator.dart';
 export 'src/chromaprint/fingerprinter.dart';
 export 'src/cld3/language_identifier.dart';
@@ -27,6 +28,7 @@ export 'src/curl/curl_client.dart'
 export 'src/curl/list_parser.dart';
 export 'src/ebur128/loudness_meter.dart';
 // libssh2 + WinCNG, driven by lane C4's Windows SftpFacade (ADR-017).
+export 'src/jxl/jxl_codec.dart';
 export 'src/libssh2/libssh2_bindings.dart';
 export 'src/native/native_library.dart'
     show NativeLibraries, NativeLibrary, NativeLibraryUnavailable;
@@ -39,6 +41,7 @@ export 'src/nfs/nfs_client.dart'
         nfsExports,
         nfsFileSystem,
         nfsFindLocalServers;
+export 'src/raw/raw_codec.dart';
 export 'src/smb2/smb2_client.dart';
 export 'src/tesseract/tesseract_ocr.dart';
 export 'src/text/text_worker.dart';

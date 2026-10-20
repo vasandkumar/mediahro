@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +13,7 @@ import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart';
+import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
@@ -401,6 +405,51 @@ void main() {
     });
   });
 
+  testWidgets('IMG-001 a RAW shows its preview, then the developed picture', (
+    tester,
+  ) async {
+    final h = await PhotosHarness.create(tester);
+    entries = fakeEntries(days: 1);
+    final developed = Completer<ViewerImage?>();
+    final preview = h.take();
+    final store = await tester.runAsync(memoryStore) ?? (throw StateError('s'));
+    var first = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsStoreProvider.overrideWithValue(store),
+          ...h.overrides(
+            entries: entries,
+            loader: (entry) async {
+              if (!first) return h.take();
+              first = false;
+              return ViewerImage(
+                base: preview.base,
+                fullSize: preview.fullSize,
+                info: preview.info,
+                previewOnly: true,
+                develop: () => developed.future,
+              );
+            },
+          ),
+        ],
+        child: MediahroApp(
+          router: buildRouter(
+            initialLocation: '/photos',
+            fullScreenRoutes: photoRoutes,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(KGridTile).first);
+    await tester.pumpAndSettle();
+    expect(find.text("Showing the camera's preview"), findsOneWidget);
+    developed.complete(h.take());
+    await tester.pumpAndSettle();
+    expect(find.text("Showing the camera's preview"), findsNothing);
+  });
+
   testWidgets('IMG-004 a video shows a play button that opens the player', (
     tester,
   ) async {
@@ -437,5 +486,76 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(seen, [1]);
+  });
+
+  group('IMG-001 animated images', () {
+    // Two 1×1 frames (red then blue), 100 ms each.
+    final gif = Uint8List.fromList([
+      ...'GIF89a'.codeUnits, 1, 0, 1, 0, 0x80, 0, 0, //
+      255, 0, 0, 0, 0, 255, // palette
+      0x21, 0xF9, 4, 0, 10, 0, 0, 0, //
+      0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x44, 1, 0,
+      0x21, 0xF9, 4, 0, 10, 0, 0, 0,
+      0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x4C, 1, 0,
+      0x3B,
+    ]);
+
+    test('IMG-001 the animation yields each frame with its delay', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final codec = await ui.instantiateImageCodec(gif);
+      final a = ImageAnimation(codec);
+      expect(a.frameCount, 2);
+      final (f1, d1) = await a.next();
+      final (f2, _) = await a.next();
+      final (f3, _) = await a.next();
+      expect(d1, const Duration(milliseconds: 100));
+      expect((f1.width, f1.height), (1, 1));
+      for (final f in [f1, f2, f3]) {
+        f.dispose();
+      }
+      a.dispose();
+    });
+
+    testWidgets('IMG-001 an animated image gets a pause and play button', (
+      tester,
+    ) async {
+      final h = await PhotosHarness.create(tester);
+      entries = fakeEntries(days: 1);
+      final codec = await tester.runAsync(() => ui.instantiateImageCodec(gif));
+      final first = h.take();
+      final store =
+          await tester.runAsync(memoryStore) ?? (throw StateError('s'));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsStoreProvider.overrideWithValue(store),
+            ...h.overrides(
+              entries: entries,
+              loader: (e) async => e.id != 0
+                  ? h.take()
+                  : ViewerImage(
+                      base: first.base,
+                      fullSize: first.fullSize,
+                      info: first.info,
+                      animation: ImageAnimation(codec!),
+                    ),
+            ),
+          ],
+          child: MediahroApp(
+            router: buildRouter(
+              initialLocation: '/photos',
+              fullScreenRoutes: photoRoutes,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(KGridTile).first);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Pause animation'), findsOneWidget);
+      await tester.tap(find.byTooltip('Pause animation'));
+      await tester.pump();
+      expect(find.byTooltip('Play animation'), findsOneWidget);
+    });
   });
 }

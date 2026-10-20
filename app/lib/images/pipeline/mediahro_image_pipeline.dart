@@ -11,6 +11,7 @@ import 'package:mediahro/images/metadata/metadata_codec.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
+import 'package:mediahro/images/pipeline/pixel_ops.dart';
 import 'package:mediahro/images/pipeline/thumbnail_cache.dart';
 import 'package:mediahro/images/pipeline/ui_fallback.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
@@ -104,7 +105,9 @@ final class MediahroImagePipeline implements ImagePipeline {
     return n;
   }
 
-  Future<Uint8List> _readAll(ImageSource src, {int? max}) async {
+  /// The whole file, refusing anything above [max] (default: the buffer
+  /// limit).
+  Future<Uint8List> readAll(ImageSource src, {int? max}) async {
     final n = await _length(src);
     if (n > (max ?? maxBufferBytes)) {
       throw ImageBackendUnavailable('file too large to buffer ($n bytes)');
@@ -248,7 +251,7 @@ final class MediahroImagePipeline implements ImagePipeline {
     }
 
     // 3. Flutter's codecs, one image at a time.
-    final bytes = await _readAll(src);
+    final bytes = await readAll(src);
     final frame = await fallback.decode(bytes, maxEdge: edge);
     return await cache.store(key, await fallback.encodePng(frame), ext: 'png');
   }
@@ -283,14 +286,18 @@ final class MediahroImagePipeline implements ImagePipeline {
           ? (previews.isEmpty ? null : previews.last)
           : previewForThumbnail(previews, edge);
       if (p == null) {
-        throw const ImageBackendUnavailable('RAW without an embedded preview');
+        // No preview in the TIFF directories (CR3, ...): LibRaw finds one.
+        if (length > maxBufferBytes) {
+          throw const ImageBackendUnavailable('RAW without a usable preview');
+        }
+        return (WireInput.bytes(await readAll(src)), ImageFormat.raw);
       }
       final jpeg = await _range(src.file, p.offset, p.length);
       return (WireInput.bytes(jpeg), ImageFormat.jpeg);
     }
     final path = io.localPath(src.uri);
     if (path != null) return (WireInput.file(path), format);
-    return (WireInput.bytes(await _readAll(src)), format);
+    return (WireInput.bytes(await readAll(src)), format);
   }
 
   /// Cancels the queued jobs of [group] (a tile that scrolled away).
@@ -364,7 +371,7 @@ final class MediahroImagePipeline implements ImagePipeline {
     }
 
     // 3. Flutter's codecs.
-    final bytes = await _readAll(src);
+    final bytes = await readAll(src);
     final (w, h) = await fallback.size(bytes);
     final maxEdge = scale >= 1 ? null : (math.max(w, h) * scale).round();
     var f = await fallback.decode(bytes, maxEdge: maxEdge);
@@ -405,6 +412,14 @@ final class MediahroImagePipeline implements ImagePipeline {
     }
   }
 
+  /// Develops a camera RAW with LibRaw (demosaic, camera white balance,
+  /// sRGB), as opposed to [decode], which shows the embedded preview first.
+  /// Throws [ImageBackendUnavailable] when LibRaw is missing or the file is
+  /// too big to develop in memory.
+  Future<DecodedImage> developRaw(ImageSource src) async => toDecoded(
+    await worker.decode(WireInput.bytes(await readAll(src)), ImageFormat.raw),
+  );
+
   @override
   Future<ImageInfo> info(ImageSource src) async => (await readFacts(src)).info;
 
@@ -439,7 +454,7 @@ final class MediahroImagePipeline implements ImagePipeline {
         }
       } on ImageBackendUnavailable {
         if (w == 0 || h == 0) {
-          final (fw, fh) = await fallback.size(await _readAll(src));
+          final (fw, fh) = await fallback.size(await readAll(src));
           w = fw;
           h = fh;
         }
@@ -588,7 +603,15 @@ final class MediahroImagePipeline implements ImagePipeline {
           quality: options.quality,
         );
       case EncodeFormat.jxl:
-        throw UnsupportedError('JPEG XL encoding is not available yet.');
+        try {
+          return await worker.encode(
+            frame,
+            EncodeFormat.jxl,
+            quality: options.quality,
+          );
+        } on ImageBackendUnavailable catch (e) {
+          throw UnsupportedError(e.message);
+        }
     }
   }
 
@@ -624,73 +647,4 @@ final class MediahroImagePipeline implements ImagePipeline {
     await worker.dispose();
     await cache.dispose();
   }
-}
-
-/// Crops [f] to [region] given in source pixels and [scale] (frame size over
-/// source size).
-PixelFrame cropFrame(PixelFrame f, ImageRegion region, double scale) {
-  final left = (region.left * scale).round().clamp(0, f.width - 1);
-  final top = (region.top * scale).round().clamp(0, f.height - 1);
-  final w = (region.width * scale).round().clamp(1, f.width - left);
-  final h = (region.height * scale).round().clamp(1, f.height - top);
-  final out = Uint8List(w * h * 4);
-  for (var y = 0; y < h; y++) {
-    final from = ((top + y) * f.width + left) * 4;
-    out.setRange(y * w * 4, (y + 1) * w * 4, f.rgba, from);
-  }
-  return PixelFrame(
-    width: w,
-    height: h,
-    rgba: out,
-    sourceWidth: f.sourceWidth,
-    sourceHeight: f.sourceHeight,
-  );
-}
-
-/// Box-filter downscale so the longest edge is at most [edge].
-PixelFrame downscaleToEdge(PixelFrame f, int edge) {
-  final longest = math.max(f.width, f.height);
-  if (longest <= edge) return f;
-  final s = edge / longest;
-  final w = math.max(1, (f.width * s).round());
-  final h = math.max(1, (f.height * s).round());
-  final out = Uint8List(w * h * 4);
-  for (var y = 0; y < h; y++) {
-    final y0 = (y * f.height) ~/ h;
-    final y1 = math.max(y0 + 1, ((y + 1) * f.height) ~/ h);
-    for (var x = 0; x < w; x++) {
-      final x0 = (x * f.width) ~/ w;
-      final x1 = math.max(x0 + 1, ((x + 1) * f.width) ~/ w);
-      var r = 0;
-      var g = 0;
-      var b = 0;
-      var a = 0;
-      var n = 0;
-      for (var yy = y0; yy < y1; yy++) {
-        for (var xx = x0; xx < x1; xx++) {
-          final i = (yy * f.width + xx) * 4;
-          final al = f.rgba[i + 3];
-          r += f.rgba[i] * al;
-          g += f.rgba[i + 1] * al;
-          b += f.rgba[i + 2] * al;
-          a += al;
-          n++;
-        }
-      }
-      final o = (y * w + x) * 4;
-      if (a > 0) {
-        out[o] = r ~/ a;
-        out[o + 1] = g ~/ a;
-        out[o + 2] = b ~/ a;
-      }
-      out[o + 3] = a ~/ n;
-    }
-  }
-  return PixelFrame(
-    width: w,
-    height: h,
-    rgba: out,
-    sourceWidth: f.sourceWidth,
-    sourceHeight: f.sourceHeight,
-  );
 }

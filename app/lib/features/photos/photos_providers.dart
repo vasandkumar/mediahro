@@ -10,6 +10,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
+import 'package:mediahro/features/photos/organise/photo_organiser.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
@@ -129,6 +130,39 @@ final FutureProviderFamily<PhotoFacts, PhotoEntry> photoFactsProvider =
         await src.file.close();
       }
     });
+
+/// Favourites, ratings, labels, tags and albums (IMG-005).
+final photoOrganiserProvider = Provider<PhotoOrganiser>(
+  (ref) => PhotoOrganiser(
+    db: ref.watch(libraryDatabaseProvider),
+    tags: ref.watch(tagRepositoryProvider),
+    playlists: ref.watch(playlistRepositoryProvider),
+  ),
+);
+
+/// The photo albums with their sizes, refreshed when albums, their photos,
+/// ratings or favourites change (smart albums follow their rules).
+final photoAlbumsProvider = StreamProvider<List<PhotoAlbum>>((ref) async* {
+  final db = ref.watch(libraryDatabaseProvider);
+  final org = ref.watch(photoOrganiserProvider);
+  final changes = db
+      .customSelect(
+        'SELECT 1',
+        readsFrom: {
+          db.playlists,
+          db.playlistItems,
+          db.items,
+          db.imageMeta,
+          db.ratings,
+          db.itemTags,
+          db.labels,
+        },
+      )
+      .watch();
+  await for (final _ in changes) {
+    yield await org.albums();
+  }
+});
 
 /// Reads image facts for the library (plug into the probe queue for images).
 final imageProberProvider = Provider<ImageProber>(

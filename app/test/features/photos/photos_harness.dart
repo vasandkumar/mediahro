@@ -40,11 +40,14 @@ List<PhotoEntry> fakeEntries({
   Set<int> motion = const {},
   Set<int> hdr = const {},
   Set<int> videos = const {},
+  Set<int> favourites = const {},
+  int firstId = 0,
+  String Function(int id)? folder,
 }) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day, 12);
   final out = <PhotoEntry>[];
-  var id = 0;
+  var id = firstId;
   for (var d = 0; d < days; d++) {
     for (var k = 0; k < perDay; k++) {
       final isVideo = videos.contains(id);
@@ -55,7 +58,7 @@ List<PhotoEntry> fakeEntries({
           id: id,
           sourceId: 1,
           relPath:
-              'p/IMG_$id.${isRaw
+              '${folder?.call(id) ?? 'p'}/IMG_$id.${isRaw
                   ? 'cr2'
                   : isVideo
                   ? 'mp4'
@@ -81,6 +84,7 @@ List<PhotoEntry> fakeEntries({
           livePhoto: live.contains(id),
           motionPhoto: motion.contains(id),
           hdr: hdr.contains(id),
+          favourite: favourites.contains(id),
         ),
       );
       id++;
@@ -163,6 +167,9 @@ final class PhotosHarness {
     return h;
   }
 
+  /// The next prepared viewer image.
+  ViewerImage take() => _images.removeFirst();
+
   Future<void> dispose() async {
     await db.close();
     if (dir.existsSync()) {
@@ -198,20 +205,25 @@ final class PhotosHarness {
   List<Override> overrides({
     required List<PhotoEntry> entries,
     PhotoFacts? facts,
-    void Function(PhotoEntry)? onOpenVideo,
+    ViewerImageLoader? loader,
+    List<Override> extra = const [],
   }) => [
     libraryDatabaseProvider.overrideWithValue(db),
     photoEntriesProvider.overrideWith((ref) => Stream.value(entries)),
     thumbnailSourceProvider.overrideWith((ref, edge) => thumbs),
-    viewerImageLoaderProvider.overrideWithValue((entry) async {
-      opened.add(entry);
-      final e = loadError;
-      if (e != null) throw e;
-      return _images.removeFirst();
-    }),
+    viewerImageLoaderProvider.overrideWithValue(
+      loader ??
+          (entry) async {
+            opened.add(entry);
+            final e = loadError;
+            if (e != null) throw e;
+            return _images.removeFirst();
+          },
+    ),
     photoFactsProvider.overrideWith(
       (ref, entry) async => facts ?? this.facts(),
     ),
+    ...extra,
   ];
 
   /// The full app on the Photos tab with the viewer route registered.
@@ -220,6 +232,7 @@ final class PhotosHarness {
     required List<PhotoEntry> entries,
     Size size = const Size(400, 800),
     PhotoFacts? facts,
+    List<Override> extra = const [],
   }) async {
     tester.view
       ..physicalSize = size * tester.view.devicePixelRatio
@@ -231,7 +244,7 @@ final class PhotosHarness {
       ProviderScope(
         overrides: [
           settingsStoreProvider.overrideWithValue(store),
-          ...overrides(entries: entries, facts: facts),
+          ...overrides(entries: entries, facts: facts, extra: extra),
         ],
         child: MediahroApp(
           router: buildRouter(

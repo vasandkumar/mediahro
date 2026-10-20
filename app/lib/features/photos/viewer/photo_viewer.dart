@@ -98,9 +98,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   );
   final ViewerController _viewer = ViewerController();
   final ScrollController _strip = ScrollController();
-  late final ThumbnailController _thumbs = ThumbnailController(
-    ref.read(thumbnailSourceProvider(256)),
-  );
+  late final ThumbnailController _thumbs;
 
   late int _index = widget.args.index;
   bool _chrome = true;
@@ -108,6 +106,8 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   FitMode _mode = FitMode.fit;
   int _turns = 0;
   int _percent = 0;
+  bool _animated = false;
+  bool _playing = true;
   Timer? _hide;
   bool _started = false;
 
@@ -115,10 +115,18 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   PhotoEntry get _entry => _entries[_index];
 
   @override
+  void initState() {
+    super.initState();
+    _thumbs = ThumbnailController(ref.read(thumbnailSourceProvider(256)));
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+    // Animations start paused when the system asks for reduced motion.
+    _playing = !KAccessibility.reduceMotion(context);
     _scheduleHide();
   }
 
@@ -163,6 +171,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
       _atFit = true;
       _turns = 0;
       _percent = 0;
+      _animated = false;
     });
     _centreStrip(i);
     _scheduleHide();
@@ -286,6 +295,13 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                       },
                       onTap: _toggleChrome,
                       onPlayVideo: _play,
+                      animationPlaying: _playing && i == _index,
+                      onLoaded: (img) {
+                        if (i == _index &&
+                            (img.animation != null) != _animated) {
+                          setState(() => _animated = img.animation != null);
+                        }
+                      },
                     ),
                   ),
                   // Top bar.
@@ -393,6 +409,20 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                               ?.copyWith(color: Colors.white),
                                         ),
                                       ),
+                                    ),
+                                  if (_animated)
+                                    IconButton(
+                                      tooltip: _playing
+                                          ? l10n.photosPauseAnimation
+                                          : l10n.photosPlayAnimation,
+                                      color: Colors.white,
+                                      icon: Icon(
+                                        _playing
+                                            ? Icons.pause_circle_outline
+                                            : Icons.play_circle_outline,
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _playing = !_playing),
                                     ),
                                   IconButton(
                                     tooltip: _mode == FitMode.fit

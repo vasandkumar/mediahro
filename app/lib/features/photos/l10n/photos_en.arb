@@ -33,6 +33,8 @@
   "photosFit": "Fit to screen",
   "photosFill": "Fill screen",
   "photosRotate": "Rotate",
+  "photosPlayAnimation": "Play animation",
+  "photosPauseAnimation": "Pause animation",
   "photosZoomPercent": "{percent}%",
   "@photosZoomPercent": {
     "placeholders": {
@@ -129,6 +131,118 @@
     "placeholders": {
       "duration": {
         "type": "String"
+      }
+    }
+  },
+  "photosTileLabelFavourite": "Favourite {kind, select, video{video} photo{photo} other{photo}} from {date}",
+  "@photosTileLabelFavourite": {
+    "description": "Screen-reader label of a favourite timeline tile; the date is already formatted.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "photosTabTimeline": "Timeline",
+  "photosTabAlbums": "Albums",
+  "photosTabFolders": "Folders",
+  "photosFavourites": "Favourites",
+  "photosFavouritesEmpty": "No favourites yet. Select photos and tap the heart.",
+  "photosSelectedCount": "{count, plural, =1{1 selected} other{{count} selected}}",
+  "@photosSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosSelectAll": "Select all",
+  "photosClearSelection": "Clear selection",
+  "photosFavourite": "Add to favourites",
+  "photosUnfavourite": "Remove from favourites",
+  "photosAddToAlbum": "Add to album",
+  "photosRate": "Rate",
+  "photosLabelAction": "Colour label",
+  "photosTagsAction": "Tags",
+  "photosNoLabel": "No label",
+  "photosLabelName": "{color, select, red{Red} orange{Orange} yellow{Yellow} green{Green} blue{Blue} purple{Purple} grey{Grey} other{Label}}",
+  "@photosLabelName": {
+    "placeholders": {
+      "color": {
+        "type": "String"
+      }
+    }
+  },
+  "photosRemoveRating": "No rating",
+  "photosAlbumsEmpty": "No albums yet. Create one to group photos your way.",
+  "photosNewAlbum": "New album",
+  "photosNewSmartAlbum": "New smart album",
+  "photosAlbumName": "Album name",
+  "photosCreate": "Create",
+  "photosRename": "Rename",
+  "photosDeleteAlbum": "Delete album",
+  "photosDeleteAlbumMessage": "The album \"{name}\" is deleted. Its photos stay where they are.",
+  "@photosDeleteAlbumMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "photosDelete": "Delete",
+  "photosCancel": "Cancel",
+  "photosSmartAlbum": "Smart album",
+  "photosAlbumCount": "{count, plural, =0{Empty} =1{1 photo} other{{count} photos}}",
+  "@photosAlbumCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosAlbumEmpty": "This album is empty. Select photos in the timeline and choose Add to album.",
+  "photosAddedToAlbum": "{count, plural, =0{Already in the album} =1{Added 1 photo} other{Added {count} photos}}",
+  "@photosAddedToAlbum": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosRemoveFromAlbum": "Remove from album",
+  "photosChooseAlbum": "Choose an album",
+  "photosTagsTitle": "Tags",
+  "photosAddTag": "Add a tag",
+  "photosTagHint": "Tag name",
+  "photosTagsApplied": "On all selected photos",
+  "photosTagsNone": "No tags yet",
+  "photosFoldersEmpty": "No folders with photos yet.",
+  "photosFolderCount": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@photosFolderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosUp": "Up one folder",
+  "photosRatedStars": "Rated {count, plural, =1{1 star} other{{count} stars}}",
+  "@photosRatedStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosMore": "More",
+  "photosSourceUnnamed": "Source {id}",
+  "@photosSourceUnnamed": {
+    "placeholders": {
+      "id": {
+        "type": "int"
       }
     }
   }
