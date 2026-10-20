@@ -10,6 +10,7 @@ import com.mediahro.mediahro.pigeon.NetworkChangesStreamHandler
 import com.mediahro.mediahro.pigeon.NetworkStatusHostApi
 import com.mediahro.mediahro.pigeon.BiometricsHostApi
 import com.mediahro.mediahro.pigeon.SecureStorageHostApi
+import com.mediahro.mediahro.pigeon.SftpHostApi
 import com.mediahro.mediahro.pigeon.TlsEventsStreamHandler
 import com.mediahro.mediahro.pigeon.TlsServerHostApi
 import com.mediahro.mediahro.pigeon.TlsSocketHostApi
@@ -31,6 +32,7 @@ import com.mediahro.mediahro.platform.network.MulticastModule
 import com.mediahro.mediahro.platform.network.NetworkStatusModule
 import com.mediahro.mediahro.platform.security.BiometricsModule
 import com.mediahro.mediahro.platform.security.SecureStorageModule
+import com.mediahro.mediahro.platform.sftp.SftpModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
 import com.mediahro.mediahro.platform.tls.TlsHub
 import com.mediahro.mediahro.platform.tls.TlsServerModule
@@ -50,6 +52,7 @@ object PlatformModules {
 
     private var display: DisplayModule? = null
     private var tlsServer: TlsServerModule? = null
+    private var sftp: SftpModule? = null
 
     /** The live PiP module (MainActivity forwards PiP callbacks to it). */
     var pip: PipModule? = null
@@ -103,7 +106,8 @@ object PlatformModules {
         PipHostApi.setUp(messenger, pipModule)
         PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
 
-        SecureStorageHostApi.setUp(messenger, SecureStorageModule(context.applicationContext, host))
+        val secureStorage = SecureStorageModule(context.applicationContext, host)
+        SecureStorageHostApi.setUp(messenger, secureStorage)
         BiometricsHostApi.setUp(messenger, BiometricsModule(context.applicationContext, host))
 
         network?.dispose()
@@ -122,6 +126,9 @@ object PlatformModules {
         TlsSocketHostApi.setUp(messenger, TlsSocketModule())
         TlsServerHostApi.setUp(messenger, TlsServerModule().also { tlsServer = it })
         TlsEventsStreamHandler.register(messenger, TlsHub.eventsHandler)
+
+        sftp?.dispose()
+        SftpHostApi.setUp(messenger, SftpModule(secureStorage).also { sftp = it })
         debugHooks(host, engine)
     }
 
