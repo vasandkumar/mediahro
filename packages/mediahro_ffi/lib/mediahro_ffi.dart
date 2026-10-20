@@ -33,6 +33,7 @@ export 'src/nfs/nfs_client.dart'
     show
         NfsOptions,
         NfsSyncFileSystem,
+        nfsErrnoError,
         nfsExports,
         nfsFileSystem,
         nfsFindLocalServers;

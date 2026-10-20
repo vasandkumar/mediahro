@@ -7,6 +7,7 @@ import 'package:mediahro_ffi/src/native/posix.dart';
 import 'package:mediahro_ffi/src/nfs/nfs_bindings.dart';
 import 'package:mediahro_ffi/src/vfs/isolate_file_system.dart';
 import 'package:mediahro_ffi/src/vfs/virtual_file.dart';
+import 'package:meta/meta.dart';
 
 /// NFS mount options (NET-002).
 final class NfsOptions {
@@ -104,11 +105,8 @@ final class NfsSyncFileSystem implements SyncFileSystem {
   @override
   List<VirtualEntry> list(String path) => using((a) {
     final out = a<ffi.Pointer<nfsdir>>();
-    final rc = _b.nfs_opendir(
-      _ctx,
-      _p(path).toNativeUtf8(allocator: a).cast(),
-      out,
-    );
+    final p = _p(path).toNativeUtf8(allocator: a).cast<ffi.Char>();
+    final rc = _staleRetry(() => _b.nfs_opendir(_ctx, p, out));
     if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
     final dir = out.value;
     final entries = <VirtualEntry>[];
@@ -144,11 +142,8 @@ final class NfsSyncFileSystem implements SyncFileSystem {
   @override
   VirtualEntry stat(String path) => using((a) {
     final st = a<nfs_stat_64>();
-    final rc = _b.nfs_stat64(
-      _ctx,
-      _p(path).toNativeUtf8(allocator: a).cast(),
-      st,
-    );
+    final p = _p(path).toNativeUtf8(allocator: a).cast<ffi.Char>();
+    final rc = _staleRetry(() => _b.nfs_stat64(_ctx, p, st));
     if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
     final isDir = (st.ref.nfs_mode & _sIfMt) == _sIfDir;
     return VirtualEntry(
@@ -170,9 +165,11 @@ final class NfsSyncFileSystem implements SyncFileSystem {
     final out = a<ffi.Pointer<nfsfh>>();
     final p = _p(path).toNativeUtf8(allocator: a).cast<ffi.Char>();
     final flags = PosixOpenFlags.current;
-    final rc = write && create
-        ? _b.nfs_creat(_ctx, p, 0x1A4 /* 0644 */, out)
-        : _b.nfs_open(_ctx, p, write ? flags.writeOnly : flags.readOnly, out);
+    final rc = _staleRetry(
+      () => write && create
+          ? _b.nfs_creat(_ctx, p, 0x1A4 /* 0644 */, out)
+          : _b.nfs_open(_ctx, p, write ? flags.writeOnly : flags.readOnly, out),
+    );
     if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
     int? size;
     if (!write) {
@@ -248,11 +245,9 @@ final class NfsSyncFileSystem implements SyncFileSystem {
 
   @override
   void rename(String from, String to) => using((a) {
-    final rc = _b.nfs_rename(
-      _ctx,
-      _p(from).toNativeUtf8(allocator: a).cast(),
-      _p(to).toNativeUtf8(allocator: a).cast(),
-    );
+    final f = _p(from).toNativeUtf8(allocator: a).cast<ffi.Char>();
+    final t = _p(to).toNativeUtf8(allocator: a).cast<ffi.Char>();
+    final rc = _staleRetry(() => _b.nfs_rename(_ctx, f, t));
     if (rc < 0) throw VirtualFileException(_map(rc), _uri(from), _error());
   });
 
@@ -271,7 +266,8 @@ final class NfsSyncFileSystem implements SyncFileSystem {
     String path,
     int Function(ffi.Pointer<nfs_context>, ffi.Pointer<ffi.Char>) f,
   ) => using((a) {
-    final rc = f(_ctx, _p(path).toNativeUtf8(allocator: a).cast());
+    final p = _p(path).toNativeUtf8(allocator: a).cast<ffi.Char>();
+    final rc = _staleRetry(() => f(_ctx, p));
     if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
   });
 
@@ -279,25 +275,45 @@ final class NfsSyncFileSystem implements SyncFileSystem {
       _handles[handle] ??
       (throw VirtualFileException(VirtualFileError.closed, _uri('')));
 
-  static VirtualFileError _map(int rc, {bool connect = false}) {
-    final e = PosixErrno.current;
-    final errno = -rc;
-    if (errno == e.noent) return VirtualFileError.notFound;
-    if (errno == e.acces || errno == e.perm) {
-      return VirtualFileError.permissionDenied;
-    }
-    if (errno == e.exist || errno == e.notempty) {
-      return VirtualFileError.alreadyExists;
-    }
-    if (errno == e.nospc) return VirtualFileError.noSpace;
-    if (errno == e.timedout) return VirtualFileError.timeout;
-    if (errno == e.connrefused ||
-        errno == e.hostunreach ||
-        errno == e.netunreach) {
-      return VirtualFileError.unreachable;
-    }
-    return connect ? VirtualFileError.unreachable : VirtualFileError.io;
+  /// Path-based calls look the path up again from the export root, so a
+  /// handle the server has dropped (NFS3ERR_STALE, e.g. after a server
+  /// restart or a re-export) gets one more try before it is reported.
+  static int _staleRetry(int Function() call) {
+    final rc = call();
+    return rc == -PosixErrno.current.stale ? call() : rc;
   }
+
+  static VirtualFileError _map(int rc, {bool connect = false}) =>
+      nfsErrnoError(rc, connect: connect);
+}
+
+/// libnfs's `-errno` result as a [VirtualFileError]. libnfs turns each
+/// NFS3ERR_*/NFS4ERR_* status into an errno (nfsstat3_to_errno), so this
+/// covers both: NOENT → notFound; PERM, ACCES, ROFS → permissionDenied;
+/// NOTDIR and ISDIR → their own errors; EXIST, NOTEMPTY → alreadyExists;
+/// NOSPC → noSpace; STALE (after the retry) → unreachable.
+@visibleForTesting
+VirtualFileError nfsErrnoError(int rc, {bool connect = false}) {
+  final e = PosixErrno.current;
+  final errno = -rc;
+  if (errno == e.noent) return VirtualFileError.notFound;
+  if (errno == e.acces || errno == e.perm || errno == e.rofs) {
+    return VirtualFileError.permissionDenied;
+  }
+  if (errno == e.notdir) return VirtualFileError.notADirectory;
+  if (errno == e.isdir) return VirtualFileError.isADirectory;
+  if (errno == e.exist || errno == e.notempty) {
+    return VirtualFileError.alreadyExists;
+  }
+  if (errno == e.nospc) return VirtualFileError.noSpace;
+  if (errno == e.timedout) return VirtualFileError.timeout;
+  if (errno == e.stale ||
+      errno == e.connrefused ||
+      errno == e.hostunreach ||
+      errno == e.netunreach) {
+    return VirtualFileError.unreachable;
+  }
+  return connect ? VirtualFileError.unreachable : VirtualFileError.io;
 }
 
 /// Exports of [server] (mount protocol), for the "discovered mounts" list.

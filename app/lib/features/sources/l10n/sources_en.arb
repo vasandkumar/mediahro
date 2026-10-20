@@ -78,6 +78,8 @@
   "sourcesErrorIo": "Couldn't read from this source. Try again.",
   "sourcesErrorNoSpace": "There is no space left on this source.",
   "sourcesErrorNotFound": "Couldn't find this. It may have been moved or deleted.",
+  "sourcesErrorNotAFolder": "This is a file, not a folder.",
+  "sourcesErrorIsAFolder": "This is a folder, not a file.",
   "sourcesErrorPermission": "You don't have permission to do that here.",
   "sourcesErrorTimeout": "The server took too long to answer.",
   "sourcesErrorUnreachable": "Couldn't reach the server. Check that it is on and on the same network.",
