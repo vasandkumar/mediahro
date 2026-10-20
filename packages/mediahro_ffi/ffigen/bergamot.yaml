@@ -1,0 +1,30 @@
+# Bergamot translator (MPL-2.0) via Mediahro's C shim, SUB-053/ADR-034. The header is ours (the shim's
+# contract), committed under lib/src/bergamot/include. Regenerate
+# (lib/src/bergamot/bergamot_bindings.dart was first written by hand to match):
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/bergamot.yaml)
+name: BergamotBindings
+description: Bindings to Mediahro's C API over the Bergamot translator (ADR-034).
+output: ../lib/src/bergamot/bergamot_bindings.dart
+headers:
+  entry-points:
+    - ../lib/src/bergamot/include/mediahro_bergamot.h
+  include-directives:
+    - '**/mediahro_bergamot.h'
+exclude-all-by-default: true
+functions:
+  include:
+    - mh_bergamot_new
+    - mh_bergamot_free
+    - mh_bergamot_load
+    - mh_bergamot_model_free
+    - mh_bergamot_translate
+    - mh_bergamot_free_text
+structs:
+  include:
+    - mh_bergamot
+    - mh_bergamot_model
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

@@ -1,0 +1,56 @@
+# Tesseract 5.5.3 (Apache-2.0): OCR for image subtitles (SUB-051, ADR-034).
+# Headers: mediahro-deps v2026.10.5 (.deps-cache/<platform>/include/tesseract).
+# Regenerate (lib/src/tesseract/tesseract_bindings.dart was first written by
+# hand to match this config):
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/tesseract.yaml)
+name: TesseractBindings
+description: Bindings to Tesseract's C API (OCR, SUB-051; ADR-034).
+output: ../lib/src/tesseract/tesseract_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/android-arm64-v8a/include/tesseract/capi.h
+  include-directives:
+    - '**/capi.h'
+compiler-opts:
+  - '-I../../.deps-cache/android-arm64-v8a/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - TessVersion
+    - TessDeleteText
+    - TessBaseAPICreate
+    - TessBaseAPIDelete
+    - TessBaseAPIInit3
+    - TessBaseAPISetPageSegMode
+    - TessBaseAPISetVariable
+    - TessBaseAPISetImage
+    - TessBaseAPIRecognize
+    - TessBaseAPIGetIterator
+    - TessBaseAPIClear
+    - TessBaseAPIEnd
+    - TessResultIteratorDelete
+    - TessResultIteratorNext
+    - TessResultIteratorGetUTF8Text
+    - TessResultIteratorConfidence
+    - TessResultIteratorGetPageIterator
+    - TessPageIteratorBoundingBox
+structs:
+  include:
+    - TessBaseAPI
+    - TessResultIterator
+    - TessPageIterator
+    - ETEXT_DESC
+enums:
+  include:
+    - TessPageIteratorLevel
+    - TessPageSegMode
+  # Plain ints, as the hand-written first version has them.
+  as-int:
+    include:
+      - TessPageIteratorLevel
+      - TessPageSegMode
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

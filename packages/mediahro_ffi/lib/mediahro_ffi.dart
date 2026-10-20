@@ -14,7 +14,9 @@ export 'src/archive/archive_reader.dart'
         SyncArchiveSource,
         archiveFileSystem,
         normaliseEntryPath;
+export 'src/bergamot/bergamot_translator.dart';
 export 'src/chromaprint/fingerprinter.dart';
+export 'src/cld3/language_identifier.dart';
 export 'src/curl/curl_client.dart'
     show
         CurlOptions,
@@ -38,6 +40,8 @@ export 'src/nfs/nfs_client.dart'
         nfsFileSystem,
         nfsFindLocalServers;
 export 'src/smb2/smb2_client.dart';
+export 'src/tesseract/tesseract_ocr.dart';
+export 'src/text/text_worker.dart';
 export 'src/uchardet/charset_detector.dart';
 export 'src/vfs/fd_io.dart';
 export 'src/vfs/isolate_file_system.dart';

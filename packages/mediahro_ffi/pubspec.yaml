@@ -1,5 +1,5 @@
 name: mediahro_ffi
-description: ffigen-generated bindings for Mediahro's native libraries (mpv, vips, jxl, avif, raw, smb2, nfs, curl, archive, ebur128, chromaprint, openmpt, whisper, uchardet) and the VirtualFile abstraction.
+description: ffigen-generated bindings for Mediahro's native libraries (mpv, vips, jxl, avif, raw, smb2, nfs, curl, archive, ebur128, chromaprint, openmpt, whisper, uchardet, tesseract, cld3, bergamot) and the VirtualFile abstraction.
 version: 0.1.0
 publish_to: none
 resolution: workspace

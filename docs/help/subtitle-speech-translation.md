@@ -11,8 +11,8 @@ Turn on **Subtitles → Read subtitles aloud** and each subtitle line is spoken 
 
 **Subtitles → Translate subtitles** translates the subtitles you are watching into another language and adds the result as a new track, named for example "Deutsch (translated)".
 
-- Translation runs **on your device** with the translation built into the system (Apple Translation on iPhone, iPad and Mac, Google ML Kit on Android, Windows translation where available). Your subtitles are never sent anywhere.
-- The first time you translate between two languages, the system may need to download a language pack. Mediahro asks before it downloads anything.
+- Translation runs **on your device**, with the open-source Bergamot translator (the engine behind Firefox's translations). Your subtitles are never sent anywhere, and no Google or other company service is involved.
+- The first time you translate between two languages, Mediahro needs to download a translation model for them. It asks before it downloads anything. Languages without a direct model are translated through English.
 - The languages offered are the ones your device can translate.
 
 ## Subtitle files only, for now
