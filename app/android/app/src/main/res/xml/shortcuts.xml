@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut and App Actions (SYS-003). Taps reach Dart as
+     AppIntents through MainActivity (IncomingIntents.kt). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- "Hey Google, open music in Mediahro": the feature is the argument. -->
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="com.mediahro.mediahro.SHORTCUT"
+            android:targetClass="com.mediahro.mediahro.MainActivity"
+            android:targetPackage="com.mediahro.app">
+            <extra android:key="mediahro.intent.kind" android:value="OPEN_MODE" />
+            <parameter android:name="feature" android:key="mediahro.intent.argument" />
+        </intent>
+    </capability>
+    <!-- "Hey Google, search for Kind of Blue in Mediahro". -->
+    <capability android:name="actions.intent.GET_THING">
+        <intent
+            android:action="com.mediahro.mediahro.SHORTCUT"
+            android:targetClass="com.mediahro.mediahro.MainActivity"
+            android:targetPackage="com.mediahro.app">
+            <extra android:key="mediahro.intent.kind" android:value="SEARCH" />
+            <parameter android:name="thing.name" android:key="mediahro.intent.argument" />
+        </intent>
+    </capability>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="resume_last"
+        android:shortcutLongLabel="@string/mediahro_shortcut_resume_long"
+        android:shortcutShortLabel="@string/mediahro_shortcut_resume">
+        <intent
+            android:action="com.mediahro.mediahro.SHORTCUT"
+            android:targetClass="com.mediahro.mediahro.MainActivity"
+            android:targetPackage="com.mediahro.app">
+            <extra android:name="mediahro.intent.kind" android:value="RESUME_LAST" />
+        </intent>
+    </shortcut>
+</shortcuts>
