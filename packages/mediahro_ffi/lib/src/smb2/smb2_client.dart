@@ -106,12 +106,16 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
       if (user != null) {
         _b.smb2_set_user(_ctx, user.toNativeUtf8(allocator: a).cast());
       }
-      _b.smb2_set_password(
-        _ctx,
-        (options.guest ? '' : options.password ?? '')
-            .toNativeUtf8(allocator: a)
-            .cast(),
-      );
+      // Guest: no password at all. libsmb2 sends an anonymous NTLMSSP
+      // (null session) only when the password is NULL; an empty string makes
+      // it authenticate as "Guest" with a derived session key and sign with
+      // it, which servers that granted a key-less guest session reject.
+      if (!options.guest) {
+        _b.smb2_set_password(
+          _ctx,
+          (options.password ?? '').toNativeUtf8(allocator: a).cast(),
+        );
+      }
       final server = options.port == null
           ? options.server
           : '${options.server}:${options.port}';

@@ -159,9 +159,14 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
         );
       case SyncArchiveSource():
         _pos = 0;
+        // archive_read_set_callback_data allocates the client dataset that
+        // archive_read_open1 reads (dataset[0].data); without it open1
+        // dereferences NULL+0x10. The callbacks use this object, not the
+        // client pointer, so it stays null.
         _b
           ..archive_read_set_read_callback(a, _readCb.nativeFunction)
-          ..archive_read_set_seek_callback(a, _seekCb.nativeFunction);
+          ..archive_read_set_seek_callback(a, _seekCb.nativeFunction)
+          ..archive_read_set_callback_data(a, ffi.nullptr);
         rc = _b.archive_read_open1(a);
     }
     if (rc != ARCHIVE_OK) {
