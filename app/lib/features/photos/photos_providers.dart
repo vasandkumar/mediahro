@@ -21,6 +21,7 @@ import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/trash/app_trash.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart'
     show settingsStoreProvider;
@@ -246,6 +247,26 @@ final photoOutputSupportProvider = FutureProvider<ImagingSupport>((ref) async {
     return const ImagingSupport();
   }
 });
+
+/// The app's recycle bin for photos (IMG-014).
+final appTrashProvider = Provider<PhotoTrash>(
+  (ref) => AppTrash(
+    directory: Directory(
+      '${ref.watch(appDataDirectoryProvider).path}${Platform.pathSeparator}photo-trash',
+    ),
+    files: ref.watch(photoFilesProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+    db: ref.watch(libraryDatabaseProvider),
+  ),
+);
+
+/// What is in the recycle bin now; invalidate after a change.
+final FutureProvider<List<TrashedPhoto>> trashContentsProvider =
+    FutureProvider.autoDispose<List<TrashedPhoto>>((ref) async {
+      final trash = ref.watch(appTrashProvider);
+      await trash.purge();
+      return await trash.list();
+    });
 
 /// Batch rename, convert, upright and strip (IMG-010).
 final photoBatchProvider = Provider<PhotoBatch>(
