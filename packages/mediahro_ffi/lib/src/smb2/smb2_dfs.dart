@@ -21,13 +21,20 @@ abstract interface class DfsCapableFileSystem implements SyncFileSystem {
 /// One target of a DFS referral (MS-DFSC 2.2.5).
 @immutable
 final class DfsTarget {
-  const DfsTarget({required this.dfsPath, required this.networkAddress});
+  const DfsTarget({
+    required this.dfsPath,
+    required this.networkAddress,
+    this.timeToLive = Duration.zero,
+  });
 
   /// The link the referral answers for, `\server\share\link`.
   final String dfsPath;
 
   /// Where it points, `\server\share[\path]`.
   final String networkAddress;
+
+  /// How long the client may cache this referral (V2+; zero for V1).
+  final Duration timeToLive;
 }
 
 /// A parsed RESP_GET_DFS_REFERRAL (MS-DFSC 2.2.4).
@@ -84,6 +91,7 @@ DfsReferral parseDfsReferral(Uint8List data, {int maxReferrals = 64}) {
           DfsTarget(
             dfsPath: str(b.getUint16(at + 16, Endian.little)),
             networkAddress: str(b.getUint16(at + 20, Endian.little)),
+            timeToLive: Duration(seconds: b.getUint32(at + 12, Endian.little)),
           ),
         );
       case 3 || 4:
@@ -95,6 +103,7 @@ DfsReferral parseDfsReferral(Uint8List data, {int maxReferrals = 64}) {
             DfsTarget(
               dfsPath: str(b.getUint16(at + 12, Endian.little)),
               networkAddress: str(b.getUint16(at + 16, Endian.little)),
+              timeToLive: Duration(seconds: b.getUint32(at + 8, Endian.little)),
             ),
           );
         }
@@ -127,21 +136,29 @@ List<String> _segments(String path, [String separator = '/']) =>
 /// libsmb2 has no DFS client. When a call at the root is answered with
 /// STATUS_PATH_NOT_COVERED, this asks the server for a referral, connects
 /// to the target share with the same credentials and serves everything
-/// below the link from there. Links are learnt once per connection;
-/// targets that are DFS roots themselves are followed up to [maxHops].
+/// below the link from there. Links are cached for the referral's TTL;
+/// targets that are DFS roots themselves are followed up to [maxHops]. A
+/// link without a usable referral is reported as notFound.
 final class SmbDfsFileSystem implements SyncFileSystem {
   SmbDfsFileSystem(
     this._root, {
     SyncFileSystem Function(SmbOptions options, int hops)? connect,
     DfsCapableFileSystem Function(SmbOptions options)? connectIpc,
+    Duration Function()? clock,
     this.maxHops = 4,
     this.hops = 0,
   }) : _connect = connect ?? _defaultConnect,
-       _connectIpc = connectIpc ?? Smb2SyncFileSystem.new;
+       _connectIpc = connectIpc ?? Smb2SyncFileSystem.new,
+       _clock = clock ?? _monotonic;
 
   final DfsCapableFileSystem _root;
   final SyncFileSystem Function(SmbOptions options, int hops) _connect;
   final DfsCapableFileSystem Function(SmbOptions options) _connectIpc;
+
+  /// Monotonic time, for referral TTLs.
+  final Duration Function() _clock;
+  static final Stopwatch _since = Stopwatch()..start();
+  static Duration _monotonic() => _since.elapsed;
   final int maxHops;
 
   /// Links already followed to reach this share.
@@ -257,15 +274,27 @@ final class SmbDfsFileSystem implements SyncFileSystem {
     if (routed != null) return op(routed.$1, routed.$2);
     try {
       return op(_root, path);
-    } on VirtualFileException {
-      if (!_root.takePathNotCovered() || !_resolve(path)) rethrow;
+    } on VirtualFileException catch (e) {
+      if (!_root.takePathNotCovered()) rethrow;
+      if (!_resolve(path)) {
+        // The server says the path is behind a link but gives no referral
+        // we can follow: for the user, it is not there.
+        throw VirtualFileException(VirtualFileError.notFound, e.uri, e.detail);
+      }
     }
-    final (fs, p) = _route(path)!;
+    // Fresh: a zero TTL still serves the call that asked for it.
+    final (fs, p) = _route(path, fresh: true)!;
     return op(fs, p);
   }
 
-  /// The file system and path serving [path], when it is below a known link.
-  (SyncFileSystem, String)? _route(String path) {
+  /// The file system and path serving [path], when it is below a known,
+  /// unexpired link. An expired link is forgotten: the next call at the
+  /// root gets PATH_NOT_COVERED again and asks for a new referral.
+  (SyncFileSystem, String)? _route(String path, {bool fresh = false}) {
+    if (!fresh) {
+      final now = _clock();
+      _links.removeWhere((l) => now >= l.expires);
+    }
     final segs = _segments(path);
     _DfsLink? best;
     for (final l in _links) {
@@ -313,24 +342,26 @@ final class SmbDfsFileSystem implements SyncFileSystem {
       } on VirtualFileException {
         continue;
       }
-      _links.add(
-        _DfsLink(
-          prefix: [for (final s in prefix) s.toLowerCase()],
-          target: fs,
-          base: target.sublist(2),
-        ),
-      );
+      final link = [for (final s in prefix) s.toLowerCase()];
+      _links
+        ..removeWhere((l) => _sameSegments(l.prefix, link))
+        ..add(
+          _DfsLink(
+            prefix: link,
+            target: fs,
+            base: target.sublist(2),
+            expires: _clock() + t.timeToLive,
+          ),
+        );
       return true;
     }
     return false;
   }
 
-  /// Asked of the root share's tree first (Samba answers there), then of
-  /// IPC$, where Windows servers expect it (MS-DFSC 3.1.4.1).
+  /// Asked of IPC$ (MS-DFSC 3.1.4.1), then of the root share's own tree
+  /// for servers that refuse an IPC$ session to this user.
   Uint8List _referral(Uint8List request) {
     try {
-      return _root.dfsReferral(request);
-    } on VirtualFileException {
       final o = _options;
       final ipc = _connectIpc(
         SmbOptions(
@@ -353,6 +384,8 @@ final class SmbDfsFileSystem implements SyncFileSystem {
       } finally {
         ipc.dispose();
       }
+    } on VirtualFileException {
+      return _root.dfsReferral(request);
     }
   }
 
@@ -417,8 +450,20 @@ final class SmbDfsFileSystem implements SyncFileSystem {
   );
 }
 
+bool _sameSegments(List<String> a, List<String> b) =>
+    a.length == b.length &&
+    [for (var i = 0; i < a.length; i++) a[i] == b[i]].every((m) => m);
+
 final class _DfsLink {
-  _DfsLink({required this.prefix, required this.target, required this.base});
+  _DfsLink({
+    required this.prefix,
+    required this.target,
+    required this.base,
+    required this.expires,
+  });
+
+  /// When the referral's TTL runs out (on the [SmbDfsFileSystem] clock).
+  final Duration expires;
 
   /// Lower-cased path segments of the link inside the root share.
   final List<String> prefix;
