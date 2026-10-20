@@ -22,6 +22,7 @@ import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro/features/music/visualizer/visualizer.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -202,6 +203,10 @@ final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
     FutureProvider.family<Lyrics?, MusicTrack>(
       (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
     );
+
+/// Audio tap for the visualiser (AUD-046). Null until the engine's
+/// `audioTap` (ADR-027, lane B1) is available; then this adapts it.
+final visualizerFeedProvider = Provider<VisualizerFeed?>((ref) => null);
 
 final musicPlayerStateProvider = StreamProvider<MusicPlayerState>(
   (ref) => ref.watch(musicPlayerProvider).states,

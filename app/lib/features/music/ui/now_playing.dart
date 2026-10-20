@@ -13,6 +13,7 @@ import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/lyrics_view.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
+import 'package:mediahro/features/music/ui/visualizer_view.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -35,8 +36,9 @@ class NowPlayingScreen extends ConsumerStatefulWidget {
 }
 
 class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
-  /// Lyrics instead of the cover (MUS-005).
+  /// Lyrics (MUS-005) or the visualiser (AUD-046) instead of the cover.
   bool _lyrics = false;
+  bool _visualizer = false;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +61,22 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               isSelected: _lyrics,
               icon: const Icon(Icons.lyrics_outlined),
               selectedIcon: const Icon(Icons.lyrics),
-              onPressed: () => setState(() => _lyrics = !_lyrics),
+              onPressed: () => setState(() {
+                _lyrics = !_lyrics;
+                _visualizer = false;
+              }),
+            ),
+          if (t != null)
+            IconButton(
+              tooltip: _visualizer
+                  ? l10n.musicShowArtwork
+                  : l10n.musicShowVisualizer,
+              isSelected: _visualizer,
+              icon: const Icon(Icons.graphic_eq),
+              onPressed: () => setState(() {
+                _visualizer = !_visualizer;
+                _lyrics = false;
+              }),
             ),
           if (t != null)
             IconButton(
@@ -82,7 +99,10 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                   builder: (context, c) {
                     final wide = c.maxWidth > c.maxHeight * 1.1;
                     final art = _SwipeArt(track: t, player: player);
-                    if (_lyrics) {
+                    if (_lyrics || _visualizer) {
+                      final panel = _lyrics
+                          ? LyricsView(track: t)
+                          : VisualizerView(track: t);
                       final compact = _Controls(
                         state: s,
                         player: player,
@@ -95,7 +115,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                         child: wide
                             ? Row(
                                 children: [
-                                  Expanded(child: LyricsView(track: t)),
+                                  Expanded(child: panel),
                                   const SizedBox(width: KSpacing.s24),
                                   Expanded(
                                     child: Center(
@@ -108,7 +128,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                               )
                             : Column(
                                 children: [
-                                  Expanded(child: LyricsView(track: t)),
+                                  Expanded(child: panel),
                                   compact,
                                 ],
                               ),

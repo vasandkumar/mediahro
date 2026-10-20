@@ -313,6 +313,29 @@ void main() {
     expect(find.text('Second line'), findsOneWidget);
     await finish(tester);
   });
+
+  testWidgets('AUD-046 visualiser toggle; without an engine tap it says so', (
+    tester,
+  ) async {
+    await seedAlbum();
+    await pump(tester);
+    await tester.tap(find.text('Alpha'));
+    await settle(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(KMiniPlayer),
+        matching: find.text('Alpha'),
+      ),
+    );
+    await settle(tester);
+    await tester.tap(find.byTooltip('Show visualiser'));
+    await settle(tester);
+    expect(find.textContaining('live audio analysis'), findsOneWidget);
+    await tester.tap(find.byTooltip('Show cover'));
+    await settle(tester);
+    expect(find.textContaining('live audio analysis'), findsNothing);
+    await finish(tester);
+  });
 }
 
 /// Unmounts the app and lets drift's stream-close timers run, so no timer

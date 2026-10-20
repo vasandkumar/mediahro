@@ -447,5 +447,18 @@
         "type": "String"
       }
     }
-  }
+  },
+  "musicVisualizer": "Visualiser",
+  "musicShowVisualizer": "Show visualiser",
+  "musicVisualizerStyle": "{style, select, spectrum{Spectrum} waveform{Waveform} vu{Level meters} other{Spectrum}}",
+  "@musicVisualizerStyle": {
+    "placeholders": {
+      "style": {
+        "type": "String"
+      }
+    }
+  },
+  "musicVisualizerLowPower": "Low-power mode",
+  "musicVisualizerUnavailable": "The visualiser needs live audio analysis from the playback engine, which this build doesn't include yet.",
+  "musicVisualizerSemantics": "Music visualiser"
 }
