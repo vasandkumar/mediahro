@@ -135,6 +135,7 @@ final class VideoPlayerController extends ChangeNotifier {
     _rate = _volume = null;
     _videoOffFrom = null;
     _subDelay = _audioDelay = _secondaryDelay = null;
+    _subtitleFiles.clear();
     _lastSave = null;
     final m = memory.item(request.memoryKey);
     final resume = settings.get(VideoSettings.resume) == ResumeMode.always
@@ -191,7 +192,12 @@ final class VideoPlayerController extends ChangeNotifier {
     if (found.isEmpty || !identical(_request, r) || _disposed) return;
     final before = _state.subtitleTrackId;
     for (final f in found) {
-      await addSubtitleFile(f.file, title: f.title, language: f.language);
+      await addSubtitleFile(
+        f.file,
+        title: f.title,
+        language: f.language,
+        source: f.source,
+      );
     }
     final mem = _trackMemory(r);
     if (mem.subtitlesOff) {
@@ -231,6 +237,7 @@ final class VideoPlayerController extends ChangeNotifier {
     Uri file, {
     String? title,
     String? language,
+    Uri? source,
     bool select = false,
   }) async {
     Set<int> subs(PlaybackState s) => {
@@ -258,9 +265,18 @@ final class VideoPlayerController extends ChangeNotifier {
         return null;
       }
     }
+    if (track != null) _subtitleFiles[track.id] = (file, source, title);
     if (select && track != null) await selectSubtitle(track);
     return track;
   }
+
+  final Map<int, (Uri, Uri?, String?)> _subtitleFiles = {};
+
+  /// Subtitle tracks this player added from files, by track id: the local
+  /// copy, where it came from (null for picked files) and its name
+  /// (SUB-030 edits them).
+  Map<int, (Uri, Uri?, String?)> get subtitleFiles =>
+      Map.unmodifiable(_subtitleFiles);
 
   /// Sends the subtitle style (SUB-014); the screen recomputes it from the
   /// settings and the system caption style.

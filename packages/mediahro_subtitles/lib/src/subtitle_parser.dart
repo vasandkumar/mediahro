@@ -44,14 +44,41 @@ final class SubtitleCue {
     required this.end,
     required this.text,
     this.style,
+    this.extra = const {},
   });
 
   final Duration start;
   final Duration end;
 
-  /// Plain text with `\n` line breaks; markup is in [style] for ASS.
+  /// Text with `\n` line breaks. Inline markup stays as the format writes
+  /// it: `<i>` for SRT/WebVTT, `{\i1}` override tags for ASS.
   final String text;
+
+  /// ASS style name.
   final String? style;
+
+  /// Format-specific fields kept for lossless round-trips (ASS `Layer`,
+  /// `Name`, margins, `Effect`; WebVTT cue id and settings).
+  final Map<String, String> extra;
+
+  Duration get duration => end - start;
+
+  /// [text] without markup, for the editor list, speech and translation.
+  String get plainText => stripMarkup(text);
+
+  SubtitleCue copyWith({
+    Duration? start,
+    Duration? end,
+    String? text,
+    String? Function()? style,
+    Map<String, String>? extra,
+  }) => SubtitleCue(
+    start: start ?? this.start,
+    end: end ?? this.end,
+    text: text ?? this.text,
+    style: style == null ? this.style : style(),
+    extra: extra ?? this.extra,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -59,11 +86,25 @@ final class SubtitleCue {
       other.start == start &&
       other.end == end &&
       other.text == text &&
-      other.style == style;
+      other.style == style &&
+      other.extra.length == extra.length &&
+      other.extra.entries.every((e) => extra[e.key] == e.value);
 
   @override
   int get hashCode => Object.hash(start, end, text, style);
+
+  @override
+  String toString() => 'SubtitleCue($start - $end, $text)';
 }
+
+/// Removes ASS override blocks and HTML-style tags; ASS `\N` and `\n`
+/// become a line break, `\h` a space.
+String stripMarkup(String text) => text
+    .replaceAll(RegExp(r'\{[^}]*\}'), '')
+    .replaceAll(RegExp('</?[a-zA-Z][^>]*>'), '')
+    .replaceAll(r'\N', '\n')
+    .replaceAll(r'\n', '\n')
+    .replaceAll(r'\h', ' ');
 
 @immutable
 final class SubtitleDocument {
@@ -72,6 +113,16 @@ final class SubtitleDocument {
     required this.cues,
     this.header,
   });
+
+  SubtitleDocument copyWith({
+    SubtitleFormat? format,
+    List<SubtitleCue>? cues,
+    String? Function()? header,
+  }) => SubtitleDocument(
+    format: format ?? this.format,
+    cues: cues ?? this.cues,
+    header: header == null ? this.header : header(),
+  );
 
   final SubtitleFormat format;
   final List<SubtitleCue> cues;

@@ -510,4 +510,35 @@ void videoPlayerSuite({
     await tester.pumpAndSettle();
     expect(find.text('こんにちは'), findsOneWidget);
   });
+
+  playerTest('SUB-030 Edit subtitles opens the editor on a subtitle file', (
+    tester,
+  ) async {
+    await pumpPlayer(
+      tester,
+      overrides: [
+        subtitleFilePickerProvider.overrideWithValue(
+          () async => PickedSubtitle(
+            'Edit.srt',
+            Uint8List.fromList(
+              utf8.encode('1\n00:00:01,000 --> 00:00:02,000\nTo edit\n'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Edit subtitles'));
+    // File I/O and the parse isolate run in real time.
+    for (var i = 0; i < 40 && find.text('To edit').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('To edit'), findsOneWidget);
+    expect(find.text('Shift all'), findsOneWidget);
+  });
 }

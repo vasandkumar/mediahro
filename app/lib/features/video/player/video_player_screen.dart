@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/app/shortcuts/shortcut_catalog.dart';
 import 'package:mediahro/app/shortcuts/shortcut_scope.dart';
 import 'package:mediahro/core/library/progress.dart';
+import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/video/player/info_overlay.dart';
@@ -21,6 +23,8 @@ import 'package:mediahro/features/video/player/sleep_sheet.dart';
 import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_model.dart';
+import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_screen.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
@@ -28,6 +32,7 @@ import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 T? _optional<T>(T Function() read) {
   try {
@@ -126,6 +131,124 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     } else {
       context.go('/video');
     }
+  }
+
+  /// "Edit subtitles" (SUB-030): one of the subtitle files of this video
+  /// (or a picked one) in the editor, with the video's clock.
+  Future<void> _editSubtitles() async {
+    final c = _c;
+    if (c == null) return;
+    final l = AppLocalizations.of(context);
+    final loader = ref.read(sidecarLoaderProvider);
+    final candidates = <(String, Uri, Uri?)>[
+      for (final f in c.subtitleFiles.values)
+        (f.$3 ?? f.$1.pathSegments.last, f.$1, f.$2),
+    ];
+    // mpv loads a local video's sidecars itself; find them for editing.
+    final video = await c.request?.locate?.call();
+    if (video != null && video.scheme == 'file') {
+      for (final f in await loader.find(video)) {
+        if (!candidates.any((x) => x.$3 == f.source)) {
+          candidates.add((f.title, f.file, f.source));
+        }
+      }
+    }
+    if (!mounted) return;
+    var pick = candidates.length == 1 ? candidates.single : null;
+    if (candidates.length > 1) {
+      pick = await showDialog<(String, Uri, Uri?)>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: Text(l.videoEditorChooseFile),
+          children: [
+            for (final f in candidates)
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(context).pop(f),
+                child: Text(f.$1),
+              ),
+          ],
+        ),
+      );
+    } else if (candidates.isEmpty) {
+      final picked = await ref.read(subtitleFilePickerProvider)?.call();
+      if (picked != null) {
+        final file = await loader.store(picked.name, picked.bytes);
+        if (file != null) pick = (picked.name, file.uri, null);
+      }
+    }
+    if (pick == null || !mounted) return;
+    final chosen = pick;
+    final SubtitleEditorModel model;
+    try {
+      model = await SubtitleEditorModel.open(
+        chosen.$1,
+        await File.fromUri(chosen.$2).readAsBytes(),
+        charset: c.subtitleCodepage,
+      );
+    } on Exception {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.videoEditorCantOpen)));
+      }
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SubtitleEditorScreen(
+          model: model,
+          save: (name, bytes) => _saveSubtitles(chosen.$3, name, bytes),
+          position: () => c.state.position,
+          seek: (at) => unawaited(c.seekTo(at)),
+        ),
+      ),
+    );
+    model.dispose();
+  }
+
+  /// Saves an edited subtitle file next to its source when that folder can
+  /// be written (local, SAF, writable shares), else in the app's subtitle
+  /// folder, and shows it in the player at once. Returns where it went.
+  Future<String?> _saveSubtitles(
+    Uri? source,
+    String name,
+    Uint8List bytes,
+  ) async {
+    String? where;
+    if (source != null) {
+      final target = source.resolve(Uri.encodeComponent(name));
+      try {
+        final fs = ref.read(mountsProvider).forUri(target);
+        if (fs is MutableFileSystem) {
+          final w = await fs.create(target);
+          await w.write(bytes);
+          await w.close();
+          where = target.scheme == 'file'
+              ? target.toFilePath()
+              : Uri.decodeFull(target.toString());
+        }
+      } on VirtualFileException {
+        where = null;
+      }
+    }
+    if (where == null) {
+      try {
+        final dir = Directory(
+          '${ref.read(appDataDirectoryProvider).path}/subtitles',
+        );
+        await dir.create(recursive: true);
+        final f = File('${dir.path}/$name');
+        await f.writeAsBytes(bytes, flush: true);
+        where = f.path;
+      } on FileSystemException {
+        return null;
+      }
+    }
+    final copy = await ref.read(sidecarLoaderProvider).store(name, bytes);
+    if (copy != null) {
+      await _c?.addSubtitleFile(copy.uri, title: name, select: true);
+    }
+    return where;
   }
 
   /// "Add a subtitle file" (SUB-012): pick, cache, add, show.
@@ -556,6 +679,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               onAddFile: ref.read(subtitleFilePickerProvider) == null
                   ? null
                   : _addSubtitleFile,
+              onEdit: _editSubtitles,
             ),
           ),
         ),
