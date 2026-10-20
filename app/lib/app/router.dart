@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mediahro/features/library/search_screen.dart';
 import 'package:mediahro/features/music/music_home_screen.dart';
@@ -58,9 +59,22 @@ abstract final class AppRoutes {
   static const String openUrl = '/video?open=url';
 }
 
-GoRouter buildRouter({String initialLocation = '/video'}) => GoRouter(
+/// Full-screen routes outside the shell, contributed by the lanes that own
+/// them from their own folders: the video player (C1), Now Playing (C2),
+/// the photo viewer and compare (C3). They cover the navigation bar and the
+/// mini-player. The orchestrator lists them in main.dart:
+/// `appRoutesProvider.overrideWithValue([...videoRoutes, ...musicRoutes])`.
+/// Paths must not start with a shell destination's path segment alone
+/// (use `/play`, `/now-playing`, `/photos/view/:id` style paths).
+final appRoutesProvider = Provider<List<RouteBase>>((ref) => const []);
+
+GoRouter buildRouter({
+  String initialLocation = '/video',
+  List<RouteBase> fullScreenRoutes = const [],
+}) => GoRouter(
   initialLocation: initialLocation,
   routes: [
+    ...fullScreenRoutes,
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => AdaptiveShell(shell: shell),
       branches: [

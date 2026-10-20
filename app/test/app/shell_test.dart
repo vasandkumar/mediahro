@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/appearance.dart';
 import 'package:mediahro/app/locales.dart';
+import 'package:mediahro/app/router.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/ui/mini_player_slot.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -259,4 +263,54 @@ void main() {
       expect(find.text('Open a file'), findsOneWidget);
     });
   }
+
+  testWidgets('CORE-001 lanes add full-screen routes that cover the shell', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      initialLocation: null,
+      overrides: [
+        appRoutesProvider.overrideWithValue([
+          GoRoute(
+            path: '/play',
+            builder: (context, state) =>
+                const Scaffold(body: SizedBox(key: Key('player'))),
+          ),
+        ]),
+        miniPlayerSlotProvider.overrideWithValue(
+          (context) => const SizedBox(key: Key('mini'), height: 64),
+        ),
+      ],
+    );
+    unawaited(
+      GoRouter.of(tester.element(find.byType(NavigationBar))).push('/play'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('player')), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byKey(const Key('mini')), findsNothing);
+  });
+
+  testWidgets('CORE-007 C4 reports Mica through micaActiveProvider', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      size: const Size(1280, 800),
+      overrides: [micaActiveProvider.overrideWithValue(true)],
+    );
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    expect(scaffold.backgroundColor, Colors.transparent);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+  testWidgets('SYS-008 platform reduce transparency makes Apple bars solid', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      overrides: [platformReduceTransparencyProvider.overrideWithValue(true)],
+    );
+    expect(find.byType(BackdropFilter), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 }

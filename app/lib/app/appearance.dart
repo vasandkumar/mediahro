@@ -154,10 +154,28 @@ final class ThemeSettings {
   );
 }
 
-final themeSettingsProvider = Provider<ThemeSettings>(
-  (ref) => ThemeSettings.from(
+/// Whether the Windows runner applied the Mica backdrop (CORE-007 W). Lane
+/// C4 overrides this from its window facade; `mediahroRoot` keeps owning
+/// [platformAppearanceProvider] for the dynamic colour schemes.
+final micaActiveProvider = Provider<bool>((ref) => false);
+
+/// The platform's "reduce transparency" accessibility preference (Apple
+/// Reduce Transparency, Windows transparency effects off). Lane C4
+/// overrides this from its platform facade (SYS-008).
+final platformReduceTransparencyProvider = Provider<bool>((ref) => false);
+
+final themeSettingsProvider = Provider<ThemeSettings>((ref) {
+  final platform = ref.watch(platformAppearanceProvider);
+  return ThemeSettings.from(
     ref.watch(settingsProvider),
-    ref.watch(platformAppearanceProvider),
+    PlatformAppearance(
+      dynamicLight: platform.dynamicLight,
+      dynamicDark: platform.dynamicDark,
+      micaActive: platform.micaActive || ref.watch(micaActiveProvider),
+      reduceTransparency:
+          platform.reduceTransparency ||
+          ref.watch(platformReduceTransparencyProvider),
+    ),
     platformFamilyFor(defaultTargetPlatform),
-  ),
-);
+  );
+});
