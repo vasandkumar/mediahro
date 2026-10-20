@@ -13,8 +13,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:mediahro/features/music/tags/byte_reader.dart';
 import 'package:mediahro/features/music/tags/audio_tags.dart';
+import 'package:mediahro/features/music/tags/byte_reader.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
 import 'package:mediahro/features/music/tags/writer/tag_edit.dart';
 import 'package:mediahro/features/music/tags/writer/tag_writer.dart';

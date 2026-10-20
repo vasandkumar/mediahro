@@ -267,10 +267,30 @@ int _oggCrc(List<int> page) {
   return crc;
 }
 
-Uint8List oggVorbis(List<String> comments) => bytesOf([
-  oggPage(7, 0, [1, ...ascii('vorbis'), ...List.filled(23, 0)], flags: 2),
-  oggPage(7, 1, [3, ...ascii('vorbis'), ...vorbisComment(comments), 1]),
-]);
+/// Identification page, then one page holding the comment and setup
+/// packets (as encoders write them).
+Uint8List oggVorbis(List<String> comments) {
+  final comment = [3, ...ascii('vorbis'), ...vorbisComment(comments), 1];
+  final setup = [5, ...ascii('vorbis'), ...List.filled(40, 0x55)];
+  final segs = <int>[];
+  for (final p in [comment, setup]) {
+    var n = p.length;
+    while (n >= 255) {
+      segs.add(255);
+      n -= 255;
+    }
+    segs.add(n);
+  }
+  final page = [
+    ...ascii('OggS'), 0, 0, ...List.filled(8, 0), ...u32le(7), ...u32le(1), //
+    ...u32le(0), segs.length, ...segs, ...comment, ...setup,
+  ];
+  page.setRange(22, 26, u32le(_oggCrc(page)));
+  return bytesOf([
+    oggPage(7, 0, [1, ...ascii('vorbis'), ...List.filled(23, 0)], flags: 2),
+    page,
+  ]);
+}
 
 Uint8List oggOpus(List<String> comments) => bytesOf([
   oggPage(9, 0, [...ascii('OpusHead'), ...List.filled(11, 0)], flags: 2),
