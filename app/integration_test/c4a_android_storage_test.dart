@@ -112,11 +112,24 @@ void main() {
     final one = await storage.pickFiles(kinds: {PickKind.video});
     expect(one.single.name, 'a.mkv');
     expect(one.single.size, 1234);
+    // Single pick: the documents picker without EXTRA_ALLOW_MULTIPLE.
+    expect(await pickers.send('last'), 'OpenDocument');
     final many = await storage.pickFiles(
       kinds: {PickKind.subtitle},
       multiple: true,
     );
     expect(many.map((p) => p.name), ['a.mkv', 'a.srt']);
+    expect(await pickers.send('last'), 'OpenMultipleDocuments');
+  }, skip: !android);
+
+  testWidgets('SYS-007 image-only picks use the Photo Picker, single-select', (
+    tester,
+  ) async {
+    await safFile('Pics/p.jpg', [0xFF, 0xD8, 0xFF, 0xD9]);
+    await answerPickers(['${doc('Pics/p.jpg')}']);
+    final one = await storage.pickFiles(kinds: {PickKind.image});
+    expect(one.single.name, 'p.jpg');
+    expect(await pickers.send('last'), 'PickVisualMedia');
   }, skip: !android);
 
   testWidgets('LIB-002 SafFileSystem lists, stats and reads a granted tree', (

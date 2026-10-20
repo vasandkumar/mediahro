@@ -20,10 +20,17 @@ object DebugHooks {
     private val queue = ConcurrentLinkedQueue<Any>()
     private object Cancelled
 
+    @Volatile private var lastContract: String? = null
+
     @JvmStatic
     fun install(host: ActivityHost, engine: FlutterEngine) {
         BasicMessageChannel(engine.dartExecutor.binaryMessenger, "mediahro.test/pickers", StandardMessageCodec.INSTANCE)
             .setMessageHandler { message, reply ->
+                // "last": the contract that answered the latest picker call.
+                if (message == "last") {
+                    reply.reply(lastContract)
+                    return@setMessageHandler
+                }
                 (message as? List<*>)?.forEach { queue.add(it ?: Cancelled) }
                 if (message == null) queue.clear()
                 reply.reply(queue.size)
@@ -54,6 +61,7 @@ object DebugHooks {
             contract is ActivityResultContracts.CreateDocument
         if (!picker) return null
         val next = queue.poll() ?: return null
+        lastContract = contract.javaClass.simpleName
         val multi = contract is ActivityResultContracts.OpenMultipleDocuments ||
             contract is ActivityResultContracts.PickMultipleVisualMedia
         return Result.success(

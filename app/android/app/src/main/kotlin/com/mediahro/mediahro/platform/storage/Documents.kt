@@ -85,26 +85,48 @@ internal object Documents {
         )
     }
 
-    /** Display name and size of any openable URI (picker results). */
+    /**
+     * Display name and size of any openable URI (picker results). Some
+     * providers (Photo Picker, OEM galleries) leave `_display_name` empty or
+     * fail the OpenableColumns query, so a full-row query and the MIME type
+     * back it up; a bare media id is never returned as the name.
+     */
     fun nameAndSize(resolver: ContentResolver, uri: Uri): Pair<String, Long?> {
         if (uri.scheme == ContentResolver.SCHEME_FILE) {
             val f = java.io.File(uri.path ?: "")
             return f.name to f.length()
         }
-        return try {
-            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
-                ?.use { c ->
-                    if (c.moveToFirst()) {
-                        (c.getString(0) ?: uri.lastPathSegment.orEmpty()) to
-                            (if (c.isNull(1)) null else c.getLong(1))
-                    } else {
-                        null
+        val names = ArrayList<String?>()
+        var size: Long? = null
+        fun read(projection: Array<String>?) {
+            try {
+                resolver.query(uri, projection, null, null, null)?.use { c ->
+                    if (!c.moveToFirst()) return
+                    for (column in NAME_COLUMNS) {
+                        val i = c.getColumnIndex(column)
+                        if (i >= 0 && !c.isNull(i)) names += c.getString(i)
                     }
-                } ?: (uri.lastPathSegment.orEmpty() to null)
-        } catch (e: Exception) {
-            uri.lastPathSegment.orEmpty() to null
+                    val s = c.getColumnIndex(OpenableColumns.SIZE)
+                    if (size == null && s >= 0 && !c.isNull(s)) size = c.getLong(s)
+                }
+            } catch (e: Exception) {
+                // Fall through to the next source.
+            }
         }
+        read(arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE))
+        if (names.none { !it.isNullOrBlank() && !it.trim().all(Char::isDigit) }) read(null)
+        val mime = try {
+            resolver.getType(uri)
+        } catch (e: Exception) {
+            null
+        }
+        val name = PickPolicy.displayName(names, uri.lastPathSegment, mime) {
+            android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it)
+        }
+        return name to size
     }
+
+    private val NAME_COLUMNS = listOf(OpenableColumns.DISPLAY_NAME)
 
     /** Runs a SAF mutation and maps provider errors to stable codes. */
     inline fun <T> mutate(uri: Uri, op: () -> T?): T =

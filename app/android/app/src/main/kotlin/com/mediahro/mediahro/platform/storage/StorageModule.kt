@@ -58,24 +58,26 @@ class StorageModule(private val context: Context, private val host: ActivityHost
     // ---- Pickers and grants.
 
     override suspend fun pickFiles(kinds: List<PickKindMsg>, multiple: Boolean): List<PickedFileMsg> {
-        val uris: List<Uri> = if (isVisualOnly(kinds)) {
-            val type = when {
-                kinds.all { it == PickKindMsg.IMAGE } -> ActivityResultContracts.PickVisualMedia.ImageOnly
-                kinds.all { it == PickKindMsg.VIDEO } -> ActivityResultContracts.PickVisualMedia.VideoOnly
-                else -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
+        val uris: List<Uri> = when (PickPolicy.pickerFor(kinds)) {
+            PickPolicy.Picker.PHOTO_PICKER -> {
+                val request = PickVisualMediaRequest.Builder()
+                    .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    .build()
+                if (multiple) {
+                    host.launch(ActivityResultContracts.PickMultipleVisualMedia(), request)
+                } else {
+                    listOfNotNull(host.launch(ActivityResultContracts.PickVisualMedia(), request))
+                }
             }
-            val request = PickVisualMediaRequest.Builder().setMediaType(type).build()
-            if (multiple) {
-                host.launch(ActivityResultContracts.PickMultipleVisualMedia(), request)
-            } else {
-                listOfNotNull(host.launch(ActivityResultContracts.PickVisualMedia(), request))
-            }
-        } else {
-            val mimes = mimeTypes(kinds)
-            if (multiple) {
-                host.launch(ActivityResultContracts.OpenMultipleDocuments(), mimes)
-            } else {
-                listOfNotNull(host.launch(ActivityResultContracts.OpenDocument(), mimes))
+            PickPolicy.Picker.DOCUMENTS -> {
+                // OpenDocument never sets EXTRA_ALLOW_MULTIPLE; only
+                // OpenMultipleDocuments does.
+                val mimes = PickPolicy.mimeTypes(kinds)
+                if (multiple) {
+                    host.launch(ActivityResultContracts.OpenMultipleDocuments(), mimes)
+                } else {
+                    listOfNotNull(host.launch(ActivityResultContracts.OpenDocument(), mimes))
+                }
             }
         }
         return withContext(Dispatchers.IO) {
@@ -89,24 +91,6 @@ class StorageModule(private val context: Context, private val host: ActivityHost
                 PickedFileMsg(uri.toString(), name, size)
             }
         }
-    }
-
-    private fun isVisualOnly(kinds: List<PickKindMsg>) =
-        kinds.isNotEmpty() && kinds.all { it == PickKindMsg.IMAGE || it == PickKindMsg.VIDEO }
-
-    private fun mimeTypes(kinds: List<PickKindMsg>): Array<String> {
-        // Subtitles and playlists rarely carry a MIME type, so they open everything.
-        if (kinds.isEmpty() || kinds.any { it == PickKindMsg.ANY || it == PickKindMsg.SUBTITLE || it == PickKindMsg.PLAYLIST }) {
-            return arrayOf("*/*")
-        }
-        return kinds.map {
-            when (it) {
-                PickKindMsg.VIDEO -> "video/*"
-                PickKindMsg.AUDIO -> "audio/*"
-                PickKindMsg.IMAGE -> "image/*"
-                else -> "*/*"
-            }
-        }.distinct().toTypedArray()
     }
 
     override suspend fun pickFolder(): FolderGrantMsg? {

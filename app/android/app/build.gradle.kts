@@ -94,4 +94,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.10.2")
     implementation("androidx.media3:media3-session:1.11.1")
     implementation("androidx.biometric:biometric:1.1.0")
+
+    // JVM unit tests of the modules' pure rules (./gradlew :app:testFossDebugUnitTest).
+    testImplementation("junit:junit:4.13.2")
 }
