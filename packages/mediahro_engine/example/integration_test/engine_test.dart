@@ -145,5 +145,30 @@ void renderBridgeSuite() {
       await tester.pumpWidget(const SizedBox.shrink());
       await engine.dispose();
     }, skip: skip != null);
+
+    testWidgets('VID-031 platform-view targets need a registered view', (
+      tester,
+    ) async {
+      final engine = MpvEngine(
+        EngineRole.video,
+        config: MpvEngineConfig(renderBridge: RenderBridge(), nullAudio: true),
+      );
+      addTearDown(engine.dispose);
+      await engine.open(UriSource(Uri.file(corpusPath('mkv_multitrack.mkv'))));
+      // Android and Windows look views up by handle (none registered here);
+      // Apple has no native view path until ADR-022's view exists.
+      final expected = Platform.isAndroid || Platform.isWindows
+          ? EngineErrorCode.invalidArgument
+          : EngineErrorCode.notSupported;
+      await expectLater(
+        engine.setVideoTarget(const VideoTarget.platformView(424242)),
+        throwsA(
+          isA<EngineException>().having((e) => e.error.code, 'code', expected),
+        ),
+      );
+      // The texture stays the target and keeps rendering.
+      await engine.setVideoTarget(const VideoTarget.texture());
+      expect(engine.textureId, isNotNull);
+    }, skip: skip != null);
   });
 }

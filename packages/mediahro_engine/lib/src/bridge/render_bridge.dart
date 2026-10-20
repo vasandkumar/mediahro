@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
@@ -68,6 +69,40 @@ final class RenderBridge {
       ));
     }
     return null;
+  }
+
+  // Windows platform views by handle (VID-031, ADR-022): the HWND is a
+  // plain integer, so the registry lives on the Dart side.
+  static final _windowsViews = <int, int>{};
+
+  /// Windows: registers a native HDR platform view's `HWND` under [handle]
+  /// for `VideoTarget.platformView(handle)` (lane C4, ADR-022). Android views
+  /// register their `Surface` natively
+  /// (`MediahroEngineViews.register(handle, surface)` in the plugin).
+  static void registerWindowsView(int handle, int hwnd) =>
+      _windowsViews[handle] = hwnd;
+
+  /// Forgets a view registered with [registerWindowsView].
+  static void unregisterWindowsView(int handle) => _windowsViews.remove(handle);
+
+  /// Whether this platform can draw into a native video view: Android and
+  /// Windows; Apple once ADR-022's view exists.
+  bool get supportsViews => Platform.isAndroid || Platform.isWindows;
+
+  /// The native window mpv draws into (`wid`) for a registered platform
+  /// view: a JNI global reference to the view's `Surface` on Android (free it
+  /// with [releaseViewSurface]), the `HWND` on Windows; null when [handle] is
+  /// not registered or the platform has no view path ([supportsViews]).
+  Future<int?> viewSurface(int handle) async {
+    if (Platform.isWindows) return _windowsViews[handle];
+    if (!Platform.isAndroid) return null;
+    return await _channel.invokeMethod<int>('viewSurface', {'handle': handle});
+  }
+
+  /// Releases a reference returned by [viewSurface] (Android).
+  Future<void> releaseViewSurface(int ref) async {
+    if (!Platform.isAndroid) return;
+    await _channel.invokeMethod<void>('releaseViewSurface', {'ref': ref});
   }
 
   /// Platform description from the native side; used by the M0 smoke test to

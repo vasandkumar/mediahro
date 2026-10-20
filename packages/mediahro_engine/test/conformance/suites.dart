@@ -1,3 +1,4 @@
+import 'api_additions.dart';
 import 'audio.dart';
 import 'cast.dart';
 import 'disc.dart';
@@ -18,4 +19,5 @@ void runConformanceSuites() {
   subtitlesSuite();
   audioSuite();
   castSuite();
+  apiAdditionsSuite();
 }

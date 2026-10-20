@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// Music-role engine with crossfades (AUD-003) over two cores.
 ///
@@ -32,6 +33,8 @@ final class CrossfadingEngine implements PlaybackEngine {
   PlaybackState _state = const PlaybackState();
   TransitionConfig _transition = const TransitionConfig();
   double _volume = 1;
+  // Audio-focus ducking (AUD-045), applied to both cores.
+  double _duck = 1;
   MediaSource? _next;
   var _sameAlbum = false;
   var _standbyReady = false;
@@ -97,6 +100,7 @@ final class CrossfadingEngine implements PlaybackEngine {
     _state = s.copyWith(
       item: _item,
       volume: _volume,
+      ducked: _duck < 1,
       nextPrepared: _next != null && (_standbyReady || s.nextPrepared),
     );
     if (!_controller.isClosed) _controller.add(_state);
@@ -177,6 +181,7 @@ final class CrossfadingEngine implements PlaybackEngine {
       if (_b != null) await _b!.stop();
     } else if (_crossfadeNext) {
       await _a.setNext(null);
+      await _standby.setDucking(_duck);
       await _standby.open(next, opts: const OpenOptions(autoplay: false));
       _standbyReady = true;
     } else {
@@ -352,6 +357,37 @@ final class CrossfadingEngine implements PlaybackEngine {
   }) async {
     await _ensure();
     return await _a.screenshot(subtitles: subtitles, format: format);
+  }
+
+  @override
+  Future<void> export(
+    Duration start,
+    Duration end,
+    ExportFormat format,
+    Uri out, {
+    bool subtitles = false,
+  }) async {
+    await _ensure();
+    await _a.export(start, end, format, out, subtitles: subtitles);
+  }
+
+  @override
+  Future<void> setVideoTarget(VideoTarget target) async {
+    await _ensure();
+    await _a.setVideoTarget(target);
+  }
+
+  @override
+  Future<void> setDucking(double gain) async {
+    _duck = gain.clamp(0, 1);
+    await _both((e) => e.setDucking(_duck));
+    _publish(_a.current);
+  }
+
+  @override
+  Future<List<EngineAudioDevice>> audioDevices() async {
+    await _ensure();
+    return await _a.audioDevices();
   }
 
   @override

@@ -39,6 +39,19 @@ final class AudioBridge {
 
   final MethodChannel _channel;
 
+  /// Bluetooth codec of the active output (`LDAC`, `aptX HD`, `AAC`, `SBC`),
+  /// or null when the output is not Bluetooth or the platform module does not
+  /// report it yet (AUD-044; lane C4 answers `bluetoothCodec` natively).
+  Future<String?> bluetoothCodec() async {
+    try {
+      return await _channel.invokeMethod<String>('bluetoothCodec');
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   /// Requests (or, with [bitPerfect] false, releases) a bit-perfect output
   /// at [sampleRate].
   Future<OutputPreference> prefer({

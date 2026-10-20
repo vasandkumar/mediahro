@@ -148,6 +148,19 @@ class MediahroEnginePlugin :
                 surfaces.remove(id)?.release()
                 result.success(null)
             }
+            "viewSurface" -> {
+                // VID-031: a registered HDR platform view's Surface as a JNI
+                // global reference for mpv's wid; null for an unknown handle.
+                val surface = MediahroEngineViews.lookup(call.argument<Int>("handle")!!)
+                result.success(
+                    if (surface != null && NativeBridge.loaded) NativeBridge.newGlobalRef(surface) else null,
+                )
+            }
+            "releaseViewSurface" -> {
+                val ref = (call.argument<Number>("ref"))!!.toLong()
+                if (NativeBridge.loaded && ref != 0L) NativeBridge.deleteGlobalRef(ref)
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }
