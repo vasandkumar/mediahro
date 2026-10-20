@@ -203,6 +203,24 @@ void main() {
       },
     );
 
+    test('VID-067 the video shape reaches PiP on every size change '
+        '(ADR-028)', () async {
+      await build();
+      await c.open(req('a'));
+      await settle();
+      expect(pip.aspectRatios, [closeTo(16 / 9, 0.001)]);
+      engine.emit(
+        c.state.copyWith(video: const VideoStats(width: 1440, height: 1080)),
+      );
+      await settle();
+      expect(pip.aspectRatios.last, closeTo(4 / 3, 0.001));
+      engine.emit(
+        c.state.copyWith(video: const VideoStats(width: 1440, height: 1080)),
+      );
+      await settle();
+      expect(pip.aspectRatios, hasLength(2), reason: 'only on changes');
+    });
+
     test('VID-067 unsupported devices offer no PiP', () async {
       pip = FakePip(supported: false);
       await build();

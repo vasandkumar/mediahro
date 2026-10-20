@@ -60,6 +60,7 @@ final class FakePip implements PipFacade {
   final bool supported;
   final List<double> entered = [];
   final List<bool> autoEnter = [];
+  final List<double> aspectRatios = [];
   int exits = 0;
   final _active = StreamController<bool>.broadcast();
 
@@ -84,6 +85,10 @@ final class FakePip implements PipFacade {
   @override
   Future<void> setAutoEnter({required bool enabled}) async =>
       autoEnter.add(enabled);
+
+  @override
+  Future<void> setAspectRatio(double aspectRatio) async =>
+      aspectRatios.add(aspectRatio);
 
   @override
   Stream<bool> get isActive => _active.stream;

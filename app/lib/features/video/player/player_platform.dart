@@ -156,8 +156,22 @@ final class PlayerPlatform with WidgetsBindingObserver {
       _autoPip = wantAuto;
       unawaited(pip!.setAutoEnter(enabled: wantAuto));
     }
+    _syncAspect(s);
     _applyOrientation(s);
     unawaited(_syncSession(s));
+  }
+
+  double? _aspect;
+
+  /// Tells the platform the video's shape whenever it changes (ADR-028):
+  /// auto-enter and an open PiP window use it.
+  void _syncAspect(PlaybackState s) {
+    final p = pip;
+    if (p == null || videoSize(s) == null) return;
+    final r = aspectRatio(s);
+    if (r == _aspect) return;
+    _aspect = r;
+    unawaited(p.setAspectRatio(r));
   }
 
   Future<void> _pauseOtherAudio() async {
