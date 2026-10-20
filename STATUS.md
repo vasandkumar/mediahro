@@ -178,7 +178,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-050 | Auto-sync (audio-based) | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-050 | Auto-sync (audio-based) | C1 | ⛔ | ☐ | ☐ | ☐ | A ⛔ C1 side merged (#49: VAD + FFT cross-correlation, ±60 s, 8 frame-rate ratios, preview with Undo); waits on B1 decodeAudio (ADR-032). |
 | SUB-051 | OCR of image subtitles | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-052 | Auto-captions (speech-to-text) | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-053 | Translation | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -424,6 +424,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C1 **#49** (subtitle audio auto-sync: algorithm in mediahro_subtitles in a worker isolate, player UI with progress, cancel, confidence prompt and Undo). Verified at 1e85f3b: tools/check 564, clean run. SUB-050 A is ⛔ on B1's decodeAudio (ADR-032). **B1 now has queued work:** ADR-027 audioTap/metadata (AUD-046, MUS-014), ADR-031 subtitle text/extraction (SUB-040/051/052/053 embedded tracks), ADR-032 decodeAudio (SUB-050/052, MUS-010), the Exynos seek-to-0 stall, and mov_text (with B4a). |
 | 2026-10-20 | Merged C2 **#48** (smart playlists with a live match count, widget updates on play/pause, a paged car browse tree with voice search). Verified at a7df5a3: tools/check 558, apart from a C1 caption-style test that is flaky under load (passes alone). Device batch 2: 5 of 25. |
 | 2026-10-20 | Merged C1 **#47** (subtitles follow the system caption style live, with auto-on in the user's language when system captions are on; video claims and releases the media session per ADR-029). Verified at f02b7d5: tools/check 549 apart from subtitle_sources_test, which is flaky under full-suite load (passes alone; C1 is fixing it). C4a #46 needs a rebase. |
 | 2026-10-20 | Merged C4a **#45** (Android SFTP: sshj 0.41.2 on the platform JCA with BouncyCastle excluded, per ADR-017; host-key check before any credentials; password, keyboard-interactive and key login; OpenSSH, PuTTY and PEM keys). Verified at d8abdb1: tools/check 540 (one C1 subtitle test is flaky under load and passes 3/3 alone), licence scan 0 errors. The Android networking group is complete. Also fixed tools/check hitting the Windows command-line limit in the format step (60218de). |
