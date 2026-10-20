@@ -45,155 +45,184 @@ class VipsBindings {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
-  late final vips_init = _lookup<
-    ffi.NativeFunction<ffi.Int Function(ffi.Pointer<ffi.Char>)>
-  >('vips_init').asFunction<int Function(ffi.Pointer<ffi.Char>)>();
+  late final vips_init =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<ffi.Char>)>>(
+        'vips_init',
+      ).asFunction<int Function(ffi.Pointer<ffi.Char>)>();
 
-  late final vips_error_buffer = _lookup<
-    ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>
-  >('vips_error_buffer').asFunction<ffi.Pointer<ffi.Char> Function()>();
+  late final vips_error_buffer =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>>(
+        'vips_error_buffer',
+      ).asFunction<ffi.Pointer<ffi.Char> Function()>();
 
-  late final vips_error_clear = _lookup<ffi.NativeFunction<ffi.Void Function()>>(
-    'vips_error_clear',
-  ).asFunction<void Function()>();
+  late final vips_error_clear =
+      _lookup<ffi.NativeFunction<ffi.Void Function()>>('vips_error_clear')
+          .asFunction<void Function()>();
 
-  late final vips_concurrency_set = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Int)>
-  >('vips_concurrency_set').asFunction<void Function(int)>();
+  late final vips_concurrency_set =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+        'vips_concurrency_set',
+      ).asFunction<void Function(int)>();
 
-  late final vips_cache_set_max = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Int)>
-  >('vips_cache_set_max').asFunction<void Function(int)>();
+  late final vips_cache_set_max =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+        'vips_cache_set_max',
+      ).asFunction<void Function(int)>();
 
-  late final vips_cache_set_max_mem = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Size)>
-  >('vips_cache_set_max_mem').asFunction<void Function(int)>();
+  late final vips_cache_set_max_mem =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Size)>>(
+        'vips_cache_set_max_mem',
+      ).asFunction<void Function(int)>();
 
-  late final vips_foreign_find_load = _lookup<
-    ffi.NativeFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>)>
-  >('vips_foreign_find_load').asFunction<
-    ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>)
-  >();
+  late final vips_foreign_find_load =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>)
+            >
+          >('vips_foreign_find_load')
+          .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>)>();
 
-  late final vips_foreign_find_load_buffer = _lookup<
-    ffi.NativeFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Void>, ffi.Size)
-    >
-  >('vips_foreign_find_load_buffer').asFunction<
-    ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Void>, int)
-  >();
+  late final vips_foreign_find_load_buffer =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Void>, ffi.Size)
+            >
+          >('vips_foreign_find_load_buffer')
+          .asFunction<
+            ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Void>, int)
+          >();
 
   /// `vips_image_new_from_file(name, NULL)`; options go in the name
   /// (`photo.gif[n=-1]`).
-  late final vips_image_new_from_file = _lookup<
-    ffi.NativeFunction<
-      ffi.Pointer<VipsImage> Function(
-        ffi.Pointer<ffi.Char>,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >('vips_image_new_from_file').asFunction<
-    ffi.Pointer<VipsImage> Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Void>)
-  >();
+  late final vips_image_new_from_file =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<VipsImage> Function(
+                ffi.Pointer<ffi.Char>,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >('vips_image_new_from_file')
+          .asFunction<
+            ffi.Pointer<VipsImage> Function(
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Void>,
+            )
+          >();
 
   /// `vips_image_new_from_buffer(buf, len, option_string, NULL)`.
-  late final vips_image_new_from_buffer = _lookup<
-    ffi.NativeFunction<
-      ffi.Pointer<VipsImage> Function(
-        ffi.Pointer<ffi.Void>,
-        ffi.Size,
-        ffi.Pointer<ffi.Char>,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >('vips_image_new_from_buffer').asFunction<
-    ffi.Pointer<VipsImage> Function(
-      ffi.Pointer<ffi.Void>,
-      int,
-      ffi.Pointer<ffi.Char>,
-      ffi.Pointer<ffi.Void>,
-    )
-  >();
+  late final vips_image_new_from_buffer =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<VipsImage> Function(
+                ffi.Pointer<ffi.Void>,
+                ffi.Size,
+                ffi.Pointer<ffi.Char>,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >('vips_image_new_from_buffer')
+          .asFunction<
+            ffi.Pointer<VipsImage> Function(
+              ffi.Pointer<ffi.Void>,
+              int,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Void>,
+            )
+          >();
 
-  late final vips_image_new_from_memory_copy = _lookup<
-    ffi.NativeFunction<
-      ffi.Pointer<VipsImage> Function(
-        ffi.Pointer<ffi.Void>,
-        ffi.Size,
-        ffi.Int,
-        ffi.Int,
-        ffi.Int,
-        ffi.Int,
-      )
-    >
-  >('vips_image_new_from_memory_copy').asFunction<
-    ffi.Pointer<VipsImage> Function(ffi.Pointer<ffi.Void>, int, int, int, int, int)
-  >();
+  late final vips_image_new_from_memory_copy =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<VipsImage> Function(
+                ffi.Pointer<ffi.Void>,
+                ffi.Size,
+                ffi.Int,
+                ffi.Int,
+                ffi.Int,
+                ffi.Int,
+              )
+            >
+          >('vips_image_new_from_memory_copy')
+          .asFunction<
+            ffi.Pointer<VipsImage> Function(
+              ffi.Pointer<ffi.Void>,
+              int,
+              int,
+              int,
+              int,
+              int,
+            )
+          >();
 
   /// `vips_thumbnail(name, &out, width, "height", h, "size", size, NULL)`.
-  late final vips_thumbnail = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<ffi.Char>,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.Int,
-        ffi.VarArgs<
-          (
-            ffi.Pointer<ffi.Char>,
-            ffi.Int,
-            ffi.Pointer<ffi.Char>,
-            ffi.Int,
-            ffi.Pointer<ffi.Void>,
-          )
-        >,
-      )
-    >
-  >('vips_thumbnail').asFunction<
-    int Function(
-      ffi.Pointer<ffi.Char>,
-      ffi.Pointer<ffi.Pointer<VipsImage>>,
-      int,
-      ffi.Pointer<ffi.Char>,
-      int,
-      ffi.Pointer<ffi.Char>,
-      int,
-      ffi.Pointer<ffi.Void>,
-    )
-  >();
+  late final vips_thumbnail =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<ffi.Char>,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.Int,
+                ffi.VarArgs<
+                  (
+                    ffi.Pointer<ffi.Char>,
+                    ffi.Int,
+                    ffi.Pointer<ffi.Char>,
+                    ffi.Int,
+                    ffi.Pointer<ffi.Void>,
+                  )
+                >,
+              )
+            >
+          >('vips_thumbnail')
+          .asFunction<
+            int Function(
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<VipsImage>>,
+              int,
+              ffi.Pointer<ffi.Char>,
+              int,
+              ffi.Pointer<ffi.Char>,
+              int,
+              ffi.Pointer<ffi.Void>,
+            )
+          >();
 
   /// `vips_thumbnail_buffer(buf, len, &out, width, "height", h, "size",
   /// size, NULL)`.
-  late final vips_thumbnail_buffer = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<ffi.Void>,
-        ffi.Size,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.Int,
-        ffi.VarArgs<
-          (
-            ffi.Pointer<ffi.Char>,
-            ffi.Int,
-            ffi.Pointer<ffi.Char>,
-            ffi.Int,
-            ffi.Pointer<ffi.Void>,
-          )
-        >,
-      )
-    >
-  >('vips_thumbnail_buffer').asFunction<
-    int Function(
-      ffi.Pointer<ffi.Void>,
-      int,
-      ffi.Pointer<ffi.Pointer<VipsImage>>,
-      int,
-      ffi.Pointer<ffi.Char>,
-      int,
-      ffi.Pointer<ffi.Char>,
-      int,
-      ffi.Pointer<ffi.Void>,
-    )
-  >();
+  late final vips_thumbnail_buffer =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<ffi.Void>,
+                ffi.Size,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.Int,
+                ffi.VarArgs<
+                  (
+                    ffi.Pointer<ffi.Char>,
+                    ffi.Int,
+                    ffi.Pointer<ffi.Char>,
+                    ffi.Int,
+                    ffi.Pointer<ffi.Void>,
+                  )
+                >,
+              )
+            >
+          >('vips_thumbnail_buffer')
+          .asFunction<
+            int Function(
+              ffi.Pointer<ffi.Void>,
+              int,
+              ffi.Pointer<ffi.Pointer<VipsImage>>,
+              int,
+              ffi.Pointer<ffi.Char>,
+              int,
+              ffi.Pointer<ffi.Char>,
+              int,
+              ffi.Pointer<ffi.Void>,
+            )
+          >();
 
   // ---- unary operations with no options: op(in, &out, NULL) ----
 
@@ -206,15 +235,17 @@ class VipsBindings {
     ffi.Pointer<ffi.Pointer<VipsImage>>,
     ffi.Pointer<ffi.Void>,
   )
-  _unary(String name) => _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >(name).asFunction();
+  _unary(String name) =>
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >(name)
+          .asFunction();
 
   /// `op(in, &out, int arg, NULL)`: vips_cast, vips_colourspace, vips_rot,
   /// vips_flip.
@@ -229,16 +260,18 @@ class VipsBindings {
     int,
     ffi.Pointer<ffi.Void>,
   )
-  _unaryInt(String name) => _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.Int,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >(name).asFunction();
+  _unaryInt(String name) =>
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.Int,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >(name)
+          .asFunction();
 
   /// `op(in, &out, double arg, NULL)`: vips_resize, vips_bandjoin_const1,
   /// vips_rotate, vips_gaussblur.
@@ -253,40 +286,44 @@ class VipsBindings {
     double,
     ffi.Pointer<ffi.Void>,
   )
-  _unaryDouble(String name) => _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.Double,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >(name).asFunction();
+  _unaryDouble(String name) =>
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.Double,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >(name)
+          .asFunction();
 
-  late final vips_extract_area = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Pointer<VipsImage>>,
-        ffi.Int,
-        ffi.Int,
-        ffi.Int,
-        ffi.Int,
-        ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
-      )
-    >
-  >('vips_extract_area').asFunction<
-    int Function(
-      ffi.Pointer<VipsImage>,
-      ffi.Pointer<ffi.Pointer<VipsImage>>,
-      int,
-      int,
-      int,
-      int,
-      ffi.Pointer<ffi.Void>,
-    )
-  >();
+  late final vips_extract_area =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Pointer<VipsImage>>,
+                ffi.Int,
+                ffi.Int,
+                ffi.Int,
+                ffi.Int,
+                ffi.VarArgs<(ffi.Pointer<ffi.Void>,)>,
+              )
+            >
+          >('vips_extract_area')
+          .asFunction<
+            int Function(
+              ffi.Pointer<VipsImage>,
+              ffi.Pointer<ffi.Pointer<VipsImage>>,
+              int,
+              int,
+              int,
+              int,
+              ffi.Pointer<ffi.Void>,
+            )
+          >();
 
   /// `save(in, &buf, &len, "Q", q, NULL)` for jpeg/webp; png/tiff take
   /// "compression" (int) in the same shape.
@@ -303,24 +340,36 @@ class VipsBindings {
     int,
     ffi.Pointer<ffi.Void>,
   )
-  _save(String name) => _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Pointer<ffi.Void>>,
-        ffi.Pointer<ffi.Size>,
-        ffi.VarArgs<(ffi.Pointer<ffi.Char>, ffi.Int, ffi.Pointer<ffi.Void>)>,
-      )
-    >
-  >(name).asFunction();
+  _save(String name) =>
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Pointer<ffi.Void>>,
+                ffi.Pointer<ffi.Size>,
+                ffi.VarArgs<
+                  (ffi.Pointer<ffi.Char>, ffi.Int, ffi.Pointer<ffi.Void>)
+                >,
+              )
+            >
+          >(name)
+          .asFunction();
 
-  late final vips_image_write_to_memory = _lookup<
-    ffi.NativeFunction<
-      ffi.Pointer<ffi.Void> Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Size>)
-    >
-  >('vips_image_write_to_memory').asFunction<
-    ffi.Pointer<ffi.Void> Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Size>)
-  >();
+  late final vips_image_write_to_memory =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Pointer<ffi.Void> Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Size>,
+              )
+            >
+          >('vips_image_write_to_memory')
+          .asFunction<
+            ffi.Pointer<ffi.Void> Function(
+              ffi.Pointer<VipsImage>,
+              ffi.Pointer<ffi.Size>,
+            )
+          >();
 
   late final vips_image_get_width = _getInt('vips_image_get_width');
   late final vips_image_get_height = _getInt('vips_image_get_height');
@@ -333,65 +382,81 @@ class VipsBindings {
   late final vips_image_get_page_height = _getInt('vips_image_get_page_height');
   late final vips_image_hasalpha = _getInt('vips_image_hasalpha');
 
-  int Function(ffi.Pointer<VipsImage>) _getInt(String name) => _lookup<
-    ffi.NativeFunction<ffi.Int Function(ffi.Pointer<VipsImage>)>
-  >(name).asFunction();
+  int Function(ffi.Pointer<VipsImage>) _getInt(String name) =>
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<VipsImage>)>>(
+        name,
+      ).asFunction();
 
-  late final vips_image_get_typeof = _lookup<
-    ffi.NativeFunction<
-      ffi.UnsignedLong Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Char>)
-    >
-  >('vips_image_get_typeof').asFunction<
-    int Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Char>)
-  >();
+  late final vips_image_get_typeof =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.UnsignedLong Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Char>,
+              )
+            >
+          >('vips_image_get_typeof')
+          .asFunction<
+            int Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Char>)
+          >();
 
-  late final vips_image_get_int = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Char>,
-        ffi.Pointer<ffi.Int>,
-      )
-    >
-  >('vips_image_get_int').asFunction<
-    int Function(ffi.Pointer<VipsImage>, ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Int>)
-  >();
+  late final vips_image_get_int =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Char>,
+                ffi.Pointer<ffi.Int>,
+              )
+            >
+          >('vips_image_get_int')
+          .asFunction<
+            int Function(
+              ffi.Pointer<VipsImage>,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Int>,
+            )
+          >();
 
-  late final vips_image_get_blob = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Char>,
-        ffi.Pointer<ffi.Pointer<ffi.Void>>,
-        ffi.Pointer<ffi.Size>,
-      )
-    >
-  >('vips_image_get_blob').asFunction<
-    int Function(
-      ffi.Pointer<VipsImage>,
-      ffi.Pointer<ffi.Char>,
-      ffi.Pointer<ffi.Pointer<ffi.Void>>,
-      ffi.Pointer<ffi.Size>,
-    )
-  >();
+  late final vips_image_get_blob =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Char>,
+                ffi.Pointer<ffi.Pointer<ffi.Void>>,
+                ffi.Pointer<ffi.Size>,
+              )
+            >
+          >('vips_image_get_blob')
+          .asFunction<
+            int Function(
+              ffi.Pointer<VipsImage>,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Void>>,
+              ffi.Pointer<ffi.Size>,
+            )
+          >();
 
-  late final vips_image_get_array_int = _lookup<
-    ffi.NativeFunction<
-      ffi.Int Function(
-        ffi.Pointer<VipsImage>,
-        ffi.Pointer<ffi.Char>,
-        ffi.Pointer<ffi.Pointer<ffi.Int>>,
-        ffi.Pointer<ffi.Int>,
-      )
-    >
-  >('vips_image_get_array_int').asFunction<
-    int Function(
-      ffi.Pointer<VipsImage>,
-      ffi.Pointer<ffi.Char>,
-      ffi.Pointer<ffi.Pointer<ffi.Int>>,
-      ffi.Pointer<ffi.Int>,
-    )
-  >();
+  late final vips_image_get_array_int =
+      _lookup<
+            ffi.NativeFunction<
+              ffi.Int Function(
+                ffi.Pointer<VipsImage>,
+                ffi.Pointer<ffi.Char>,
+                ffi.Pointer<ffi.Pointer<ffi.Int>>,
+                ffi.Pointer<ffi.Int>,
+              )
+            >
+          >('vips_image_get_array_int')
+          .asFunction<
+            int Function(
+              ffi.Pointer<VipsImage>,
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Int>>,
+              ffi.Pointer<ffi.Int>,
+            )
+          >();
 }
 
 /// The two GLib entry points libvips callers need: `g_object_unref`
