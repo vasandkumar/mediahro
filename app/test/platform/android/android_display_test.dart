@@ -30,6 +30,14 @@ final class _FakeDisplay extends DisplayHostApi {
       calls.add(lock);
 }
 
+final class _FakePip extends PipHostApi {
+  final ratios = <double>[];
+
+  @override
+  Future<void> setAspectRatio(double aspectRatio) async =>
+      ratios.add(aspectRatio);
+}
+
 void main() {
   test('VID-070 display info maps through', () async {
     final d = (await AndroidDisplay(
@@ -59,6 +67,12 @@ void main() {
       await d.setOrientationLock(lock);
     }
     expect(api.calls, OrientationLockMsg.values);
+  });
+
+  test('VID-067 ADR-028 setAspectRatio reaches the module', () async {
+    final api = _FakePip();
+    await AndroidPip(api: api, events: Stream.empty).setAspectRatio(2.39);
+    expect(api.ratios, [2.39]);
   });
 
   test('VID-067 PiP state stream maps to bools', () async {

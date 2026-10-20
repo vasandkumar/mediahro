@@ -54,5 +54,10 @@ abstract interface class PipFacade {
 
   /// Auto-PiP on leave (opt-in).
   Future<void> setAutoEnter({required bool enabled});
+
+  /// The playing video's shape (width / height), whenever it changes
+  /// (ADR-028). Android needs it before PiP starts, for auto-enter and
+  /// [OrientationLock.followVideo]; it also resizes an open PiP window.
+  Future<void> setAspectRatio(double aspectRatio);
   Stream<bool> get isActive;
 }

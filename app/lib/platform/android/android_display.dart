@@ -5,8 +5,9 @@ import 'package:mediahro/platform/display.dart';
 /// refresh-rate matching through `preferredDisplayModeId`, keep-screen-on,
 /// window brightness and orientation locks (`DisplayModule.kt`).
 ///
-/// [OrientationLock.followVideo] locks to the shape of the video last given
-/// to [AndroidPip.enter] (landscape until then).
+/// [OrientationLock.followVideo] locks to the video's shape from
+/// [AndroidPip.setAspectRatio] (ADR-028) or [AndroidPip.enter], landscape
+/// until either is called.
 final class AndroidDisplay implements DisplayFacade {
   AndroidDisplay({
     DisplayHostApi? api,
@@ -78,6 +79,10 @@ final class AndroidPip implements PipFacade {
   @override
   Future<void> setAutoEnter({required bool enabled}) =>
       _api.setAutoEnter(enabled);
+
+  @override
+  Future<void> setAspectRatio(double aspectRatio) =>
+      _api.setAspectRatio(aspectRatio);
 
   @override
   late final Stream<bool> isActive = _events().map((s) => s.active);

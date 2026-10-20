@@ -101,23 +101,32 @@ void main() {
     expect((await window())['brightness'], -1.0, reason: 'system brightness');
   }, skip: !android);
 
-  testWidgets('SYS-011 orientation locks set the requested orientation', (
-    tester,
-  ) async {
-    // ActivityInfo.SCREEN_ORIENTATION_*.
-    const unspecified = -1;
-    const userLandscape = 11;
-    const userPortrait = 12;
-    addTearDown(() => display.setOrientationLock(OrientationLock.auto));
-    await display.setOrientationLock(OrientationLock.landscape);
-    expect((await window())['orientation'], userLandscape);
-    await display.setOrientationLock(OrientationLock.portrait);
-    expect((await window())['orientation'], userPortrait);
-    await display.setOrientationLock(OrientationLock.followVideo);
-    expect((await window())['orientation'], userLandscape, reason: '16:9');
-    await display.setOrientationLock(OrientationLock.auto);
-    expect((await window())['orientation'], unspecified);
-  }, skip: !android);
+  testWidgets(
+    'SYS-011 orientation locks set the requested orientation, followVideo by shape',
+    (tester) async {
+      // ActivityInfo.SCREEN_ORIENTATION_*.
+      const unspecified = -1;
+      const userLandscape = 11;
+      const userPortrait = 12;
+      addTearDown(() => display.setOrientationLock(OrientationLock.auto));
+      await display.setOrientationLock(OrientationLock.landscape);
+      expect((await window())['orientation'], userLandscape);
+      await display.setOrientationLock(OrientationLock.portrait);
+      expect((await window())['orientation'], userPortrait);
+      await display.setOrientationLock(OrientationLock.followVideo);
+      expect((await window())['orientation'], userLandscape, reason: '16:9');
+      // ADR-028: the player reports the video's shape.
+      await pip.setAspectRatio(9 / 16);
+      await display.setOrientationLock(OrientationLock.followVideo);
+      expect((await window())['orientation'], userPortrait, reason: '9:16');
+      await pip.setAspectRatio(4 / 3);
+      await display.setOrientationLock(OrientationLock.followVideo);
+      expect((await window())['orientation'], userLandscape, reason: '4:3');
+      await display.setOrientationLock(OrientationLock.auto);
+      expect((await window())['orientation'], unspecified);
+    },
+    skip: !android,
+  );
 
   testWidgets(
     'VID-067 picture-in-picture enters and exits, reported by isActive',
