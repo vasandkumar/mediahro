@@ -1,5 +1,5 @@
 ---
-ids: [VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-066, VID-072]
+ids: [VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-066, VID-067, VID-068, VID-070, VID-072, VID-074]
 ---
 # The video player
 
@@ -50,3 +50,21 @@ The Audio and Subtitles chips list every track with its language, format and cha
 ## Playback information
 
 The information button shows the format details: container, video codec, whether the hardware decoder is used, resolution, frame rate, dropped frames, bitrate, dynamic range (SDR, HDR10, HDR10+, HLG), the audio format and output, and the subtitle renderer.
+
+## Picture in picture
+
+The picture-in-picture button at the top (or **More → Picture in picture**) shrinks the video into a small window that stays on top of other apps. Its play, pause and skip buttons work like the player's. To go into picture in picture automatically when you leave the app while a video plays, turn on **Settings → Video → Picture in picture when leaving**.
+
+## Playing in the background
+
+By default a video pauses when you switch apps or turn the screen off. To keep the sound playing for the current video, turn on **More → Keep playing in the background**; to always keep playing, choose **Always** in **Settings → Video → Play in the background**. While only the sound plays, the picture is turned off to save battery; it comes back when you return. **More → Sound only** turns the picture off while you are in the app too.
+
+When a video starts, music that is playing pauses.
+
+## Rotation, screen and brightness
+
+On phones and tablets the screen turns to match the video: landscape for wide videos, portrait for tall ones. **Settings → Video → Rotation** can follow the device instead, or always stay in landscape or portrait. The screen stays on while a video plays. When you close the player, the brightness and rotation go back to how they were.
+
+## Lock screen, notification and media keys
+
+While a video plays, its title shows on the lock screen and in the notification. Their buttons, headset buttons and keyboard media keys play, pause, seek and skip to the next video.

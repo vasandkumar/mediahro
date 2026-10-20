@@ -1,3 +1,4 @@
+import 'package:mediahro/app/capabilities.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/settings/settings_registry.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
@@ -5,6 +6,12 @@ import 'package:mediahro/features/video/player/speed.dart';
 
 /// Resume behaviour when an item with a saved position opens (VID-064).
 enum ResumeMode { always, never }
+
+/// Screen rotation in the player (VID-070).
+enum VideoOrientation { followVideo, auto, landscape, portrait }
+
+/// Playing on when the app goes to the background (VID-068).
+enum BackgroundPlay { off, always }
 
 /// What happens when an item ends (VID-064).
 enum PostPlayback { stop, next, repeat, close, delete }
@@ -26,6 +33,33 @@ abstract final class VideoSettings {
     'video.afterPlayback',
     PostPlayback.values,
     defaultValue: PostPlayback.next,
+  );
+
+  static final SettingKey<VideoOrientation> orientation =
+      SettingKey.enumeration(
+        'video.orientation',
+        VideoOrientation.values,
+        defaultValue: VideoOrientation.followVideo,
+      );
+
+  /// Picture-in-picture when leaving the app while a video plays (VID-067,
+  /// opt-in).
+  static final SettingKey<bool> autoPip = SettingKey.boolean(
+    'video.autoPip',
+    defaultValue: false,
+  );
+
+  static final SettingKey<BackgroundPlay> backgroundPlay =
+      SettingKey.enumeration(
+        'video.backgroundPlay',
+        BackgroundPlay.values,
+        defaultValue: BackgroundPlay.off,
+      );
+
+  /// Turn the picture off while playing in the background (power saving).
+  static final SettingKey<bool> backgroundVideoOff = SettingKey.boolean(
+    'video.backgroundVideoOff',
+    defaultValue: true,
   );
 
   /// Preferred audio and subtitle languages, in order (VID-065).
@@ -109,6 +143,18 @@ String _resumeLabel(AppLocalizations l, ResumeMode v) => switch (v) {
   ResumeMode.never => l.videoResumeNever,
 };
 
+String _orientationLabel(AppLocalizations l, VideoOrientation v) => switch (v) {
+  VideoOrientation.followVideo => l.videoOrientationFollow,
+  VideoOrientation.auto => l.videoOrientationAuto,
+  VideoOrientation.landscape => l.videoOrientationLandscape,
+  VideoOrientation.portrait => l.videoOrientationPortrait,
+};
+
+String _backgroundLabel(AppLocalizations l, BackgroundPlay v) => switch (v) {
+  BackgroundPlay.off => l.videoBackgroundOff,
+  BackgroundPlay.always => l.videoBackgroundAlways,
+};
+
 String postPlaybackLabel(AppLocalizations l, PostPlayback v) => switch (v) {
   PostPlayback.stop => l.videoAfterPlaybackStop,
   PostPlayback.next => l.videoAfterPlaybackNext,
@@ -134,6 +180,32 @@ final videoSettingsContributions = [
         optionLabel: postPlaybackLabel,
         title: (l) => l.videoAfterPlaybackTitle,
         description: (l) => l.videoAfterPlaybackDescription,
+      ),
+      ChoiceSetting<VideoOrientation>(
+        key: VideoSettings.orientation,
+        options: VideoOrientation.values,
+        optionLabel: _orientationLabel,
+        title: (l) => l.videoOrientationTitle,
+        description: (l) => l.videoOrientationDescription,
+        platforms: const {AppPlatform.android, AppPlatform.ios},
+      ),
+      ToggleSetting(
+        key: VideoSettings.autoPip,
+        title: (l) => l.videoAutoPipTitle,
+        description: (l) => l.videoAutoPipDescription,
+      ),
+      ChoiceSetting<BackgroundPlay>(
+        key: VideoSettings.backgroundPlay,
+        options: BackgroundPlay.values,
+        optionLabel: _backgroundLabel,
+        title: (l) => l.videoBackgroundTitle,
+        description: (l) => l.videoBackgroundDescription,
+      ),
+      ToggleSetting(
+        key: VideoSettings.backgroundVideoOff,
+        title: (l) => l.videoBackgroundVideoOffTitle,
+        description: (l) => l.videoBackgroundVideoOffDescription,
+        advanced: true,
       ),
       ChoiceSetting<SpeedMemory>(
         key: VideoSettings.speedMemory,

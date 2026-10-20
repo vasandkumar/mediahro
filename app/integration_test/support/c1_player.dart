@@ -1,8 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/router.dart';
@@ -14,10 +15,12 @@ import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/features/video/video_settings.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 import 'c1_engine.dart';
+import 'c1_platform.dart';
 
 // Lane C1's player acceptance suite. The widget tests run it on the CI
 // host; integration_test/c1_video_player_test.dart runs it inside the app
@@ -65,6 +68,7 @@ final _request = PlayRequest(
 Future<(RecordingEngine, SettingsStore)> pumpPlayer(
   WidgetTester tester, {
   Size size = const Size(800, 400),
+  List<Override> overrides = const [],
 }) async {
   tester.view
     ..physicalSize = size * tester.view.devicePixelRatio
@@ -85,6 +89,7 @@ Future<(RecordingEngine, SettingsStore)> pumpPlayer(
         playbackEngineFactoryProvider.overrideWithValue((_) => engine),
         videoMemoryProvider.overrideWith((ref) async => memory),
         appRoutesProvider.overrideWithValue(videoRoutes),
+        ...overrides,
       ],
       child: MediahroApp(router: router),
     ),
@@ -297,5 +302,64 @@ void videoPlayerSuite({
     await tester.pumpAndSettle();
     expect(find.byType(VideoPlayerScreen), findsNothing);
     expect(engine.calls, contains('stop'));
+  });
+
+  playerTest('VID-067 the PiP button enters picture-in-picture; the window '
+      'shows only the video', (tester) async {
+    final pip = FakePip();
+    await pumpPlayer(tester, overrides: [pipProvider.overrideWithValue(pip)]);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(iconButton('Picture in picture'));
+    await tester.pumpAndSettle();
+    expect(pip.entered.single, closeTo(16 / 9, 0.001));
+    expect(find.byType(KPlayerChrome), findsNothing);
+    pip.setActive(active: false);
+    await tester.pumpAndSettle();
+    expect(find.byType(KPlayerChrome), findsOneWidget);
+  });
+
+  playerTest('VID-068 sound only and background play from the More sheet', (
+    tester,
+  ) async {
+    final (engine, _) = await pumpPlayer(tester);
+    await tester.tap(iconButton('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sound only'));
+    await tester.pumpAndSettle();
+    expect(engine.selections.last, (
+      TrackType.video,
+      null,
+      SubtitleSlot.primary,
+    ));
+    await tester.tap(find.text('Keep playing in the background'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.widgetWithText(
+              SwitchListTile,
+              'Keep playing in the background',
+            ),
+          )
+          .value,
+      isTrue,
+    );
+  });
+
+  playerTest('VID-070 the screen stays on while playing; leaving restores '
+      'brightness and rotation', (tester) async {
+    final display = FakeDisplay();
+    await pumpPlayer(
+      tester,
+      overrides: [displayProvider.overrideWithValue(display)],
+    );
+    expect(display.keepOn.last, isTrue);
+    expect(display.locks.last, OrientationLock.landscape);
+    await tester.tap(iconButton('Back'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    expect(display.keepOn.last, isFalse);
+    expect(display.brightness.last, isNull);
+    expect(display.locks.last, OrientationLock.auto);
   });
 }

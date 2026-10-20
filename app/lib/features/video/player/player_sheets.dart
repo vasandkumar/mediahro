@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/video/player/languages.dart';
+import 'package:mediahro/features/video/player/player_platform.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
@@ -346,4 +347,61 @@ Future<void> _editBookmark(
 ) async {
   final note = await _noteDialog(context, b.note);
   if (note != null) c.editBookmark(b, note.trim());
+}
+
+/// The overflow sheet: chapters and bookmarks, picture-in-picture, playing
+/// on in the background for this video, and sound only (VID-063, 067, 068).
+Future<void> showMoreSheet(
+  BuildContext context,
+  VideoPlayerController c,
+  PlayerPlatform platform,
+) {
+  final l = AppLocalizations.of(context);
+  return KSheet.show<void>(
+    context,
+    title: l.videoMoreTitle,
+    builder: (sheetContext) => _Live(
+      c,
+      (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.bookmarks_outlined),
+            title: Text(l.videoChaptersTitle),
+            onTap: () {
+              Navigator.of(sheetContext).maybePop();
+              unawaited(showChaptersSheet(context, c));
+            },
+          ),
+          if (platform.pipSupported)
+            ListTile(
+              leading: const Icon(Icons.picture_in_picture_alt_outlined),
+              title: Text(l.videoPip),
+              onTap: () {
+                Navigator.of(sheetContext).maybePop();
+                unawaited(platform.enterPip());
+              },
+            ),
+          ValueListenableBuilder<bool>(
+            valueListenable: platform.backgroundThisSession,
+            builder: (context, on, _) => SwitchListTile(
+              secondary: const Icon(Icons.headphones_outlined),
+              title: Text(l.videoKeepPlayingInBackground),
+              subtitle: Text(l.videoKeepPlayingInBackgroundDetail),
+              value: on || platform.backgroundAllowed,
+              onChanged: (v) => platform.backgroundThisSession.value = v,
+            ),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.videocam_off_outlined),
+            title: Text(l.videoAudioOnly),
+            subtitle: Text(l.videoAudioOnlyDetail),
+            value: c.videoOff,
+            onChanged: (v) => unawaited(c.setVideoOff(off: v)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

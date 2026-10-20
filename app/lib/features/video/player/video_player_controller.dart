@@ -122,6 +122,7 @@ final class VideoPlayerController extends ChangeNotifier {
     _endHandled = false;
     _abA = _abB = _abCount = null;
     _rate = _volume = null;
+    _videoOffFrom = null;
     _subDelay = _audioDelay = null;
     _lastSave = null;
     final m = memory.item(request.memoryKey);
@@ -214,6 +215,32 @@ final class VideoPlayerController extends ChangeNotifier {
     if (a.length < 2) return Future.value();
     final i = a.indexWhere((t) => t.id == _state.audioTrackId);
     return selectAudio(a[(i + 1) % a.length]);
+  }
+
+  // ----------------------------------------------------------- video off
+
+  int? _videoOffFrom;
+
+  /// True while the video track is off (audio only, VID-068).
+  bool get videoOff => _videoOffFrom != null;
+
+  /// Turns the video track off to save power, or back on (VID-068).
+  Future<void> setVideoOff({required bool off}) async {
+    if (off) {
+      if (_videoOffFrom != null) return;
+      final id =
+          _state.videoTrackId ?? tracksOf(TrackType.video).firstOrNull?.id;
+      if (id == null) return;
+      _videoOffFrom = id;
+      notifyListeners();
+      await engine.selectTrack(TrackType.video, null);
+    } else {
+      final id = _videoOffFrom;
+      if (id == null) return;
+      _videoOffFrom = null;
+      notifyListeners();
+      await engine.selectTrack(TrackType.video, id);
+    }
   }
 
   // --------------------------------------------------------------- volume
