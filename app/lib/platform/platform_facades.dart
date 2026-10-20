@@ -14,10 +14,12 @@ import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro/platform/power_status.dart';
 import 'package:mediahro/platform/purchases.dart';
 import 'package:mediahro/platform/secure_transport.dart';
+import 'package:mediahro/platform/secure_window.dart';
 import 'package:mediahro/platform/security.dart';
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro/platform/system_integration.dart';
 import 'package:mediahro/platform/text_services.dart';
+import 'package:mediahro/platform/vault_crypto.dart';
 
 export 'accessibility_prefs.dart';
 export 'audio_output.dart';
@@ -34,10 +36,12 @@ export 'network_status.dart';
 export 'power_status.dart';
 export 'purchases.dart';
 export 'secure_transport.dart';
+export 'secure_window.dart';
 export 'security.dart';
 export 'storage.dart';
 export 'system_integration.dart';
 export 'text_services.dart';
+export 'vault_crypto.dart';
 
 /// Thrown when a facade has no implementation on this platform/flavour yet
 /// or by design; callers map it to "Not available on this device".
@@ -177,6 +181,16 @@ final imagingProvider = Provider<ImagingFacade>(
 );
 final accessibilityPrefsProvider = Provider<AccessibilityPrefsFacade>(
   (ref) => const UnsupportedAccessibilityPrefs(),
+  retry: _noRetry,
+);
+// Crypto never defaults to a fake: the vault must not run without OS crypto
+// (ADR-039).
+final vaultCryptoProvider = Provider<VaultCryptoFacade>(
+  (ref) => _unavailable('vaultCrypto'),
+  retry: _noRetry,
+);
+final secureWindowProvider = Provider<SecureWindowFacade>(
+  (ref) => const UnsupportedSecureWindow(),
   retry: _noRetry,
 );
 final gamepadProvider = Provider<GamepadFacade>(
