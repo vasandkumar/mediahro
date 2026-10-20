@@ -1,0 +1,342 @@
+{
+  "@@locale": "en",
+  "videoAfterPlaybackClose": "Close the player",
+  "videoAfterPlaybackDelete": "Ask to delete it",
+  "videoAfterPlaybackDescription": "What the player does after the last frame",
+  "videoAfterPlaybackNext": "Play the next one in the folder",
+  "videoAfterPlaybackRepeat": "Play it again",
+  "videoAfterPlaybackStop": "Stop",
+  "videoAfterPlaybackTitle": "When a video ends",
+  "videoAllVideos": "All videos",
+  "videoAudioDelay": "Audio delay",
+  "videoAudioTitle": "Audio",
+  "videoBookmarkAdd": "Add bookmark",
+  "videoBookmarkDelete": "Delete bookmark",
+  "videoBookmarkEdit": "Edit note",
+  "videoBookmarkNote": "Bookmark note",
+  "videoBookmarkNoteHint": "Optional note",
+  "videoBookmarkUntitled": "Bookmark",
+  "videoBookmarksTitle": "Bookmarks",
+  "videoCancel": "Cancel",
+  "videoChapterNumber": "Chapter {number}",
+  "@videoChapterNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "videoChaptersTitle": "Chapters and bookmarks",
+  "videoChooseAnother": "Choose another",
+  "videoCopyDetails": "Copy details",
+  "videoDelayEarlier": "Earlier",
+  "videoDelayLater": "Later",
+  "videoDelayReset": "Reset delay",
+  "videoDelayValue": "{ms} ms",
+  "@videoDelayValue": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "videoDeleteBody": "\"{title}\" will be deleted. Local files go to the trash.",
+  "@videoDeleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "videoDeleteConfirm": "Delete",
+  "videoDeleteTitle": "Delete this video?",
+  "videoDismiss": "Dismiss",
+  "videoErrorDecode": "Couldn't play this file. It may be damaged.",
+  "videoErrorEngineMissing": "The player engine is missing from this build.",
+  "videoErrorGeneric": "Something went wrong while playing this video.",
+  "videoErrorNetwork": "The connection timed out. Check the network and try again.",
+  "videoErrorSource": "Couldn't open this file. It may be corrupt or on a disconnected drive.",
+  "videoErrorUnsupported": "This video uses a format Mediahro can't play.",
+  "videoGestureBrightness": "Brightness {percent} %",
+  "@videoGestureBrightness": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "videoGestureSeekBack": "-{time}",
+  "@videoGestureSeekBack": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoGestureSeekForward": "+{time}",
+  "@videoGestureSeekForward": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoGestureSeekTo": "{offset} · {time}",
+  "@videoGestureSeekTo": {
+    "placeholders": {
+      "offset": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoGestureSkipBack": "{seconds} s back",
+  "@videoGestureSkipBack": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoGestureSkipForward": "{seconds} s forward",
+  "@videoGestureSkipForward": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoGestureVolume": "Volume {percent} %",
+  "@videoGestureVolume": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoAudio": "Audio",
+  "videoInfoAudioOutput": "Audio output",
+  "videoInfoBitrate": "Bitrate",
+  "videoInfoChannels": "{count} ch",
+  "@videoInfoChannels": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoCodec": "Video",
+  "videoInfoContainer": "Container",
+  "videoInfoDecoder": "Decoder",
+  "videoInfoDropped": "Dropped frames",
+  "videoInfoDroppedValue": "{count}",
+  "@videoInfoDroppedValue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoDynamicRange": "Dynamic range",
+  "videoInfoFps": "{fps} fps",
+  "@videoInfoFps": {
+    "placeholders": {
+      "fps": {
+        "type": "double",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "videoInfoFrameRate": "Frame rate",
+  "videoInfoHardware": "Hardware",
+  "videoInfoHdrDynamicProfile": "HDR (dynamic metadata, profile {profile})",
+  "@videoInfoHdrDynamicProfile": {
+    "placeholders": {
+      "profile": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoHdrHdr10": "HDR10",
+  "videoInfoHdrHdr10Plus": "HDR10+",
+  "videoInfoHdrHlg": "HLG",
+  "videoInfoHdrSdr": "SDR",
+  "videoInfoHz": "{rate} Hz",
+  "@videoInfoHz": {
+    "placeholders": {
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoKbps": "{kbps} kb/s",
+  "@videoInfoKbps": {
+    "placeholders": {
+      "kbps": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoRenderer": "Renderer",
+  "videoInfoResolution": "Resolution",
+  "videoInfoResolutionValue": "{width} × {height}",
+  "@videoInfoResolutionValue": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      },
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "videoInfoSoftware": "Software",
+  "videoInfoSubtitles": "Subtitles",
+  "videoInfoTitle": "Playback information",
+  "videoInfoToggle": "Playback information",
+  "videoLock": "Lock touch controls",
+  "videoNextCountdownDescription": "Time to cancel before the next video starts",
+  "videoNextCountdownSeconds": "{seconds, plural, =0{Start at once} =1{1 second} other{{seconds} seconds}}",
+  "@videoNextCountdownSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoNextCountdownTitle": "Countdown before the next video",
+  "videoNextUp": "Next: {title} in {seconds}",
+  "@videoNextUp": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoNoAudioTracks": "This video has no audio.",
+  "videoNoBookmarks": "No bookmarks yet.",
+  "videoNoChapters": "This video has no chapters.",
+  "videoOpenFile": "Open a file",
+  "videoOpenUrl": "Open a URL",
+  "videoPause": "Pause",
+  "videoPlay": "Play",
+  "videoPlayNow": "Play now",
+  "videoRemaining": "-{time}",
+  "@videoRemaining": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoResumeAlways": "Always",
+  "videoResumeDescription": "Start videos at the last position you watched",
+  "videoResumeNever": "Never",
+  "videoResumeTitle": "Resume where you left off",
+  "videoResumedAt": "Resumed at {time}",
+  "@videoResumedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSave": "Save",
+  "videoSeekBack": "Back {seconds} seconds",
+  "@videoSeekBack": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoSeekForward": "Forward {seconds} seconds",
+  "@videoSeekForward": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "videoShowDuration": "Show total time",
+  "videoShowRemaining": "Show time remaining",
+  "videoSpeedChip": "Speed: {speed}",
+  "@videoSpeedChip": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "videoSpeedMemoryDescription": "Keep the playback speed for each video or for all videos",
+  "videoSpeedMemoryGlobal": "For all videos",
+  "videoSpeedMemoryOff": "Don't remember",
+  "videoSpeedMemoryPerItem": "For each video",
+  "videoSpeedMemoryTitle": "Remember speed",
+  "videoSpeedTitle": "Speed",
+  "videoSpeedValue": "{rate}×",
+  "@videoSpeedValue": {
+    "placeholders": {
+      "rate": {
+        "type": "double",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "videoStartOver": "Start over",
+  "videoSubtitleDelay": "Subtitle delay",
+  "videoSubtitleDelayValue": "Subtitles {ms} ms",
+  "@videoSubtitleDelayValue": {
+    "placeholders": {
+      "ms": {
+        "type": "int"
+      }
+    }
+  },
+  "videoSubtitlesChipOff": "Subtitles: off",
+  "videoSubtitlesChipOn": "Subtitles: on",
+  "videoSubtitlesOff": "Off",
+  "videoSubtitlesTitle": "Subtitles",
+  "videoTrackAudioDescription": "Audio description",
+  "videoTrackChannels": "{count, plural, =1{Mono} =2{Stereo} other{{count} channels}}",
+  "@videoTrackChannels": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoTrackDefault": "Default",
+  "videoTrackExternal": "External file",
+  "videoTrackForced": "Forced",
+  "videoTrackHearingImpaired": "For deaf and hard of hearing",
+  "videoTrackNamed": "{language} ({title})",
+  "@videoTrackNamed": {
+    "placeholders": {
+      "language": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "videoTrackNumber": "Track {number}",
+  "@videoTrackNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "videoTrackSurround51": "5.1",
+  "videoTrackSurround71": "7.1",
+  "videoUnlock": "Unlock touch controls",
+  "videoZoomFill": "Fill screen",
+  "videoZoomFit": "Fit to screen"
+}
