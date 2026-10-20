@@ -122,8 +122,21 @@ const Map<int, String> gpsTagNames = {
 
 /// Tags whose values are binary blobs or offsets, not worth showing.
 const _hidden = {
-  0x0111, 0x0117, 0x0144, 0x0145, 0x0201, 0x0202, 0x02BC, 0x83BB, 0x8773,
-  0x8769, 0x8825, 0xA005, 0x927C, 0x014A, 0xC634,
+  0x0111,
+  0x0117,
+  0x0144,
+  0x0145,
+  0x0201,
+  0x0202,
+  0x02BC,
+  0x83BB,
+  0x8773,
+  0x8769,
+  0x8825,
+  0xA005,
+  0x927C,
+  0x014A,
+  0xC634,
 };
 
 /// Every displayable tag of [s] as `Group:Name → value`.
@@ -157,9 +170,7 @@ String _display(TiffStructure s, TiffEntry e) {
     final body = e.raw.sublist(8);
     final prefix = String.fromCharCodes(e.raw.sublist(0, 5));
     if (prefix == 'ASCII' || prefix == 'UNICO') {
-      return String.fromCharCodes(
-        body.where((c) => c != 0),
-      ).trim();
+      return String.fromCharCodes(body.where((c) => c != 0)).trim();
     }
     return '';
   }
@@ -177,9 +188,7 @@ String _display(TiffStructure s, TiffEntry e) {
   switch (e.tag) {
     case 0x829A:
       final t = s.doubles(e).firstOrNull ?? 0;
-      return t >= 1 || t <= 0
-          ? '${_trim(t)} s'
-          : '1/${(1 / t).round()} s';
+      return t >= 1 || t <= 0 ? '${_trim(t)} s' : '1/${(1 / t).round()} s';
     case 0x829D:
       return 'f/${_trim(s.doubles(e).firstOrNull ?? 0)}';
     case 0x920A:

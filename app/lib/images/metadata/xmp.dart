@@ -251,7 +251,15 @@ final class XmpPacket {
   }
 
   /// HDR gain map (Adobe / ISO 21496 hdrgm namespace, IMG-002).
-  bool get hasGainMap => get('hdrgm:Version') != null;
+  bool get hasGainMap =>
+      get('hdrgm:Version') != null ||
+      root
+          .descendants('Item')
+          .any(
+            (i) => i.attrs.entries.any(
+              (a) => _local(a.key) == 'Semantic' && a.value == 'GainMap',
+            ),
+          );
 
   /// Motion Photo: offset of the trailing MP4 from the end of the file
   /// (GCamera MicroVideoOffset, or Container directory item length).

@@ -117,17 +117,8 @@ const _maxIfds = 64;
 final class TiffStructure {
   TiffStructure._(this.bytes, this.bigEndian, this.chain);
 
-  final Uint8List bytes;
-  final bool bigEndian;
-
-  /// IFD0, IFD1, … (pages or thumbnail).
-  final List<TiffIfd> chain;
-  TiffIfd? exif;
-  TiffIfd? gps;
-  TiffIfd? interop;
-
   /// Magic 42 (TIFF), 0x4F52/0x5352 (ORF), 0x55 (RW2) are all accepted.
-  static TiffStructure parse(Uint8List bytes) {
+  factory TiffStructure.parse(Uint8List bytes) {
     if (bytes.length < 8) {
       throw const MetadataFormatException('TIFF header too short');
     }
@@ -162,6 +153,15 @@ final class TiffStructure {
     }
     return s;
   }
+
+  final Uint8List bytes;
+  final bool bigEndian;
+
+  /// IFD0, IFD1, … (pages or thumbnail).
+  final List<TiffIfd> chain;
+  TiffIfd? exif;
+  TiffIfd? gps;
+  TiffIfd? interop;
 
   TiffIfd? _sub(ByteView v, TiffIfd parent, int tag, Set<int> seen) {
     final e = parent.entries[tag];
@@ -294,7 +294,7 @@ final class TiffStructure {
 
 /// Encodes values in [bigEndian] order for new entries.
 final class TiffValues {
-  TiffValues(this.bigEndian);
+  TiffValues({required this.bigEndian});
 
   final bool bigEndian;
 
@@ -347,7 +347,7 @@ final class TiffValues {
 /// pointer) is redirected. Unknown tags, MakerNotes and strip/tile data
 /// keep their offsets, so nothing the editor does not understand breaks.
 final class TiffEditor {
-  TiffEditor(this.source) : values = TiffValues(source.bigEndian);
+  TiffEditor(this.source) : values = TiffValues(bigEndian: source.bigEndian);
 
   /// An empty EXIF block in big-endian order.
   factory TiffEditor.empty() {
@@ -446,10 +446,7 @@ final class TiffEditor {
       if (m.isEmpty || _dropped.contains(IfdKind.interop)) {
         exif[TiffTag.interopIfd] = null;
       } else {
-        exif[TiffTag.interopIfd] = pointer(
-          TiffTag.interopIfd,
-          writeIfd(m, 0),
-        );
+        exif[TiffTag.interopIfd] = pointer(TiffTag.interopIfd, writeIfd(m, 0));
       }
     }
     if (exifTouched) {

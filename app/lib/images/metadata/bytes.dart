@@ -99,17 +99,20 @@ final class ByteSink {
   void u8(int v) => _b.addByte(v & 0xff);
 
   void u16(int v) {
-    final d = ByteData(2)..setUint16(0, v, bigEndian ? Endian.big : Endian.little);
+    final d = ByteData(2)
+      ..setUint16(0, v, bigEndian ? Endian.big : Endian.little);
     _b.add(d.buffer.asUint8List());
   }
 
   void u32(int v) {
-    final d = ByteData(4)..setUint32(0, v, bigEndian ? Endian.big : Endian.little);
+    final d = ByteData(4)
+      ..setUint32(0, v, bigEndian ? Endian.big : Endian.little);
     _b.add(d.buffer.asUint8List());
   }
 
   void u64(int v) {
-    final d = ByteData(8)..setUint64(0, v, bigEndian ? Endian.big : Endian.little);
+    final d = ByteData(8)
+      ..setUint64(0, v, bigEndian ? Endian.big : Endian.little);
     _b.add(d.buffer.asUint8List());
   }
 
@@ -120,15 +123,13 @@ final class ByteSink {
 
 /// Writes [v] into [out] at [o] (patching offsets after layout).
 void putU32(Uint8List out, int o, int v, {bool bigEndian = true}) {
-  ByteData.sublistView(
-    out,
-  ).setUint32(o, v, bigEndian ? Endian.big : Endian.little);
+  ByteData.sublistView(out)
+      .setUint32(o, v, bigEndian ? Endian.big : Endian.little);
 }
 
 void putU16(Uint8List out, int o, int v, {bool bigEndian = true}) {
-  ByteData.sublistView(
-    out,
-  ).setUint16(o, v, bigEndian ? Endian.big : Endian.little);
+  ByteData.sublistView(out)
+      .setUint16(o, v, bigEndian ? Endian.big : Endian.little);
 }
 
 int indexOfBytes(Uint8List hay, List<int> needle, [int from = 0, int? end]) {
@@ -141,4 +142,34 @@ int indexOfBytes(Uint8List hay, List<int> needle, [int from = 0, int? end]) {
     return i;
   }
   return -1;
+}
+
+/// An edit of one metadata block: leave it alone (null), set it, or remove it.
+final class Patch<T extends Object> {
+  const Patch.set(T this.value);
+  const Patch.remove() : value = null;
+
+  /// The new content; null removes the block.
+  final T? value;
+}
+
+final List<int> _crcTable = () {
+  final t = List<int>.filled(256, 0);
+  for (var n = 0; n < 256; n++) {
+    var c = n;
+    for (var k = 0; k < 8; k++) {
+      c = c & 1 != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
+    }
+    t[n] = c;
+  }
+  return t;
+}();
+
+/// CRC-32 (ISO 3309) of [data], as PNG chunks use.
+int crc32(List<int> data, [int crc = 0]) {
+  var c = crc ^ 0xFFFFFFFF;
+  for (final b in data) {
+    c = _crcTable[(c ^ b) & 0xFF] ^ (c >> 8);
+  }
+  return c ^ 0xFFFFFFFF;
 }
