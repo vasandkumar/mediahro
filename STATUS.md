@@ -56,7 +56,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: bar/sidebar per window class, last mode restored, platform bar materials, mini-player slot, predictive-back transitions; tested in widget + integration suites. Mode switch < 100 ms is asserted only in profile builds (perf harness), so not ticked yet |
+| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ⛔ | ⛔ | ☐ | ☑ | W ☑ perf-windows run 39355442122: profile median 18.2 ms, max 19.6 ms (budget 100 ms). M: perf-macos on main. A I ⛔ profile mode needs a physical device (device lab, §4). |
 | CORE-002 | First-run without walls | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
 | CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
@@ -70,7 +70,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
-| CORE-015 | Privacy dashboard | B3 | ☐ | ☐ | ☐ | ☐ | B3 PR #2: dashboard lists every Endpoints.all entry with toggle (privacy.endpoint.<id>) and last-used time, plus user hosts; needs the B2 usage recorder wired to PrivacyUsage (orchestrator) |
+| CORE-015 | Privacy dashboard | B3 | ☑ | ☑ | ☑ | ☑ | A I M W ☑ ci run 39355442122 (PR #10, c747a1e): "CORE-015 dashboard reads the live network policy", "CORE-015 privacy dashboard lists every endpoint" on integration-android/-apple (iOS+macOS)/-windows. |
 
 ### 2. LIB — Library, indexing, search
 
@@ -328,6 +328,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
+| 2026-10-20 | B3 | CORE-001 mode-switch budget (A I) | Flutter profile mode does not run on emulators or simulators | Device lab profile run of b3_shell_perf_test.dart (§4) | Functional mode-switch tests pass in debug on A I; budget proven in profile on W (18.2 ms) |
 | 2026-10-19 | B1 | VID-031 native HDR on HDR displays (A I M W) | Flutter external textures are 8-bit only (Windows `FlutterDesktopGpuSurfaceDescriptor` BGRA/RGBA, Apple `CVPixelBuffer` BGRA, Android `SurfaceProducer` RGBA8), so a 10-bit/PQ frame cannot reach an HDR swap chain through the compositor | ADR: Flutter engine support for 10-bit/FP16 external textures, or an HDR platform-view surface | Tone mapping to SDR on every platform (bt.2390 default, all six curves, peak detection), tested on CI |
 | 2026-10-19 | B1 | VID-032…035 (A I M W) | No CC0/CC BY Dolby Vision (P5, P7 MEL/FEL, P8.1/8.4) or HDR10+ samples in `test-media/corpus`; DV P5 reshaping also needs libplacebo built with libdovi | Owner or a D lane: source licensed samples into Git LFS; B4: libdovi in libplacebo | Detection (profile, HDR10+ MaxRGB, P7 notice) unit-tested; suite runs automatically once samples land (`category: hdr-lfs`) |
 | 2026-10-19 | B1 | VID-001 ISO images; VID-002 VC-1/VVC/HAP; VID-003 DTS-HD MA/HRA/DTS:X; AUD-001 APE/TAK/MPC/SACD ISO/MIDI (A I M W) | LGPL FFmpeg has no encoders for these, so the generated corpus lacks samples; ISO images need a UDF reader (B1 next); MIDI needs a soundfont synth in the deps build | Licensed samples in `test-media/corpus`; B4: a MIT/LGPL soundfont synth (e.g. TinySoundFont) | Every other container/codec of these rows passes on CI from the generated corpus |
