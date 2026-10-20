@@ -15,6 +15,7 @@ import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/video/player/info_overlay.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/player_gestures.dart';
+import 'package:mediahro/features/video/player/player_platform.dart';
 import 'package:mediahro/features/video/player/player_sheets.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
@@ -54,23 +55,20 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
 
 class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   VideoPlayerController? _c;
-  DisplayFacade? _display;
+  PlayerPlatform? _platform;
   bool _chrome = true;
   bool _locked = false;
   bool _info = false;
   bool _fill = false;
   bool _remaining = false;
-  bool _keepOn = false;
   bool _deleteShown = false;
   Duration? _scrub;
   Timer? _hide;
-  (int, int)? _orientedFor;
   bool _phone = true;
 
   @override
   void initState() {
     super.initState();
-    _display = _optional(() => ref.read(displayProvider));
     unawaited(
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
     );
@@ -91,8 +89,23 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         for (final l in PlatformDispatcher.instance.locales) l.languageCode,
       ],
     )..addListener(_onChange);
-    setState(() => _c = c);
+    final music = playbackEngineProvider(EngineRole.music);
+    final platform = PlayerPlatform(
+      controller: c,
+      settings: ref.read(settingsStoreProvider),
+      display: _optional(() => ref.read(displayProvider)),
+      pip: _optional(() => ref.read(pipProvider)),
+      session: _optional(() => ref.read(mediaSessionProvider)),
+      otherAudio: ref.exists(music) ? ref.read(music) : null,
+      isPhone: () => _phone,
+    );
+    platform.inPip.addListener(_onPip);
+    setState(() {
+      _c = c;
+      _platform = platform;
+    });
     _scheduleHide();
+    await platform.start();
     await c.open(widget.request);
   }
 
@@ -105,60 +118,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     }
   }
 
+  void _onPip() {
+    if (mounted) setState(() {});
+  }
+
   void _onChange() {
     final c = _c!;
     final s = c.state;
     final playing = s.status == PlaybackStatus.playing;
-    if (playing != _keepOn) {
-      _keepOn = playing;
-      unawaited(_display?.keepScreenOn(on: playing));
-    }
-    _followAspect(s);
     if (c.deletePending && !_deleteShown) {
       _deleteShown = true;
       unawaited(_confirmDelete());
     }
     if (!playing && !_chrome) setState(() => _chrome = true);
     if (mounted) setState(() {});
-  }
-
-  /// Rotation follows the video's shape on phones (VID-070).
-  void _followAspect(PlaybackState s) {
-    final size = _videoSize(s);
-    if (size == null || size == _orientedFor) return;
-    _orientedFor = size;
-    unawaited(
-      SystemChrome.setPreferredOrientations(
-        size.$1 >= size.$2
-            ? const [
-                DeviceOrientation.landscapeLeft,
-                DeviceOrientation.landscapeRight,
-              ]
-            : const [DeviceOrientation.portraitUp],
-      ),
-    );
-  }
-
-  /// Gives rotation back to the system. After a landscape video a phone with
-  /// auto-rotate off would otherwise stay in landscape, so phones ask for
-  /// portrait first (VID-070); [lockedFor] is null on tablets.
-  static Future<void> _releaseOrientation((int, int)? lockedFor) async {
-    if (lockedFor != null && lockedFor.$1 >= lockedFor.$2) {
-      await SystemChrome.setPreferredOrientations(const [
-        DeviceOrientation.portraitUp,
-      ]);
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-    }
-    await SystemChrome.setPreferredOrientations(const []);
-  }
-
-  static (int, int)? _videoSize(PlaybackState s) {
-    final v = s.tracks
-        .where((t) => t.type == TrackType.video && t.id == s.videoTrackId)
-        .firstOrNull;
-    final w = s.video.width ?? v?.width;
-    final h = s.video.height ?? v?.height;
-    return w == null || h == null || w == 0 || h == 0 ? null : (w, h);
   }
 
   Future<void> _confirmDelete() async {
@@ -213,16 +186,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   void dispose() {
     _hide?.cancel();
     final c = _c;
+    final platform = _platform;
+    if (platform != null) {
+      platform.inPip.removeListener(_onPip);
+      // Its synchronous part detaches from the controller before that is
+      // disposed below.
+      unawaited(platform.dispose());
+    }
     if (c != null) {
       c
         ..removeListener(_onChange)
         ..dispose();
       unawaited(c.engine.stop());
     }
-    unawaited(_display?.keepScreenOn(on: false));
-    unawaited(_display?.setWindowBrightness(null));
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
-    unawaited(_releaseOrientation(_phone ? _orientedFor : null));
     super.dispose();
   }
 
@@ -275,6 +252,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       'player.audioDelayPlus': () =>
           run(() => c.setAudioDelay(c.audioDelay + audioStep)),
       'player.info': () => setState(() => _info = !_info),
+      'player.pip': () => unawaited(_platform?.enterPip()),
       'player.exitFullscreen': _close,
     };
   }
@@ -317,9 +295,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     final video = _VideoSurface(
       textureId: c.engine.textureId,
-      size: _videoSize(s),
+      size: PlayerPlatform.videoSize(s),
       fill: _fill,
     );
+
+    final platform = _platform!;
+    // In picture-in-picture only the video shows (VID-067).
+    if (platform.inPip.value) {
+      return ColoredBox(color: Colors.black, child: video);
+    }
 
     final error = s.error;
     final overlay = Stack(
@@ -411,7 +395,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final chrome = KPlayerChrome(
       video: video,
       visible: _chrome && !_locked,
-      title: widget.request.title,
+      title: c.request?.title ?? widget.request.title,
       subtitle: c.request?.subtitle,
       sourceBadge: c.request?.sourceBadge,
       onBack: _close,
@@ -424,11 +408,18 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           color: Colors.white,
           onPressed: () => setState(() => _info = !_info),
         ),
+        if (platform.pipSupported)
+          KIconButton(
+            icon: KIcon.pip,
+            label: l.videoPip,
+            color: Colors.white,
+            onPressed: () => unawaited(platform.enterPip()),
+          ),
         KIconButton(
           icon: KIcon.more,
-          label: l.videoChaptersTitle,
+          label: l.videoMoreTitle,
           color: Colors.white,
-          onPressed: () => unawaited(showChaptersSheet(context, c)),
+          onPressed: () => unawaited(showMoreSheet(context, c, platform)),
         ),
       ],
       seekBar: seekBar,
@@ -524,9 +515,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             locked: _locked,
             onToggleChrome: _toggleChrome,
             onFill: (v) => setState(() => _fill = v),
-            setBrightness: _display == null
-                ? null
-                : (v) => _display!.setWindowBrightness(v),
+            setBrightness: switch (platform.display) {
+              final d? => d.setWindowBrightness,
+              null => null,
+            },
             child: chrome,
           )
         // Desktop: a click on the video plays or pauses; buttons keep their
