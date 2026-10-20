@@ -21,6 +21,11 @@ void main() {
     }
   });
 
+  test('IMG-015 wallpaper permission is the normal one, nothing broader', () {
+    expect(has('SET_WALLPAPER'), isTrue);
+    expect(has('SET_WALLPAPER_HINTS'), isFalse);
+  });
+
   test('SYS-007 legacy storage permission stops at API 32', () {
     expect(
       RegExp(r'READ_EXTERNAL_STORAGE"\s+android:maxSdkVersion="32"')

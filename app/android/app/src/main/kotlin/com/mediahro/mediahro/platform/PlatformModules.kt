@@ -7,6 +7,7 @@ import com.mediahro.mediahro.pigeon.AlarmHostApi
 import com.mediahro.mediahro.pigeon.AlarmsFiredStreamHandler
 import com.mediahro.mediahro.pigeon.AppIntentsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.ImagingHostApi
 import com.mediahro.mediahro.pigeon.IntentsHostApi
 import com.mediahro.mediahro.pigeon.OpenRequestsStreamHandler
 import com.mediahro.mediahro.pigeon.SystemHostApi
@@ -41,6 +42,8 @@ import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.display.PowerStatusModule
+import com.mediahro.mediahro.platform.imaging.HdrImageViewFactory
+import com.mediahro.mediahro.platform.imaging.ImagingModule
 import com.mediahro.mediahro.platform.media.AlarmHub
 import com.mediahro.mediahro.platform.media.AlarmModule
 import com.mediahro.mediahro.platform.media.AudioOutputModule
@@ -204,6 +207,10 @@ object PlatformModules {
 
         sftp?.dispose()
         SftpHostApi.setUp(messenger, SftpModule(secureStorage).also { sftp = it })
+        // Imaging (ADR-037): OS decode/encode, HDR still view, wallpaper, print, faces.
+        ImagingHostApi.setUp(messenger, ImagingModule(context.applicationContext, host))
+        engine.platformViewsController.registry
+            .registerViewFactory(HdrImageViewFactory.VIEW_TYPE, HdrImageViewFactory(context.applicationContext))
         debugHooks(host, engine)
     }
 

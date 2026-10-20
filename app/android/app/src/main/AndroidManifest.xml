@@ -25,6 +25,8 @@
          alarm notification where the user allows it. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Set as wallpaper / lock screen (IMG-015): a normal permission, no declaration needed. -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- Vault, app lock and parental PIN (PRIV-008, IMG-011, LIB-013). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <application
