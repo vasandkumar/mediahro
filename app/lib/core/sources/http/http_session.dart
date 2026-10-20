@@ -38,7 +38,16 @@ final class HttpSession {
       final req = HttpRequestData(
         method: method,
         uri: uri,
-        headers: {...headers, ...extra, 'Authorization': ?authHeader},
+        headers: {
+          ...headers,
+          ...extra,
+          'Authorization': ?authHeader,
+          // A known-length body goes out with Content-Length, not chunked:
+          // UPnP servers (MiniDLNA and most TVs and NASes) reject chunked
+          // SOAP requests with 400 (NET-005).
+          if (body != null && bodyStream == null && method != 'GET')
+            'Content-Length': '${body.length}',
+        },
         body: body,
       );
       final HttpStreamResponse res;

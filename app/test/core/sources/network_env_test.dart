@@ -172,7 +172,11 @@ void main() {
     'NET-004 FTP/FTPS client against vsftpd (TLS from the OS stand-in)',
     () {
       // Production TLS is TlsSocketFacade (ADR-017, C4); tests stand in.
-      final osTls = FacadeFtpTransport(FakeTlsSocketFacade());
+      // Data channels through openssl: it ends them on close_notify, as the
+      // OS TLS does and vsftpd needs (dart:io waits for TCP EOF).
+      final osTls = FacadeFtpTransport(
+        FakeTlsSocketFacade(opensslDataChannels: true),
+      );
       Uri root(String scheme, int port) =>
           Uri(scheme: scheme, host: _host, port: port, path: '/');
 

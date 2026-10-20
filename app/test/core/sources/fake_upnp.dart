@@ -81,6 +81,11 @@ final class FakeMediaServer {
           '</device></root>',
         );
       case '/cd/control':
+        // Like MiniDLNA: no chunked request bodies on the control URL.
+        if (r.headers.chunkedTransferEncoding || r.contentLength < 0) {
+          res.statusCode = HttpStatus.badRequest;
+          break;
+        }
         browses++;
         final body = await utf8.decodeStream(r);
         final env = parseXml(body);

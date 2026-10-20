@@ -10,9 +10,13 @@
 set -euo pipefail
 prefix="$1"
 here="$(cd "$(dirname "$0")" && pwd)"
-sudo apt-get -qq update
-sudo apt-get -qq install -y build-essential cmake pkg-config python3 \
-  libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev > /dev/null
+pkgs=(build-essential cmake pkg-config python3
+  libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev)
+# Only when something is missing (a local run may race unattended-upgrades).
+if ! dpkg -s "${pkgs[@]}" > /dev/null 2>&1; then
+  sudo apt-get -qq update
+  sudo apt-get -qq install -y "${pkgs[@]}" > /dev/null
+fi
 src="$(mktemp -d)"
 
 # <name> -> "<url> <sha256>" from deps-pins.json ({tag}/{version} expanded).
