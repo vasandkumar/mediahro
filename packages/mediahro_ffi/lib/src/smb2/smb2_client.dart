@@ -70,78 +70,96 @@ const int _secNtlmssp = 1;
 final class Smb2SyncFileSystem implements SyncFileSystem {
   Smb2SyncFileSystem(this.options, {Smb2Bindings? bindings})
     : _b = bindings ?? Smb2Bindings(NativeLibraries.open(NativeLibrary.smb2)) {
-    _ctx = _b.smb2_init_context();
-    if (_ctx == ffi.nullptr) {
+    if (!options.guest) {
+      _ctx = _connect(options.user, options.password ?? '');
+    } else {
+      // Guest the way Windows and macOS do it: user "guest" with an empty
+      // password, which "map to guest = Bad User" servers turn into a guest
+      // session. Where that is refused, fall back to a NULL session
+      // (anonymous NTLMSSP, sent by libsmb2 only when the password is NULL).
+      try {
+        _ctx = _connect('guest', '');
+      } on VirtualFileException catch (e) {
+        if (e.error != VirtualFileError.authenticationRequired &&
+            e.error != VirtualFileError.closed &&
+            e.error != VirtualFileError.unreachable) {
+          rethrow;
+        }
+        _ctx = _connect('guest', null);
+      }
+    }
+    _maxRead = _b.smb2_get_max_read_size(_ctx).clamp(64 * 1024, 8 << 20);
+    _maxWrite = _b.smb2_get_max_write_size(_ctx).clamp(64 * 1024, 8 << 20);
+  }
+
+  /// A fresh, connected context; destroyed and mapped to a
+  /// [VirtualFileException] when the connect fails. A null [password]
+  /// makes libsmb2 send an anonymous (NULL session) NTLMSSP.
+  ffi.Pointer<smb2_context> _connect(String? user, String? password) {
+    final ctx = _b.smb2_init_context();
+    if (ctx == ffi.nullptr) {
       throw VirtualFileException(
         VirtualFileError.io,
         _uri(''),
         'smb2_init_context failed',
       );
     }
-    using((a) {
-      _b.smb2_set_timeout(_ctx, options.timeout.inSeconds);
+    return using((a) {
+      _b.smb2_set_timeout(ctx, options.timeout.inSeconds);
       _b.smb2_set_version(
-        _ctx,
+        ctx,
         smb2_negotiate_version.fromValue(options.version.wire),
       );
       _b.smb2_set_workstation(
-        _ctx,
+        ctx,
         options.workstation.toNativeUtf8(allocator: a).cast(),
       );
-      if (options.encrypt) _b.smb2_set_seal(_ctx, 1);
+      if (options.encrypt) _b.smb2_set_seal(ctx, 1);
       if (options.sign || options.encrypt) {
-        _b.smb2_set_sign(_ctx, 1);
-        _b.smb2_set_security_mode(_ctx, SMB2_NEGOTIATE_SIGNING_REQUIRED);
+        _b
+          ..smb2_set_sign(ctx, 1)
+          ..smb2_set_security_mode(ctx, SMB2_NEGOTIATE_SIGNING_REQUIRED);
       }
-      final user = options.guest ? 'Guest' : options.user;
       _b.smb2_set_authentication(
-        _ctx,
+        ctx,
         user == null ? _secUndefined : _secNtlmssp,
       );
       if (options.domain != null) {
         _b.smb2_set_domain(
-          _ctx,
+          ctx,
           options.domain!.toNativeUtf8(allocator: a).cast(),
         );
       }
       if (user != null) {
-        _b.smb2_set_user(_ctx, user.toNativeUtf8(allocator: a).cast());
+        _b.smb2_set_user(ctx, user.toNativeUtf8(allocator: a).cast());
       }
-      // Guest: no password at all. libsmb2 sends an anonymous NTLMSSP
-      // (null session) only when the password is NULL; an empty string makes
-      // it authenticate as "Guest" with a derived session key and sign with
-      // it, which servers that granted a key-less guest session reject.
-      if (!options.guest) {
-        _b.smb2_set_password(
-          _ctx,
-          (options.password ?? '').toNativeUtf8(allocator: a).cast(),
-        );
+      if (password != null) {
+        _b.smb2_set_password(ctx, password.toNativeUtf8(allocator: a).cast());
       }
       final server = options.port == null
           ? options.server
           : '${options.server}:${options.port}';
       final rc = _b.smb2_connect_share(
-        _ctx,
+        ctx,
         server.toNativeUtf8(allocator: a).cast(),
         options.share.toNativeUtf8(allocator: a).cast(),
         user == null ? ffi.nullptr : user.toNativeUtf8(allocator: a).cast(),
       );
       if (rc < 0) {
-        final err = _error();
+        final err = _b.smb2_get_error(ctx).cast<Utf8>().toDartString();
         // A fresh context: its NT status is this connect's. libsmb2 turns
         // NT statuses into errno lossily (LOGON_FAILURE is not EACCES), so
         // map the status itself first.
-        final nt = _b.smb2_get_nterror(_ctx) & 0xffffffff;
-        _b.smb2_destroy_context(_ctx);
+        final nt = _b.smb2_get_nterror(ctx) & 0xffffffff;
+        _b.smb2_destroy_context(ctx);
         throw VirtualFileException(
           smbNtStatusError(nt, connect: true) ?? _map(rc, connect: true),
           _uri(''),
           err,
         );
       }
+      return ctx;
     });
-    _maxRead = _b.smb2_get_max_read_size(_ctx).clamp(64 * 1024, 8 << 20);
-    _maxWrite = _b.smb2_get_max_write_size(_ctx).clamp(64 * 1024, 8 << 20);
   }
 
   final SmbOptions options;
@@ -440,6 +458,8 @@ VirtualFileError? smbNtStatusError(int status, {bool connect = false}) {
     0xC000003A || // OBJECT_PATH_NOT_FOUND
     0xC000000F => VirtualFileError.notFound, // NO_SUCH_FILE
     0xC0000035 => VirtualFileError.alreadyExists, // OBJECT_NAME_COLLISION
+    0xC0000103 => VirtualFileError.notADirectory, // NOT_A_DIRECTORY
+    0xC00000BA => VirtualFileError.isADirectory, // FILE_IS_A_DIRECTORY
     0xC000007F => VirtualFileError.noSpace, // DISK_FULL
     _ => null,
   };

@@ -23,6 +23,7 @@ fetch nfs https://github.com/sahlberg/libnfs/archive/refs/tags/libnfs-6.0.2.tar.
 # Patches carried until upstream has them (same files as mediahro-deps).
 here="$(cd "$(dirname "$0")" && pwd)"
 patch -p1 -d "$src/smb2" < "$here/patches/libsmb2-6.2-guest-session.patch"
+patch -p1 -d "$src/nfs" < "$here/patches/libnfs-6.0.2-open-errno.patch"
 for lib in smb2 nfs; do
   cmake -S "$src/$lib" -B "$src/$lib/build" -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=ON -DENABLE_EXAMPLES=OFF -DENABLE_TESTS=OFF -DENABLE_UTILS=OFF \

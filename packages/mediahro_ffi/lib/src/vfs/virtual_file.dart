@@ -147,6 +147,14 @@ enum VirtualFileError {
   /// The server or disk is full.
   noSpace,
 
+  /// A path component that must be a folder is a file (ENOTDIR,
+  /// NFS3ERR_NOTDIR, STATUS_NOT_A_DIRECTORY).
+  notADirectory,
+
+  /// A file operation was aimed at a folder (EISDIR, NFS3ERR_ISDIR,
+  /// STATUS_FILE_IS_A_DIRECTORY).
+  isADirectory,
+
   /// The server presented an untrusted TLS certificate (docs/05 §9).
   untrustedCertificate,
 }

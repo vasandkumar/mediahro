@@ -1,6 +1,7 @@
-libsmb2 6.2: never sign or seal a guest/null session (no session key).
-MS-SMB2 3.2.5.3.1. Without it, "smb encrypt = desired" servers drop guests.
-Mediahro lane B2; also to be carried in mediahro-deps patches/libsmb2/.
+libsmb2 6.2: never sign or seal a guest/null session (no session key), and
+do not sign its 3.1.1 TREE_CONNECT. MS-SMB2 3.2.5.3.1. Without it,
+"smb encrypt = desired" servers drop guests after the login succeeds.
+Mediahro lane B2; also carried in mediahro-deps patches/libsmb2/.
 
 diff -ru a/include/libsmb2-private.h b/include/libsmb2-private.h
 --- a/include/libsmb2-private.h
@@ -52,6 +53,22 @@ diff -ru a/lib/libsmb2.c b/lib/libsmb2.c
                  uint8_t zero_key[SMB2_KEY_SIZE] = {0};
                  int have_valid_session_key = 1;
  
+diff -ru a/lib/pdu.c b/lib/pdu.c
+--- a/lib/pdu.c
++++ b/lib/pdu.c
+@@ -627,8 +627,11 @@
+                         }
+                 }
+                 smb2_encode_header(smb2, &p->out.iov[0], &p->header);
++                /* 3.1.1 signs TREE_CONNECT even without session signing,
++                 * except on a guest/null session, which has no key. */
+                 if (smb2->sign ||
+-                    (p->header.command == SMB2_TREE_CONNECT && smb2->dialect == SMB2_VERSION_0311 && !smb2->seal)) {
++                    (p->header.command == SMB2_TREE_CONNECT && smb2->dialect == SMB2_VERSION_0311 &&
++                     !smb2->seal && !smb2->guest)) {
+                         if (smb2_pdu_add_signature(smb2, p) < 0) {
+                                 smb2_set_error(smb2, "Failure to add "
+                                                "signature. %s",
 diff -ru a/lib/smb2-cmd-tree-connect.c b/lib/smb2-cmd-tree-connect.c
 --- a/lib/smb2-cmd-tree-connect.c
 +++ b/lib/smb2-cmd-tree-connect.c

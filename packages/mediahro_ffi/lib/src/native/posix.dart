@@ -44,6 +44,7 @@ final class PosixErrno {
     required this.connrefused,
     required this.hostunreach,
     required this.netunreach,
+    required this.stale,
   });
 
   factory PosixErrno.forOs(String os) => switch (os) {
@@ -53,6 +54,7 @@ final class PosixErrno {
       connrefused: 61,
       hostunreach: 65,
       netunreach: 51,
+      stale: 70,
     ),
     'windows' => const PosixErrno(
       notempty: 41,
@@ -60,6 +62,8 @@ final class PosixErrno {
       connrefused: 107,
       hostunreach: 110,
       netunreach: 118,
+      // MSVC has no ESTALE; libnfs's win32_compat.h defines 116.
+      stale: 116,
     ),
     _ => const PosixErrno(
       notempty: 39,
@@ -67,6 +71,7 @@ final class PosixErrno {
       connrefused: 111,
       hostunreach: 113,
       netunreach: 101,
+      stale: 116,
     ),
   };
 
@@ -82,9 +87,11 @@ final class PosixErrno {
   int get isdir => 21;
   int get inval => 22;
   int get nospc => 28;
+  int get rofs => 30;
   final int notempty;
   final int timedout;
   final int connrefused;
   final int hostunreach;
   final int netunreach;
+  final int stale;
 }

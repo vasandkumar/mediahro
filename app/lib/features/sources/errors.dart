@@ -14,5 +14,7 @@ String fileErrorMessage(AppLocalizations l10n, VirtualFileError e) =>
       VirtualFileError.unsupported => l10n.sourcesErrorUnsupported,
       VirtualFileError.alreadyExists => l10n.sourcesErrorExists,
       VirtualFileError.noSpace => l10n.sourcesErrorNoSpace,
+      VirtualFileError.notADirectory => l10n.sourcesErrorNotAFolder,
+      VirtualFileError.isADirectory => l10n.sourcesErrorIsAFolder,
       VirtualFileError.untrustedCertificate => l10n.sourcesErrorCertificate,
     };

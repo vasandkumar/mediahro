@@ -299,12 +299,16 @@ void main() {
     await tester.tap(find.byTooltip('New folder'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Made');
+    final made = Directory('${dir.path}/Made');
     await tester.runAsync(() async {
       await tester.tap(find.text('OK'));
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // Bounded wait: the mkdir runs on the file system's worker.
+      for (var i = 0; i < 100 && !made.existsSync(); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
     });
     await tester.pumpAndSettle();
-    expect(Directory('${dir.path}/Made').existsSync(), isTrue);
+    expect(made.existsSync(), isTrue);
   });
 
   testWidgets('LIB-007/LIB-014/LIB-015 library hub opens its tools', (
