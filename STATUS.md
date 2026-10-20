@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) · secure storage + biometrics facades (#33; c4a_android_security_test 6 + 2 manual checks needing a fingerprint or PIN; unblocks LIB-013, IMG-011, PRIV-006/008 A) · MUS-001, MUS-002 re-test with SAF/MediaStore sources (#34; c2_music_test) · VID-066, VID-069 (#35; c1_video_player_test 17 + 3 manual checks) · MUS-006, MUS-011 (#31; c2_now_playing_test, c2_music_test) · picker fix (#36; c4a_android_storage_test, now 14) · MUS-005 (#37; c2_lyrics_test) · SUB-012, SUB-013 (#38; c1_video_player_test 21 + 3 manual checks) · network status, multicast and auth browser facades (#39; c4a_android_network_test 6) · SUB-014, SUB-015, SUB-016 (#40; c1_video_player_test 24 + 3 manual checks; SUB-014 system-caption path waits on C4a's CaptionStyleFacade, ADR-030) | **full (25 of 25): device run next** |
+| 1 | Ran on the Samsung at main 475f3df: all 14 functional test files pass (100+ tests); library perf passes; shell perf harness can't reach the VM service over wireless adb (CORE-001 stays ⛔). Ticked: VID-036, VID-060…065, VID-072, MUS-001, MUS-002, MUS-005, MUS-006, LIB-003, LIB-005. **Waiting for the owner's manual checks** (docs/release/android-batch-1-checks.md): VID-066, VID-067, VID-068, VID-069, VID-070, SUB-012…016. Not ticked: MUS-011 (Android AlarmFacade missing), SYS-011 (needs a foldable or tablet), VID-074 (only the session part is done). | automated done; manual checks pending |
 | 2 | TLS client and mutual-TLS server facades (#41; c4a_android_tls_test 6) · SUB-030 (#42; c1_video_player_test 23 + 3 manual checks) | collecting (1 of 25) |
 
 ### Phase A (M0) deliverables
@@ -89,7 +89,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | LIB-001 | Unified index | B2 | ☐ | ☐ | ☐ | ☐ | B2: drift index (docs/05 §6 tables, FTS5), scanner isolate pool, viewport probe queue. Codec/duration fields fill from B1 through the `MediaProber` seam. |
 | LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ | B2: local sources via StorageFacade grants (fakes in tests); Win32 fast path. ⛔ C4 StorageFacade (SAF/MediaStore, bookmarks, pickers). |
-| LIB-003 | Scan performance | B2 | ☐ | ☐ | ☐ | ☐ | B2: 10 k files 1.0–2.5 s initial / 0.2–0.55 s incremental (desktop); pause/resume/cancel; manual/on-open/watch. Phone budget: device lab. |
+| LIB-003 | Scan performance | B2 | ☑ | ☐ | ☐ | ☐ | B2: 10 k files 1.0–2.5 s initial / 0.2–0.55 s incremental (desktop); pause/resume/cancel; manual/on-open/watch. Phone budget: device lab. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): b2_library_perf_test: initial 1951 ms, incremental 969 ms; c4a storage changes(). |
 | LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ | B2: folder browser + `ViewModeToggle` persisted per mode; C1–C3 place them in each mode. |
 | LIB-005 | Search | B2 | ☑ | ☑ | ☑ | ☑ | B2: FTS5 prefix search, bm25, all doc 04 filters; 50 k items median 9.5 ms (desktop CI). Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ | B2: `HomeRow` continue/recently added/played/unwatched queries + widgets; C1–C3 place them; resume thumbnails from B1/C3. |
@@ -136,7 +136,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | VID-033 | Dolby Vision profile 8.1/8.4 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
 | VID-034 | Dolby Vision profile 5 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples, libdovi (§3) |
 | VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
-| VID-036 | Auto frame-rate and resolution matching | C1 | ☐ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) |
+| VID-036 | Auto frame-rate and resolution matching | C1 | ☑ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c4a_android_display_test 6/6. |
 | VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-039 | Frame interpolation | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -148,19 +148,19 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| VID-060 | Gesture set | C1 | ☐ | ☐ | — | — |  |
-| VID-061 | Seek bar | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-062 | Speed | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-063 | Frame step, A-B loop, chapters, bookmarks | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-064 | Resume and post-playback | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-065 | Audio/subtitle track switching | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-060 | Gesture set | C1 | ☑ | ☐ | — | — | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
+| VID-061 | Seek bar | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
+| VID-062 | Speed | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
+| VID-063 | Frame step, A-B loop, chapters, bookmarks | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
+| VID-064 | Resume and post-playback | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
+| VID-065 | Audio/subtitle track switching | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
 | VID-066 | Audio delay and volume | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-067 | Picture-in-Picture | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-068 | Background and audio-only playback | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-069 | Sleep timer and auto-off | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-070 | Orientation and display | C1 | ☐ | ☐ | — | — |  |
 | VID-071 | Second screen / external display | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-072 | Info overlay | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-072 | Info overlay | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
 | VID-073 | Skip intro/credits | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-074 | Remote control | C1 | ☐ | ☐ | ☐ | ☐ |  |
 
@@ -205,12 +205,12 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| MUS-001 | Library views | C2 | ☐ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. |
-| MUS-002 | Tag reading | C2 | ☐ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. |
+| MUS-001 | Library views | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_music_test 4/4 (SAF/MediaStore tags after #34). |
+| MUS-002 | Tag reading | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_music_test 4/4 (after #34). |
 | MUS-003 | Tag editing | C2 | ☐ | ☐ | ☐ | ☐ |  |
 | MUS-004 | Art | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
-| MUS-005 | Lyrics | C2 | ☐ | ☐ | ☐ | ☐ |  |
-| MUS-006 | Now Playing | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-005 | Lyrics | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_lyrics_test 2/2. |
+| MUS-006 | Now Playing | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_now_playing_test 2/2. |
 | MUS-007 | Queues | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-008 | Smart playlists | C2 | ☐ | ☐ | ☐ | ☐ |  |
 | MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ |  |
@@ -424,6 +424,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | **Device batch 1 ran on the Samsung**: all 14 functional suites pass, plus library perf (scan 1.95 s, search median 17.5 ms). 13 Android cells ticked. 11 more wait for the owner's manual checklist; sample files are in Download/MediahroTest, and a release build of main 291b894 is installed. The shell perf test (CORE-001) couldn't attach to the VM service over wireless adb; that's a harness fix for B3. |
 | 2026-10-20 | Merged C4a **#41** (TLS client 1.2/1.3 with pinning, AUTH TLS upgrade, FTPS session reuse, mutual-TLS server with Keystore identity; tools/check 496) and C1 **#42** (subtitle editor plus SRT/WebVTT/ASS/MicroDVD/LRC/SAMI parsers and writers in isolates with limits, plus a fuzz target; tools/check 507). Both go into device batch 2. ADR-031 accepted (engine subtitle text and extraction; B1 at its next slot). |
 | 2026-10-20 | Merged C1 **#40** (subtitle styling with every option defaulting to System, subtitle speed for frame-rate conversion, dual subtitles) and wired subtitleSettingsContributions in root.dart. Verified at 2a20a4e: tools/check 492 with the wiring. **Device batch 1 is full (25 features); running it on the Samsung.** |
 | 2026-10-20 | Merged C4a **#39** (Android network status with metered and Data Saver, Wi-Fi multicast lock per lease, Custom Tab sign-in with an RFC 8252 redirect). It also fixes release builds having **no INTERNET permission** (it was only in the debug manifest). Verified at ddf2e5d: tools/check 483, Gradle 6/6. |
