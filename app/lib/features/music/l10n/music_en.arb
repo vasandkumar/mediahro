@@ -1,0 +1,216 @@
+{
+  "@@locale": "en",
+  "musicTabSongs": "Songs",
+  "musicTabAlbums": "Albums",
+  "musicTabArtists": "Artists",
+  "musicTabAlbumArtists": "Album artists",
+  "musicTabGenres": "Genres",
+  "musicTabComposers": "Composers",
+  "musicTabYears": "Years",
+  "musicTabFolders": "Folders",
+  "musicEmptyTitle": "No music yet",
+  "musicEmptyMessage": "Add a folder with music, or your device's music library, in Sources. Songs show up here as soon as they're found.",
+  "musicAddMusic": "Add music",
+  "musicIndexing": "{count, plural, =1{Reading tags of 1 song…} other{Reading tags of {count} songs…}}",
+  "@musicIndexing": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicShuffleAll": "Shuffle all",
+  "musicPlay": "Play",
+  "musicShuffle": "Shuffle",
+  "musicSort": "Sort",
+  "musicSortBy": "{field, select, title{Title} artist{Artist} album{Album} dateAdded{Date added} duration{Length} playCount{Most played} year{Year} other{Title}}",
+  "@musicSortBy": {
+    "description": "Sort option name; the value is the internal field id.",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSortReverse": "Reverse order",
+  "musicUnknownArtist": "Unknown artist",
+  "musicUnknownAlbum": "Unknown album",
+  "musicVariousArtists": "Various artists",
+  "musicSongCount": "{count, plural, =1{1 song} other{{count} songs}}",
+  "@musicSongCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicAlbumCount": "{count, plural, =1{1 album} other{{count} albums}}",
+  "@musicAlbumCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicArtistAndYear": "{artist} · {year}",
+  "@musicArtistAndYear": {
+    "description": "Album subtitle: artist name and release year.",
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "musicArtistAndAlbum": "{artist} · {album}",
+  "@musicArtistAndAlbum": {
+    "description": "Song subtitle: artist name and album title.",
+    "placeholders": {
+      "artist": {
+        "type": "String"
+      },
+      "album": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAlbumSummary": "{songs} · {length}",
+  "@musicAlbumSummary": {
+    "description": "Album header: song count (already formatted, e.g. '12 songs') and total length (e.g. '48:10').",
+    "placeholders": {
+      "songs": {
+        "type": "String"
+      },
+      "length": {
+        "type": "String"
+      }
+    }
+  },
+  "musicDisc": "Disc {number}",
+  "@musicDisc": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPlayNext": "Play next",
+  "musicAddToQueue": "Add to queue",
+  "musicGoToAlbum": "Go to album",
+  "musicGoToArtist": "Go to artist",
+  "musicMoreActions": "More actions for {title}",
+  "@musicMoreActions": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAddedToQueue": "{count, plural, =1{Added 1 song to the queue} other{Added {count} songs to the queue}}",
+  "@musicAddedToQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicNowPlaying": "Now playing",
+  "musicOpenNowPlaying": "Open now playing",
+  "musicClose": "Close",
+  "musicPlayLabel": "Play",
+  "musicPauseLabel": "Pause",
+  "musicNextLabel": "Next track",
+  "musicPreviousLabel": "Previous track",
+  "musicShuffleOn": "Shuffle is on",
+  "musicShuffleOff": "Shuffle is off",
+  "musicRepeat": "{mode, select, off{Repeat is off} all{Repeat all} one{Repeat this song} other{Repeat is off}}",
+  "@musicRepeat": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "musicQueue": "Queue",
+  "musicQueueEmpty": "The queue is empty.",
+  "musicRemoveFromQueue": "Remove from queue",
+  "musicReorderHandle": "Drag to reorder {title}",
+  "@musicReorderHandle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicNothingPlaying": "Nothing is playing",
+  "musicCoverOf": "Cover of {album}",
+  "@musicCoverOf": {
+    "placeholders": {
+      "album": {
+        "type": "String"
+      }
+    }
+  },
+  "musicFolderEmpty": "No music in this folder.",
+  "musicAlbumsSection": "Albums",
+  "musicSongsSection": "Songs",
+  "musicPosition": "{position} of {duration}",
+  "@musicPosition": {
+    "description": "Seek bar value for screen readers, e.g. '1:02 of 3:45'.",
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "musicError": "{code, select, unsupportedFormat{This song's format can't be played.} sourceUnavailable{This song's file can't be reached. Check that its folder or drive is still available.} networkTimeout{The connection took too long. Try again.} libraryMissing{Playback isn't available in this build of Mediahro.} other{This song couldn't be played.}}",
+  "@musicError": {
+    "description": "Playback error message; the value is the engine error code.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "musicSkipToNext": "Play next song",
+  "musicQueueDefaultName": "Queue",
+  "musicNewQueue": "New queue",
+  "musicQueueName": "Queue name",
+  "musicRenameQueue": "Rename queue",
+  "musicDeleteQueue": "Delete queue",
+  "musicSwitchQueue": "Switch queue",
+  "musicSaveAsPlaylist": "Save as playlist",
+  "musicPlaylistName": "Playlist name",
+  "musicSavedAsPlaylist": "Saved as the playlist {name}",
+  "@musicSavedAsPlaylist": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAddToAnotherQueue": "Add to another queue",
+  "musicAddedToNamedQueue": "{count, plural, =1{Added 1 song to {queue}} other{Added {count} songs to {queue}}}",
+  "@musicAddedToNamedQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "queue": {
+        "type": "String"
+      }
+    }
+  },
+  "musicUpNext": "Up next",
+  "musicHistory": "History",
+  "musicHistoryEmpty": "Songs you play show up here.",
+  "musicCreate": "Create",
+  "musicSave": "Save",
+  "musicCancel": "Cancel",
+  "musicQueueActions": "Queue actions"
+}

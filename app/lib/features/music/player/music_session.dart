@@ -1,0 +1,121 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:mediahro/features/music/library/artwork_store.dart';
+import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/platform/platform_facades.dart';
+import 'package:mediahro_engine/mediahro_engine.dart';
+
+/// Connects the music player to the OS media session (SYS-001/002 through
+/// C4's [MediaSessionFacade]): lock screen, notification, headset and car
+/// buttons control the player, and the session shows what plays. Optional
+/// [HomeWidgetsFacade] gets the same updates (MUS-012).
+final class MusicSessionBridge {
+  MusicSessionBridge({
+    required this.player,
+    required this.session,
+    required this.art,
+    this.widgets,
+  });
+
+  final MusicPlayer player;
+  final MediaSessionFacade session;
+  final ArtworkStore art;
+  final HomeWidgetsFacade? widgets;
+
+  StreamSubscription<MusicPlayerState>? _states;
+  StreamSubscription<RemoteCommand>? _commands;
+  bool _active = false;
+  int? _shownItem;
+  SessionPlaybackState? _shownState;
+  bool? _shownNext;
+  Duration _shownPosition = Duration.zero;
+
+  void start() {
+    _commands ??= session.commands.listen(_onCommand);
+    _states ??= player.states.listen((s) => unawaited(_onState(s)));
+  }
+
+  Future<void> dispose() async {
+    await _states?.cancel();
+    await _commands?.cancel();
+    if (_active) await session.deactivate();
+  }
+
+  Future<void> _onCommand(RemoteCommand c) async {
+    switch (c) {
+      case PlayCommand():
+        await player.play();
+      case PauseCommand():
+        await player.pause();
+      case TogglePlayPauseCommand():
+        await player.togglePlayPause();
+      case NextCommand():
+        await player.next();
+      case PreviousCommand():
+        await player.previous();
+      case StopCommand():
+        await player.stop();
+      case SeekToCommand(:final position):
+        await player.seek(position);
+      case SkipByCommand(:final offset):
+        await player.seek(player.state.position + offset);
+      case SetRateCommand():
+        break; // Music plays at 1×; podcasts handle rate (POD-001).
+    }
+  }
+
+  Future<void> _onState(MusicPlayerState s) async {
+    final track = s.current;
+    if (track == null) return;
+    if (!_active && s.playing) {
+      _active = true;
+      await session.activate(MediaSessionKind.music);
+    }
+    if (!_active) return;
+    if (_shownItem != track.itemId) {
+      _shownItem = track.itemId;
+      final item = NowPlaying(
+        title: track.title,
+        artist: track.artist ?? track.albumArtist,
+        album: track.album,
+        duration: s.duration,
+        artwork: await _artwork(track.itemId),
+      );
+      await session.setNowPlaying(item);
+      await widgets?.update(item, playing: s.playing);
+    }
+    final state = switch (s.playback.status) {
+      PlaybackStatus.playing => SessionPlaybackState.playing,
+      PlaybackStatus.buffering ||
+      PlaybackStatus.opening => SessionPlaybackState.buffering,
+      PlaybackStatus.paused => SessionPlaybackState.paused,
+      _ => SessionPlaybackState.stopped,
+    };
+    // Position updates only on state changes and jumps; the OS extrapolates.
+    final jumped =
+        (s.position - _shownPosition).abs() > const Duration(seconds: 2);
+    _shownPosition = s.position;
+    if (state == _shownState && s.hasNext == _shownNext && !jumped) return;
+    _shownState = state;
+    _shownNext = s.hasNext;
+    await session.setPlaybackStatus(
+      SessionPlaybackStatus(
+        state: state,
+        position: s.position,
+        canSkipNext: s.hasNext,
+        canSkipPrevious: s.hasPrevious,
+      ),
+    );
+  }
+
+  Future<Uint8List?> _artwork(int itemId) async {
+    final path = await art.coverPath(itemId);
+    if (path == null) return null;
+    final f = File(path);
+    // Large covers go through as-is; the platform module scales them.
+    if (await f.length() > 4 * 1024 * 1024) return null;
+    return await f.readAsBytes();
+  }
+}
