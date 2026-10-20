@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,35 +97,24 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum AppIntentKindMsg {
-  resumeLast,
-  playPlaylist,
-  openMode,
-  search;
-}
+enum AppIntentKindMsg { resumeLast, playPlaylist, openMode, search }
 
 class OpenRequestMsg {
-  OpenRequestMsg({
-    required this.uris,
-  });
+  OpenRequestMsg({required this.uris});
 
   List<String> uris;
 
   List<Object?> _toList() {
-    return <Object?>[
-      uris,
-    ];
+    return <Object?>[uris];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static OpenRequestMsg decode(Object result) {
     result as List<Object?>;
-    return OpenRequestMsg(
-      uris: (result[0]! as List<Object?>).cast<String>(),
-    );
+    return OpenRequestMsg(uris: (result[0]! as List<Object?>).cast<String>());
   }
 
   @override
@@ -150,24 +140,19 @@ class OpenRequestMsg {
 }
 
 class AppIntentMsg {
-  AppIntentMsg({
-    required this.kind,
-    this.argument,
-  });
+  AppIntentMsg({required this.kind, this.argument});
 
   AppIntentKindMsg kind;
 
   String? argument;
 
   List<Object?> _toList() {
-    return <Object?>[
-      kind,
-      argument,
-    ];
+    return <Object?>[kind, argument];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AppIntentMsg decode(Object result) {
     result as List<Object?>;
@@ -186,7 +171,8 @@ class AppIntentMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(kind, other.kind) && _deepEquals(argument, other.argument);
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(argument, other.argument);
   }
 
   @override
@@ -216,16 +202,12 @@ class AppShortcutMsg {
   String? argument;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      title,
-      kind,
-      argument,
-    ];
+    return <Object?>[id, title, kind, argument];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AppShortcutMsg decode(Object result) {
     result as List<Object?>;
@@ -246,7 +228,10 @@ class AppShortcutMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(kind, other.kind) && _deepEquals(argument, other.argument);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(kind, other.kind) &&
+        _deepEquals(argument, other.argument);
   }
 
   @override
@@ -259,7 +244,6 @@ class AppShortcutMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -267,16 +251,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is AppIntentKindMsg) {
+    } else if (value is AppIntentKindMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is OpenRequestMsg) {
+    } else if (value is OpenRequestMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is AppIntentMsg) {
+    } else if (value is AppIntentMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is AppShortcutMsg) {
+    } else if (value is AppShortcutMsg) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -302,28 +286,31 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class SystemHostApi {
   /// Constructor for [SystemHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   SystemHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   /// Settings › Apps › Mediahro › Open by default (or the app's details).
   Future<void> showDefaultAppGuidance() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.SystemHostApi.showDefaultAppGuidance$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.SystemHostApi.showDefaultAppGuidance$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -333,11 +320,10 @@ class SystemHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -346,34 +332,36 @@ class IntentsHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   IntentsHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<void> publishShortcuts(List<AppShortcutMsg> shortcuts) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.IntentsHostApi.publishShortcuts$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.IntentsHostApi.publishShortcuts$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[shortcuts]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[shortcuts],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -383,31 +371,34 @@ class IntentsHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<OpenRequestMsg> openRequests( {String instanceName = ''}) {
+Stream<OpenRequestMsg> openRequests({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel openRequestsChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.SystemEventsApi.openRequests$instanceName', pigeonMethodCodec);
+  final EventChannel openRequestsChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.SystemEventsApi.openRequests$instanceName',
+    pigeonMethodCodec,
+  );
   return openRequestsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as OpenRequestMsg;
   });
 }
-    
+
 /// Returns a broadcast [Stream] of events from the `appIntents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<AppIntentMsg> appIntents( {String instanceName = ''}) {
+Stream<AppIntentMsg> appIntents({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel appIntentsChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.SystemEventsApi.appIntents$instanceName', pigeonMethodCodec);
+  final EventChannel appIntentsChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.SystemEventsApi.appIntents$instanceName',
+    pigeonMethodCodec,
+  );
   return appIntentsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as AppIntentMsg;
   });
 }
-    

@@ -6,6 +6,7 @@ import 'package:mediahro/platform/car_and_alarms.dart';
 import 'package:mediahro/platform/cast.dart';
 import 'package:mediahro/platform/display.dart';
 import 'package:mediahro/platform/enterprise.dart';
+import 'package:mediahro/platform/imaging.dart';
 import 'package:mediahro/platform/media_session.dart';
 import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro/platform/power_status.dart';
@@ -23,6 +24,7 @@ export 'car_and_alarms.dart';
 export 'cast.dart';
 export 'display.dart';
 export 'enterprise.dart';
+export 'imaging.dart';
 export 'media_session.dart';
 export 'network_status.dart';
 export 'power_status.dart';
@@ -163,6 +165,10 @@ final captionStyleProvider = Provider<CaptionStyleFacade>(
 );
 final powerStatusProvider = Provider<PowerStatusFacade>(
   (ref) => _unavailable('powerStatus'),
+  retry: _noRetry,
+);
+final imagingProvider = Provider<ImagingFacade>(
+  (ref) => _unavailable('imaging'),
   retry: _noRetry,
 );
 

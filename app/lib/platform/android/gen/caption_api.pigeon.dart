@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,14 +97,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum CaptionEdgeMsg {
-  none,
-  outline,
-  dropShadow,
-  raised,
-  depressed;
-}
+enum CaptionEdgeMsg { none, outline, dropShadow, raised, depressed }
 
 class CaptionStyleMsg {
   CaptionStyleMsg({
@@ -147,7 +141,8 @@ class CaptionStyleMsg {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CaptionStyleMsg decode(Object result) {
     result as List<Object?>;
@@ -172,7 +167,14 @@ class CaptionStyleMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(enabled, other.enabled) && _deepEquals(fontFamily, other.fontFamily) && _deepEquals(scale, other.scale) && _deepEquals(foregroundArgb, other.foregroundArgb) && _deepEquals(backgroundArgb, other.backgroundArgb) && _deepEquals(windowArgb, other.windowArgb) && _deepEquals(edge, other.edge) && _deepEquals(edgeArgb, other.edgeArgb);
+    return _deepEquals(enabled, other.enabled) &&
+        _deepEquals(fontFamily, other.fontFamily) &&
+        _deepEquals(scale, other.scale) &&
+        _deepEquals(foregroundArgb, other.foregroundArgb) &&
+        _deepEquals(backgroundArgb, other.backgroundArgb) &&
+        _deepEquals(windowArgb, other.windowArgb) &&
+        _deepEquals(edge, other.edge) &&
+        _deepEquals(edgeArgb, other.edgeArgb);
   }
 
   @override
@@ -185,7 +187,6 @@ class CaptionStyleMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -193,10 +194,10 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is CaptionEdgeMsg) {
+    } else if (value is CaptionEdgeMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is CaptionStyleMsg) {
+    } else if (value is CaptionStyleMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
     } else {
@@ -218,27 +219,30 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class CaptionStyleHostApi {
   /// Constructor for [CaptionStyleHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   CaptionStyleHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<CaptionStyleMsg?> current() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.CaptionStyleHostApi.current$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.CaptionStyleHostApi.current$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -248,11 +252,10 @@ class CaptionStyleHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as CaptionStyleMsg?;
   }
 }
@@ -263,14 +266,17 @@ class CaptionStyleHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<CaptionStyleMsg> captionStyleChanges( {String instanceName = ''}) {
+Stream<CaptionStyleMsg> captionStyleChanges({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel captionStyleChangesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.CaptionEventsApi.captionStyleChanges$instanceName', pigeonMethodCodec);
-  return captionStyleChangesChannel.receiveBroadcastStream().map((dynamic event) {
+  final EventChannel captionStyleChangesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.CaptionEventsApi.captionStyleChanges$instanceName',
+    pigeonMethodCodec,
+  );
+  return captionStyleChangesChannel.receiveBroadcastStream().map((
+    dynamic event,
+  ) {
     return event as CaptionStyleMsg;
   });
 }
-    

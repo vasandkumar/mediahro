@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,8 +34,11 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -44,6 +47,7 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -56,8 +60,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -106,7 +111,6 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 class MediaBrowseNodeMsg {
   MediaBrowseNodeMsg({
     required this.id,
@@ -130,18 +134,12 @@ class MediaBrowseNodeMsg {
   bool browsable;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      title,
-      subtitle,
-      artworkUri,
-      playable,
-      browsable,
-    ];
+    return <Object?>[id, title, subtitle, artworkUri, playable, browsable];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MediaBrowseNodeMsg decode(Object result) {
     result as List<Object?>;
@@ -164,7 +162,12 @@ class MediaBrowseNodeMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(title, other.title) && _deepEquals(subtitle, other.subtitle) && _deepEquals(artworkUri, other.artworkUri) && _deepEquals(playable, other.playable) && _deepEquals(browsable, other.browsable);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(title, other.title) &&
+        _deepEquals(subtitle, other.subtitle) &&
+        _deepEquals(artworkUri, other.artworkUri) &&
+        _deepEquals(playable, other.playable) &&
+        _deepEquals(browsable, other.browsable);
   }
 
   @override
@@ -192,15 +195,12 @@ class ScheduledAlarmMsg {
   String label;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      atMs,
-      label,
-    ];
+    return <Object?>[id, atMs, label];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ScheduledAlarmMsg decode(Object result) {
     result as List<Object?>;
@@ -220,7 +220,9 @@ class ScheduledAlarmMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(id, other.id) && _deepEquals(atMs, other.atMs) && _deepEquals(label, other.label);
+    return _deepEquals(id, other.id) &&
+        _deepEquals(atMs, other.atMs) &&
+        _deepEquals(label, other.label);
   }
 
   @override
@@ -234,26 +236,21 @@ class ScheduledAlarmMsg {
 }
 
 class AlarmFiredMsg {
-  AlarmFiredMsg({
-    required this.id,
-  });
+  AlarmFiredMsg({required this.id});
 
   String id;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-    ];
+    return <Object?>[id];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AlarmFiredMsg decode(Object result) {
     result as List<Object?>;
-    return AlarmFiredMsg(
-      id: result[0]! as String,
-    );
+    return AlarmFiredMsg(id: result[0]! as String);
   }
 
   @override
@@ -278,7 +275,6 @@ class AlarmFiredMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -286,13 +282,13 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is MediaBrowseNodeMsg) {
+    } else if (value is MediaBrowseNodeMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is ScheduledAlarmMsg) {
+    } else if (value is ScheduledAlarmMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is AlarmFiredMsg) {
+    } else if (value is AlarmFiredMsg) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
@@ -315,28 +311,31 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class MediaBrowseHostApi {
   /// Constructor for [MediaBrowseHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   MediaBrowseHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   /// Dart has a provider; car and voice requests can be answered.
   Future<void> registered() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaBrowseHostApi.registered$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaBrowseHostApi.registered$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -346,29 +345,30 @@ class MediaBrowseHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> notifyChildrenChanged(String nodeId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.MediaBrowseHostApi.notifyChildrenChanged$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.MediaBrowseHostApi.notifyChildrenChanged$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[nodeId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -382,16 +382,20 @@ abstract class MediaBrowseFlutterApi {
 
   Future<void> play(String nodeId);
 
-  static void setUp(MediaBrowseFlutterApi? api, {
-    BinaryMessenger? binaryMessenger, 
+  static void setUp(
+    MediaBrowseFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
     String messageChannelSuffix = '',
-  }) 
-{
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.children$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.children$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -400,20 +404,27 @@ abstract class MediaBrowseFlutterApi {
           final String arg_nodeId = args[0]! as String;
           final int arg_page = args[1]! as int;
           try {
-            final List<MediaBrowseNodeMsg> output = await api.children(arg_nodeId, arg_page);
+            final List<MediaBrowseNodeMsg> output = await api.children(
+              arg_nodeId,
+              arg_page,
+            );
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.search$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.search$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -425,16 +436,20 @@ abstract class MediaBrowseFlutterApi {
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }
     }
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.play$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.mediahro.MediaBrowseFlutterApi.play$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
@@ -446,8 +461,10 @@ abstract class MediaBrowseFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }
@@ -460,20 +477,21 @@ class AlarmHostApi {
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   AlarmHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<bool> isSupported() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AlarmHostApi.isSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AlarmHostApi.isSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -483,48 +501,51 @@ class AlarmHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as bool;
   }
 
   Future<void> schedule(ScheduledAlarmMsg alarm) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AlarmHostApi.schedule$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AlarmHostApi.schedule$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[alarm]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[alarm],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   Future<void> cancel(String id) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.AlarmHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.AlarmHostApi.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[id]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[id],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 
@@ -534,14 +555,15 @@ class AlarmHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<AlarmFiredMsg> alarmsFired( {String instanceName = ''}) {
+Stream<AlarmFiredMsg> alarmsFired({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel alarmsFiredChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.AlarmEventsApi.alarmsFired$instanceName', pigeonMethodCodec);
+  final EventChannel alarmsFiredChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.AlarmEventsApi.alarmsFired$instanceName',
+    pigeonMethodCodec,
+  );
   return alarmsFiredChannel.receiveBroadcastStream().map((dynamic event) {
     return event as AlarmFiredMsg;
   });
 }
-    

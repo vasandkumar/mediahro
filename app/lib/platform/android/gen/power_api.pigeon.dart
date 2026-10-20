@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,33 +97,22 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
-enum ThermalLevelMsg {
-  nominal,
-  fair,
-  serious,
-  critical;
-}
+enum ThermalLevelMsg { nominal, fair, serious, critical }
 
 class PowerStatusMsg {
-  PowerStatusMsg({
-    required this.thermal,
-    required this.batterySaver,
-  });
+  PowerStatusMsg({required this.thermal, required this.batterySaver});
 
   ThermalLevelMsg thermal;
 
   bool batterySaver;
 
   List<Object?> _toList() {
-    return <Object?>[
-      thermal,
-      batterySaver,
-    ];
+    return <Object?>[thermal, batterySaver];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PowerStatusMsg decode(Object result) {
     result as List<Object?>;
@@ -141,7 +131,8 @@ class PowerStatusMsg {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(thermal, other.thermal) && _deepEquals(batterySaver, other.batterySaver);
+    return _deepEquals(thermal, other.thermal) &&
+        _deepEquals(batterySaver, other.batterySaver);
   }
 
   @override
@@ -154,7 +145,6 @@ class PowerStatusMsg {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -162,10 +152,10 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ThermalLevelMsg) {
+    } else if (value is ThermalLevelMsg) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is PowerStatusMsg) {
+    } else if (value is PowerStatusMsg) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
     } else {
@@ -187,27 +177,30 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(_PigeonCodec());
+const StandardMethodCodec pigeonMethodCodec = StandardMethodCodec(
+  _PigeonCodec(),
+);
 
 class PowerStatusHostApi {
   /// Constructor for [PowerStatusHostApi]. The [binaryMessenger] named argument is
   /// available for dependency injection. If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   PowerStatusHostApi({
-      BinaryMessenger? binaryMessenger, 
-      String messageChannelSuffix = '', 
-      })
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
 
   final BinaryMessenger? pigeonVar_binaryMessenger;
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
 
-
   Future<PowerStatusMsg> current() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.mediahro.PowerStatusHostApi.current$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.PowerStatusHostApi.current$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -217,11 +210,10 @@ class PowerStatusHostApi {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as PowerStatusMsg;
   }
 }
@@ -232,14 +224,17 @@ class PowerStatusHostApi {
 /// not be called multiple times for the same `instanceName`. To deliver
 /// events to multiple listeners, call this method once and listen to the
 /// returned broadcast stream multiple times instead.
-Stream<PowerStatusMsg> powerStatusChanges( {String instanceName = ''}) {
+Stream<PowerStatusMsg> powerStatusChanges({String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel powerStatusChangesChannel =
-      EventChannel('dev.flutter.pigeon.mediahro.PowerEventsApi.powerStatusChanges$instanceName', pigeonMethodCodec);
-  return powerStatusChangesChannel.receiveBroadcastStream().map((dynamic event) {
+  final EventChannel powerStatusChangesChannel = EventChannel(
+    'dev.flutter.pigeon.mediahro.PowerEventsApi.powerStatusChanges$instanceName',
+    pigeonMethodCodec,
+  );
+  return powerStatusChangesChannel.receiveBroadcastStream().map((
+    dynamic event,
+  ) {
     return event as PowerStatusMsg;
   });
 }
-    
