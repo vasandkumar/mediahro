@@ -183,3 +183,40 @@ base class FakeTranslation implements TranslationFacade {
     return [for (final l in lines) '$to: $l'];
   }
 }
+
+/// A folder picker (StorageFacade.pickFolder) for the shader-folder
+/// chooser (VID-038); the player uses nothing else of the facade.
+final class FakeFolderPicker implements StorageFacade {
+  FakeFolderPicker(this.grant);
+
+  final FolderGrant? grant;
+  int picks = 0;
+
+  @override
+  Future<FolderGrant?> pickFolder() async {
+    picks++;
+    return grant;
+  }
+
+  @override
+  Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class FakePowerStatus implements PowerStatusFacade {
+  final _changes = StreamController<PowerStatus>.broadcast();
+  PowerStatus now = const PowerStatus(
+    thermal: ThermalLevel.nominal,
+    batterySaver: false,
+  );
+
+  void set(PowerStatus s) {
+    now = s;
+    _changes.add(s);
+  }
+
+  @override
+  Future<PowerStatus> current() async => now;
+
+  @override
+  Stream<PowerStatus> get changes => _changes.stream;
+}

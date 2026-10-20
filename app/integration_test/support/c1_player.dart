@@ -14,6 +14,7 @@ import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_screen.dart';
+import 'package:mediahro/features/video/player/video_render.dart';
 import 'package:mediahro/features/video/subtitles/audio_sync.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
@@ -74,15 +75,18 @@ Future<(RecordingEngine, SettingsStore)> pumpPlayer(
   WidgetTester tester, {
   Size size = const Size(800, 400),
   List<Override> overrides = const [],
+  SettingsStore? settings,
 }) async {
   tester.view
     ..physicalSize = size * tester.view.devicePixelRatio
     ..devicePixelRatio = tester.view.devicePixelRatio;
   addTearDown(tester.view.resetPhysicalSize);
   final engine = RecordingEngine(tracks: _tracks);
-  final store = (await tester.runAsync(
-    () => SettingsStore.open(MemorySettingsPersistence(), null),
-  ))!;
+  final store =
+      settings ??
+      (await tester.runAsync(
+        () => SettingsStore.open(MemorySettingsPersistence(), null),
+      ))!;
   final memory = (await tester.runAsync(
     () => VideoMemory.open(MemoryVideoMemoryPersistence()),
   ))!;
@@ -664,4 +668,220 @@ void videoPlayerSuite({
     await tester.pumpAndSettle();
     expect(engine.subDelays.last.$1, Duration.zero);
   });
+  playerTest('VID-037 Picture sheet: rotate, mirror and aspect for this '
+      'video; colour for every video', (tester) async {
+    final (engine, store) = await pumpPlayer(tester);
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Rotate'));
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.rotate, 90);
+    expect(find.text('Rotated 90°'), findsOneWidget);
+    await tapVisible(tester, find.text('Mirror'));
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.flipHorizontal, isTrue);
+    await tapVisible(tester, find.text('4:3'));
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.aspectOverride, closeTo(4 / 3, 1e-9));
+    store.set<double>(RenderSettings.brightness, 40);
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.brightness, 40);
+    expect(engine.filterChains.last.rotate, 90, reason: 'view is kept');
+    await tapVisible(tester, find.text('Reset').last);
+    await tester.pumpAndSettle();
+    expect(store.get(RenderSettings.brightness), 0);
+    expect(engine.filterChains.last.brightness, 0);
+    await tapVisible(tester, find.text('Reset').first);
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.rotate, 0);
+    expect(engine.filterChains.last.aspectOverride, isNull);
+  });
+
+  playerTest('VID-038 Picture sheet: a shader from the folder is applied '
+      'and restored for the next video', (tester) async {
+    final shader = ShaderChoice('custom:sharp.glsl', 'sharp.glsl', [
+      Uri.parse('file:///s/sharp.glsl'),
+    ]);
+    final folders = <String>[];
+    final overrides = [
+      shaderLibraryProvider.overrideWithValue((folder) async {
+        folders.add(folder);
+        return folder.isEmpty ? const <ShaderChoice>[] : [shader];
+      }),
+      storageProvider.overrideWithValue(
+        FakeFolderPicker(
+          FolderGrant(id: 'g', uri: Uri.parse('file:///s/'), displayName: 's'),
+        ),
+      ),
+    ];
+    final (engine, store) = await pumpPlayer(tester, overrides: overrides);
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Put .glsl shader files in a folder and choose it here to '
+        'use them.',
+      ),
+      findsOneWidget,
+    );
+    await tapVisible(tester, find.text('Choose a shader folder'));
+    await tester.pumpAndSettle();
+    expect(store.get(RenderSettings.shaderFolder), 'file:///s/');
+    await tapVisible(tester, find.text('sharp.glsl'));
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, shader.preset);
+    expect(store.get(RenderSettings.shaderPreset), 'custom:sharp.glsl');
+    await tapVisible(tester, find.text('None'));
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, ShaderPreset.none);
+    store.set(RenderSettings.shaderPreset, 'custom:sharp.glsl');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
+    final (next, _) = await pumpPlayer(
+      tester,
+      overrides: overrides,
+      settings: store,
+    );
+    for (var i = 0; i < 20 && next.shaderPresets.isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+    }
+    expect(next.shaderPresets.single, shader.preset);
+  });
+
+  playerTest('VID-038 a folder without a file path is refused', (tester) async {
+    final (_, store) = await pumpPlayer(
+      tester,
+      overrides: [
+        storageProvider.overrideWithValue(
+          FakeFolderPicker(
+            FolderGrant(
+              id: 'g',
+              uri: Uri.parse('content://com.android.externalstorage/tree/x'),
+              displayName: 'x',
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Choose a shader folder'));
+    await tester.pumpAndSettle();
+    expect(store.get(RenderSettings.shaderFolder), isEmpty);
+    expect(
+      find.text(
+        "Shaders can only be read from a folder on this device's "
+        'own storage.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  playerTest('VID-037 stretch modes and pan', (tester) async {
+    final (engine, _) = await pumpPlayer(tester);
+    BoxFit fit() => tester
+        .widget<FittedBox>(
+          find.ancestor(
+            of: find.byType(Texture),
+            matching: find.byType(FittedBox),
+          ),
+        )
+        .fit;
+    expect(fit(), BoxFit.contain);
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    expect(find.text('Left and right'), findsNothing);
+    await tapVisible(tester, find.text('Stretch'));
+    await tester.pumpAndSettle();
+    expect(fit(), BoxFit.fill);
+    await tapVisible(tester, find.text('Fill screen'));
+    await tester.pumpAndSettle();
+    expect(fit(), BoxFit.cover);
+    final pan = find.ancestor(
+      of: find.text('Left and right'),
+      matching: find.byType(Row),
+    );
+    await tester.ensureVisible(pan);
+    await tester.pumpAndSettle();
+    final slider = tester.getRect(
+      find.descendant(of: pan, matching: find.byType(Slider)),
+    );
+    await tester.tapAt(slider.centerRight - const Offset(8, 0));
+    await tester.pumpAndSettle();
+    expect(engine.filterChains.last.panX, greaterThan(0.3));
+  });
+
+  playerTest('VID-038 VID-039 a hot device pauses shaders and smooth motion', (
+    tester,
+  ) async {
+    final power = FakePowerStatus();
+    final shader = ShaderChoice('custom:sharp.glsl', 'sharp.glsl', [
+      Uri.parse('file:///s/sharp.glsl'),
+    ]);
+    final (engine, store) = await pumpPlayer(
+      tester,
+      overrides: [
+        powerStatusProvider.overrideWithValue(power),
+        shaderLibraryProvider.overrideWithValue((_) async => [shader]),
+      ],
+    );
+    await tester.tap(iconButton('Picture'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('sharp.glsl'));
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, shader.preset);
+    power.set(
+      const PowerStatus(thermal: ThermalLevel.serious, batterySaver: false),
+    );
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, ShaderPreset.none);
+    const cooling =
+        'Shaders and smooth motion are paused while the device is hot or '
+        'saving battery.';
+    expect(find.text(cooling), findsWidgets);
+    power.set(
+      const PowerStatus(thermal: ThermalLevel.fair, batterySaver: false),
+    );
+    await tester.pumpAndSettle();
+    expect(engine.shaderPresets.last, shader.preset);
+    expect(store.get(RenderSettings.shaderPreset), 'custom:sharp.glsl');
+  });
+
+  if (gestures) {
+    playerTest('VID-039 smooth motion on a phone asks about battery first', (
+      tester,
+    ) async {
+      final (engine, store) = await pumpPlayer(tester);
+      await tester.tap(iconButton('Picture'));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Smooth motion'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(store.get(RenderSettings.interpolation), isFalse);
+      await tapVisible(tester, find.text('Smooth motion'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Turn on'));
+      await tester.pumpAndSettle();
+      expect(store.get(RenderSettings.interpolation), isTrue);
+      expect(engine.filterChains.last.interpolation, isTrue);
+    }, variant: touchVariant);
+  } else {
+    playerTest('VID-039 smooth motion on a computer switches on at once', (
+      tester,
+    ) async {
+      final (engine, store) = await pumpPlayer(tester);
+      await tester.tap(iconButton('Picture'));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Smooth motion'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(store.get(RenderSettings.interpolation), isTrue);
+      expect(engine.filterChains.last.interpolation, isTrue);
+    });
+  }
 }

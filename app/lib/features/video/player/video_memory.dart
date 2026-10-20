@@ -34,6 +34,111 @@ final class VideoBookmark {
   int get hashCode => Object.hash(position, note);
 }
 
+/// How the picture fills the player (VID-037): the whole picture with
+/// black bars, cropped to fill the screen, or stretched to it.
+enum VideoFit { fit, fill, stretch }
+
+/// How one video is shown (VID-037): rotation, flips, aspect, fit, zoom
+/// and pan.
+@immutable
+final class VideoView {
+  const VideoView({
+    this.fit = VideoFit.fit,
+    this.rotate = 0,
+    this.flipH = false,
+    this.flipV = false,
+    this.aspect,
+    this.zoom = 0,
+    this.panX = 0,
+    this.panY = 0,
+  });
+
+  factory VideoView.fromJson(Map<String, Object?> j) => VideoView(
+    fit: VideoFit.values.asNameMap()[j['f']] ?? VideoFit.fit,
+    rotate: (j['r'] as num?)?.toInt() ?? 0,
+    flipH: j['fh'] == true,
+    flipV: j['fv'] == true,
+    aspect: (j['a'] as num?)?.toDouble(),
+    zoom: (j['z'] as num?)?.toDouble() ?? 0,
+    panX: (j['px'] as num?)?.toDouble() ?? 0,
+    panY: (j['py'] as num?)?.toDouble() ?? 0,
+  );
+
+  final VideoFit fit;
+
+  /// Clockwise degrees: 0, 90, 180, 270.
+  final int rotate;
+  final bool flipH;
+  final bool flipV;
+
+  /// Forced display aspect (width / height); null keeps the file's.
+  final double? aspect;
+
+  /// mpv `video-zoom` (log2 scale: 1 doubles the size).
+  final double zoom;
+
+  /// mpv `video-pan-x` / `video-pan-y`, in picture widths and heights.
+  final double panX;
+  final double panY;
+
+  bool get isDefault =>
+      fit == VideoFit.fit &&
+      rotate == 0 &&
+      !flipH &&
+      !flipV &&
+      aspect == null &&
+      zoom == 0 &&
+      panX == 0 &&
+      panY == 0;
+
+  VideoView copyWith({
+    VideoFit? fit,
+    int? rotate,
+    bool? flipH,
+    bool? flipV,
+    double? Function()? aspect,
+    double? zoom,
+    double? panX,
+    double? panY,
+  }) => VideoView(
+    fit: fit ?? this.fit,
+    rotate: rotate ?? this.rotate,
+    flipH: flipH ?? this.flipH,
+    flipV: flipV ?? this.flipV,
+    aspect: aspect == null ? this.aspect : aspect(),
+    zoom: zoom ?? this.zoom,
+    panX: panX ?? this.panX,
+    panY: panY ?? this.panY,
+  );
+
+  Map<String, Object?> toJson() => {
+    if (fit != VideoFit.fit) 'f': fit.name,
+    if (rotate != 0) 'r': rotate,
+    if (flipH) 'fh': true,
+    if (flipV) 'fv': true,
+    if (aspect != null) 'a': aspect,
+    if (zoom != 0) 'z': zoom,
+    if (panX != 0) 'px': panX,
+    if (panY != 0) 'py': panY,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is VideoView &&
+      other.fit == fit &&
+      other.rotate == rotate &&
+      other.flipH == flipH &&
+      other.flipV == flipV &&
+      other.aspect == aspect &&
+      other.zoom == zoom &&
+      other.panX == panX &&
+      other.panY == panY;
+
+  @override
+  int get hashCode =>
+      Object.hash(fit, rotate, flipH, flipV, aspect, zoom, panX, panY);
+}
+
 /// What the player remembers about one item (VID-062…066).
 @immutable
 final class ItemMemory {
@@ -48,6 +153,7 @@ final class ItemMemory {
     this.subtitleDelay,
     this.subtitleCodepage,
     this.subtitleSpeed,
+    this.view,
     this.audioDelay,
     this.updatedAt,
   });
@@ -71,6 +177,10 @@ final class ItemMemory {
       subtitleDelay: ms('sDelay'),
       subtitleCodepage: j['sCp'] as String?,
       subtitleSpeed: (j['sSpd'] as num?)?.toDouble(),
+      view: switch (j['view']) {
+        final Map<String, Object?> v => VideoView.fromJson(v),
+        _ => null,
+      },
       audioDelay: ms('aDelay'),
       updatedAt: switch (j['at']) {
         final int v => DateTime.fromMillisecondsSinceEpoch(v),
@@ -96,6 +206,9 @@ final class ItemMemory {
 
   /// Subtitle speed factor, e.g. 25 / 23.976 (SUB-015).
   final double? subtitleSpeed;
+
+  /// Rotation, flip, aspect and zoom chosen for this video (VID-037).
+  final VideoView? view;
   final Duration? audioDelay;
   final DateTime? updatedAt;
 
@@ -109,6 +222,7 @@ final class ItemMemory {
       subtitleDelay == null &&
       subtitleCodepage == null &&
       subtitleSpeed == null &&
+      (view == null || view!.isDefault) &&
       audioDelay == null;
 
   ItemMemory copyWith({
@@ -122,6 +236,7 @@ final class ItemMemory {
     Duration? Function()? subtitleDelay,
     String? Function()? subtitleCodepage,
     double? Function()? subtitleSpeed,
+    VideoView? Function()? view,
     Duration? Function()? audioDelay,
     DateTime? updatedAt,
   }) => ItemMemory(
@@ -139,6 +254,7 @@ final class ItemMemory {
         ? this.subtitleCodepage
         : subtitleCodepage(),
     subtitleSpeed: subtitleSpeed == null ? this.subtitleSpeed : subtitleSpeed(),
+    view: view == null ? this.view : view(),
     audioDelay: audioDelay == null ? this.audioDelay : audioDelay(),
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -154,6 +270,7 @@ final class ItemMemory {
     if (subtitleDelay != null) 'sDelay': subtitleDelay!.inMilliseconds,
     if (subtitleCodepage != null) 'sCp': subtitleCodepage,
     if (subtitleSpeed != null) 'sSpd': subtitleSpeed,
+    if (view case final v? when !v.isDefault) 'view': v.toJson(),
     if (audioDelay != null) 'aDelay': audioDelay!.inMilliseconds,
     if (updatedAt != null) 'at': updatedAt!.millisecondsSinceEpoch,
   };
