@@ -19,7 +19,7 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Batch | Features waiting for the device run | State |
 |---|---|---|
-| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) | collecting (13 of 25) |
+| 1 | VID-036, VID-067, VID-070, SYS-011 (#27; c4a_android_display_test + media re-run) · VID-060, VID-061, VID-062, VID-063, VID-064, VID-065, VID-072 (#28; c1_video_player_test) · CORE-001 predictive back (#29; c4a_android_back_test) · VID-067/070 setAspectRatio (#30; display test re-run) · VID-068, VID-074 session part, VID-067/070 player side (#32; c1_video_player_test 15 + 4 manual checks: PiP window, auto-PiP on Home, background sound with screen off, portrait after leaving) · secure storage + biometrics facades (#33; c4a_android_security_test 6 + 2 manual checks needing a fingerprint or PIN; unblocks LIB-013, IMG-011, PRIV-006/008 A) | collecting (13 of 25; facades) |
 
 ### Phase A (M0) deliverables
 
@@ -423,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | Merged C4a **#33** (Android secure storage and biometrics: Android Keystore only, AES-256-GCM, StrongBox where present, excluded from backup; vault key wrap per ADR-008; BiometricPrompt with PIN fallback). Verified at 0363a06: tools/check 428. Its device tests are queued in batch 1. |
 | 2026-10-20 | Merged C1 **#32** (Android PiP with setAspectRatio, background and sound-only playback, rotation and display, OS media-session controls for video). Verified at 4d4fac6: tools/check 426. Device batch 1: 13 of 25. Also on main: 16fddbf, which turns off Riverpod retry for missing platform facades (found by C2). C2's #31 needs a rebase (conflict in music_test_support.dart). |
 | 2026-10-20 | Merged C4a **#29** (Android predictive back; B3's §3 predictive-back row closed, while CORE-001 A stays ⛔ on the device profile budget until the batch run) and **#30** (ADR-028 PipFacade.setAspectRatio with the Android implementation). Local proof: tools/check 404 on both combined. Device batch 1: 12 of 25. |
 | 2026-10-20 | Merged C1 **#28** (Android video player: gestures, seek bar, speed, frame step/A-B loop/chapters/bookmarks, resume, track switching, info overlay) and wired videoRoutes, videoOverrides (main.dart) and videoSettingsContributions (root.dart). Local proof: tools/check 402 on the merge result with the wiring. Device batch 1 is at 11 of 25. Device findings from C1, routed: Android FFmpeg lacks the mov_text decoder (MP4 text subtitles; B4a/B1); seek-to-0 while playing stalls the Exynos MediaCodec decoder (B1); the picker opens multi-select and PickedFile.name is the media id (C4a); KPlayerChrome's scroll view swallows touches over the video (B3). |
