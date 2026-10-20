@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/settings/settings_registry.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_speech.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 /// Subtitle text size; `system` follows the caption preference (SUB-014).
@@ -295,6 +296,16 @@ final subtitleSettingsContributions = [
         key: SubtitleSettings.secondaryOnTop,
         title: (l) => l.videoSubSecondaryOnTopTitle,
         description: (l) => l.videoSubSecondaryOnTopDescription,
+      ),
+      SliderSetting(
+        key: SpeechSettings.rate,
+        min: 0.5,
+        max: 2,
+        divisions: 6,
+        valueLabel: (l, v) => l.videoSpeedValue(v),
+        title: (l) => l.videoReadAloudRateTitle,
+        description: (l) => l.videoReadAloudRateDescription,
+        advanced: true,
       ),
     ],
   ),

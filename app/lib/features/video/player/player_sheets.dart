@@ -11,6 +11,8 @@ import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_speech.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_text_source.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -190,6 +192,9 @@ Future<void> showSubtitleSheet(
   VideoPlayerController c, {
   Future<void> Function()? onAddFile,
   Future<void> Function()? onEdit,
+  SubtitleSpeaker? speaker,
+  SubtitleTextSource? textSource,
+  Future<void> Function()? onTranslate,
 }) {
   final l = AppLocalizations.of(context);
   final player = context;
@@ -228,6 +233,33 @@ Future<void> showSubtitleSheet(
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 unawaited(onAddFile());
+              },
+            ),
+          if (speaker != null)
+            StatefulBuilder(
+              builder: (context, setState) => SwitchListTile(
+                secondary: const Icon(Icons.record_voice_over_outlined),
+                title: Text(l.videoReadAloud),
+                subtitle: Text(
+                  textSource?.available ?? false
+                      ? l.videoReadAloudDetail
+                      : l.videoTranslateOnlyFiles,
+                ),
+                value: speaker.enabled,
+                onChanged: (v) => setState(() => speaker.enabled = v),
+              ),
+            ),
+          if (onTranslate != null)
+            ListTile(
+              leading: const Icon(Icons.g_translate_outlined),
+              title: Text(l.videoTranslate),
+              enabled: textSource?.available ?? false,
+              subtitle: textSource?.available ?? false
+                  ? null
+                  : Text(l.videoTranslateOnlyFiles),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(onTranslate());
               },
             ),
           if (onEdit != null)

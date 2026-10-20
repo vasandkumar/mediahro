@@ -541,4 +541,96 @@ void videoPlayerSuite({
     expect(find.text('To edit'), findsOneWidget);
     expect(find.text('Shift all'), findsOneWidget);
   });
+
+  /// Adds a picked English subtitle file through the Subtitles sheet and
+  /// waits for the real file I/O.
+  Future<RecordingEngine> withSubtitleFile(
+    WidgetTester tester, {
+    List<Override> overrides = const [],
+  }) async {
+    final (engine, _) = await pumpPlayer(
+      tester,
+      overrides: [
+        subtitleFilePickerProvider.overrideWithValue(
+          () async => PickedSubtitle(
+            'Film.en.srt',
+            Uint8List.fromList(
+              utf8.encode('1\n00:00:01,000 --> 00:00:02,000\nHello\n'),
+            ),
+          ),
+        ),
+        ...overrides,
+      ],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Add a subtitle file'));
+    for (var i = 0; i < 20 && engine.externalTracks.isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    return engine;
+  }
+
+  playerTest('SUB-040 read aloud is switched on in the Subtitles sheet', (
+    tester,
+  ) async {
+    final speech = FakeSpeech();
+    await withSubtitleFile(
+      tester,
+      overrides: [speechSynthesisProvider.overrideWithValue(speech)],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Read subtitles aloud'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.widgetWithText(SwitchListTile, 'Read subtitles aloud'),
+          )
+          .value,
+      isTrue,
+    );
+  });
+
+  playerTest('SUB-053 translate: target, consent to download, new track', (
+    tester,
+  ) async {
+    final translation = FakeTranslation();
+    final engine = await withSubtitleFile(
+      tester,
+      overrides: [translationProvider.overrideWithValue(translation)],
+    );
+    await tester.tap(find.text('Subtitles'));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Translate subtitles'));
+    for (var i = 0; i < 20 && find.text('Deutsch').evaluate().isEmpty; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.tap(find.text('Deutsch'));
+    await tester.pumpAndSettle();
+    expect(find.text('Download a language pack?'), findsOneWidget);
+    await tester.tap(find.text('Download'));
+    for (var i = 0; i < 20 && engine.externalTracks.length < 2; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(translation.prepared, [('en', 'de')]);
+    final added = engine.current.tracks.lastWhere(
+      (t) => t.type == TrackType.subtitle,
+    );
+    expect(added.title, 'Deutsch (translated)');
+    expect(added.language, 'de');
+    expect(engine.current.subtitleTrackId, added.id);
+  });
 }

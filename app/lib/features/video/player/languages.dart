@@ -7,6 +7,15 @@ String languageName(String? tag) {
   return _names[_iso639_2[primary] ?? primary] ?? tag.toUpperCase();
 }
 
+/// The two-letter ISO 639-1 code for [tag] (`eng`, `en-US`, `en` → `en`),
+/// or null when unknown.
+String? primaryLanguage(String? tag) {
+  if (tag == null || tag.isEmpty) return null;
+  final primary = tag.toLowerCase().split(RegExp('[-_]')).first;
+  final code = _iso639_2[primary] ?? primary;
+  return code.length == 2 ? code : null;
+}
+
 const _names = {
   'ar': 'العربية',
   'bg': 'Български',

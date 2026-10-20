@@ -15,6 +15,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/video/player/info_overlay.dart';
+import 'package:mediahro/features/video/player/languages.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/features/video/player/player_gestures.dart';
 import 'package:mediahro/features/video/player/player_platform.dart';
@@ -27,12 +28,16 @@ import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_model.d
 import 'package:mediahro/features/video/subtitles/editor/subtitle_editor_screen.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_speech.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_text_source.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_translation.dart';
 import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
+import 'package:mediahro_subtitles/mediahro_subtitles.dart';
 
 T? _optional<T>(T Function() read) {
   try {
@@ -68,6 +73,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   PlayerPlatform? _platform;
   SleepTimer? _sleep;
   SubtitleStyle? _style;
+  SubtitleTextSource? _text;
+  SubtitleSpeaker? _speaker;
   bool _chrome = true;
   bool _locked = false;
   bool _info = false;
@@ -114,6 +121,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     );
     platform.inPip.addListener(_onPip);
     final sleep = SleepTimer(c)..addListener(_onPip);
+    final text = SubtitleTextSource(c);
+    _text = text;
+    if (_optional(() => ref.read(speechSynthesisProvider)) case final speech?) {
+      _speaker = SubtitleSpeaker(
+        source: text,
+        speech: speech,
+        settings: ref.read(settingsStoreProvider),
+      );
+    }
     setState(() {
       _c = c;
       _platform = platform;
@@ -132,6 +148,101 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       context.go('/video');
     }
   }
+
+  /// "Translate subtitles" (SUB-053): the selected subtitle file into
+  /// another language, on the device, as a new track.
+  Future<void> _translateSubtitles() async {
+    final c = _c;
+    final text = _text;
+    final facade = _optional(() => ref.read(translationProvider));
+    if (c == null || text == null || facade == null) return;
+    final l = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    void say(String m) => messenger.showSnackBar(SnackBar(content: Text(m)));
+    final doc = await text.load();
+    if (doc == null) {
+      say(l.videoTranslateOnlyFiles);
+      return;
+    }
+    final translator = SubtitleTranslator(facade);
+    var from = primaryLanguage(text.language);
+    if (!mounted) return;
+    from ??= await _chooseLanguage(
+      l.videoTranslateFrom,
+      await translator.sources(),
+    );
+    if (from == null || !mounted) return;
+    final targets = await translator.targetsFor(from);
+    if (!mounted) return;
+    if (targets.isEmpty) {
+      say(l.videoTranslateNoPairs(languageName(from)));
+      return;
+    }
+    final device = primaryLanguage(
+      PlatformDispatcher.instance.locale.languageCode,
+    );
+    targets.sort(
+      (a, b) => a == device ? -1 : (b == device ? 1 : a.compareTo(b)),
+    );
+    final to = await _chooseLanguage(l.videoTranslateTo, targets);
+    if (to == null || !mounted) return;
+    if (await translator.needsDownload(from, to)) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l.videoTranslateDownloadTitle),
+          content: Text(
+            l.videoTranslateDownloadBody(languageName(from), languageName(to)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l.videoCancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l.videoTranslateDownload),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await translator.download(from, to);
+    }
+    say(l.videoTranslating(languageName(to)));
+    final SubtitleDocument translated;
+    try {
+      translated = await translator.translate(doc, from: from, to: to);
+    } on Object {
+      say(l.videoTranslateFailed);
+      return;
+    }
+    final name = l.videoTranslatedTitle(languageName(to));
+    final file = await ref
+        .read(sidecarLoaderProvider)
+        .store(
+          'translated.$to.srt',
+          encodeSubtitleText(const SrtParser().write(translated)),
+        );
+    if (file == null) return;
+    await c.addSubtitleFile(file.uri, title: name, language: to, select: true);
+  }
+
+  Future<String?> _chooseLanguage(String title, List<String> codes) =>
+      showDialog<String>(
+        context: context,
+        builder: (context) => SimpleDialog(
+          title: Text(title),
+          children: [
+            for (final code in codes)
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(context).pop(code),
+                child: Text(languageName(code)),
+              ),
+          ],
+        ),
+      );
 
   /// "Edit subtitles" (SUB-030): one of the subtitle files of this video
   /// (or a picked one) in the editor, with the video's clock.
@@ -246,7 +357,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     }
     final copy = await ref.read(sidecarLoaderProvider).store(name, bytes);
     if (copy != null) {
-      await _c?.addSubtitleFile(copy.uri, title: name, select: true);
+      await _c?.addSubtitleFile(
+        copy.uri,
+        title: name,
+        language: languageOfName(name),
+        select: true,
+      );
     }
     return where;
   }
@@ -262,7 +378,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         .read(sidecarLoaderProvider)
         .store(picked.name, picked.bytes);
     if (file == null) return;
-    await c.addSubtitleFile(file.uri, title: picked.name, select: true);
+    await c.addSubtitleFile(
+      file.uri,
+      title: picked.name,
+      language: languageOfName(picked.name),
+      select: true,
+    );
   }
 
   void _onPip() {
@@ -335,6 +456,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _sleep
       ?..removeListener(_onPip)
       ..dispose();
+    _speaker?.dispose();
+    _text?.dispose();
     final c = _c;
     final platform = _platform;
     if (platform != null) {
@@ -680,6 +803,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   ? null
                   : _addSubtitleFile,
               onEdit: _editSubtitles,
+              speaker: _speaker,
+              textSource: _text,
+              onTranslate:
+                  _optional(() => ref.read(translationProvider)) == null
+                  ? null
+                  : _translateSubtitles,
             ),
           ),
         ),
