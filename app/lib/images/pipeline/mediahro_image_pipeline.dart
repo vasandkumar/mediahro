@@ -707,16 +707,23 @@ final class MediahroImagePipeline implements ImagePipeline {
   /// that cannot be cleaned in place (HEIC, AVIF, RAW) throw
   /// [UnsupportedError]; convert them instead.
   Future<void> stripMetadataFile(ImageSource src) async {
+    await io.replace(src.uri, await strippedBytes(src));
+  }
+
+  /// The file's bytes without metadata (orientation and colour profile
+  /// stay), without re-encoding the picture. Throws [UnsupportedError] for
+  /// formats that cannot be cleaned that way.
+  Future<Uint8List> strippedBytes(ImageSource src) async =>
+      await tryStrippedBytes(src) ??
+      (throw UnsupportedError('This file cannot be cleaned in place.'));
+
+  /// Like [strippedBytes], null instead of an error when the format or size
+  /// does not allow it.
+  Future<Uint8List?> tryStrippedBytes(ImageSource src) async {
     final length = await _length(src);
-    if (length > 256 << 20) {
-      throw UnsupportedError('This file is too large to clean in place.');
-    }
+    if (length > 256 << 20) return null;
     final bytes = await _range(src.file, 0, length);
-    final clean = await worker.strip(bytes, extension: extensionOf(src.uri));
-    if (clean == null) {
-      throw UnsupportedError('This format cannot be cleaned in place.');
-    }
-    await io.replace(src.uri, clean);
+    return await worker.strip(bytes, extension: extensionOf(src.uri));
   }
 
   @override

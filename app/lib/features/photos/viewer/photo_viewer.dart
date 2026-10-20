@@ -13,6 +13,7 @@ import 'package:mediahro/features/photos/compare/compare_screen.dart';
 import 'package:mediahro/features/photos/compare/compare_tray.dart';
 import 'package:mediahro/features/photos/edit/editor_screen.dart';
 import 'package:mediahro/features/photos/info/info_sheet.dart';
+import 'package:mediahro/features/photos/output/output_actions.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -20,6 +21,7 @@ import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/photo_page.dart';
 import 'package:mediahro/features/photos/viewer/viewer_surface.dart';
 import 'package:mediahro/features/photos/viewer/zoom_math.dart';
+import 'package:mediahro/platform/imaging.dart' show ImagingSupport;
 import 'package:mediahro_design/mediahro_design.dart';
 
 abstract final class PhotoRoutes {
@@ -413,6 +415,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                 icon: const Icon(Icons.compare),
                                 onPressed: _toggleCompare,
                               ),
+                              _OutputMenu(entry: _entry),
                               KIconButton(
                                 icon: KIcon.info,
                                 label: l10n.photosInfo,
@@ -606,4 +609,28 @@ class _StripItem extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Share, wallpaper, print and copy for the photo in front of the user.
+class _OutputMenu extends ConsumerWidget {
+  const _OutputMenu({required this.entry});
+
+  final PhotoEntry entry;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final support =
+        ref.watch(photoOutputSupportProvider).value ?? const ImagingSupport();
+    final actions = outputActionsFor(support);
+    return PopupMenuButton<OutputAction>(
+      tooltip: l10n.photosMore,
+      iconColor: Colors.white,
+      onSelected: (a) => unawaited(runOutputAction(context, ref, a, [entry])),
+      itemBuilder: (_) => [
+        for (final a in actions)
+          PopupMenuItem(value: a, child: Text(outputActionLabel(l10n, a))),
+      ],
+    );
+  }
 }

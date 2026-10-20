@@ -16,6 +16,7 @@ import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/map/map_providers.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
 import 'package:mediahro/features/photos/organise/write_back.dart';
+import 'package:mediahro/features/photos/output/photo_output_service.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -221,6 +222,30 @@ final photoEditorProvider = Provider<PhotoEditor>(
     store: ref.watch(editStoreProvider),
   ),
 );
+
+/// Share, wallpaper, print and copy (IMG-015). Throws
+/// [PlatformCapabilityUnavailable] where the platform has no implementation.
+final photoOutputProvider = Provider<PhotoOutput>(
+  (ref) => PhotoOutputService(
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+    imaging: ref.watch(imagingProvider),
+    storage: ref.watch(storageProvider),
+    staging: Directory(
+      '${ref.watch(appDataDirectoryProvider).path}${Platform.pathSeparator}share-staging',
+    ),
+  ),
+);
+
+/// What the OS offers for output on this device; nothing when it offers
+/// nothing or the platform has no imaging facade.
+final photoOutputSupportProvider = FutureProvider<ImagingSupport>((ref) async {
+  try {
+    return await ref.watch(photoOutputProvider).support();
+  } on Object {
+    return const ImagingSupport();
+  }
+});
 
 /// Batch rename, convert, upright and strip (IMG-010).
 final photoBatchProvider = Provider<PhotoBatch>(

@@ -677,5 +677,44 @@
     }
   },
   "photosBatchFailedList": "Could not process:",
-  "photosBatchClose": "Close"
+  "photosBatchClose": "Close",
+  "photosShare": "Share",
+  "photosShareTitle": "{count, plural, =1{Share 1 photo} other{Share {count} photos}}",
+  "@photosShareTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosShareSize": "Size",
+  "photosShareSizeOriginal": "Original size",
+  "photosShareStrip": "Remove location and camera info",
+  "photosShareStripHint": "The photo looks the same. Where it was taken, the camera and the dates stay with you.",
+  "photosSharePreparing": "Preparing the photos",
+  "photosShareFailed": "Couldn't share. A photo may no longer be available.",
+  "photosWallpaper": "Set as wallpaper",
+  "photosWallpaperHome": "Home screen",
+  "photosWallpaperLock": "Lock screen",
+  "photosWallpaperBoth": "Home and lock screens",
+  "photosWallpaperSet": "Wallpaper set.",
+  "photosWallpaperFailed": "Couldn't set the wallpaper.",
+  "photosPrint": "Print",
+  "photosPrintTitle": "Print layout",
+  "photosPrintPerPage": "{count, plural, =1{1 photo per page} other{{count} photos per page}}",
+  "@photosPrintPerPage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPrintFill": "Fill the page (the edges may be cut)",
+  "photosPrintCaptions": "Add the file name under each photo",
+  "photosPrintFailed": "Couldn't start printing.",
+  "photosCopyImage": "Copy image",
+  "photosImageCopied": "Image copied.",
+  "photosCopyFailed": "Couldn't copy the image.",
+  "photosSettingsStripOnShare": "Remove location and camera info when sharing",
+  "photosSettingsStripOnShareHint": "Off: the share sheet starts with the original details. You can still switch it on for one share."
 }

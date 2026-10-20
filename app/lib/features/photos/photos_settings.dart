@@ -11,6 +11,13 @@ abstract final class PhotoSettings {
     'photos.writeOrganisationToFiles',
     defaultValue: false,
   );
+
+  /// The share sheet starts with "remove location and camera info" ticked
+  /// (IMG-006, IMG-015; opt-in).
+  static final SettingKey<bool> stripOnShare = SettingKey.boolean(
+    'photos.stripOnShare',
+    defaultValue: false,
+  );
 }
 
 final photoSettingsContributions = [
@@ -21,6 +28,11 @@ final photoSettingsContributions = [
         key: PhotoSettings.writeOrganisation,
         title: (l) => l.photosSettingsWriteMetadata,
         description: (l) => l.photosSettingsWriteMetadataHint,
+      ),
+      ToggleSetting(
+        key: PhotoSettings.stripOnShare,
+        title: (l) => l.photosSettingsStripOnShare,
+        description: (l) => l.photosSettingsStripOnShareHint,
       ),
     ],
   ),

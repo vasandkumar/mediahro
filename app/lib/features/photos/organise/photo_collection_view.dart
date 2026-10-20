@@ -13,6 +13,7 @@ import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
 import 'package:mediahro/features/photos/organise/write_back.dart';
+import 'package:mediahro/features/photos/output/output_actions.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
@@ -207,6 +208,10 @@ class SelectionBar extends ConsumerWidget {
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
                       writeBack((w) => w.tags(chosen));
+                    case 'share':
+                      await showShareSheet(context, ref, chosen);
+                    case 'print':
+                      await printFlow(context, ref, chosen);
                     case 'batch':
                       final photos = chosen.where((e) => !e.isVideo).toList();
                       if (photos.isEmpty) {
@@ -258,6 +263,13 @@ class SelectionBar extends ConsumerWidget {
                     PopupMenuItem(
                       value: 'applyLook',
                       child: Text(l10n.photosApplyLook),
+                    ),
+                  PopupMenuItem(value: 'share', child: Text(l10n.photosShare)),
+                  if (ref.watch(photoOutputSupportProvider).value?.print ??
+                      false)
+                    PopupMenuItem(
+                      value: 'print',
+                      child: Text(l10n.photosPrint),
                     ),
                   PopupMenuItem(value: 'batch', child: Text(l10n.photosBatch)),
                   PopupMenuItem(

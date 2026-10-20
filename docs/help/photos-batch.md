@@ -33,4 +33,4 @@ Both change the files themselves (after a warning). The photo keeps its place in
 
 ## While it runs
 
-A progress box shows how far it is; **Stop** ends the batch after the current photo. At the end a report says how many were done, how many needed nothing, and which could not be processed and why not to worry: the others are unaffected.
+A progress box shows how far it is; **Stop** ends the batch after the current photo. At the end a report says how many were done, how many needed nothing, and which could not be processed. The others are not affected.

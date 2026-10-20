@@ -232,6 +232,7 @@ final class PhotosHarness {
     required List<PhotoEntry> entries,
     Size size = const Size(400, 800),
     PhotoFacts? facts,
+    Map<String, Object?>? settings,
     List<Override> extra = const [],
   }) async {
     tester.view
@@ -239,7 +240,8 @@ final class PhotosHarness {
       ..devicePixelRatio = tester.view.devicePixelRatio;
     addTearDown(tester.view.resetPhysicalSize);
     final store =
-        await tester.runAsync(memoryStore) ?? (throw StateError('store'));
+        await tester.runAsync(() => memoryStore(settings)) ??
+        (throw StateError('store'));
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
