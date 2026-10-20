@@ -60,4 +60,10 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
    - Delete large artefacts as soon as their test is done.
    - Before any step that writes more than 1 GB, check free space and stop if C: has less than 10 GB.
 7. **At most 3 lane sessions run at once (owner).** The orchestrator schedules them. Never message another lane directly, because that wakes a paused session; send anything for another lane to the orchestrator.
+8. **No GitHub CI for now (owner, 2026-10-20).** ci.yml and engine.yml run only on manual dispatch. **Proof is local:**
+   - `tools/check` on your branch rebased on main.
+   - The integration tests for your IDs on the owner's Android test device, a Samsung SM-M176B on Android 16 paired over wireless debugging. It's shared: take `K:\Projects\.device-lock` first, as in rule 6.
+   - The Windows integration tests on this machine, if you touched shared Dart.
+
+   Paste the commands and their pass lines into the PR's evidence table, with the device serial and the commit. The orchestrator re-runs `tools/check` on the merge result before merging. Never push in order to test, and never start a workflow.
 

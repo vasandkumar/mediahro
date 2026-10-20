@@ -9,25 +9,8 @@
 name: engine
 
 on:
-  pull_request:
-    paths:
-      - 'packages/mediahro_engine/**'
-      - 'packages/mediahro_ffi/lib/src/mpv/**'
-      - 'packages/mediahro_ffi/ffigen/mpv.yaml'
-      - 'app/lib/engine/**'
-      - 'tools/corpus/**'
-      - 'test-media/**'
-      - 'deps.lock'
-      - '.github/workflows/engine.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'packages/mediahro_engine/**'
-      - 'packages/mediahro_ffi/lib/src/mpv/**'
-      - 'app/lib/engine/**'
-      - 'tools/corpus/**'
-      - 'deps.lock'
-      - '.github/workflows/engine.yml'
+  # Owner, 2026-10-20: no GitHub CI for now; testing runs locally and on the
+  # Android test device (docs/lanes/README.md rule 8). Manual runs only.
   workflow_dispatch:
   workflow_call:
 

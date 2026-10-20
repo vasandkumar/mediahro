@@ -6,11 +6,8 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
-    paths: ['**', '!docs/**', '!**/*.md']
-  pull_request:
-    paths: ['**', '!docs/**', '!**/*.md']
+  # Owner, 2026-10-20: no GitHub CI for now; all testing runs locally and on
+  # the Android test device (docs/lanes/README.md rule 8). Manual runs only.
   workflow_dispatch:
   workflow_call:
 
