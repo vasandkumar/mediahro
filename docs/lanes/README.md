@@ -73,4 +73,9 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
    - Stale: a lock older than 30 minutes is stale.
    Hold it only while installing and testing. The orchestrator takes the same lock when it verifies PRs.
    In Git Bash, put `export MSYS_NO_PATHCONV=1` before these commands. Otherwise Git Bash rewrites `/data/...` into a Windows path and mkdir fails with a misleading error.
+10. **Device testing in batches of 25 features (owner, 2026-10-20).**
+    - A PR merges on local proof: `tools/check` plus unit and widget tests, re-run by the orchestrator on the merge result.
+    - Its features are then "built, awaiting the device batch" (STATUS §1, *Android device batch*). They are not ☑ yet.
+    - When 25 features are waiting, the orchestrator runs every listed integration test on the Samsung in one go. It ticks what passes and sends each lane its failures as one list.
+    - Lanes don't wait for batch results: keep building. Fix batch failures first when they arrive.
 

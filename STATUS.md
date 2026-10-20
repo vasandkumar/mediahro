@@ -15,6 +15,12 @@ _Last updated: 2026-10-19 by the orchestrator._
 | **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4a Android · C4b Apple · C4c Windows · C4d Servers & casting · C5 Supporter, privacy, B2B, store metadata | started 2026-10-20, then **paused by the owner's rule: at most 3 lane sessions run at once.** The slots go first to the Phase B finishers (B1 pin switch-over, B2 network-env, B4a deps pin). After that the lanes rotate in this order: C4a Android → C4c Windows → C4b Apple → B4b/B4c (Tesseract + deps cache, v2026.10.5) → C1 → C3 → C2 → C5 → C4d. Briefs are in docs/lanes. | Each lane's IDs ☑ on every platform; integration branch builds daily |
 | **D — Hardening (M8)** | D1 Android · D2 iOS/iPadOS · D3 macOS · D4 Windows · D5 Localisation · D6 Store submission packs | not started | All doc 11 §7 release gates pass; 1.0 tagged |
 
+### Android device batch (owner, 2026-10-20: test 25 features at a time on the Samsung)
+
+| Batch | Features waiting for the device run | State |
+|---|---|---|
+| 1 | MUS-001, MUS-002, MUS-004, MUS-007 (#26, if merged) | collecting (4 of 25) |
+
 ### Phase A (M0) deliverables
 
 | Deliverable | State | Evidence |
@@ -417,6 +423,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | **Owner rule: device testing in batches of 25 features.** PRs merge on local proof (`tools/check` plus unit and widget tests, re-run by the orchestrator). Every 25 merged features, all their integration tests run on the Samsung in one go, and cells are ticked only after that run (lanes rule 10; batch table in §1). |
 | 2026-10-20 | **Owner decision: the first Play internal-test upload waits until Android has every feature** (177 Android cells for 1.0: 24 ☑, 137 ☐, 16 ⛔). This replaces the plan to upload a partial build today. Slots: C4a (Android platform code) keeps one slot; the other two rotate through the feature lanes C1, C2, C3, C4d, C5, B2, B1, one PR batch each. All Android ⛔ are being re-checked now that a real phone and local test servers exist: CORE-001, FILE-004, NET-001/002 and VID-030 are now testable; the sample-blocked ones go to B1 to generate with permissive tools; VID-004, AUD-040 and AUD-043 need owner hardware (HDMI receiver, USB DAC); VID-031 needs an HDR display. |
 | 2026-10-20 | Merged C4a **#25** (release signing from the gitignored key.properties with a debug fallback; kotlin.incremental=false) and **#24** (Media3 session, mediaPlayback foreground service, audio focus/noisy/outputs, POST_NOTIFICATIONS asked on first playback). #24's first Samsung run caught One UI hiding the media notification while POST_NOTIFICATIONS is denied; that's fixed. Verified: tools/check 325, Samsung media 9/9 + storage 13/13. SYS-001/002/006 A ticked; AUD-044/045 A moved from ⛔ to ☐. New owner decision pending: A2DP codec name (no public Android API). |
 | 2026-10-20 | Merged C4a **#23**: Android storage and photo library (SAF trees, MediaStore with OS trash and undo, Photo Picker, Motion Photo). Verified locally: `tools/check` on the merge result (321 pass) and c4a_android_storage_test 13/13 on the Samsung. SYS-007 A ticked. This unblocks B2's Android LIB-002/003, FILE-001/002, NET-018, LIB-007, CORE-014 and C3's IMG-016 A, pending their end-to-end runs. |
