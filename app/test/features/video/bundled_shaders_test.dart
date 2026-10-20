@@ -81,6 +81,31 @@ void main() {
     expect(File('${dir.path}/A.glsl').lastModifiedSync(), stamp);
   });
 
+  test('VID-038 the bundled folder holds exactly the files the presets use, '
+      'and their licences', () {
+    final dir = Directory(shaderAssetDir);
+    final present = {
+      for (final f in dir.listSync().whereType<File>()) f.uri.pathSegments.last,
+    };
+    final needed = {for (final p in bundledPresets) ...p.files};
+    expect(present, {...needed, 'LICENSE-Anime4K.txt', 'LICENSE-FSR.txt'});
+    for (final f in needed) {
+      expect(
+        File('${dir.path}/$f').readAsStringSync(),
+        contains('//!HOOK'),
+        reason: f,
+      );
+    }
+    expect(
+      File('${dir.path}/LICENSE-Anime4K.txt').readAsStringSync(),
+      startsWith('MIT License'),
+    );
+    expect(
+      File('${dir.path}/LICENSE-FSR.txt').readAsStringSync(),
+      contains('Advanced Micro Devices'),
+    );
+  });
+
   test('VID-038 every built-in preset uses only MIT shaders (ADR-034)', () {
     for (final p in bundledPresets) {
       for (final f in p.files) {
