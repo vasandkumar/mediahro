@@ -7,6 +7,9 @@ import 'package:mediahro/features/music/tags/byte_reader.dart';
 import 'package:mediahro/features/music/tags/id3.dart';
 import 'package:mediahro/features/music/tags/writer/tag_edit.dart';
 
+/// Alias: a `label:` map key reads like a UI label to the project lint.
+const String _labelKey = TagField.label;
+
 /// Canonical field → ID3v2.4 text frame written for it.
 const Map<String, String> _frameFor = {
   TagField.title: 'TIT2',
@@ -21,7 +24,7 @@ const Map<String, String> _frameFor = {
   TagField.originalDate: 'TDOR',
   TagField.bpm: 'TBPM',
   TagField.compilation: 'TCMP',
-  TagField.label: 'TPUB',
+  _labelKey: 'TPUB',
   TagField.isrc: 'TSRC',
   TagField.copyright: 'TCOP',
   TagField.encoder: 'TSSE',

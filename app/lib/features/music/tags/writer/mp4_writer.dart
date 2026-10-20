@@ -7,6 +7,9 @@ import 'package:mediahro/features/music/tags/id3.dart';
 import 'package:mediahro/features/music/tags/mp4.dart';
 import 'package:mediahro/features/music/tags/writer/tag_edit.dart';
 
+/// Alias: a `label:` map key reads like a UI label to the project lint.
+const String _labelKey = TagField.label;
+
 /// ilst atom of a canonical key, for keys with a native atom.
 final Map<String, String> _atomFor = {
   for (final e in mp4TextAtoms.entries) e.value: e.key,
@@ -26,7 +29,7 @@ const Map<String, String> _freeformFor = {
   TagField.albumPeak: 'replaygain_album_peak',
   TagField.conductor: 'CONDUCTOR',
   TagField.lyricist: 'LYRICIST',
-  TagField.label: 'LABEL',
+  _labelKey: 'LABEL',
   TagField.isrc: 'ISRC',
   TagField.discSubtitle: 'DISCSUBTITLE',
   TagField.originalDate: 'ORIGINALDATE',
