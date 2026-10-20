@@ -7,6 +7,27 @@ import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 
+/// An animated GIF, WebP or APNG, played by the engine's codec.
+final class ImageAnimation {
+  ImageAnimation(this.codec);
+
+  final ui.Codec codec;
+
+  int get frameCount => codec.frameCount;
+
+  /// The next frame and how long to show it; the caller disposes the image.
+  Future<(ui.Image, Duration)> next() async {
+    final f = await codec.getNextFrame();
+    final d = f.duration;
+    return (
+      f.image,
+      d == Duration.zero ? const Duration(milliseconds: 100) : d,
+    );
+  }
+
+  void dispose() => codec.dispose();
+}
+
 /// What the viewer needs to show one image: a base picture, its full size,
 /// and a loader for full-resolution tiles when the image is too big for one
 /// texture (IMG-004).
@@ -19,6 +40,7 @@ final class ViewerImage {
     this.previewOnly = false,
     this.onDispose,
     this.develop,
+    this.animation,
   });
 
   final ui.Image base;
@@ -35,11 +57,15 @@ final class ViewerImage {
   /// result replaces this image (null when nothing better is available).
   final Future<ViewerImage?> Function()? develop;
 
+  /// Set for animated images: [base] is the first frame.
+  final ImageAnimation? animation;
+
   /// Closes the file the tile loader reads from.
   final Future<void> Function()? onDispose;
 
   void dispose() {
     base.dispose();
+    animation?.dispose();
     final close = onDispose;
     if (close != null) unawaited(close());
   }
@@ -91,6 +117,11 @@ Future<ViewerImage> loadViewerImage(
       },
     );
   }
+  if (info.frames > 1 &&
+      (info.format == 'gif' || info.format == 'webp' || info.format == 'png')) {
+    final animated = await _animated(pipeline, src, info, onDispose);
+    if (animated != null) return animated;
+  }
   final plan = ViewerPlan.forSize(info.width, info.height);
   final base = await pipeline.decode(src, scale: plan.baseScale);
   final image = await uiImageFrom(base);
@@ -134,4 +165,29 @@ Future<ViewerImage> loadViewerImage(
     tileLoader: loader,
     onDispose: onDispose,
   );
+}
+
+/// The animation through `dart:ui`'s codec (frames are decoded on demand by
+/// the engine); null when it cannot be opened, so the still path runs.
+Future<ViewerImage?> _animated(
+  MediahroImagePipeline pipeline,
+  ImageSource src,
+  ImageInfo info,
+  Future<void> Function()? onDispose,
+) async {
+  try {
+    final bytes = await pipeline.readAll(src, max: 64 << 20);
+    final codec = await ui.instantiateImageCodec(bytes);
+    final animation = ImageAnimation(codec);
+    final (first, _) = await animation.next();
+    return ViewerImage(
+      base: first,
+      fullSize: ui.Size(first.width.toDouble(), first.height.toDouble()),
+      info: info,
+      animation: animation,
+      onDispose: onDispose,
+    );
+  } on Object {
+    return null;
+  }
 }

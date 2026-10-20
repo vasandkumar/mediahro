@@ -105,7 +105,9 @@ final class MediahroImagePipeline implements ImagePipeline {
     return n;
   }
 
-  Future<Uint8List> _readAll(ImageSource src, {int? max}) async {
+  /// The whole file, refusing anything above [max] (default: the buffer
+  /// limit).
+  Future<Uint8List> readAll(ImageSource src, {int? max}) async {
     final n = await _length(src);
     if (n > (max ?? maxBufferBytes)) {
       throw ImageBackendUnavailable('file too large to buffer ($n bytes)');
@@ -249,7 +251,7 @@ final class MediahroImagePipeline implements ImagePipeline {
     }
 
     // 3. Flutter's codecs, one image at a time.
-    final bytes = await _readAll(src);
+    final bytes = await readAll(src);
     final frame = await fallback.decode(bytes, maxEdge: edge);
     return await cache.store(key, await fallback.encodePng(frame), ext: 'png');
   }
@@ -288,14 +290,14 @@ final class MediahroImagePipeline implements ImagePipeline {
         if (length > maxBufferBytes) {
           throw const ImageBackendUnavailable('RAW without a usable preview');
         }
-        return (WireInput.bytes(await _readAll(src)), ImageFormat.raw);
+        return (WireInput.bytes(await readAll(src)), ImageFormat.raw);
       }
       final jpeg = await _range(src.file, p.offset, p.length);
       return (WireInput.bytes(jpeg), ImageFormat.jpeg);
     }
     final path = io.localPath(src.uri);
     if (path != null) return (WireInput.file(path), format);
-    return (WireInput.bytes(await _readAll(src)), format);
+    return (WireInput.bytes(await readAll(src)), format);
   }
 
   /// Cancels the queued jobs of [group] (a tile that scrolled away).
@@ -369,7 +371,7 @@ final class MediahroImagePipeline implements ImagePipeline {
     }
 
     // 3. Flutter's codecs.
-    final bytes = await _readAll(src);
+    final bytes = await readAll(src);
     final (w, h) = await fallback.size(bytes);
     final maxEdge = scale >= 1 ? null : (math.max(w, h) * scale).round();
     var f = await fallback.decode(bytes, maxEdge: maxEdge);
@@ -415,7 +417,7 @@ final class MediahroImagePipeline implements ImagePipeline {
   /// Throws [ImageBackendUnavailable] when LibRaw is missing or the file is
   /// too big to develop in memory.
   Future<DecodedImage> developRaw(ImageSource src) async => toDecoded(
-    await worker.decode(WireInput.bytes(await _readAll(src)), ImageFormat.raw),
+    await worker.decode(WireInput.bytes(await readAll(src)), ImageFormat.raw),
   );
 
   @override
@@ -452,7 +454,7 @@ final class MediahroImagePipeline implements ImagePipeline {
         }
       } on ImageBackendUnavailable {
         if (w == 0 || h == 0) {
-          final (fw, fh) = await fallback.size(await _readAll(src));
+          final (fw, fh) = await fallback.size(await readAll(src));
           w = fw;
           h = fh;
         }

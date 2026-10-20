@@ -33,6 +33,8 @@
   "photosFit": "Fit to screen",
   "photosFill": "Fill screen",
   "photosRotate": "Rotate",
+  "photosPlayAnimation": "Play animation",
+  "photosPauseAnimation": "Pause animation",
   "photosZoomPercent": "{percent}%",
   "@photosZoomPercent": {
     "placeholders": {

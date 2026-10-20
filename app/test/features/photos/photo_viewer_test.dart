@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter/services.dart';
@@ -485,5 +486,76 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(seen, [1]);
+  });
+
+  group('IMG-001 animated images', () {
+    // Two 1×1 frames (red then blue), 100 ms each.
+    final gif = Uint8List.fromList([
+      ...'GIF89a'.codeUnits, 1, 0, 1, 0, 0x80, 0, 0, //
+      255, 0, 0, 0, 0, 255, // palette
+      0x21, 0xF9, 4, 0, 10, 0, 0, 0, //
+      0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x44, 1, 0,
+      0x21, 0xF9, 4, 0, 10, 0, 0, 0,
+      0x2C, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x4C, 1, 0,
+      0x3B,
+    ]);
+
+    test('IMG-001 the animation yields each frame with its delay', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final codec = await ui.instantiateImageCodec(gif);
+      final a = ImageAnimation(codec);
+      expect(a.frameCount, 2);
+      final (f1, d1) = await a.next();
+      final (f2, _) = await a.next();
+      final (f3, _) = await a.next();
+      expect(d1, const Duration(milliseconds: 100));
+      expect((f1.width, f1.height), (1, 1));
+      for (final f in [f1, f2, f3]) {
+        f.dispose();
+      }
+      a.dispose();
+    });
+
+    testWidgets('IMG-001 an animated image gets a pause and play button', (
+      tester,
+    ) async {
+      final h = await PhotosHarness.create(tester);
+      entries = fakeEntries(days: 1);
+      final codec = await tester.runAsync(() => ui.instantiateImageCodec(gif));
+      final first = h.take();
+      final store =
+          await tester.runAsync(memoryStore) ?? (throw StateError('s'));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsStoreProvider.overrideWithValue(store),
+            ...h.overrides(
+              entries: entries,
+              loader: (e) async => e.id != 0
+                  ? h.take()
+                  : ViewerImage(
+                      base: first.base,
+                      fullSize: first.fullSize,
+                      info: first.info,
+                      animation: ImageAnimation(codec!),
+                    ),
+            ),
+          ],
+          child: MediahroApp(
+            router: buildRouter(
+              initialLocation: '/photos',
+              fullScreenRoutes: photoRoutes,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(KGridTile).first);
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Pause animation'), findsOneWidget);
+      await tester.tap(find.byTooltip('Pause animation'));
+      await tester.pump();
+      expect(find.byTooltip('Play animation'), findsOneWidget);
+    });
   });
 }

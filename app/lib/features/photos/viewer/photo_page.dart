@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +30,7 @@ class PhotoPage extends ConsumerStatefulWidget {
     this.onZoomChanged,
     this.onLoaded,
     this.onPlayVideo,
+    this.animationPlaying = false,
     super.key,
   });
 
@@ -50,12 +52,19 @@ class PhotoPage extends ConsumerStatefulWidget {
   final ValueChanged<ViewerImage>? onLoaded;
   final VoidCallback? onPlayVideo;
 
+  /// Whether an animated image advances (the viewer's play/pause).
+  final bool animationPlaying;
+
   @override
   ConsumerState<PhotoPage> createState() => _PhotoPageState();
 }
 
 class _PhotoPageState extends ConsumerState<PhotoPage> {
   ViewerImage? _image;
+  ui.Image? _frame;
+  bool _running = false;
+  Timer? _frameTimer;
+  Completer<void>? _frameWait;
   Object? _error;
   int _generation = 0;
 
@@ -65,19 +74,16 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
     if (!widget.entry.isVideo) unawaited(_load());
   }
 
-  @override
-  void didUpdateWidget(PhotoPage old) {
-    super.didUpdateWidget(old);
-    if (old.entry.id != widget.entry.id && !widget.entry.isVideo) {
-      _release();
-      unawaited(_load());
-    }
-  }
-
   void _release() {
     _generation++;
+    _frameTimer?.cancel();
+    final wait = _frameWait;
+    _frameWait = null;
+    if (wait != null && !wait.isCompleted) wait.complete();
     _image?.dispose();
     _image = null;
+    _frame?.dispose();
+    _frame = null;
     _error = null;
   }
 
@@ -102,8 +108,49 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
       widget.onLoaded?.call(image);
       final develop = image.develop;
       if (develop != null) unawaited(_develop(gen, develop));
+      if (image.animation != null && widget.animationPlaying) {
+        unawaited(_play(gen, image.animation!));
+      }
     } on Object catch (e) {
       if (mounted && gen == _generation) setState(() => _error = e);
+    }
+  }
+
+  /// Advances an animated image while it is playing and on screen.
+  Future<void> _play(int gen, ImageAnimation animation) async {
+    if (_running) return;
+    _running = true;
+    try {
+      while (mounted && gen == _generation && widget.animationPlaying) {
+        final (img, wait) = await animation.next();
+        if (!mounted || gen != _generation) {
+          img.dispose();
+          return;
+        }
+        final old = _frame;
+        setState(() => _frame = img);
+        old?.dispose();
+        final done = _frameWait = Completer<void>();
+        _frameTimer = Timer(wait, () {
+          if (!done.isCompleted) done.complete();
+        });
+        await done.future;
+      }
+    } finally {
+      _running = false;
+    }
+  }
+
+  @override
+  void didUpdateWidget(PhotoPage old) {
+    super.didUpdateWidget(old);
+    final a = _image?.animation;
+    if (a != null && widget.animationPlaying && !old.animationPlaying) {
+      unawaited(_play(_generation, a));
+    }
+    if (old.entry.id != widget.entry.id && !widget.entry.isVideo) {
+      _release();
+      unawaited(_load());
     }
   }
 
@@ -135,7 +182,7 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
         children: [
           ViewerSurface(
             key: ValueKey(widget.entry.id),
-            base: image.base,
+            base: _frame ?? image.base,
             fullSize: image.fullSize,
             tileLoader: image.tileLoader,
             mode: widget.mode,
