@@ -102,14 +102,27 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
           actions: [
             PopupMenuButton<String>(
               tooltip: l10n.musicMoreNowPlaying,
-              onSelected: (v) => switch (v) {
-                'sound' => showSoundSheet(context),
-                'alarms' => openAlarms(context),
-                _ => null,
+              onSelected: (v) async {
+                switch (v) {
+                  case 'sound':
+                    showSoundSheet(context);
+                  case 'alarms':
+                    await openAlarms(context);
+                  case 'undoTags':
+                    final messenger = ScaffoldMessenger.maybeOf(context);
+                    await ref.read(tagEditorProvider).undoLast();
+                    messenger?.showSnackBar(
+                      SnackBar(content: Text(l10n.musicTagUndone)),
+                    );
+                }
               },
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'sound', child: Text(l10n.musicSound)),
                 PopupMenuItem(value: 'alarms', child: Text(l10n.musicAlarms)),
+                PopupMenuItem(
+                  value: 'undoTags',
+                  child: Text(l10n.musicTagUndo),
+                ),
               ],
             ),
             if (ref.watch(

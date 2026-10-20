@@ -22,6 +22,7 @@ import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro/features/music/tags/writer/tag_editor.dart';
 import 'package:mediahro/features/music/visualizer/visualizer.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
@@ -204,6 +205,23 @@ final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
     FutureProvider.family<Lyrics?, MusicTrack>(
       (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
     );
+
+/// Safe tag editing (MUS-003).
+final tagEditorProvider = Provider<TagEditor>(
+  (ref) => TagEditor(
+    db: ref.watch(libraryDatabaseProvider),
+    files: ref.watch(musicFilesProvider),
+    art: ref.watch(artworkStoreProvider),
+    prefs: ref.watch(musicPrefsProvider),
+    cacheDir: Directory(
+      [
+        ref.watch(appDataDirectoryProvider).path,
+        'music',
+        'edit',
+      ].join(Platform.pathSeparator),
+    ),
+  ),
+);
 
 /// Audio tap for the visualiser (AUD-046). Null until the engine's
 /// `audioTap` (ADR-027, lane B1) is available; then this adapts it.
