@@ -189,6 +189,9 @@ final class MpvEngine implements PlaybackEngine {
   /// Render path of the current surface (stats overlay, VID-072).
   String? get renderBackend => _surface?.backend;
 
+  /// Whether the render bridge runs on the iOS Simulator (VID-030 tests).
+  bool get renderOnSimulator => _surface?.simulator ?? false;
+
   /// Why the render bridge gave no surface, if it failed (diagnostics).
   String? get surfaceError => _surfaceError;
   String? _surfaceError;

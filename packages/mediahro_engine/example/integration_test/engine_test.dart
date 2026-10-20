@@ -96,13 +96,14 @@ void renderBridgeSuite() {
       );
       final backend = engine.renderBackend;
       expect(backend, isNot('unknown'));
-      // GL readback exists only for the iOS Simulator; every device and
-      // macOS must render zero-copy (VID-030).
-      final simulator = Platform.environment.containsKey(
-        'SIMULATOR_DEVICE_NAME',
-      );
-      if (!(Platform.isIOS && simulator)) {
-        expect(backend, isNot('opengl-readback'), reason: 'zero-copy only');
+      // GL readback exists only for the iOS Simulator (the bridge reports
+      // it at compile time); every device and macOS renders zero-copy.
+      if (backend == 'opengl-readback') {
+        expect(
+          engine.renderOnSimulator,
+          isTrue,
+          reason: 'readback outside the iOS Simulator',
+        );
       }
       // The info overlay (VID-072) reads the same backend from the state.
       final shown = await waitFor(

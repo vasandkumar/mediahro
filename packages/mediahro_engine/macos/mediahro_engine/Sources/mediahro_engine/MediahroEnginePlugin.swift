@@ -90,7 +90,14 @@ public class MediahroEnginePlugin: NSObject, FlutterPlugin {
         return
       }
       surfaces[surface.textureId] = surface
-      result(["textureId": surface.textureId, "backend": surface.backend])
+      #if targetEnvironment(simulator)
+      let simulator = true
+      #else
+      let simulator = false
+      #endif
+      result([
+        "textureId": surface.textureId, "backend": surface.backend, "simulator": simulator,
+      ])
     case "resize":
       if let id = (args["textureId"] as? NSNumber)?.int64Value,
         let w = (args["width"] as? NSNumber)?.intValue,

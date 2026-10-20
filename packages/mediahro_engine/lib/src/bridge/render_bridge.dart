@@ -10,6 +10,7 @@ final class RenderSurface {
     required this.textureId,
     this.androidSurface,
     this.backend = 'unknown',
+    this.simulator = false,
   });
 
   /// Flutter external texture id for the `Texture` widget.
@@ -23,6 +24,10 @@ final class RenderSurface {
   /// Render path, shown in the stats overlay (VID-072), e.g. `d3d11`,
   /// `opengl-iosurface`, `android-surface`.
   final String backend;
+
+  /// Whether the bridge was built for the iOS Simulator (compile-time), the
+  /// only place GL readback is allowed (VID-030).
+  final bool simulator;
 }
 
 /// Native half of the engine (docs/05 §4.3): registers the platform texture
@@ -87,6 +92,7 @@ final class RenderBridge {
       textureId: r['textureId']! as int,
       androidSurface: r['androidSurface'] as int?,
       backend: r['backend'] as String? ?? 'unknown',
+      simulator: r['simulator'] as bool? ?? false,
     );
   }
 
