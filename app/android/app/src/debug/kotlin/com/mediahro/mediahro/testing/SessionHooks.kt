@@ -53,6 +53,26 @@ internal object SessionHooks {
                 activity?.onBackPressedDispatcher?.onBackPressed()
                 reply(activity != null)
             }
+            // Home-screen widget (MUS-012): its stored state, and a button tap
+            // sent to the real receiver.
+            "widgetState" -> {
+                val prefs = context.getSharedPreferences("mediahro.widget", Context.MODE_PRIVATE)
+                reply(
+                    mapOf(
+                        "title" to prefs.getString("title", null),
+                        "artist" to prefs.getString("artist", null),
+                        "playing" to prefs.getBoolean("playing", false),
+                        "hasArtwork" to java.io.File(context.filesDir, "widget-art").exists(),
+                    ),
+                )
+            }
+            "widgetTap" -> {
+                context.sendBroadcast(
+                    Intent(context, com.mediahro.mediahro.platform.widgets.WidgetActionReceiver::class.java)
+                        .setAction("com.mediahro.mediahro.widget.$arg"),
+                )
+                reply(true)
+            }
             "notificationDiag" -> reply(notificationDiag(context))
             "notificationPrompt" -> {
                 MediaSessionModule.askForNotifications = arg as Boolean

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home-screen widget colours (MUS-012); contrast above 4.5:1 on the surface. -->
+<resources>
+    <color name="mediahro_widget_surface">#F2FFFFFF</color>
+    <color name="mediahro_widget_text">#FF1B1B1F</color>
+    <color name="mediahro_widget_text_secondary">#FF45464F</color>
+</resources>
