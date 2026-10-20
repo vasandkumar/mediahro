@@ -1,0 +1,37 @@
+# jxl (BSD-3-Clause) - image decoding (C3). Headers: .deps-cache/headers/jxl.
+# The checked-in bindings are hand-written to this same shape (no libclang on
+# the PC); regenerate with ffigen when it is available:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/jxl.yaml)
+name: JxlBindings
+description: Bindings to jxl.
+output: ../lib/src/jxl/jxl_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/jxl/include/jxl/decode.h
+    - ../../../.deps-cache/headers/jxl/include/jxl/color_encoding.h
+  include-directives:
+    - '**/jxl/decode.h'
+    - '**/jxl/color_encoding.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/jxl/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - JxlDecoderCreate
+    - JxlDecoderDestroy
+    - JxlDecoderSubscribeEvents
+    - JxlDecoderSetInput
+    - JxlDecoderCloseInput
+    - JxlDecoderProcessInput
+    - JxlDecoderGetBasicInfo
+    - JxlDecoderImageOutBufferSize
+    - JxlDecoderSetImageOutBuffer
+    - JxlDecoderSkipFrames
+    - JxlDecoderSetOutputColorProfile
+    - JxlColorEncodingSetToSRGB
+    - JxlDecoderSetUnpremultiplyAlpha
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

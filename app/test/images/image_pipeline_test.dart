@@ -9,6 +9,7 @@ import 'package:mediahro/images/metadata/metadata_codec.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
+import 'package:mediahro/images/pipeline/pixel_ops.dart';
 import 'package:mediahro/images/pipeline/thumbnail_cache.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
 import 'package:mediahro/platform/imaging.dart';
@@ -166,7 +167,7 @@ void main() {
     test(
       'IMG-003 a RAW without an embedded preview is a typed error, not a crash',
       () async {
-        final p = pipeline();
+        final p = pipeline(factory: emptyWorker);
         final src = source(io.add('IMG_0002.nef', sampleTiff()));
         await expectLater(
           p.thumbnailFile(src, 256),
@@ -355,24 +356,17 @@ void main() {
       expect(png.sublist(0, 3), [0xEE, 10, 5]);
     });
 
-    test(
-      'IMG-010 AVIF and HEIC encode need the OS, JXL needs libjxl',
-      () async {
-        final p = pipeline();
-        final img = DecodedImage(width: 2, height: 2, pixels: Uint8List(16));
-        for (final f in [
-          EncodeFormat.avif,
-          EncodeFormat.heic,
-          EncodeFormat.jxl,
-        ]) {
-          await expectLater(
-            p.encode(img, EncodeOptions(format: f)),
-            throwsUnsupportedError,
-            reason: f.name,
-          );
-        }
-      },
-    );
+    test('IMG-010 AVIF and HEIC encode need the OS', () async {
+      final p = pipeline();
+      final img = DecodedImage(width: 2, height: 2, pixels: Uint8List(16));
+      for (final f in [EncodeFormat.avif, EncodeFormat.heic]) {
+        await expectLater(
+          p.encode(img, EncodeOptions(format: f)),
+          throwsUnsupportedError,
+          reason: f.name,
+        );
+      }
+    });
 
     test(
       'IMG-010 encode uses the OS encoder when it lists the format',
@@ -441,6 +435,48 @@ void main() {
     );
   });
 
+  group('IMG-001 RAW without TIFF previews, develop, JPEG XL', () {
+    test(
+      'IMG-001 a RAW with no TIFF preview goes to the decoder as a RAW',
+      () async {
+        final p = pipeline();
+        final src = source(
+          io.add('IMG_0003.cr3', _fakeRaw(withPreview: false).bytes),
+        );
+        final file = await p.thumbnailFile(src, 256);
+        // The fake codec read the whole file (as a RAW), not a preview.
+        expect(file.readAsBytesSync().first, 0xEE);
+      },
+    );
+
+    test('IMG-001 developRaw sends the whole file to the RAW codec', () async {
+      final p = pipeline();
+      final raw = _fakeRaw(withPreview: false).bytes;
+      final img = await p.developRaw(source(io.add('a.nef', raw)));
+      expect(img.width, greaterThan(0));
+    });
+
+    test('IMG-010 JPEG XL is encoded by the worker pool', () async {
+      final p = pipeline();
+      final out = await p.encode(
+        DecodedImage(width: 4, height: 2, pixels: Uint8List(32)),
+        const EncodeOptions(format: EncodeFormat.jxl),
+      );
+      expect(out.first, 0xEE);
+    });
+
+    test('IMG-010 JPEG XL encoding without libjxl is a typed error', () async {
+      final p = pipeline(factory: emptyWorker);
+      await expectLater(
+        p.encode(
+          DecodedImage(width: 2, height: 2, pixels: Uint8List(16)),
+          const EncodeOptions(format: EncodeFormat.jxl),
+        ),
+        throwsUnsupportedError,
+      );
+    });
+  });
+
   group('IMG-003 pixel helpers', () {
     test('IMG-003 downscaleToEdge keeps the aspect ratio and averages', () {
       final f = PixelFrame(
@@ -507,7 +543,7 @@ void main() {
 
 /// A TIFF "RAW" with IFD0 pointing at a 3000-byte JPEG preview via a
 /// JPEGInterchangeFormat pair in IFD1.
-({Uint8List bytes, int previewLength}) _fakeRaw() {
+({Uint8List bytes, int previewLength}) _fakeRaw({bool withPreview = true}) {
   const previewLength = 3000;
   const previewAt = 512;
   final b = Uint8List(previewAt + previewLength + 100);
@@ -533,8 +569,10 @@ void main() {
     p += 12;
   }
 
-  entry(0x0201, previewAt);
-  entry(0x0202, previewLength);
+  if (withPreview) {
+    entry(0x0201, previewAt);
+    entry(0x0202, previewLength);
+  }
   v.setUint32(p, 0);
   b[previewAt] = 0xFF;
   b[previewAt + 1] = 0xD8;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart';
+import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
@@ -399,6 +402,51 @@ void main() {
       await tester.pumpAndSettle();
       expect(edits.saved, isEmpty);
     });
+  });
+
+  testWidgets('IMG-001 a RAW shows its preview, then the developed picture', (
+    tester,
+  ) async {
+    final h = await PhotosHarness.create(tester);
+    entries = fakeEntries(days: 1);
+    final developed = Completer<ViewerImage?>();
+    final preview = h.take();
+    final store = await tester.runAsync(memoryStore) ?? (throw StateError('s'));
+    var first = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsStoreProvider.overrideWithValue(store),
+          ...h.overrides(
+            entries: entries,
+            loader: (entry) async {
+              if (!first) return h.take();
+              first = false;
+              return ViewerImage(
+                base: preview.base,
+                fullSize: preview.fullSize,
+                info: preview.info,
+                previewOnly: true,
+                develop: () => developed.future,
+              );
+            },
+          ),
+        ],
+        child: MediahroApp(
+          router: buildRouter(
+            initialLocation: '/photos',
+            fullScreenRoutes: photoRoutes,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(KGridTile).first);
+    await tester.pumpAndSettle();
+    expect(find.text("Showing the camera's preview"), findsOneWidget);
+    developed.complete(h.take());
+    await tester.pumpAndSettle();
+    expect(find.text("Showing the camera's preview"), findsNothing);
   });
 
   testWidgets('IMG-004 a video shows a play button that opens the player', (

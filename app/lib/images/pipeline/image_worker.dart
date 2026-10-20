@@ -5,10 +5,12 @@ import 'dart:typed_data';
 import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/metadata/metadata_codec.dart';
+import 'package:mediahro/images/pipeline/native_pixel_codecs.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
 import 'package:mediahro/images/pipeline/vips_pixel_codec.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
-import 'package:mediahro_ffi/mediahro_ffi.dart' show NativeLibraryUnavailable;
+import 'package:mediahro_ffi/mediahro_ffi.dart'
+    show AvifException, NativeLibraryUnavailable;
 
 /// No codec on this device can do the job (library missing, format not
 /// covered); the pipeline falls back to the OS decoders.
@@ -265,10 +267,31 @@ ImageReply _thumb(PixelCodec codec, ThumbJob job) {
 /// pool can hand it to a new isolate.
 WorkerHandler defaultImageWorker() {
   final codecs = <PixelCodec>[];
+  PixelCodec? vips;
+  // Each library is optional: a missing one leaves its formats to the next
+  // backend, and metadata jobs still work.
   try {
-    codecs.add(VipsPixelCodec());
+    vips = VipsPixelCodec();
+    codecs.add(vips);
   } on NativeLibraryUnavailable {
-    // Metadata jobs still work; pixel jobs report UnsupportedReply.
+    // libvips missing.
+  }
+  try {
+    codecs.add(JxlPixelCodec());
+  } on NativeLibraryUnavailable {
+    // libjxl missing.
+  }
+  try {
+    codecs.add(AvifPixelCodec());
+  } on NativeLibraryUnavailable {
+    // libavif missing.
+  } on AvifException {
+    // An unsupported libavif major version.
+  }
+  try {
+    codecs.add(RawPixelCodec(jpeg: vips));
+  } on NativeLibraryUnavailable {
+    // LibRaw missing.
   }
   return imageJobHandler(CompositePixelCodec(codecs));
 }

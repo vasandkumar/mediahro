@@ -163,6 +163,9 @@ final class PhotosHarness {
     return h;
   }
 
+  /// The next prepared viewer image.
+  ViewerImage take() => _images.removeFirst();
+
   Future<void> dispose() async {
     await db.close();
     if (dir.existsSync()) {
@@ -198,17 +201,20 @@ final class PhotosHarness {
   List<Override> overrides({
     required List<PhotoEntry> entries,
     PhotoFacts? facts,
-    void Function(PhotoEntry)? onOpenVideo,
+    ViewerImageLoader? loader,
   }) => [
     libraryDatabaseProvider.overrideWithValue(db),
     photoEntriesProvider.overrideWith((ref) => Stream.value(entries)),
     thumbnailSourceProvider.overrideWith((ref, edge) => thumbs),
-    viewerImageLoaderProvider.overrideWithValue((entry) async {
-      opened.add(entry);
-      final e = loadError;
-      if (e != null) throw e;
-      return _images.removeFirst();
-    }),
+    viewerImageLoaderProvider.overrideWithValue(
+      loader ??
+          (entry) async {
+            opened.add(entry);
+            final e = loadError;
+            if (e != null) throw e;
+            return _images.removeFirst();
+          },
+    ),
     photoFactsProvider.overrideWith(
       (ref, entry) async => facts ?? this.facts(),
     ),

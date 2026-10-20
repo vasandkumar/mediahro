@@ -5,8 +5,8 @@ import 'package:mediahro/images/image_format.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
 import 'package:mediahro/images/pipeline/image_worker.dart';
-import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
+import 'package:mediahro/images/pipeline/pixel_ops.dart';
 import 'package:mediahro/images/pipeline/ui_fallback.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
 import 'package:mediahro/platform/imaging.dart';
@@ -42,14 +42,19 @@ final class FakeCodec implements PixelCodec {
   bool canWrite(EncodeFormat format) =>
       format == EncodeFormat.jpeg ||
       format == EncodeFormat.png ||
-      format == EncodeFormat.webp;
+      format == EncodeFormat.webp ||
+      format == EncodeFormat.jxl;
 
   Uint8List _bytes(ImageInput input) => switch (input) {
     BytesInput(:final bytes) => bytes,
     FileInput() => throw const CodecUnsupported('fake codec reads buffers'),
   };
 
-  PixelFrame _frame(Uint8List b) {
+  PixelFrame _frame(Uint8List b, ImageFormat format) {
+    if (format == ImageFormat.raw) {
+      // A whole RAW file: "developed" to a tiny frame.
+      return PixelFrame(width: 3, height: 2, rgba: Uint8List(24));
+    }
     if (b.length > 2 && b[0] == 0xFF && b[1] == 0xD8) {
       final w = b.length % 200 + 1;
       return PixelFrame(width: w, height: 1, rgba: Uint8List(w * 4));
@@ -65,13 +70,13 @@ final class FakeCodec implements PixelCodec {
 
   @override
   PixelHeader header(ImageInput input, ImageFormat format) {
-    final f = _frame(_bytes(input));
+    final f = _frame(_bytes(input), format);
     return PixelHeader(width: f.width, height: f.height);
   }
 
   @override
   PixelFrame thumbnail(ImageInput input, int edge, ImageFormat format) {
-    final f = _frame(_bytes(input));
+    final f = _frame(_bytes(input), format);
     return PixelFrame(
       width: f.width,
       height: f.height,
@@ -89,7 +94,7 @@ final class FakeCodec implements PixelCodec {
     double scale = 1,
     int frame = 0,
   }) {
-    final f = _frame(_bytes(input));
+    final f = _frame(_bytes(input), format);
     return region == null ? f : cropFrame(f, region, 1);
   }
 

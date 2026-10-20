@@ -100,9 +100,29 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
       }
       setState(() => _image = image);
       widget.onLoaded?.call(image);
+      final develop = image.develop;
+      if (develop != null) unawaited(_develop(gen, develop));
     } on Object catch (e) {
       if (mounted && gen == _generation) setState(() => _error = e);
     }
+  }
+
+  /// A RAW shown from its preview is developed in the background and swapped
+  /// in when ready.
+  Future<void> _develop(
+    int gen,
+    Future<ViewerImage?> Function() develop,
+  ) async {
+    final full = await develop();
+    if (full == null) return;
+    if (!mounted || gen != _generation) {
+      full.dispose();
+      return;
+    }
+    final old = _image;
+    setState(() => _image = full);
+    widget.onLoaded?.call(full);
+    old?.dispose();
   }
 
   @override

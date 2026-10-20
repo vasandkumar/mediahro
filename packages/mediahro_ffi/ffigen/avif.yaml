@@ -1,0 +1,34 @@
+# avif (BSD-2-Clause) - image decoding (C3). Headers: .deps-cache/headers/avif.
+# The checked-in bindings are hand-written to this same shape (no libclang on
+# the PC); regenerate with ffigen when it is available:
+#   (cd packages/mediahro_ffi && dart run ffigen --config ffigen/avif.yaml)
+name: AvifBindings
+description: Bindings to avif.
+output: ../lib/src/avif/avif_bindings.dart
+headers:
+  entry-points:
+    - ../../../.deps-cache/headers/avif/include/avif/avif.h
+  include-directives:
+    - '**/avif/avif.h'
+compiler-opts:
+  - '-I../../.deps-cache/headers/avif/include'
+exclude-all-by-default: true
+functions:
+  include:
+    - avifVersion
+    - avifResultToString
+    - avifDecoderCreate
+    - avifDecoderDestroy
+    - avifDecoderSetIOMemory
+    - avifDecoderParse
+    - avifDecoderNextImage
+    - avifDecoderNthImage
+    - avifRGBImageSetDefaults
+    - avifRGBImageAllocatePixels
+    - avifRGBImageFreePixels
+    - avifImageYUVToRGB
+comments:
+  style: any
+  length: brief
+preamble: |
+  // ignore_for_file: type=lint, unused_field

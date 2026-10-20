@@ -18,6 +18,7 @@ final class ViewerImage {
     this.tileLoader,
     this.previewOnly = false,
     this.onDispose,
+    this.develop,
   });
 
   final ui.Image base;
@@ -29,6 +30,10 @@ final class ViewerImage {
 
   /// A RAW shown from its embedded preview.
   final bool previewOnly;
+
+  /// A RAW shown from its preview can be developed in the background; the
+  /// result replaces this image (null when nothing better is available).
+  final Future<ViewerImage?> Function()? develop;
 
   /// Closes the file the tile loader reads from.
   final Future<void> Function()? onDispose;
@@ -71,6 +76,19 @@ Future<ViewerImage> loadViewerImage(
       info: info,
       previewOnly: true,
       onDispose: onDispose,
+      develop: () async {
+        try {
+          final full = await pipeline.developRaw(src);
+          return ViewerImage(
+            base: await uiImageFrom(full),
+            fullSize: ui.Size(full.width.toDouble(), full.height.toDouble()),
+            info: info,
+          );
+        } on Object {
+          // LibRaw missing or the file too big: the preview stays.
+          return null;
+        }
+      },
     );
   }
   final plan = ViewerPlan.forSize(info.width, info.height);
