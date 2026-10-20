@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/video_target.dart';
@@ -123,6 +124,12 @@ abstract interface class PlaybackEngine {
 
   /// Output devices for [AudioOutputConfig.deviceId] (AUD-040…042, VID-004).
   Future<List<EngineAudioDevice>> audioDevices();
+
+  /// Analysis of the audio being played for visualisers (AUD-046, ADR-027):
+  /// a broadcast stream of [AudioTapFrame]s over windows of [frames]
+  /// samples, about 30 per second while playing. Costs nothing until the
+  /// first listener and stops when the last one cancels.
+  Stream<AudioTapFrame> audioTap({int frames = 1024});
 
   /// Flutter external texture id for the video surface; null for the music
   /// role or before the first frame.

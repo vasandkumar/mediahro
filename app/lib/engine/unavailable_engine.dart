@@ -119,5 +119,7 @@ final class UnavailableEngine implements PlaybackEngine {
   @override
   Future<List<EngineAudioDevice>> audioDevices() async => const [];
   @override
+  Stream<AudioTapFrame> audioTap({int frames = 1024}) => const Stream.empty();
+  @override
   Future<void> dispose() async {}
 }

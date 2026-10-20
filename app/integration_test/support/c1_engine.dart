@@ -216,6 +216,10 @@ final class RecordingEngine implements PlaybackEngine {
   Future<List<EngineAudioDevice>> audioDevices() => fake.audioDevices();
 
   @override
+  Stream<AudioTapFrame> audioTap({int frames = 1024}) =>
+      fake.audioTap(frames: frames);
+
+  @override
   Future<void> dispose() async {
     await _extra.close();
     await fake.dispose();

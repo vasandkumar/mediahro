@@ -37,6 +37,8 @@ const Map<String, int> observedProperties = {
   'audio-device': MpvFormat.string,
   'audio-exclusive': MpvFormat.flag,
   'secondary-sub-text': MpvFormat.string,
+  'media-title': MpvFormat.string,
+  'filtered-metadata': MpvFormat.node,
 };
 
 Duration? _seconds(Object? v) => v is num
@@ -93,6 +95,16 @@ PlaybackState applyProperty(PlaybackState s, String name, Object? value) {
       return s.copyWith(video: applyVideoParams(s.video, value, s.tracks));
     case 'hwdec-current':
       return s.copyWith(video: s.video.copyWith(hwdec: parseHwdec(value)));
+    case 'media-title':
+      return s.copyWith(mediaTitle: value is String ? value : null);
+    case 'filtered-metadata':
+      return s.copyWith(
+        mediaMetadata: {
+          if (value is Map)
+            for (final MapEntry(:key, :value) in value.entries)
+              if (key is String && value != null) key: '$value',
+        },
+      );
     case 'file-format':
       return s.copyWith(
         video: s.video.copyWith(container: value is String ? value : null),

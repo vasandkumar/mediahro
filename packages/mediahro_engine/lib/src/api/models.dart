@@ -251,6 +251,15 @@ abstract class PlaybackState with _$PlaybackState {
     /// True while audio focus has the engine ducked (AUD-045). [volume] stays
     /// the user's volume throughout.
     @Default(false) bool ducked,
+
+    /// Title of what is playing (mpv `media-title`): the tag title, the ICY
+    /// `StreamTitle` of internet radio, or the file name (MUS-014).
+    String? mediaTitle,
+
+    /// The item's metadata tags (mpv `filtered-metadata`: artist, album,
+    /// icy-name, icy-genre, …), updated live for ICY and HLS ID3 streams
+    /// (MUS-014).
+    @Default(<String, String>{}) Map<String, String> mediaMetadata,
   }) = _PlaybackState;
 }
 

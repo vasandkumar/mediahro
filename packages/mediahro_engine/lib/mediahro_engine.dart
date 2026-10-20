@@ -2,6 +2,7 @@
 /// Mediahro Engine SDK (B2B-004), and its libmpv implementation.
 library;
 
+export 'src/api/audio_tap.dart';
 export 'src/api/media_source.dart';
 export 'src/api/models.dart';
 export 'src/api/playback_engine.dart';
