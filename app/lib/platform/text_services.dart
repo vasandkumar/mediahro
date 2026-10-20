@@ -35,10 +35,10 @@ final class SpeechVoice {
   final String languageTag;
 }
 
-/// On-device OCR for image subtitles (SUB-051): Vision (I M), ML Kit text
-/// recognition (A, `store`/`direct` only), Windows.Media.Ocr (W). Builds
-/// without a platform recogniser report [isSupported] false and SUB-051
-/// uses the Tesseract fallback over FFI.
+/// On-device OCR for image subtitles (SUB-051) and language identification:
+/// Tesseract + Leptonica and CLD3 over FFI on every platform and flavour
+/// (ADR-034). Nothing leaves the device; [isSupported] is false until the
+/// language's data is installed.
 abstract interface class TextRecognitionFacade {
   Future<bool> isSupported(String languageTag);
 
@@ -76,10 +76,10 @@ final class RecognizedLine {
   final int height;
 }
 
-/// On-device translation (SUB-053): Apple Translation (I M), ML Kit
-/// translation (A, `store`/`direct`), Windows on-device translation where
-/// present. Never sends text off the device; a language-pack download is a
-/// network call the user confirms first (PRIV-004).
+/// On-device translation (SUB-053): Mozilla Bergamot over FFI on every
+/// platform and flavour (ADR-034). Never sends text off the device; a
+/// language-pair model download is a network call the user confirms first
+/// (PRIV-004).
 abstract interface class TranslationFacade {
   Future<List<TranslationPair>> supportedPairs();
 

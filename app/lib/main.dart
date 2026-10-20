@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/router.dart';
 import 'package:mediahro/app/services.dart';
 import 'package:mediahro/features/music/music_wiring.dart';
+import 'package:mediahro/features/video/player/bundled_shaders.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/platform/platform_bindings.dart';
 
@@ -12,6 +15,8 @@ Future<void> main() async {
   // language and last mode (CORE-001, CORE-007), and the network policy
   // reads the privacy switches (CORE-015, PRIV-004).
   final services = await AppServices.open();
+  // Licence notices for the bundled shaders (CORE-013).
+  unawaited(registerShaderLicences());
   runApp(
     mediahroRoot(
       services.settings,

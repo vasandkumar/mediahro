@@ -55,3 +55,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    # MIT-licensed shader presets (VID-038, ADR-034); provenance in
+    # features/video/player/bundled_shaders.dart.
+    - assets/shaders/
