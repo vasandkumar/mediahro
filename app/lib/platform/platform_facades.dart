@@ -1,27 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/platform/audio_output.dart';
 import 'package:mediahro/platform/auth_browser.dart';
+import 'package:mediahro/platform/car_and_alarms.dart';
 import 'package:mediahro/platform/cast.dart';
 import 'package:mediahro/platform/display.dart';
 import 'package:mediahro/platform/enterprise.dart';
 import 'package:mediahro/platform/media_session.dart';
 import 'package:mediahro/platform/network_status.dart';
+import 'package:mediahro/platform/purchases.dart';
 import 'package:mediahro/platform/secure_transport.dart';
 import 'package:mediahro/platform/security.dart';
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro/platform/system_integration.dart';
+import 'package:mediahro/platform/text_services.dart';
 
 export 'audio_output.dart';
 export 'auth_browser.dart';
+export 'car_and_alarms.dart';
 export 'cast.dart';
 export 'display.dart';
 export 'enterprise.dart';
 export 'media_session.dart';
 export 'network_status.dart';
+export 'purchases.dart';
 export 'secure_transport.dart';
 export 'security.dart';
 export 'storage.dart';
 export 'system_integration.dart';
+export 'text_services.dart';
 
 /// Thrown when a facade has no implementation on this platform/flavour yet
 /// or by design; callers map it to "Not available on this device".
@@ -37,7 +43,7 @@ final class PlatformCapabilityUnavailable implements Exception {
 Never _unavailable(String name) => throw PlatformCapabilityUnavailable(name);
 
 // One provider per facade (docs/05 §8). Lane C4 overrides each with its
-// Pigeon-backed implementation per platform in `platform_bindings.dart`;
+// Pigeon-backed implementation per platform in `<platform>/bindings.dart`;
 // tests override them with fakes. Feature code depends only on these.
 final mediaSessionProvider = Provider<MediaSessionFacade>(
   (ref) => _unavailable('mediaSession'),
@@ -88,3 +94,22 @@ final networkStatusProvider = Provider<NetworkStatusFacade>(
 final multicastProvider = Provider<MulticastFacade>(
   (ref) => _unavailable('multicast'),
 );
+final tlsServerProvider = Provider<TlsServerFacade>(
+  (ref) => _unavailable('tlsServer'),
+);
+final purchasesProvider = Provider<PurchasesFacade>(
+  (ref) => _unavailable('purchases'),
+);
+final speechSynthesisProvider = Provider<SpeechSynthesisFacade>(
+  (ref) => _unavailable('speechSynthesis'),
+);
+final textRecognitionProvider = Provider<TextRecognitionFacade>(
+  (ref) => _unavailable('textRecognition'),
+);
+final translationProvider = Provider<TranslationFacade>(
+  (ref) => _unavailable('translation'),
+);
+final mediaBrowseProvider = Provider<MediaBrowseFacade>(
+  (ref) => _unavailable('mediaBrowse'),
+);
+final alarmProvider = Provider<AlarmFacade>((ref) => _unavailable('alarm'));

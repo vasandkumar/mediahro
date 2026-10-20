@@ -26,3 +26,18 @@ Each lane is one agent session working in **its own git worktree on its own fold
 | B2 Library & sources | [B2-library-sources.md](B2-library-sources.md) |
 | B3 Design system & shell | [B3-design-shell.md](B3-design-shell.md) |
 | B4 Native deps (Android + shared / Apple / Windows) | [B4-native-deps.md](B4-native-deps.md) |
+
+## Phase C (from 2026-10-20, ADR-025)
+
+The interfaces froze at a138542. From here, changing anything in rule 5's files, or adding a facade, needs an ADR request. B1 stays the engine lane, and B2 and B3 stay as maintainers of their folders. B4a/b/c keep `mediahro-deps`.
+
+| Lane | Brief |
+|---|---|
+| C1 Video & subtitles | [C1-video-subtitles.md](C1-video-subtitles.md) |
+| C2 Music, podcasts & audiobooks | [C2-music-podcasts.md](C2-music-podcasts.md) |
+| C3 Photos | [C3-photos.md](C3-photos.md) |
+| C4a Android · C4b Apple · C4c Windows · C4d Servers & casting | [C4-servers-cast-platform.md](C4-servers-cast-platform.md) |
+| C5 Supporter, privacy, B2B, engine packaging, store metadata | [C5-supporter-privacy-b2b.md](C5-supporter-privacy-b2b.md) |
+
+Shared CI capacity is the bottleneck, especially the macOS runners. Batch your work into one push per PR round, never push while your CI runs, and run `tools/check` locally first.
+

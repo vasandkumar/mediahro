@@ -11,8 +11,8 @@ _Last updated: 2026-10-19 by the orchestrator._
 | Phase / milestone | Lanes | State | Exit criteria (docs/10 §3, §8) |
 |---|---|---|---|
 | **A — Skeleton (M0)** | orchestrator | ☑ done 2026-10-19 (deps archives → B4 per Phase B exit) | Shell builds on all platforms; stubs compile; CI green; deps archives published with SHA-256; licence scan passes |
-| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | in progress | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
-| **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4 Servers, casting, platform modules · C5 Supporter, privacy, B2B, store metadata | not started | Each lane's IDs ☑ on every platform; integration branch builds daily |
+| **B — Foundations (M1, M2)** | B1 Engine · B2 Library & sources · B3 Design system & shell · B4 Native deps (Android / Apple / Windows) | **interface freeze 2026-10-20 at a138542 (ADR-025)**; all six lanes merged; open items: combined deps release v2026.10.4 + deps.lock pin (B4a), network-env green (B2) | M1 + M2 exit criteria; B3 goldens green; deps archives published and pinned; **interface freeze** |
+| **C — Experiences (M3–M7)** | C1 Video & subtitles · C2 Music & podcasts · C3 Photos · C4a Android · C4b Apple · C4c Windows · C4d Servers & casting · C5 Supporter, privacy, B2B, store metadata | launched 2026-10-20 (briefs in docs/lanes) | Each lane's IDs ☑ on every platform; integration branch builds daily |
 | **D — Hardening (M8)** | D1 Android · D2 iOS/iPadOS · D3 macOS · D4 Windows · D5 Localisation · D6 Store submission packs | not started | All doc 11 §7 release gates pass; 1.0 tagged |
 
 ### Phase A (M0) deliverables
@@ -38,14 +38,18 @@ _Last updated: 2026-10-19 by the orchestrator._
 
 | Lane | Folders owned |
 |---|---|
-| B1 Engine | `app/lib/engine`, `packages/mediahro_engine` (whole package in Phase B, incl. bundling the `mediahro-deps` libraries into the plugin's Gradle/podspec/CMake builds), `packages/mediahro_ffi` (mpv part: `lib/src/mpv/`, `ffigen/mpv.yaml`) |
+| B1 Engine | `app/lib/engine`, `packages/mediahro_engine` (whole package except `sdk/` and `capi/`, incl. bundling the `mediahro-deps` libraries into the plugin's Gradle/podspec/CMake builds; stays the engine lane through Phase C, ADR-025), `packages/mediahro_ffi` (mpv part: `lib/src/mpv/`, `ffigen/mpv.yaml`), `tools/corpus`, `test-media` |
 | B2 Library & sources | `app/lib/core`, `app/lib/features/sources`, `app/lib/features/library`, `packages/mediahro_ffi` (smb2/nfs/curl/archive/ebur128/chromaprint/uchardet parts, `lib/src/vfs/`) |
 | B3 Design system & shell | `packages/mediahro_design`, `app/lib/app`, `app/lib/ui`, `app/lib/features/settings`, `app/lib/features/onboarding`, `tools/l10n` |
 | B4 Native deps | `../mediahro-deps` (sub-lanes `android/`, `apple/`, `windows/`), `deps.lock`, `tools/deps`, `tools/licence_scan` |
-| C1 Video & subtitles | `app/lib/features/video`, `packages/mediahro_subtitles`, `packages/mediahro_engine/lib/src/mpv/` + `lib/src/bridge/` + the plugin's native folders (Phase C: video/subtitle engine features) |
+| C1 Video & subtitles | `app/lib/features/video`, `packages/mediahro_subtitles`, `packages/mediahro_ffi` (tesseract part) |
 | C2 Music & podcasts | `app/lib/features/music` |
 | C3 Photos | `app/lib/features/photos`, `app/lib/images`, `packages/mediahro_ffi` (vips/jxl/avif/raw parts) |
-| C4 Servers, casting, platform | `packages/mediahro_servers`, `app/lib/features/servers`, `app/lib/features/cast`, `app/lib/platform`, `app/pigeons`, `app/android`, `app/ios`, `app/macos`, `app/windows` |
+| C4a Android | `app/android`, `app/pigeons/android`, `app/lib/platform/android` |
+| C4b Apple | `app/ios`, `app/macos`, `app/pigeons/apple`, `app/lib/platform/apple` |
+| C4c Windows | `app/windows`, `app/pigeons/windows`, `app/lib/platform/windows` |
+| C4d Servers & casting | `packages/mediahro_servers`, `app/lib/features/servers`, `app/lib/features/cast` |
+| Orchestrator | facade interfaces `app/lib/platform/*.dart`, `app/lib/platform/platform_bindings.dart`, `app/lib/main.dart`, `app/pubspec.yaml`, `.github/workflows`, `STATUS.md`, `CHANGELOG.md`, `tools/perf/baseline.json` |
 | C5 Supporter, privacy, B2B, store | `app/lib/features/supporter`, `app/lib/features/b2b`, `app/lib/features/privacy` (telemetry opt-in, app lock; the dashboard screen CORE-015 is B3's), `packages/mediahro_engine/sdk/` and `capi/` (Phase C: SDK packaging, C/Kotlin/Swift APIs, samples), `fastlane/` |
 
 Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §12` via ADR PRs, `app/pubspec.yaml`, `app/lib/main.dart` via the orchestrator) are merged by the orchestrator. Each lane keeps its UI strings in its own ARB fragment `<owned folder>/l10n/<module>_<locale>.arb`; `tools/l10n/merge_arb.dart` merges fragments before `gen-l10n`.
@@ -412,6 +416,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-20 | **Interface freeze** at a138542 (merged B1 #18: engine API for Phase C). **ADR-025:** new facades (purchases, TTS, OCR, translation, car browse, alarms, mutual-TLS server); B1 stays the engine lane; C4 split into C4a Android / C4b Apple / C4c Windows / C4d servers & casting; Tesseract fallback for SUB-051. Also merged B2 #20 (libarchive callback crash, SMB logon mapping; network-env now 14/17, with SMB NULL-session and NFS NOENT mapping left to B2). **Phase C launched:** C1, C2, C3, C4a–d, C5. |
 | 2026-10-20 | **Merged B4c** (mediahro-deps#8: Windows x64 + arm64, 59 libraries; proof run 39370785975 at b26658d, check_pe 91/83 DLLs, 0 errors). All four native-dependency lanes are now merged (B4a Android + shared, B4b Apple, B4c Windows); next is B4a's combined release and the mediahro deps.lock pin. Decided with B4a: libplacebo keeps shared shaderc on Windows, because mpv's D3D11 backend requires it (no feature cut). network-env on B2 #20 now runs every test; the NFS env under sudo was fixed in ci.yml (92e1eaa), and the SMB guest signing, logon-status mapping and ebur128 expectation fixes went to B2. B1 #18 is waiting on integration-apple with the ducking fix (feed1df). |
 | 2026-10-20 | **Merged B2 #17** (FTP/SFTP healthchecks; network-env servers now all start; next failure NET-001 SMB guest + a native abort, sent to B2) and **#19** (SAF trees, MediaStore, scoped access, playlist import/export, backup via saveFile, share/open-in; 311 app tests). **B4c opened mediahro-deps#8** (Windows x64 + arm64, 59 libraries, clang-cl with CFG/CET, Schannel/WinCNG/CNG crypto, 0 GPL-only files); merge waits on its build at head b26658d. Windows runtime DLLs are 73.5 MB on x64, so the 70 MB desktop ceiling will be reset from the first full app build (ADR-020); ThinLTO via lld-link and glslang-instead-of-shaderc are queued (B4c, B4a). B1 #18 (API freeze) is green except integration-apple, which is still running. |
 | 2026-10-20 | **Merged B1** (PR #3, engine M1: MpvEngine, render bridges on A/I/M/W, VirtualFile streaming, disc folders, audio DSP/gapless/crossfade, casting pipeline; ci + engine green on 7bc4f9b). Ticks re-verified from engine run 39355966616 at the merge head: +36 cells. ADR-021…023 recorded (engine choices, native HDR via platform views, DoP). Also merged B3 #10 (CORE-015 live policy, CORE-001 profile benchmark), B2 #8/#12, B4a deps#3/#4/#6 and mediahro#7/#11 (deps.lock → v2026.10.3-android.4). |
