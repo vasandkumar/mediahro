@@ -78,6 +78,7 @@ services:
     network_mode: host
     volumes: ["./data/media:/srv/media"]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8200/rootDesc.xml"]
+      # MiniDLNA refuses clients outside the subnets it serves (not 127.0.0.1).
+      test: ["CMD", "/usr/local/bin/minidlna-health"]
       interval: 2s
       retries: 30
