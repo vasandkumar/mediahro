@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/photos/info/edit_metadata_dialog.dart';
+import 'package:mediahro/features/photos/map/map_providers.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
@@ -53,6 +54,13 @@ class _PhotoInfoSheetState extends ConsumerState<PhotoInfoSheet> {
     }
     final m = facts.parsed.metadata;
     final info = facts.info;
+    final nearest = m.latitude == null || m.longitude == null
+        ? null
+        : ref
+              .watch(
+                nearestPlaceProvider((lat: m.latitude!, lon: m.longitude!)),
+              )
+              .value;
     final mp = info.width * info.height / 1e6;
     final rows = <(String, String)>[
       (l10n.photosInfoName, e.name),
@@ -82,7 +90,11 @@ class _PhotoInfoSheetState extends ConsumerState<PhotoInfoSheet> {
       if (m.latitude != null && m.longitude != null)
         (
           l10n.photosInfoLocation,
-          '${m.latitude!.toStringAsFixed(5)}, ${m.longitude!.toStringAsFixed(5)}',
+          [
+            if (nearest != null)
+              l10n.photosPlaceName(nearest.name, nearest.country),
+            '${m.latitude!.toStringAsFixed(5)}, ${m.longitude!.toStringAsFixed(5)}',
+          ].join('\n'),
         ),
       if (m.iccProfileName != null) (l10n.photosInfoColour, m.iccProfileName!),
       if (m.title != null) (l10n.photosInfoTitleField, m.title!),

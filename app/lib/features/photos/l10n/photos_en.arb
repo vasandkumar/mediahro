@@ -245,5 +245,99 @@
         "type": "int"
       }
     }
+  },
+  "photosTabMap": "Map",
+  "photosTabPlaces": "Places",
+  "photosMapLabel": "Photo map",
+  "photosMapZoomIn": "Zoom in",
+  "photosMapZoomOut": "Zoom out",
+  "photosMapShowAll": "Show all photos",
+  "photosMapAttribution": "© OpenStreetMap contributors",
+  "photosMapNoPhotosTitle": "No photos with a location",
+  "photosMapNoPhotosMessage": "Photos that carry a GPS position appear on this map. You can add a location to any photo from its details.",
+  "photosMapTilesOff": "Map pictures are off, so your photos are shown on a plain grid. Nothing is sent anywhere.",
+  "photosMapTilesTurnOn": "Turn on map pictures",
+  "photosMapTilesConfirmTitle": "Turn on map pictures?",
+  "photosMapTilesConfirmBody": "The map asks tiles.mediahro.com for the pictures of the area you look at. That sends which map tiles you view and your IP address, never your photos or where they were taken. You can turn this off again in Privacy.",
+  "photosMapTilesConfirmYes": "Turn on",
+  "photosMapMarkerLabel": "{count, plural, =1{1 photo} other{{count} photos}}, double tap to open",
+  "@photosMapMarkerLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosMapHereTitle": "{count, plural, =1{1 photo here} other{{count} photos here}}",
+  "@photosMapHereTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPlacesEmptyTitle": "No places yet",
+  "photosPlacesEmptyMessage": "Places are named on your device from the GPS position of your photos. Photos without a location are not listed.",
+  "photosPlaceUnknownCountry": "Other places",
+  "photosPickLocationTitle": "Choose a location",
+  "photosPickLocationHint": "Move the map so the pin is where the photo was taken.",
+  "photosPickLocationUse": "Use this location",
+  "photosPickLocationSearch": "Search for a city",
+  "photosPickLocationNoMatch": "No city matches.",
+  "photosPickLocationClose": "Close",
+  "photosEditChooseOnMap": "Choose on map",
+  "photosSetLocationAction": "Set location",
+  "photosClearLocationAction": "Remove location",
+  "photosClearLocationTitle": "Remove the location?",
+  "photosClearLocationBody": "{count, plural, =1{This photo loses its GPS position.} other{These {count} photos lose their GPS position.}} The change is saved in the files.",
+  "@photosClearLocationBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosClearLocationConfirm": "Remove",
+  "photosLocationProgress": "Saving locations: {done} of {total}",
+  "@photosLocationProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosLocationDone": "{count, plural, =1{Location changed on 1 photo.} other{Location changed on {count} photos.}}",
+  "@photosLocationDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosLocationFailed": "{count, plural, =1{1 photo could not be changed.} other{{count} photos could not be changed.}}",
+  "@photosLocationFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosLocationNoPhotos": "Videos have no location to change.",
+  "photosSettingsWriteMetadata": "Write ratings, labels and tags into photo files",
+  "photosSettingsWriteMetadataHint": "Off: they stay in Mediahro only. On: they are also saved in each photo's XMP data, so other apps see them too.",
+  "photosPlaceName": "{city}, {country}",
+  "@photosPlaceName": {
+    "description": "A city and its country, e.g. Paris, France.",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "country": {
+        "type": "String"
+      }
+    }
   }
 }

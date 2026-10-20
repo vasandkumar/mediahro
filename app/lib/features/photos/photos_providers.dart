@@ -10,6 +10,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
+import 'package:mediahro/features/photos/map/map_providers.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
 import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -170,6 +171,7 @@ final imageProberProvider = Provider<ImageProber>(
     pipeline: ref.watch(imagePipelineProvider),
     db: ref.watch(libraryDatabaseProvider),
     io: MountedImageIo(ref.watch(mountsProvider)),
+    places: ref.watch(placeResolverProvider),
   ),
 );
 

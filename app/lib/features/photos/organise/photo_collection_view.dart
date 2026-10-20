@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
@@ -183,6 +184,16 @@ class SelectionBar extends ConsumerWidget {
                       );
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
+                    case 'setLocation':
+                      if (await setLocationFlow(context, ref, chosen) &&
+                          context.mounted) {
+                        selection.clear();
+                      }
+                    case 'clearLocation':
+                      if (await clearLocationFlow(context, ref, chosen) &&
+                          context.mounted) {
+                        selection.clear();
+                      }
                     case 'remove':
                       await done(() => org.removeFromAlbum(albumId!, ids));
                   }
@@ -196,6 +207,14 @@ class SelectionBar extends ConsumerWidget {
                   PopupMenuItem(
                     value: 'tags',
                     child: Text(l10n.photosTagsAction),
+                  ),
+                  PopupMenuItem(
+                    value: 'setLocation',
+                    child: Text(l10n.photosSetLocationAction),
+                  ),
+                  PopupMenuItem(
+                    value: 'clearLocation',
+                    child: Text(l10n.photosClearLocationAction),
                   ),
                   if (albumId != null)
                     PopupMenuItem(

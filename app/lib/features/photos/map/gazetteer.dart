@@ -187,6 +187,79 @@ final class Gazetteer {
 
   static const double _cityRadiusKm = 15;
 
+  List<String>? _folded;
+
+  /// Cities whose name starts with [query] (then those that contain it),
+  /// biggest first; accents and case are ignored. For the location picker.
+  List<GazetteerPlace> search(String query, {int limit = 8}) {
+    final q = foldForSearch(query.trim());
+    if (q.isEmpty) return const [];
+    final names = _folded ??= [
+      for (var i = 0; i < length; i++)
+        foldForSearch(
+          _string(
+            _data.getUint32(_placesAt + i * _recordSize + 10, Endian.little),
+          ),
+        ),
+    ];
+    final starts = <int>[];
+    final contains = <int>[];
+    for (var i = 0; i < length; i++) {
+      final n = names[i];
+      if (n.startsWith(q)) {
+        starts.add(i);
+      } else if (n.contains(q)) {
+        contains.add(i);
+      }
+    }
+    int byPopulation(int a, int b) => _population(b).compareTo(_population(a));
+    starts.sort(byPopulation);
+    contains.sort(byPopulation);
+    return [
+      for (final i in [...starts, ...contains].take(limit)) _place(i, 0),
+    ];
+  }
+
+  /// Lower case without the accents of European names ("São" → "sao").
+  static String foldForSearch(String s) {
+    final b = StringBuffer();
+    for (final r in s.toLowerCase().runes) {
+      b.write(_folds[r] ?? String.fromCharCode(r));
+    }
+    return b.toString();
+  }
+
+  static final Map<int, String> _folds = () {
+    const groups = {
+      'a': 'àáâãäåāăą',
+      'c': 'çćčĉċ',
+      'd': 'ďđ',
+      'e': 'èéêëēĕėęě',
+      'g': 'ĝğġģ',
+      'h': 'ĥħ',
+      'i': 'ìíîïĩīĭįı',
+      'j': 'ĵ',
+      'k': 'ķ',
+      'l': 'ĺļľŀł',
+      'n': 'ñńņňŉ',
+      'o': 'òóôõöøōŏő',
+      'r': 'ŕŗř',
+      's': 'śŝşš',
+      't': 'ţťŧ',
+      'u': 'ùúûüũūŭůűų',
+      'w': 'ŵ',
+      'y': 'ýÿŷ',
+      'z': 'źżž',
+    };
+    return {
+      for (final e in groups.entries)
+        for (final r in e.value.runes) r: e.key,
+      'ß'.runes.first: 'ss',
+      'æ'.runes.first: 'ae',
+      'œ'.runes.first: 'oe',
+    };
+  }();
+
   int _population(int i) =>
       _data.getUint32(_placesAt + i * _recordSize + 14, Endian.little);
 }

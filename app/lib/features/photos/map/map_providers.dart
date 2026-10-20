@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show FutureProviderFamily;
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
@@ -11,6 +12,7 @@ import 'package:mediahro/features/photos/map/clustering.dart';
 import 'package:mediahro/features/photos/map/gazetteer.dart';
 import 'package:mediahro/features/photos/map/map_tiles.dart';
 import 'package:mediahro/features/photos/map/place_resolver.dart';
+import 'package:mediahro/features/photos/map/web_mercator.dart' show GeoPoint;
 import 'package:mediahro_servers/mediahro_servers.dart';
 
 /// Where the bundled gazetteer lives (declared in `pubspec.yaml`).
@@ -29,6 +31,17 @@ final gazetteerProvider = FutureProvider<Gazetteer?>((ref) async {
     return null;
   }
 });
+
+/// The city nearest to a position, for labels (details sheet); null without
+/// the gazetteer or near no city.
+final FutureProviderFamily<GazetteerPlace?, GeoPoint> nearestPlaceProvider =
+    FutureProvider.autoDispose.family<GazetteerPlace?, GeoPoint>((
+      ref,
+      at,
+    ) async {
+      final g = await ref.watch(gazetteerProvider.future);
+      return g?.nearest(at.lat, at.lon);
+    });
 
 final placeResolverProvider = Provider<PlaceResolver>(
   (ref) => PlaceResolver(
