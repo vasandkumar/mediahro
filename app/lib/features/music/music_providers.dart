@@ -76,13 +76,13 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   );
   unawaited(p.init());
   ref.onDispose(() => unawaited(p.dispose()));
-  final session = _optional(() => ref.watch(mediaSessionProvider));
+  final session = _optional(() => ref.read(mediaSessionProvider));
   if (session != null) {
     final bridge = MusicSessionBridge(
       player: p,
       session: session,
       art: ref.watch(artworkStoreProvider),
-      widgets: _optional(() => ref.watch(homeWidgetsProvider)),
+      widgets: _optional(() => ref.read(homeWidgetsProvider)),
     )..start();
     ref.onDispose(() => unawaited(bridge.dispose()));
   }
@@ -109,6 +109,9 @@ final FutureProviderFamily<String?, int> coverPathProvider =
       return ref.watch(artworkStoreProvider).coverPath(itemId);
     });
 
+/// Reads a platform facade that may be unavailable. Always with
+/// `ref.read`: Riverpod 3 retries providers that throw, and a `watch` would
+/// rebuild (and reset) the player on every retry.
 T? _optional<T>(T Function() read) {
   try {
     return read();
