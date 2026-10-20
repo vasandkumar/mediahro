@@ -11,6 +11,9 @@ import com.mediahro.mediahro.pigeon.NetworkStatusHostApi
 import com.mediahro.mediahro.pigeon.BiometricsHostApi
 import com.mediahro.mediahro.pigeon.SecureStorageHostApi
 import com.mediahro.mediahro.pigeon.SftpHostApi
+import com.mediahro.mediahro.pigeon.SpeechHostApi
+import com.mediahro.mediahro.pigeon.TextRecognitionHostApi
+import com.mediahro.mediahro.pigeon.TranslationHostApi
 import com.mediahro.mediahro.pigeon.TlsEventsStreamHandler
 import com.mediahro.mediahro.pigeon.TlsServerHostApi
 import com.mediahro.mediahro.pigeon.TlsSocketHostApi
@@ -34,6 +37,8 @@ import com.mediahro.mediahro.platform.security.BiometricsModule
 import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.sftp.SftpModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
+import com.mediahro.mediahro.platform.text.SpeechModule
+import com.mediahro.mediahro.platform.text.TextServices
 import com.mediahro.mediahro.platform.tls.TlsHub
 import com.mediahro.mediahro.platform.tls.TlsServerModule
 import com.mediahro.mediahro.platform.tls.TlsSocketModule
@@ -51,6 +56,7 @@ object PlatformModules {
     private var session: MediaSessionModule? = null
 
     private var display: DisplayModule? = null
+    private var speech: SpeechModule? = null
     private var tlsServer: TlsServerModule? = null
     private var sftp: SftpModule? = null
 
@@ -105,6 +111,11 @@ object PlatformModules {
         val pipModule = PipModule(context.applicationContext, host).also { pip = it }
         PipHostApi.setUp(messenger, pipModule)
         PipStatesStreamHandler.register(messenger, pipModule.statesHandler)
+
+        speech?.dispose()
+        SpeechHostApi.setUp(messenger, SpeechModule(context.applicationContext).also { speech = it })
+        TextRecognitionHostApi.setUp(messenger, TextServices.recognition(context))
+        TranslationHostApi.setUp(messenger, TextServices.translation())
 
         val secureStorage = SecureStorageModule(context.applicationContext, host)
         SecureStorageHostApi.setUp(messenger, secureStorage)

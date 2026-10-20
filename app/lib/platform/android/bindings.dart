@@ -5,6 +5,7 @@ import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
+import 'package:mediahro/platform/android/android_text.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 
@@ -19,6 +20,9 @@ List<Override> overrides() => [
   audioOutputProvider.overrideWithValue(AndroidAudioOutput()),
   displayProvider.overrideWithValue(AndroidDisplay()),
   pipProvider.overrideWithValue(AndroidPip()),
+  speechSynthesisProvider.overrideWithValue(AndroidSpeechSynthesis()),
+  textRecognitionProvider.overrideWithValue(AndroidTextRecognition()),
+  translationProvider.overrideWithValue(AndroidTranslation()),
   secureStorageProvider.overrideWithValue(AndroidSecureStorage()),
   biometricsProvider.overrideWithValue(AndroidBiometrics()),
   networkStatusProvider.overrideWithValue(AndroidNetworkStatus()),

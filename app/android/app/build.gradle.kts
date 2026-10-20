@@ -17,6 +17,9 @@ val keyProperties = Properties().apply {
 val hasUploadKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !keyProperties.getProperty(it).isNullOrBlank() }
 
+/** Builds that may ship ML Kit (ADR-025 §5: store and direct). */
+val mlKitFlavours = listOf("store", "direct")
+
 android {
     namespace = "com.mediahro.mediahro"
     compileSdk = flutter.compileSdkVersion
@@ -66,6 +69,15 @@ android {
         }
     }
 
+    // Proprietary ML Kit only where ADR-025 §5 allows it; the other builds
+    // compile the stub (src/nomlkit) and use the open fallbacks.
+    sourceSets {
+        mlKitFlavours.forEach { getByName(it).java.srcDir("src/mlkit/kotlin") }
+        (listOf("store", "direct", "foss", "enterprise") - mlKitFlavours).forEach {
+            getByName(it).java.srcDir("src/nomlkit/kotlin")
+        }
+    }
+
     buildTypes {
         release {
             // The owner's upload key when key.properties is present; otherwise
@@ -110,6 +122,19 @@ dependencies {
 
     // Debug builds only: a local SFTP server for the SftpFacade device tests.
     debugImplementation("org.apache.sshd:sshd-sftp:2.20.0")
+
+    // On-device OCR, language ID and translation (SUB-051/053); proprietary,
+    // so only in mlKitFlavours. Recognisers come with Play services.
+    mlKitFlavours.forEach { flavour ->
+        add("${flavour}Implementation", "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
+        add("${flavour}Implementation", "com.google.android.gms:play-services-mlkit-language-id:17.0.0")
+        add("${flavour}Implementation", "com.google.mlkit:translate:17.0.3")
+    }
 
     // JVM unit tests of the modules' pure rules (./gradlew :app:testFossDebugUnitTest).
     testImplementation("junit:junit:4.13.2")
