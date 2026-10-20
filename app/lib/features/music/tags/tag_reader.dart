@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:mediahro/features/music/tags/ape.dart';
 import 'package:mediahro/features/music/tags/asf.dart';
@@ -163,17 +164,7 @@ abstract final class TagReader {
     }
     for (var round = 0; round < 64; round++) {
       final ranges = sparse.ranges;
-      final result = await Isolate.run(() {
-        final r = SparseByteReader(length);
-        for (final (o, b) in ranges) {
-          r.add(o, b);
-        }
-        try {
-          return (read(r), null);
-        } on NeedBytes catch (e) {
-          return (null, (e.offset, e.length));
-        }
-      });
+      final result = await _parseSparse(length, ranges);
       if (result.$1 != null) return result.$1!;
       final (offset, count) = result.$2!;
       if (fetched + count > TagLimits.maxTagBytes * 2) return AudioTags.empty;
@@ -181,6 +172,23 @@ abstract final class TagReader {
     }
     return AudioTags.empty;
   }
+
+  /// Parses fetched ranges in an isolate. A separate function so the
+  /// closure captures only sendable values (never the open file).
+  static Future<(AudioTags?, (int, int)?)> _parseSparse(
+    int length,
+    List<(int, Uint8List)> ranges,
+  ) => Isolate.run(() {
+    final r = SparseByteReader(length);
+    for (final (o, b) in ranges) {
+      r.add(o, b);
+    }
+    try {
+      return (read(r), null);
+    } on NeedBytes catch (e) {
+      return (null, (e.offset, e.length));
+    }
+  });
 
   static const int _head = 256 * 1024;
   static const int _tail = 128 * 1024;

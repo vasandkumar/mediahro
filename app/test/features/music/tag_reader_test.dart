@@ -328,6 +328,20 @@ void main() {
       expect((await TagReader.readFile(f.path)).title, 'Iso');
     });
 
+    test(
+      'MUS-002 readVirtualFile works on a real VirtualFile (SAF, shares)',
+      () async {
+        final f = File('${dir.path}/v.flac')
+          ..writeAsBytesSync(flac(['TITLE=Local']));
+        final vf = await const LocalFileSystem().open(f.uri);
+        try {
+          expect((await TagReader.readVirtualFile(vf)).title, 'Local');
+        } finally {
+          await vf.close();
+        }
+      },
+    );
+
     test('MUS-002 readVirtualFile fetches tail tags on demand', () async {
       final bytes = bytesOf([
         List.filled(600 * 1024, 0x11),
