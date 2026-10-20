@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:mediahro/features/video/text/open_text_services.dart';
 import 'package:mediahro/platform/android/android_caption_style.dart';
 import 'package:mediahro/platform/android/android_car.dart';
 import 'package:mediahro/platform/android/android_display.dart';
@@ -9,6 +10,7 @@ import 'package:mediahro/platform/android/android_power_status.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
+import 'package:mediahro/platform/android/android_text.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 
@@ -25,6 +27,9 @@ List<Override> overrides() => [
   pipProvider.overrideWithValue(AndroidPip()),
   powerStatusProvider.overrideWithValue(AndroidPowerStatus()),
   captionStyleProvider.overrideWithValue(AndroidCaptionStyle()),
+  speechSynthesisProvider.overrideWithValue(AndroidSpeechSynthesis()),
+  // OCR, language ID and translation: the open services (ADR-034).
+  ...openTextServiceOverrides(),
   mediaBrowseProvider.overrideWithValue(AndroidMediaBrowse()),
   alarmProvider.overrideWithValue(AndroidAlarms()),
   homeWidgetsProvider.overrideWithValue(AndroidHomeWidgets()),
