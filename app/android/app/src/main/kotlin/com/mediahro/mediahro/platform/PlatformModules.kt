@@ -10,6 +10,9 @@ import com.mediahro.mediahro.pigeon.NetworkChangesStreamHandler
 import com.mediahro.mediahro.pigeon.NetworkStatusHostApi
 import com.mediahro.mediahro.pigeon.BiometricsHostApi
 import com.mediahro.mediahro.pigeon.SecureStorageHostApi
+import com.mediahro.mediahro.pigeon.TlsEventsStreamHandler
+import com.mediahro.mediahro.pigeon.TlsServerHostApi
+import com.mediahro.mediahro.pigeon.TlsSocketHostApi
 import com.mediahro.mediahro.pigeon.DisplayChangesStreamHandler
 import com.mediahro.mediahro.pigeon.DisplayHostApi
 import com.mediahro.mediahro.pigeon.PipHostApi
@@ -29,6 +32,9 @@ import com.mediahro.mediahro.platform.network.NetworkStatusModule
 import com.mediahro.mediahro.platform.security.BiometricsModule
 import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
+import com.mediahro.mediahro.platform.tls.TlsHub
+import com.mediahro.mediahro.platform.tls.TlsServerModule
+import com.mediahro.mediahro.platform.tls.TlsSocketModule
 import com.mediahro.mediahro.platform.storage.StorageModule
 import io.flutter.embedding.engine.FlutterEngine
 
@@ -43,6 +49,7 @@ object PlatformModules {
     private var session: MediaSessionModule? = null
 
     private var display: DisplayModule? = null
+    private var tlsServer: TlsServerModule? = null
 
     /** The live PiP module (MainActivity forwards PiP callbacks to it). */
     var pip: PipModule? = null
@@ -108,6 +115,13 @@ object PlatformModules {
         MulticastHostApi.setUp(messenger, MulticastModule(context.applicationContext).also { multicast = it })
 
         AuthBrowserHostApi.setUp(messenger, AuthBrowserModule(host).also { authBrowser = it })
+
+        // A new engine starts with no connections of the old one.
+        TlsHub.closeAll()
+        tlsServer?.dispose()
+        TlsSocketHostApi.setUp(messenger, TlsSocketModule())
+        TlsServerHostApi.setUp(messenger, TlsServerModule().also { tlsServer = it })
+        TlsEventsStreamHandler.register(messenger, TlsHub.eventsHandler)
         debugHooks(host, engine)
     }
 
