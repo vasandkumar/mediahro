@@ -215,7 +215,7 @@ void subtitlesSuite() {
         expect(text, expected);
         await e.setSubtitleCodepage(codepage);
         expect(await subText(e), expected, reason: 'manual override');
-      }, skip: blockedOn(const {'android'}, 'libiconv for SUB-013 (B4a)'));
+      }, skip: skip);
     }
   });
 
