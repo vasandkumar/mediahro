@@ -206,6 +206,47 @@ void main() {
         await extra(fs, r);
       });
 
+      // dart:io and TlsSocketFacade do not expose the negotiated protocol, so
+      // a TLS client that does (openssl s_client) checks what the servers
+      // negotiate: TLS 1.2 or newer, never TLS 1.1 or older.
+      for (final (name, port, starttls) in [
+        ('implicit FTPS', 990, false),
+        ('explicit FTPS (AUTH TLS)', 21, true),
+      ]) {
+        test('$name negotiates TLS 1.2+ and refuses TLS 1.1', () async {
+          Future<ProcessResult> sClient(List<String> extra) => Process.run(
+            'openssl',
+            [
+              's_client',
+              '-connect',
+              '$_host:$port',
+              '-brief',
+              if (starttls) ...['-starttls', 'ftp'],
+              ...extra,
+            ],
+            stdoutEncoding: utf8,
+            stderrEncoding: utf8,
+          ).timeout(const Duration(seconds: 20));
+          final ProcessResult ok;
+          try {
+            ok = await sClient(const []);
+          } on ProcessException {
+            return markTestSkipped('environment: openssl not installed');
+          }
+          final out = '${ok.stdout}${ok.stderr}';
+          final v = RegExp(r'Protocol version: TLSv1\.(\d)').firstMatch(out);
+          expect(v, isNotNull, reason: out);
+          expect(int.parse(v![1]!), greaterThanOrEqualTo(2), reason: out);
+          final old = await sClient(const ['-tls1_1']);
+          final oldOut = '${old.stdout}${old.stderr}';
+          expect(
+            RegExp(r'Protocol version: TLSv1\.[01]\b').hasMatch(oldOut),
+            isFalse,
+            reason: oldOut,
+          );
+        });
+      }
+
       for (final (name, scheme, port, security) in [
         ('explicit FTPS (AUTH TLS)', 'ftpes', 21, FtpSecurity.explicit),
         ('implicit FTPS on 990', 'ftps', 990, FtpSecurity.implicit),
