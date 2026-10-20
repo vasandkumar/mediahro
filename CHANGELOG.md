@@ -5,6 +5,8 @@ All notable changes are grouped by feature area and reference feature IDs from `
 ## [Unreleased]
 
 ### Fixed
+- Guest access to SMB shares works, including NAS defaults that prefer encryption (NET-001).
+- Opening a missing or moved file on an NFSv3 share now says it couldn't be found, instead of a generic read error (NET-002).
 - Comic and archive files on network shares open without crashing (FILE-004).
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
