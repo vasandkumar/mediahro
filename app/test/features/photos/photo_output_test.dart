@@ -512,14 +512,20 @@ void main() {
         OutputAction.wallpaper,
         OutputAction.print,
         OutputAction.copy,
+        OutputAction.vault,
+        OutputAction.delete,
       ]);
       expect(outputActionsFor(all, single: false), [
         OutputAction.share,
         OutputAction.print,
+        OutputAction.vault,
+        OutputAction.delete,
       ]);
       expect(outputActionsFor(const ImagingSupport()), [
         OutputAction.share,
         OutputAction.copy,
+        OutputAction.vault,
+        OutputAction.delete,
       ]);
     });
   });
