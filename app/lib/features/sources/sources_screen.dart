@@ -23,7 +23,7 @@ final addServerActionProvider = Provider<void Function(BuildContext context)?>(
   (ref) => null,
 );
 
-/// Starts cloud-drive sign-in (needs C4's AuthBrowser; null until then).
+/// Starts cloud-drive sign-in (needs C4's AuthBrowserFacade; null until then).
 final addCloudActionProvider = Provider<void Function(BuildContext context)?>(
   (ref) => null,
 );

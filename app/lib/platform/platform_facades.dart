@@ -1,19 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/platform/audio_output.dart';
+import 'package:mediahro/platform/auth_browser.dart';
 import 'package:mediahro/platform/cast.dart';
 import 'package:mediahro/platform/display.dart';
 import 'package:mediahro/platform/enterprise.dart';
 import 'package:mediahro/platform/media_session.dart';
+import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro/platform/secure_transport.dart';
 import 'package:mediahro/platform/security.dart';
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro/platform/system_integration.dart';
 
 export 'audio_output.dart';
+export 'auth_browser.dart';
 export 'cast.dart';
 export 'display.dart';
 export 'enterprise.dart';
 export 'media_session.dart';
+export 'network_status.dart';
 export 'secure_transport.dart';
 export 'security.dart';
 export 'storage.dart';
@@ -75,3 +79,12 @@ final tlsSocketProvider = Provider<TlsSocketFacade>(
   (ref) => _unavailable('tlsSocket'),
 );
 final sftpProvider = Provider<SftpFacade>((ref) => _unavailable('sftp'));
+final authBrowserProvider = Provider<AuthBrowserFacade>(
+  (ref) => _unavailable('authBrowser'),
+);
+final networkStatusProvider = Provider<NetworkStatusFacade>(
+  (ref) => _unavailable('networkStatus'),
+);
+final multicastProvider = Provider<MulticastFacade>(
+  (ref) => _unavailable('multicast'),
+);

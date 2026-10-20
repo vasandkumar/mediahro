@@ -10,6 +10,7 @@ import 'package:mediahro/core/sources/cloud/cloud_file_system.dart';
 import 'package:mediahro/core/sources/cloud/cloud_providers.dart';
 import 'package:mediahro/core/sources/cloud/oauth.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 
 final class _Lan implements NetworkPolicy {
   @override
@@ -46,7 +47,7 @@ final class _FakeCalls implements CloudCalls {
   }
 }
 
-final class _Browser implements AuthBrowser {
+final class _Browser implements AuthBrowserFacade {
   _Browser(this.reply);
 
   final Uri Function(Uri auth) reply;

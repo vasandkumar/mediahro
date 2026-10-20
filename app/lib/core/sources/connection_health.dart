@@ -1,12 +1,6 @@
+import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 import 'package:meta/meta.dart';
-
-/// The current network as the platform reports it (lane C4 implements this
-/// next to its connectivity facade; tests use fakes).
-abstract interface class NetworkStatus {
-  Future<bool> get isMetered;
-  Future<bool> get isWifiOrEthernet;
-}
 
 enum HealthWarning {
   /// Metered connection (mobile data, hotspot): streaming costs data.
@@ -52,7 +46,7 @@ final class ConnectionHealth {
   ConnectionHealth({this.network, Stopwatch Function()? stopwatch})
     : _sw = stopwatch ?? Stopwatch.new;
 
-  final NetworkStatus? network;
+  final NetworkStatusFacade? network;
   final Stopwatch Function() _sw;
 
   Future<HealthReport> test(
@@ -91,7 +85,7 @@ final class ConnectionHealth {
     }
 
     final warnings = <HealthWarning>{
-      if (await network?.isMetered ?? false) HealthWarning.metered,
+      if ((await network?.current())?.metered ?? false) HealthWarning.metered,
       if (latency > const Duration(milliseconds: 150))
         HealthWarning.highLatency,
       if (mbps != null && mbps < 8) HealthWarning.slowForHd,

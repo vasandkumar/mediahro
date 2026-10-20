@@ -89,6 +89,15 @@ abstract interface class VirtualFileSystem {
   Stream<VirtualEntry> list(Uri directory);
 }
 
+/// A file system that holds connections or handles (FTP, SFTP, the
+/// isolate-backed SMB/NFS clients, SAF descriptors) and must be closed when
+/// its owner is done with it (a connection test, an unmounted source).
+abstract interface class ClosableFileSystem implements VirtualFileSystem {
+  /// Closes connections and ends any worker; further calls throw
+  /// [VirtualFileException] with [VirtualFileError.closed].
+  Future<void> close();
+}
+
 /// Sequential writer returned by [MutableFileSystem.create].
 abstract interface class VirtualFileWriter {
   Uri get uri;

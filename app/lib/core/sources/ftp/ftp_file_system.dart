@@ -470,7 +470,7 @@ DateTime? parseFtpTime(String? s) {
 }
 
 /// Browse, stream and manage files on an FTP/FTPS server.
-final class FtpFileSystem implements MutableFileSystem {
+final class FtpFileSystem implements MutableFileSystem, ClosableFileSystem {
   FtpFileSystem(
     this.options,
     this.policy, {
@@ -729,6 +729,7 @@ final class FtpFileSystem implements MutableFileSystem {
   }
 
   /// Closes the browsing connection.
+  @override
   Future<void> close() async {
     final c = _control;
     _control = null;

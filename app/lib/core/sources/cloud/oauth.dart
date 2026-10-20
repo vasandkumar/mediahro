@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:mediahro/core/sources/http/http_session.dart';
+import 'package:mediahro/platform/auth_browser.dart';
 import 'package:meta/meta.dart';
 
 /// OAuth 2.0 endpoints of a provider (authorization code + PKCE, RFC 7636).
@@ -73,13 +74,6 @@ final class OAuthError implements Exception {
       'OAuthError($code${description == null ? '' : ': $description'})';
 }
 
-/// Shows the provider's sign-in page and returns the redirect URI with the
-/// code: ASWebAuthenticationSession (I M), Custom Tabs (A), the system
-/// browser + [LoopbackRedirect] (W, desktop). Lane C4 implements it.
-abstract interface class AuthBrowser {
-  Future<Uri> authorize(Uri authorizationUrl, Uri redirectUri);
-}
-
 /// PKCE authorization-code flow and token refresh over [HttpSession]
 /// (NetworkGateway, ADR-014).
 final class OAuthClient {
@@ -98,7 +92,7 @@ final class OAuthClient {
 
   /// Runs the full sign-in with [browser]; [redirectUri] must be registered
   /// for the client id (custom scheme on mobile, loopback on desktop).
-  Future<OAuthTokens> signIn(AuthBrowser browser, Uri redirectUri) async {
+  Future<OAuthTokens> signIn(AuthBrowserFacade browser, Uri redirectUri) async {
     final verifier = _randomString(64);
     final state = _randomString(24);
     final url = authorizationUrl(redirectUri, verifier: verifier, state: state);
