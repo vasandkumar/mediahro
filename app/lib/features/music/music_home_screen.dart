@@ -11,6 +11,7 @@ import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
 import 'package:mediahro/features/music/ui/playlists.dart';
 import 'package:mediahro/features/music/ui/radio_tab.dart';
+import 'package:mediahro/features/music/ui/scrobble_settings.dart';
 import 'package:mediahro/ui/pending_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
@@ -111,6 +112,8 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
                     showSoundSheet(context);
                   case 'alarms':
                     await openAlarms(context);
+                  case 'scrobble':
+                    await openScrobbleSettings(context);
                   case 'undoTags':
                     final messenger = ScaffoldMessenger.maybeOf(context);
                     await ref.read(tagEditorProvider).undoLast();
@@ -122,6 +125,10 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
               itemBuilder: (_) => [
                 PopupMenuItem(value: 'sound', child: Text(l10n.musicSound)),
                 PopupMenuItem(value: 'alarms', child: Text(l10n.musicAlarms)),
+                PopupMenuItem(
+                  value: 'scrobble',
+                  child: Text(l10n.musicScrobbling),
+                ),
                 PopupMenuItem(
                   value: 'undoTags',
                   child: Text(l10n.musicTagUndo),

@@ -26,6 +26,8 @@ import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/radio/radio_stations.dart';
+import 'package:mediahro/features/music/scrobble/scrobble_services.dart';
+import 'package:mediahro/features/music/scrobble/scrobbler.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
 import 'package:mediahro/features/music/tags/writer/tag_editor.dart';
 import 'package:mediahro/features/music/visualizer/visualizer.dart';
@@ -117,6 +119,14 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
     )..start();
     ref.onDispose(() => unawaited(bridge.dispose()));
   }
+  final scrobbler = Scrobbler(
+    db: ref.watch(libraryDatabaseProvider),
+    prefs: ref.watch(musicPrefsProvider),
+    player: p,
+    services: ref.watch(scrobbleServicesProvider),
+  )..start();
+  _scrobblers[p] = scrobbler;
+  ref.onDispose(() => unawaited(scrobbler.dispose()));
   final browse = _optional(() => ref.read(mediaBrowseProvider));
   if (browse != null) {
     final tree = MusicBrowseTree(
@@ -141,6 +151,27 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   }
   return p;
 });
+
+/// Scrobbling accounts (MUS-009). Last.fm only when the build has its
+/// keys; none where secure storage is missing (credentials live nowhere
+/// else).
+final scrobbleServicesProvider = Provider<List<ScrobbleService>>((ref) {
+  final secure = _optional(() => ref.read(secureStorageProvider));
+  if (secure == null) return const [];
+  final http = _LazyTransport(() => ref.read(networkGatewayProvider));
+  return [
+    ListenBrainzService(http, secure),
+    ?AudioscrobblerService.lastFm(http, secure),
+    AudioscrobblerService.libreFm(http, secure),
+  ];
+});
+
+final Expando<Scrobbler> _scrobblers = Expando('scrobbler');
+
+/// The scrobbler that follows the music player (MUS-009).
+final scrobblerProvider = Provider<Scrobbler>(
+  (ref) => _scrobblers[ref.watch(musicPlayerProvider)]!,
+);
 
 MusicBrowseLabels _browseLabels() {
   final locale = PlatformDispatcher.instance.locale;
