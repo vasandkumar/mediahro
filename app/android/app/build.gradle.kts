@@ -4,6 +4,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import java.util.Properties
+
+// Release signing (owner, docs/release/android-internal-test.md): the upload
+// key comes from app/android/key.properties, which is gitignored and never
+// committed. storeFile may be an absolute path outside the repo. Without the
+// file (CI, lane builds) release builds fall back to the debug key.
+val keyProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.isFile) file.inputStream().use(::load)
+}
+val hasUploadKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !keyProperties.getProperty(it).isNullOrBlank() }
+
 android {
     namespace = "com.mediahro.mediahro"
     compileSdk = flutter.compileSdkVersion
@@ -42,11 +55,22 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasUploadKey) {
+            create("upload") {
+                storeFile = file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Release signing comes from CI secrets (owner task, STATUS.md section 4).
-            // Local and CI test builds fall back to the debug key so they stay installable.
-            signingConfig = signingConfigs.getByName("debug")
+            // The owner's upload key when key.properties is present; otherwise
+            // the debug key, so CI and lane release builds stay installable.
+            signingConfig = signingConfigs.getByName(if (hasUploadKey) "upload" else "debug")
         }
     }
 }
