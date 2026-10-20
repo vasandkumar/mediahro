@@ -189,6 +189,7 @@ Future<void> showSubtitleSheet(
   BuildContext context,
   VideoPlayerController c, {
   Future<void> Function()? onAddFile,
+  Future<void> Function()? onEdit,
 }) {
   final l = AppLocalizations.of(context);
   final player = context;
@@ -227,6 +228,15 @@ Future<void> showSubtitleSheet(
               onTap: () {
                 Navigator.of(sheetContext).pop();
                 unawaited(onAddFile());
+              },
+            ),
+          if (onEdit != null)
+            ListTile(
+              leading: const Icon(Icons.edit_note_rounded),
+              title: Text(l.videoEditorOpen),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(onEdit());
               },
             ),
           ListTile(

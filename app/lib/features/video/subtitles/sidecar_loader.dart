@@ -12,6 +12,7 @@ final class ExternalSubtitle {
   const ExternalSubtitle({
     required this.file,
     required this.title,
+    this.source,
     this.language,
     this.forced = false,
     this.hearingImpaired = false,
@@ -19,6 +20,9 @@ final class ExternalSubtitle {
 
   /// A local `file:` copy the engine can read.
   final Uri file;
+
+  /// Where the file really lives (for saving edits next to it, SUB-030).
+  final Uri? source;
   final String title;
   final String? language;
   final bool forced;
@@ -133,6 +137,7 @@ final class SidecarLoader {
       out.add(
         ExternalSubtitle(
           file: local.uri,
+          source: source,
           title: m.name,
           language: m.language,
           forced: m.forced,

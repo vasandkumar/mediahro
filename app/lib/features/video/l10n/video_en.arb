@@ -82,6 +82,110 @@
   "videoDeleteConfirm": "Delete",
   "videoDeleteTitle": "Delete this video?",
   "videoDismiss": "Dismiss",
+  "videoEditorAddHere": "Add here",
+  "videoEditorApply": "Apply",
+  "videoEditorCantOpen": "Couldn't open these subtitles for editing.",
+  "videoEditorChooseFile": "Which subtitles?",
+  "videoEditorDelete": "{count, plural, =1{Delete 1} other{Delete {count}}}",
+  "@videoEditorDelete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoEditorDiscard": "Discard",
+  "videoEditorDiscardBody": "The subtitles have unsaved changes.",
+  "videoEditorDiscardTitle": "Discard your changes?",
+  "videoEditorEditCue": "Subtitle {number}",
+  "@videoEditorEditCue": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "videoEditorEmptyCue": "(empty)",
+  "videoEditorEnd": "End",
+  "videoEditorFixEncoding": "Fix encoding",
+  "videoEditorFixOverlaps": "Fix overlaps",
+  "videoEditorKeepEditing": "Keep editing",
+  "videoEditorMerge": "Merge",
+  "videoEditorNow": "Now",
+  "videoEditorOpen": "Edit subtitles",
+  "videoEditorPlayFrom": "Play from here",
+  "videoEditorRedo": "Redo",
+  "videoEditorResyncBody": "Enter when each of these subtitles should start. Everything in between follows.",
+  "videoEditorResyncFirst": "First: {line}",
+  "@videoEditorResyncFirst": {
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "videoEditorResyncHint": "Select two subtitles, one near the start and one near the end, then resync.",
+  "videoEditorResyncSecond": "Second: {line}",
+  "@videoEditorResyncSecond": {
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "videoEditorResyncTitle": "Resync by two points",
+  "videoEditorSaveAs": "Save as",
+  "videoEditorSaveFailed": "Couldn't save the subtitles.",
+  "videoEditorSaveFormat": "{format, select, srt{Save as SRT} ass{Save as ASS} vtt{Save as WebVTT} other{Save}}",
+  "@videoEditorSaveFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "videoEditorSaved": "Saved to {where}",
+  "@videoEditorSaved": {
+    "placeholders": {
+      "where": {
+        "type": "String"
+      }
+    }
+  },
+  "videoEditorSelectCue": "Select subtitle {number}",
+  "@videoEditorSelectCue": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "videoEditorShiftAll": "Shift all",
+  "videoEditorShiftMs": "Milliseconds (negative is earlier)",
+  "videoEditorShiftSelected": "{count, plural, =1{Shift 1 subtitle} other{Shift {count} subtitles}}",
+  "@videoEditorShiftSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "videoEditorShiftTitle": "Shift subtitles",
+  "videoEditorSplitHere": "Split here",
+  "videoEditorStart": "Start",
+  "videoEditorText": "Text",
+  "videoEditorTimeRange": "{start} to {end}",
+  "@videoEditorTimeRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "videoEditorUndo": "Undo",
   "videoErrorDecode": "Couldn't play this file. It may be damaged.",
   "videoErrorEngineMissing": "The player engine is missing from this build.",
   "videoErrorGeneric": "Something went wrong while playing this video.",
