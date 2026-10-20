@@ -405,5 +405,47 @@
   "musicDelete": "Delete",
   "musicDone": "Done",
   "musicMoreNowPlaying": "More",
-  "musicNotRated": "Not rated"
+  "musicNotRated": "Not rated",
+  "musicLyrics": "Lyrics",
+  "musicShowLyrics": "Show lyrics",
+  "musicShowArtwork": "Show cover",
+  "musicNoLyrics": "No lyrics for this song.",
+  "musicLyricsSearchOnline": "Search online (LRCLIB)",
+  "musicLyricsOnlineOff": "Online lyrics are off. Turning them on sends the song's title, artist, album and length to lrclib.net. No account is needed.",
+  "musicLyricsTurnOnOnline": "Turn on and search",
+  "musicLyricsNotFound": "No lyrics found online.",
+  "musicLyricsError": "Couldn't reach the lyrics service. Try again later.",
+  "musicLyricsOrigin": "{origin, select, edited{Your lyrics} sidecar{From the lyrics file} embedded{From the song file} online{From LRCLIB} other{Lyrics}}",
+  "@musicLyricsOrigin": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      }
+    }
+  },
+  "musicLyricsBigger": "Larger text",
+  "musicLyricsSmaller": "Smaller text",
+  "musicLyricsEdit": "Edit lyrics",
+  "musicLyricsCreate": "Create synced lyrics",
+  "musicLyricsEditorHint": "Play the song and tap Stamp as each line starts. Paste or type lyrics first if the song has none.",
+  "musicLyricsStamp": "Stamp line",
+  "musicLyricsUndo": "Undo last stamp",
+  "musicLyricsText": "Lyrics text",
+  "musicLyricsApplyText": "Use this text",
+  "musicLyricsEarlier": "Earlier by 0.1 s",
+  "musicLyricsLater": "Later by 0.1 s",
+  "musicLyricsSaved": "Lyrics saved",
+  "musicLyricsRevert": "Remove your edit",
+  "musicLyricsLineAt": "{time}: {line}",
+  "@musicLyricsLineAt": {
+    "description": "Screen-reader label of a synced line; tapping seeks there.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "line": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderException;
+import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
@@ -11,6 +12,8 @@ import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_indexer.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/library/ratings.dart';
+import 'package:mediahro/features/music/lyrics/lrc.dart';
+import 'package:mediahro/features/music/lyrics/lyrics_service.dart';
 import 'package:mediahro/features/music/player/audio_focus.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
@@ -18,6 +21,9 @@ import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
+import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro/features/settings/core_settings.dart';
+import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -169,6 +175,32 @@ final FutureProviderFamily<(int?, bool), int> ratingProvider =
       final r = ref.watch(musicRatingsProvider);
       return (await r.rating(itemId), await r.isFavourite(itemId));
     });
+
+/// Lyrics (MUS-005): edited, sidecar, embedded, then LRCLIB when the user
+/// turned that endpoint on (PRIV-004).
+final lyricsServiceProvider = Provider<LyricsService>(
+  (ref) => LyricsService(
+    files: ref.watch(musicFilesProvider),
+    cacheDir: Directory(
+      [
+        ref.watch(appDataDirectoryProvider).path,
+        'music',
+        'lyrics',
+      ].join(Platform.pathSeparator),
+    ),
+    readTags: readTagsOf,
+    transport: ref.watch(networkGatewayProvider),
+    onlineEnabled: () => ref
+        .read(settingsStoreProvider)
+        .get(CoreSettings.endpoint(Endpoints.lrclib.id)),
+  ),
+);
+
+/// Lyrics of an item; refresh with `ref.invalidate(lyricsProvider(id))`.
+final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
+    FutureProvider.family<Lyrics?, MusicTrack>(
+      (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
+    );
 
 final musicPlayerStateProvider = StreamProvider<MusicPlayerState>(
   (ref) => ref.watch(musicPlayerProvider).states,

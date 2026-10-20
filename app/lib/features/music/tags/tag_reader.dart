@@ -194,3 +194,11 @@ abstract final class TagReader {
   static const int _tail = 128 * 1024;
   static const int _chunk = 64 * 1024;
 }
+
+/// Reads tags from any [VirtualFile]: local paths by positional reads in an
+/// isolate, everything else (SAF, shares) by ranges.
+Future<AudioTags> readTagsOf(VirtualFile file) {
+  final uri = file.uri;
+  if (uri.scheme == 'file') return TagReader.readFile(uri.toFilePath());
+  return TagReader.readVirtualFile(file);
+}
