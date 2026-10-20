@@ -556,4 +556,8 @@ final class _FakeOutput implements PhotoOutput {
 
   @override
   Future<void> copy(PhotoEntry photo) async => copies.add(photo);
+
+  @override
+  Future<Uri> readableUri(PhotoEntry photo) async =>
+      Uri.parse('file:///tmp/${photo.name}');
 }

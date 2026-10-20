@@ -716,5 +716,7 @@
   "photosImageCopied": "Image copied.",
   "photosCopyFailed": "Couldn't copy the image.",
   "photosSettingsStripOnShare": "Remove location and camera info when sharing",
-  "photosSettingsStripOnShareHint": "Off: the share sheet starts with the original details. You can still switch it on for one share."
+  "photosSettingsStripOnShareHint": "Off: the share sheet starts with the original details. You can still switch it on for one share.",
+  "photosHdrOn": "Show in HDR",
+  "photosHdrOff": "Show without HDR"
 }

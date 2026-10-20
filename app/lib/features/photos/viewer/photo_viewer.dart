@@ -18,6 +18,7 @@ import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/viewer/hdr_surface.dart';
 import 'package:mediahro/features/photos/viewer/photo_page.dart';
 import 'package:mediahro/features/photos/viewer/viewer_surface.dart';
 import 'package:mediahro/features/photos/viewer/zoom_math.dart';
@@ -115,6 +116,19 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   bool _playing = true;
   Timer? _hide;
   bool _started = false;
+  bool _hdrOn = true;
+  bool _paging = false;
+
+  /// The system's HDR picture replaces the tone-mapped one while the photo is
+  /// at rest at fit size on an HDR display (IMG-002).
+  bool get _hdrVisible =>
+      _hdrOn &&
+      _entry.hdr &&
+      _atFit &&
+      _mode == FitMode.fit &&
+      _turns == 0 &&
+      !_paging &&
+      (ref.watch(hdrDisplayProvider).value ?? false);
 
   List<PhotoEntry> get _entries => widget.args.entries;
   PhotoEntry get _entry => _entries[_index];
@@ -309,40 +323,62 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  PageView.builder(
-                    controller: _pages,
-                    physics: _atFit
-                        ? const PageScrollPhysics()
-                        : const NeverScrollableScrollPhysics(),
-                    allowImplicitScrolling: true,
-                    itemCount: _entries.length,
-                    onPageChanged: _onPage,
-                    itemBuilder: (context, i) => PhotoPage(
-                      key: ValueKey(_entries[i].id),
-                      entry: _entries[i],
-                      index: i,
-                      thumbs: _thumbs,
-                      active: i == _index,
-                      mode: _mode,
-                      quarterTurns: i == _index ? _turns : 0,
-                      controller: _viewer,
-                      onAtFitChanged: (v) {
-                        if (v != _atFit) setState(() => _atFit = v);
-                      },
-                      onZoomChanged: (z, p) {
-                        if (p != _percent) setState(() => _percent = p);
-                      },
-                      onTap: _toggleChrome,
-                      onPlayVideo: _play,
-                      animationPlaying: _playing && i == _index,
-                      onLoaded: (img) {
-                        if (i == _index &&
-                            (img.animation != null) != _animated) {
-                          setState(() => _animated = img.animation != null);
-                        }
-                      },
+                  NotificationListener<ScrollNotification>(
+                    onNotification: (n) {
+                      if (n.depth != 0) return false;
+                      if (n is ScrollStartNotification && !_paging) {
+                        setState(() => _paging = true);
+                      } else if (n is ScrollEndNotification && _paging) {
+                        setState(() => _paging = false);
+                      }
+                      return false;
+                    },
+                    child: PageView.builder(
+                      controller: _pages,
+                      physics: _atFit
+                          ? const PageScrollPhysics()
+                          : const NeverScrollableScrollPhysics(),
+                      allowImplicitScrolling: true,
+                      itemCount: _entries.length,
+                      onPageChanged: _onPage,
+                      itemBuilder: (context, i) => PhotoPage(
+                        key: ValueKey(_entries[i].id),
+                        entry: _entries[i],
+                        index: i,
+                        thumbs: _thumbs,
+                        active: i == _index,
+                        mode: _mode,
+                        quarterTurns: i == _index ? _turns : 0,
+                        controller: _viewer,
+                        onAtFitChanged: (v) {
+                          if (v != _atFit) setState(() => _atFit = v);
+                        },
+                        onZoomChanged: (z, p) {
+                          if (p != _percent) setState(() => _percent = p);
+                        },
+                        onTap: _toggleChrome,
+                        onPlayVideo: _play,
+                        animationPlaying: _playing && i == _index,
+                        onLoaded: (img) {
+                          if (i == _index &&
+                              (img.animation != null) != _animated) {
+                            setState(() => _animated = img.animation != null);
+                          }
+                        },
+                      ),
                     ),
                   ),
+                  if (_hdrVisible)
+                    // Touches go through to the pages: swipe, pinch and tap
+                    // work as on any photo.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: HdrImageSurface(
+                          key: ValueKey(_entry.id),
+                          entry: _entry,
+                        ),
+                      ),
+                    ),
                   // Top bar.
                   PositionedDirectional(
                     top: 0,
@@ -481,6 +517,20 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                       ),
                                       onPressed: () =>
                                           setState(() => _playing = !_playing),
+                                    ),
+                                  if (_entry.hdr &&
+                                      (ref.watch(hdrDisplayProvider).value ??
+                                          false))
+                                    IconButton(
+                                      tooltip: _hdrOn
+                                          ? l10n.photosHdrOff
+                                          : l10n.photosHdrOn,
+                                      color: Colors.white,
+                                      icon: Icon(
+                                        _hdrOn ? Icons.hdr_on : Icons.hdr_off,
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _hdrOn = !_hdrOn),
                                     ),
                                   IconButton(
                                     tooltip: _mode == FitMode.fit

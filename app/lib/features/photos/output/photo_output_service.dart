@@ -39,6 +39,10 @@ abstract interface class PhotoOutput {
   Future<bool> print(List<PhotoEntry> photos, PrintLayout layout);
 
   Future<void> copy(PhotoEntry photo);
+
+  /// A `file:` URI the OS can read for [photo]: its own file when it is a
+  /// plain local file, a staged copy otherwise.
+  Future<Uri> readableUri(PhotoEntry photo);
 }
 
 final class PhotoOutputService implements PhotoOutput {
@@ -167,6 +171,10 @@ final class PhotoOutputService implements PhotoOutput {
     }
     await storage.share(uris);
   }
+
+  @override
+  Future<Uri> readableUri(PhotoEntry photo) async =>
+      await _readable(photo, await _fresh());
 
   @override
   Future<void> setWallpaper(PhotoEntry photo, WallpaperTarget target) async {
