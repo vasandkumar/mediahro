@@ -39,5 +39,18 @@ The interfaces froze at a138542. From here, changing anything in rule 5's files,
 | C4a Android · C4b Apple · C4c Windows · C4d Servers & casting | [C4-servers-cast-platform.md](C4-servers-cast-platform.md) |
 | C5 Supporter, privacy, B2B, engine packaging, store metadata | [C5-supporter-privacy-b2b.md](C5-supporter-privacy-b2b.md) |
 
-Shared CI capacity is the bottleneck, especially the macOS runners. Batch your work into one push per PR round, never push while your CI runs, and run `tools/check` locally first.
+### Speed rules (owner, 2026-10-20)
+
+Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 were cancelled; each native-library round took about 2 hours; and failures went lane → CI → orchestrator → lane before anyone fixed them. From now on:
+
+1. **Watch and fix your own CI.** After a push, run `gh pr checks <n> --watch` in the background. When it finishes, read the failures with `gh run view <run> --log-failed` and fix all of them in one batch. Don't wait for the orchestrator to relay them.
+2. **Never idle while CI runs.** Keep working locally on your next IDs, on a new branch or PR if you like. Don't push to a PR whose CI is still running, because a push cancels it.
+3. **Reproduce locally before pushing.**
+   - Everyone: `tools/check`.
+   - Windows: `flutter test integration_test -d windows`.
+   - Android: the local emulator.
+   - network-env: Docker Desktop and WSL Ubuntu are on this machine, so run `docker compose` in `packages/mediahro_ffi/test/network` locally.
+   - Only iOS and macOS need CI to prove them.
+4. **Small PRs** of 2–4 IDs or 1–2 facades. A PR touching only one platform's folders runs only that platform's jobs.
+5. **Message the orchestrator only** when a PR is green and ready to merge, when you are blocked, or when you need an ADR. It merges green PRs as soon as it has checked the evidence.
 
