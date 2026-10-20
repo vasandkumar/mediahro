@@ -201,19 +201,32 @@ void main() {
     );
   }, skip: _skip(NativeLibrary.uchardet));
 
-  test('ebur128 measures a −20 dBFS 1 kHz sine at about −23 LUFS', () {
-    final m = LoudnessMeter(2, 48000);
-    final amp = math.pow(10, -20 / 20).toDouble();
-    const frames = 48000 * 5;
-    final pcm = Float32List(frames * 2);
+  // EBU Tech 3341 / ITU-R BS.1770: a 1 kHz sine of peak amplitude A has a
+  // mean square of A²/2 per channel and K-weighting adds ≈ +0.69 dB at 1 kHz,
+  // cancelling the −0.691 offset. So a −20 dBFS sine reads −20 LUFS on two
+  // channels (their energies add) and ≈ −23 LUFS on one.
+  Float32List sine(int channels, double dbfs, int frames) {
+    final amp = math.pow(10, dbfs / 20).toDouble();
+    final pcm = Float32List(frames * channels);
     for (var i = 0; i < frames; i++) {
       final v = amp * math.sin(2 * math.pi * 1000 * i / 48000);
-      pcm[2 * i] = v;
-      pcm[2 * i + 1] = v;
+      for (var c = 0; c < channels; c++) {
+        pcm[channels * i + c] = v;
+      }
     }
-    m.addFrames(pcm);
-    expect(m.integrated, closeTo(-23, 0.5));
-    expect(m.truePeak(0), closeTo(amp, 0.02));
+    return pcm;
+  }
+
+  test('LIB-014/AUD ebur128: a stereo −20 dBFS 1 kHz sine reads −20 LUFS', () {
+    final m = LoudnessMeter(2, 48000)..addFrames(sine(2, -20, 48000 * 5));
+    expect(m.integrated, closeTo(-20, 0.1));
+    expect(m.truePeak(0), closeTo(math.pow(10, -20 / 20), 0.02));
+    m.dispose();
+  }, skip: _skip(NativeLibrary.ebur128));
+
+  test('LIB-014/AUD ebur128: a mono −20 dBFS 1 kHz sine reads −23 LUFS', () {
+    final m = LoudnessMeter(1, 48000)..addFrames(sine(1, -20, 48000 * 5));
+    expect(m.integrated, closeTo(-23, 0.1));
     m.dispose();
   }, skip: _skip(NativeLibrary.ebur128));
 

@@ -60,6 +60,8 @@ void main() {
     );
   });
 
+  // Stereo 1 kHz sine at −20 dBFS: −20 LUFS (EBU Tech 3341; the two
+  // channels' energies add, cancelling the K-weighting offset).
   testWidgets('LIB-014/NET loudness: ebur128 measures a −20 dBFS sine', (
     tester,
   ) async {
@@ -74,7 +76,7 @@ void main() {
       pcm[2 * i + 1] = v;
     }
     m.addFrames(pcm);
-    expect(m.integrated, closeTo(-23, 0.5));
+    expect(m.integrated, closeTo(-20, 0.1));
     m.dispose();
   });
 
