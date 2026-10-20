@@ -46,6 +46,8 @@ final class ItemMemory {
     this.subtitleLanguage,
     this.subtitlesOff = false,
     this.subtitleDelay,
+    this.subtitleCodepage,
+    this.subtitleSpeed,
     this.audioDelay,
     this.updatedAt,
   });
@@ -67,6 +69,8 @@ final class ItemMemory {
       subtitleLanguage: j['sLang'] as String?,
       subtitlesOff: j['sOff'] == true,
       subtitleDelay: ms('sDelay'),
+      subtitleCodepage: j['sCp'] as String?,
+      subtitleSpeed: (j['sSpd'] as num?)?.toDouble(),
       audioDelay: ms('aDelay'),
       updatedAt: switch (j['at']) {
         final int v => DateTime.fromMillisecondsSinceEpoch(v),
@@ -86,6 +90,12 @@ final class ItemMemory {
   final String? subtitleLanguage;
   final bool subtitlesOff;
   final Duration? subtitleDelay;
+
+  /// Forced subtitle character set (SUB-013); null detects it.
+  final String? subtitleCodepage;
+
+  /// Subtitle speed factor, e.g. 25 / 23.976 (SUB-015).
+  final double? subtitleSpeed;
   final Duration? audioDelay;
   final DateTime? updatedAt;
 
@@ -97,6 +107,8 @@ final class ItemMemory {
       subtitleLanguage == null &&
       !subtitlesOff &&
       subtitleDelay == null &&
+      subtitleCodepage == null &&
+      subtitleSpeed == null &&
       audioDelay == null;
 
   ItemMemory copyWith({
@@ -108,6 +120,8 @@ final class ItemMemory {
     String? Function()? subtitleLanguage,
     bool? subtitlesOff,
     Duration? Function()? subtitleDelay,
+    String? Function()? subtitleCodepage,
+    double? Function()? subtitleSpeed,
     Duration? Function()? audioDelay,
     DateTime? updatedAt,
   }) => ItemMemory(
@@ -121,6 +135,10 @@ final class ItemMemory {
         : subtitleLanguage(),
     subtitlesOff: subtitlesOff ?? this.subtitlesOff,
     subtitleDelay: subtitleDelay == null ? this.subtitleDelay : subtitleDelay(),
+    subtitleCodepage: subtitleCodepage == null
+        ? this.subtitleCodepage
+        : subtitleCodepage(),
+    subtitleSpeed: subtitleSpeed == null ? this.subtitleSpeed : subtitleSpeed(),
     audioDelay: audioDelay == null ? this.audioDelay : audioDelay(),
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -134,6 +152,8 @@ final class ItemMemory {
     if (subtitleLanguage != null) 'sLang': subtitleLanguage,
     if (subtitlesOff) 'sOff': true,
     if (subtitleDelay != null) 'sDelay': subtitleDelay!.inMilliseconds,
+    if (subtitleCodepage != null) 'sCp': subtitleCodepage,
+    if (subtitleSpeed != null) 'sSpd': subtitleSpeed,
     if (audioDelay != null) 'aDelay': audioDelay!.inMilliseconds,
     if (updatedAt != null) 'at': updatedAt!.millisecondsSinceEpoch,
   };

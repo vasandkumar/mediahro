@@ -136,6 +136,7 @@ Future<bool> openVideoEntry(BuildContext context, VirtualEntry entry) async {
   final after = siblings.indexWhere((e) => e.uri == entry.uri);
   PlayRequest req(VirtualEntry e, List<PlayRequest> next) => PlayRequest(
     resolve: () => mediaSourceFor(container, e.uri, title: e.name),
+    locate: () async => e.uri,
     title: e.name,
     memoryKey: e.uri.toString(),
     next: next,
@@ -181,6 +182,7 @@ Future<bool> openVideoItem(BuildContext context, ItemRow item) async {
       title: i.title,
       sourceId: i.sourceId,
     ),
+    locate: () => locator.uriOf(i),
     title: i.title,
     memoryKey: 'item:${i.id}',
     itemId: i.id,

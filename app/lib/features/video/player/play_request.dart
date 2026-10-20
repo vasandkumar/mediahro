@@ -14,6 +14,7 @@ final class PlayRequest {
     required this.memoryKey,
     this.source,
     this.resolve,
+    this.locate,
     this.subtitle,
     this.sourceBadge,
     this.itemId,
@@ -52,6 +53,10 @@ final class PlayRequest {
   /// Opens the source on demand (network shares, SAF files); used when
   /// [source] is null.
   final Future<MediaSource> Function()? resolve;
+
+  /// Where the video lives, for finding its subtitle files (SUB-012); null
+  /// where it has no folder (streams, picked documents).
+  final Future<Uri?> Function()? locate;
   final String title;
 
   /// Episode or series line under the title.
@@ -86,6 +91,7 @@ final class PlayRequest {
     return PlayRequest(
       source: head.source,
       resolve: head.resolve,
+      locate: head.locate,
       title: head.title,
       memoryKey: head.memoryKey,
       subtitle: head.subtitle,

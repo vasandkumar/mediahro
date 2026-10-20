@@ -69,6 +69,13 @@ abstract final class VideoSettings {
   static final SettingKey<List<String>> subtitleLanguages =
       SettingKey.stringList('video.subtitleLanguages');
 
+  /// A folder searched for subtitle files by video name (SUB-012), as a
+  /// URI; empty for none.
+  static final SettingKey<String> subtitleFolder = SettingKey.text(
+    'video.subtitleFolder',
+    defaultValue: '',
+  );
+
   /// Double-tap seek step in seconds (VID-060: 5–60).
   static final SettingKey<int> doubleTapSeconds = SettingKey.integer(
     'video.doubleTapSeconds',

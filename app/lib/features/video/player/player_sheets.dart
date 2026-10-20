@@ -9,6 +9,7 @@ import 'package:mediahro/features/video/player/sleep_timer.dart';
 import 'package:mediahro/features/video/player/speed.dart';
 import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
+import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -24,8 +25,39 @@ String trackLabel(AppLocalizations l, Track t, int index) {
   return head;
 }
 
+/// Subtitle formats by their usual names (SUB-010, SUB-011); format names
+/// are not translated.
+const _subtitleFormats = {
+  'subrip': 'SRT',
+  'srt': 'SRT',
+  'ass': 'ASS',
+  'ssa': 'SSA',
+  'webvtt': 'WebVTT',
+  'mov_text': 'MP4 Timed Text',
+  'microdvd': 'MicroDVD',
+  'sami': 'SAMI',
+  'ttml': 'TTML',
+  'text': 'Text',
+  'eia_608': 'CEA-608',
+  'hdmv_pgs_subtitle': 'PGS',
+  'pgssub': 'PGS',
+  'dvd_subtitle': 'VobSub',
+  'dvdsub': 'VobSub',
+  'dvb_subtitle': 'DVB',
+  'dvbsub': 'DVB',
+};
+
+String formatName(Track t) {
+  final codec = t.codec;
+  if (codec == null) return '';
+  return (t.type == TrackType.subtitle
+          ? _subtitleFormats[codec.toLowerCase()]
+          : null) ??
+      codec.toUpperCase();
+}
+
 String trackDetail(AppLocalizations l, Track t) => [
-  if (t.codec != null) t.codec!.toUpperCase(),
+  if (t.codec != null) formatName(t),
   if (t.channels case final c?)
     switch (c) {
       6 => l.videoTrackSurround51,
@@ -150,12 +182,19 @@ Future<void> showAudioSheet(BuildContext context, VideoPlayerController c) {
   );
 }
 
-Future<void> showSubtitleSheet(BuildContext context, VideoPlayerController c) {
+/// Subtitle tracks, files, encoding and delay (SUB-012, 013, 015).
+/// [onAddFile] picks a subtitle file; null where there is no picker.
+Future<void> showSubtitleSheet(
+  BuildContext context,
+  VideoPlayerController c, {
+  Future<void> Function()? onAddFile,
+}) {
   final l = AppLocalizations.of(context);
+  final player = context;
   return KSheet.show<void>(
     context,
     title: l.videoSubtitlesTitle,
-    builder: (_) => _Live(c, (context) {
+    builder: (sheetContext) => _Live(c, (context) {
       final tracks = c.tracksOf(TrackType.subtitle);
       final delay = c.subtitleDelay;
       return Column(
@@ -179,6 +218,24 @@ Future<void> showSubtitleSheet(BuildContext context, VideoPlayerController c) {
                   ),
               ],
             ),
+          ),
+          if (onAddFile != null)
+            ListTile(
+              leading: const Icon(Icons.note_add_outlined),
+              title: Text(l.videoSubtitleAddFile),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                unawaited(onAddFile());
+              },
+            ),
+          ListTile(
+            leading: const Icon(Icons.translate_rounded),
+            title: Text(l.videoCharsetTitle),
+            subtitle: Text(charsetLabel(l, c.subtitleCodepage)),
+            onTap: () {
+              Navigator.of(sheetContext).pop();
+              unawaited(showCharsetSheet(player, c));
+            },
           ),
           const Divider(),
           _DelayRow(
@@ -425,5 +482,38 @@ Future<void> showMoreSheet(
         ],
       ),
     ),
+  );
+}
+
+/// Manual subtitle character set (SUB-013): automatic detection, or one of
+/// [subtitleCharsets].
+Future<void> showCharsetSheet(BuildContext context, VideoPlayerController c) {
+  final l = AppLocalizations.of(context);
+  return KSheet.show<void>(
+    context,
+    title: l.videoCharsetTitle,
+    builder: (sheetContext) {
+      final current = c.subtitleCodepage;
+      Widget option(String? iconv) => ListTile(
+        title: Text(charsetLabel(l, iconv)),
+        selected: current == iconv,
+        trailing: current == iconv ? const Icon(Icons.check_rounded) : null,
+        onTap: () {
+          unawaited(c.setSubtitleCodepage(iconv));
+          Navigator.of(sheetContext).pop();
+        },
+      );
+      return Material(
+        type: MaterialType.transparency,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            option(null),
+            for (final (iconv, _) in subtitleCharsets) option(iconv),
+          ],
+        ),
+      );
+    },
   );
 }
