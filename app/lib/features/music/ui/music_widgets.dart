@@ -192,6 +192,8 @@ class TrackMenuButton extends ConsumerWidget {
             messenger?.showSnackBar(
               SnackBar(content: Text(l10n.musicAddedToQueue(tracks.length))),
             );
+          case 'other':
+            if (context.mounted) await addToAnotherQueue(context, ref, tracks);
           case 'album':
             toAlbum?.call(single!);
           case 'artist':
@@ -201,6 +203,7 @@ class TrackMenuButton extends ConsumerWidget {
       itemBuilder: (_) => [
         PopupMenuItem(value: 'next', child: Text(l10n.musicPlayNext)),
         PopupMenuItem(value: 'queue', child: Text(l10n.musicAddToQueue)),
+        PopupMenuItem(value: 'other', child: Text(l10n.musicAddToAnotherQueue)),
         if (single?.album != null && toAlbum != null)
           PopupMenuItem(value: 'album', child: Text(l10n.musicGoToAlbum)),
         if ((single?.artist ?? single?.albumArtist) != null && toArtist != null)
@@ -258,4 +261,75 @@ class PlayShuffleBar extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Picks (or creates) a queue other than the playing one and appends
+/// [tracks] to it (MUS-007 "add to another queue").
+Future<void> addToAnotherQueue(
+  BuildContext context,
+  WidgetRef ref,
+  List<MusicTrack> tracks,
+) async {
+  final l10n = AppLocalizations.of(context);
+  final player = ref.read(musicPlayerProvider);
+  final s = player.state;
+  String nameOf(String n) => n == 'default' ? l10n.musicQueueDefaultName : n;
+  final others = [
+    for (final q in s.queues)
+      if (q.id != s.queueId) q,
+  ];
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final picked = await showDialog<(int?, String)>(
+    context: context,
+    builder: (d) => SimpleDialog(
+      title: Text(l10n.musicAddToAnotherQueue),
+      children: [
+        for (final q in others)
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(d).pop((q.id, q.name)),
+            child: Text(nameOf(q.name)),
+          ),
+        SimpleDialogOption(
+          onPressed: () => Navigator.of(d).pop((null, '')),
+          child: Text(l10n.musicNewQueue),
+        ),
+      ],
+    ),
+  );
+  if (picked == null || !context.mounted) return;
+  var (id, name) = picked;
+  if (id == null) {
+    final c = TextEditingController();
+    final typed = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(l10n.musicNewQueue),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          decoration: InputDecoration(labelText: l10n.musicQueueName),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(),
+            child: Text(l10n.musicCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(c.text.trim()),
+            child: Text(l10n.musicCreate),
+          ),
+        ],
+      ),
+    );
+    c.dispose();
+    if (typed == null || typed.isEmpty) return;
+    name = typed;
+    id = await player.createQueue(typed);
+  }
+  await player.addToQueueId(id, tracks);
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(l10n.musicAddedToNamedQueue(tracks.length, nameOf(name))),
+    ),
+  );
 }

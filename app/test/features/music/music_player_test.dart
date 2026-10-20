@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/library/playlists.dart';
 import 'package:mediahro/core/library/progress.dart';
 import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
@@ -175,6 +176,71 @@ void main() {
         'T2',
         'T3',
       });
+    });
+  });
+
+  group('MUS-007 named queues, playlists and history', () {
+    test('MUS-007 multiple named queues: add to another queue and switch '
+        'back and forth at the saved positions', () async {
+      final other = (await lib.songs()).firstWhere((t) => t.title == 'X');
+      await player.playTracks(album, start: 1);
+      engine.at(const Duration(seconds: 30));
+      await settle();
+      final road = await player.createQueue('Road trip');
+      expect(player.state.queues.map((q) => q.name), ['default', 'Road trip']);
+      await player.addToQueueId(road, [other]);
+      // The playing queue is untouched.
+      expect(player.state.queue.map((t) => t.title), ['T1', 'T2', 'T3']);
+      await player.switchQueue(road);
+      expect(player.state.queueId, road);
+      expect(player.state.queue.map((t) => t.title), ['X']);
+      expect(player.state.playing, isFalse);
+      final first = player.state.queues.first.id;
+      await player.switchQueue(first);
+      expect(player.state.current!.title, 'T2');
+      expect(player.state.position, const Duration(seconds: 30));
+      await player.renameQueue(road, 'Trip');
+      expect(player.state.queues.last.name, 'Trip');
+      await player.deleteQueue(road);
+      expect(player.state.queues.length, 1);
+    });
+
+    test('MUS-007 save the queue as a playlist', () async {
+      final playlists = PlaylistRepository(db);
+      final p = MusicPlayer(
+        engine: engine,
+        queues: QueueRepository(db),
+        library: lib,
+        files: localMusicFiles(db),
+        playlists: playlists,
+        openTimeout: const Duration(milliseconds: 200),
+      );
+      await p.init();
+      await p.playTracks(album);
+      final id = await p.saveAsPlaylist('Mine');
+      final items =
+          await (db.select(db.playlistItems)
+                ..where((i) => i.playlistId.equals(id!))
+                ..orderBy([(i) => OrderingTerm.asc(i.position)]))
+              .get();
+      expect(items.map((i) => i.itemId), [for (final t in album) t.itemId]);
+      await p.dispose();
+    });
+
+    test('MUS-007 history lists finished songs newest first; short songs '
+        'count when they play to the end', () async {
+      await player.playTracks(album);
+      engine.finishTrack();
+      await settle();
+      await settle();
+      engine.finishTrack();
+      await settle();
+      await settle();
+      final h = await lib.history();
+      expect(h.map((e) => e.$1.title), ['T2', 'T1']);
+      // A manual skip right away is not a play.
+      await player.next();
+      expect((await lib.history()).length, 2);
     });
   });
 

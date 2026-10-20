@@ -90,7 +90,15 @@ class _LibraryQueryState<T> extends ConsumerState<LibraryQuery<T>> {
   Widget build(BuildContext context) {
     ref.listen(musicLibraryChangesProvider, (_, _) => _changed());
     final v = _value;
-    if (v == null) return const KSkeletonRows();
+    if (v == null) {
+      // Clipped: tabs and sheets can be shorter than the skeleton.
+      return const ClipRect(
+        child: SingleChildScrollView(
+          physics: NeverScrollableScrollPhysics(),
+          child: KSkeletonRows(),
+        ),
+      );
+    }
     return widget.builder(context, v);
   }
 }

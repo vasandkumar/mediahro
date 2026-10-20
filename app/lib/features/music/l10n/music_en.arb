@@ -177,5 +177,40 @@
       }
     }
   },
-  "musicSkipToNext": "Play next song"
+  "musicSkipToNext": "Play next song",
+  "musicQueueDefaultName": "Queue",
+  "musicNewQueue": "New queue",
+  "musicQueueName": "Queue name",
+  "musicRenameQueue": "Rename queue",
+  "musicDeleteQueue": "Delete queue",
+  "musicSwitchQueue": "Switch queue",
+  "musicSaveAsPlaylist": "Save as playlist",
+  "musicPlaylistName": "Playlist name",
+  "musicSavedAsPlaylist": "Saved as the playlist {name}",
+  "@musicSavedAsPlaylist": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAddToAnotherQueue": "Add to another queue",
+  "musicAddedToNamedQueue": "{count, plural, =1{Added 1 song to {queue}} other{Added {count} songs to {queue}}}",
+  "@musicAddedToNamedQueue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "queue": {
+        "type": "String"
+      }
+    }
+  },
+  "musicUpNext": "Up next",
+  "musicHistory": "History",
+  "musicHistoryEmpty": "Songs you play show up here.",
+  "musicCreate": "Create",
+  "musicSave": "Save",
+  "musicCancel": "Cancel",
+  "musicQueueActions": "Queue actions"
 }

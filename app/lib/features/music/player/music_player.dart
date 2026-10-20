@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/library/playlists.dart';
 import 'package:mediahro/core/library/progress.dart';
 import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
@@ -18,6 +20,7 @@ final class MusicPlayerState {
     this.shuffle = false,
     this.queueId,
     this.restoredPosition,
+    this.queues = const [],
   });
 
   final List<MusicTrack> queue;
@@ -26,6 +29,9 @@ final class MusicPlayerState {
   final RepeatMode repeat;
   final bool shuffle;
   final int? queueId;
+
+  /// Every named audio queue (MUS-007), in creation order.
+  final List<QueueRow> queues;
 
   /// Resume point of a queue restored after relaunch, before playback
   /// starts again.
@@ -53,6 +59,7 @@ final class MusicPlayerState {
     bool? shuffle,
     int? queueId,
     Duration? Function()? restoredPosition,
+    List<QueueRow>? queues,
   }) => MusicPlayerState(
     queue: queue ?? this.queue,
     index: index ?? this.index,
@@ -63,6 +70,7 @@ final class MusicPlayerState {
     restoredPosition: restoredPosition == null
         ? this.restoredPosition
         : restoredPosition(),
+    queues: queues ?? this.queues,
   );
 }
 
@@ -77,6 +85,7 @@ final class MusicPlayer {
     required this.library,
     required this.files,
     this.progress,
+    this.playlists,
     this.openTimeout = const Duration(seconds: 3),
   });
 
@@ -85,6 +94,7 @@ final class MusicPlayer {
   final MusicLibrary library;
   final MusicFiles files;
   final ProgressRepository? progress;
+  final PlaylistRepository? playlists;
   final Duration openTimeout;
 
   final _states = StreamController<MusicPlayerState>.broadcast();
@@ -111,6 +121,8 @@ final class MusicPlayer {
   /// Restores the active audio queue (not playing) and follows the engine.
   Future<void> init() async {
     _sub ??= engine.state.listen(_onEngine);
+    final all = await queues.audioQueues();
+    _emit(_state.copyWith(queues: all));
     final active = await queues.active(QueueMode.audio);
     if (active == null) return;
     final q = await queues.load(active.id);
@@ -220,6 +232,93 @@ final class MusicPlayer {
     await _prepareNext();
   });
 
+  /// A new, empty named queue (MUS-007 "multiple named queues").
+  Future<int> createQueue(String name) async {
+    final id = await queues.createAudioQueue(name);
+    final all = await queues.audioQueues();
+    _emit(_state.copyWith(queues: all));
+    return id;
+  }
+
+  Future<void> renameQueue(int queueId, String name) async {
+    await queues.rename(queueId, name);
+    final all = await queues.audioQueues();
+    _emit(_state.copyWith(queues: all));
+  }
+
+  /// Deletes a queue; deleting the playing one switches to another.
+  Future<void> deleteQueue(int queueId) => _serial(() async {
+    final wasActive = queueId == _state.queueId;
+    await queues.delete(queueId);
+    final all = await queues.audioQueues();
+    _emit(_state.copyWith(queues: all));
+    if (!wasActive) return;
+    await engine.stop();
+    final next = await queues.active(QueueMode.audio);
+    if (next == null) {
+      _preparedIndex = null;
+      _state = MusicPlayerState(playback: _state.playback, queues: all);
+      _emit(_state);
+    } else {
+      await _switchTo(next.id);
+    }
+  });
+
+  /// Makes another queue the active one, restored at its saved position
+  /// and paused (Musicolet pattern).
+  Future<void> switchQueue(int queueId) => _serial(() async {
+    if (queueId == _state.queueId) return;
+    await _savePosition();
+    await engine.stop();
+    await queues.activate(queueId);
+    await _switchTo(queueId);
+  });
+
+  /// "Add to another queue" without leaving the current one.
+  Future<void> addToQueueId(int queueId, List<MusicTrack> tracks) =>
+      _serial(() async {
+        if (queueId == _state.queueId) {
+          await queues.append(queueId, [for (final t in tracks) t.itemId]);
+          await _reload(queueId);
+          await _prepareNext();
+        } else {
+          await queues.append(queueId, [for (final t in tracks) t.itemId]);
+        }
+      });
+
+  /// Saves the current queue as a manual playlist (MUS-007).
+  Future<int?> saveAsPlaylist(String name) async {
+    final repo = playlists;
+    if (repo == null || _state.queue.isEmpty) return null;
+    final id = await repo.createManual(name, mode: 'audio');
+    await repo.addItems(id, [for (final t in _state.queue) t.itemId]);
+    return id;
+  }
+
+  Future<void> _switchTo(int queueId) async {
+    final q = await queues.load(queueId);
+    final tracks = await library.tracksByIds([
+      for (final e in q.entries)
+        if (e.itemId != null) e.itemId!,
+    ]);
+    _preparedIndex = null;
+    final all = await queues.audioQueues();
+    _emit(
+      MusicPlayerState(
+        queue: tracks,
+        index: tracks.isEmpty ? 0 : q.currentIndex.clamp(0, tracks.length - 1),
+        queueId: queueId,
+        playback: _state.playback,
+        repeat: RepeatMode.values.byName(q.row.repeat),
+        shuffle: q.row.shuffle,
+        queues: all,
+        restoredPosition: tracks.isEmpty
+            ? null
+            : Duration(milliseconds: q.row.positionMs),
+      ),
+    );
+  }
+
   // ------------------------------------------------------------ transport --
 
   Future<void> play() => _serial(() async {
@@ -303,6 +402,8 @@ final class MusicPlayer {
     if (id != null) return id;
     final created = await queues.createAudioQueue('default');
     await queues.activate(created);
+    final all = await queues.audioQueues();
+    _emit(_state.copyWith(queues: all));
     return created;
   }
 
@@ -424,7 +525,9 @@ final class MusicPlayer {
     final p = progress;
     if (t == null || p == null) return;
     final listened = manual ? _lastPosition : (t.duration ?? _lastPosition);
-    if (listened < const Duration(seconds: 5)) return;
+    // A skip after a few seconds is not a play; a song that played to its
+    // end always is, however short.
+    if (manual && listened < const Duration(seconds: 5)) return;
     await p.recordPlay(t.itemId, listened);
   }
 

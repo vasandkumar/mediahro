@@ -321,6 +321,22 @@ final class MusicLibrary {
     [Variable.withInt(sourceId), Variable.withString(path)],
   );
 
+  /// Recently played songs, newest first (MUS-007 history, LIB-015 events).
+  Future<List<(MusicTrack, DateTime)>> history({
+    int limit = 100,
+    Visibility visibility = Visibility.standard,
+  }) async {
+    final rows = await db
+        .customSelect(
+          'SELECT $_trackColumns, e.at AS played_at $itemJoins '
+          'JOIN play_event e ON e.item_id = i.id '
+          'WHERE ${_where(visibility)} ORDER BY e.at DESC, e.id DESC LIMIT $limit',
+          readsFrom: {db.items, db.audioMeta, db.playEvents},
+        )
+        .get();
+    return [for (final r in rows) (_track(r), r.read<DateTime>('played_at'))];
+  }
+
   /// Number of songs, for the empty state and headers.
   Future<int> songCount({Visibility visibility = Visibility.standard}) async {
     final r = await db

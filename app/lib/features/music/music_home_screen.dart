@@ -139,7 +139,7 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
               ),
             Expanded(
               child: switch (songs) {
-                null => const KSkeletonRows(),
+                null => const SizedBox.shrink(),
                 0 => KEmptyState(
                   title: l10n.musicEmptyTitle,
                   message: l10n.musicEmptyMessage,

@@ -207,9 +207,9 @@ Future<void> finish(WidgetTester tester) async {
 /// Lets drift queries (real async) finish and frames settle without
 /// waiting on looping skeleton animations.
 Future<void> settle(WidgetTester tester) async {
-  for (var i = 0; i < 20; i++) {
+  for (var i = 0; i < 40; i++) {
     await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
     await tester.pump(const Duration(milliseconds: 50));
   }

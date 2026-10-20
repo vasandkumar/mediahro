@@ -72,6 +72,7 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
     library: ref.watch(musicLibraryProvider),
     files: ref.watch(musicFilesProvider),
     progress: ref.watch(progressRepositoryProvider),
+    playlists: ref.watch(playlistRepositoryProvider),
   );
   unawaited(p.init());
   ref.onDispose(() => unawaited(p.dispose()));
