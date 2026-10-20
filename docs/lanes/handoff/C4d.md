@@ -1,0 +1,22 @@
+# Handoff: Lane C4d (Sonnet 5.5), 2026-10-20
+
+The Opus session for this lane is retired. You continue its work from the same folder.
+
+## Read first (every lane)
+1. `CLAUDE.md`, then `docs/lanes/README.md` rules 1–12 (on main). Most important:
+   - **Android first:** every Android feature ships before the first Play upload.
+   - **No GitHub CI.** Never start a workflow.
+   - **Never touch the phone or an emulator.** The orchestrator runs integration tests on the owner's Samsung, in batches of 25 features.
+   - **16 GB PC:** at most 2 lanes at once and one heavy build (Gradle/APK, native compile, integration_test) at a time. Lanes prove their work at Dart level: `tools/check` plus unit and widget tests.
+   - **Nothing large on C:.** Keep your build folder while you're active.
+   - **No phone-home SDKs** (ADR-034 no ML Kit, ADR-035 no Google Cast SDK). Check any SDK's terms and data collection first.
+   - **Frozen interfaces** (`app/lib/platform/*.dart`, the engine API, VFS) change only through an ADR request to the orchestrator.
+   - The orchestrator owns `STATUS.md`, `CHANGELOG.md`, `app/pubspec.yaml`, `app/lib/main.dart` and workflows. Ask under "Orchestrator changes needed".
+2. Your brief: `docs/lanes/C4-servers-cast-platform.md (section C4d)`. ADRs: `docs/05-technical-architecture.md` §12 (ADR-011…037).
+3. **Model:** you run on Sonnet 5.5. For a genuinely hard sub-problem, hand that piece to an Opus subagent (Agent tool, `model: "opus"`) with a self-contained prompt, then continue with its result. Examples: native C/C++ or FFI memory issues, a licence question, a concurrency or race bug you can't pin down in two tries, Play/App Store policy. Don't switch your own model.
+4. **PRs:** small to medium (3–6 IDs), each listing the integration_test files for the orchestrator's phone batch. Merge proof is local, re-run by the orchestrator on the merge result and merged pinned to your head. Message the orchestrator (the session that started you) when a PR is ready, when you're blocked, or when you need an ADR.
+
+## Where this lane stands
+- **Folder:** `K:\Projects\Mediahro\.claude\worktrees\lane-c4d-servers-7bf0bc`.
+- **Uncommitted WIP:** 4 paths in packages/mediahro_servers (mediabrowser client for Jellyfin/Emby, common/, test/support/). Commit them to a branch first. The base is 179 commits behind main, so rebase.
+- **Scope:** NET-010…017 server clients (through HttpTransport only); **CAST-001 open CASTv2 sender in Dart on every platform** (ADR-035: mDNS through MulticastFacade, TLS through TlsSocketFacade, protobuf framing, Default Media Receiver plus B1's cast server); CAST-003 DLNA push; CAST-004 external display; NET-017 Mediahro-to-Mediahro over TlsServerFacade (merged on Android).
