@@ -35,6 +35,8 @@ final class MusicSessionBridge {
   StreamSubscription<PlaybackState>? _other;
   bool _active = false;
   int? _shownItem;
+  NowPlaying? _shownNowPlaying;
+  bool? _widgetPlaying;
   SessionPlaybackState? _shownState;
   bool? _shownNext;
   Duration _shownPosition = Duration.zero;
@@ -108,7 +110,13 @@ final class MusicSessionBridge {
         artwork: await _artwork(track.itemId),
       );
       await session.setNowPlaying(item);
+      _shownNowPlaying = item;
+      _widgetPlaying = s.playing;
       await widgets?.update(item, playing: s.playing);
+    } else if (s.playing != _widgetPlaying && _shownNowPlaying != null) {
+      // Home-screen / lock-screen widgets show play or pause (MUS-012).
+      _widgetPlaying = s.playing;
+      await widgets?.update(_shownNowPlaying, playing: s.playing);
     }
     final state = switch (s.playback.status) {
       PlaybackStatus.playing => SessionPlaybackState.playing,

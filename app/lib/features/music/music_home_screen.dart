@@ -10,6 +10,7 @@ import 'package:mediahro/features/music/ui/alarms_screen.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
+import 'package:mediahro/features/music/ui/playlists.dart';
 import 'package:mediahro/ui/pending_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
@@ -82,6 +83,7 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       ..watch(musicPlayerProvider);
     final tabs = <(String, Widget)>[
       (l10n.musicTabSongs, const SongsTab()),
+      (l10n.musicTabPlaylists, const PlaylistsTab()),
       (l10n.musicTabAlbums, const AlbumsTab()),
       (l10n.musicTabArtists, const GroupsTab(field: GroupField.artist)),
       (
