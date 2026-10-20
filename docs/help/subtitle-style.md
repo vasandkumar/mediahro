@@ -5,7 +5,7 @@ ids: [SUB-014, SUB-015, SUB-016]
 
 ## Style
 
-**Settings → Subtitles** sets the size, text colour, outline, background box, font, position and alignment. Each choice starts at **System**, which follows your device's caption style (the accessibility caption settings on Android, iPhone, iPad, Mac and Windows) where the device has one. Changes apply to the playing video at once.
+**Settings → Subtitles** sets the size, text colour, outline, background box, font, position and alignment. Each choice starts at **System**, which follows your device's caption style (the accessibility caption settings on Android, iPhone, iPad, Mac and Windows) where the device has one, including changes you make there while a video plays. If you turned captions on in those settings, videos start with subtitles in your language. Changes apply to the playing video at once.
 
 Styled subtitles (ASS and SSA) keep their own look, such as karaoke colours and positions. To make them use your settings too, turn on **Use these settings for styled subtitles**.
 

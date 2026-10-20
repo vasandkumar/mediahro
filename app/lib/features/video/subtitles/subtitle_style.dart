@@ -4,6 +4,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/settings/settings_registry.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_speech.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 /// Subtitle text size; `system` follows the caption preference (SUB-014).
@@ -94,6 +95,8 @@ final class CaptionPrefs {
     this.edgeWidth,
     this.edgeArgb,
     this.fontFamily,
+    this.shadowOffset,
+    this.captionsOn = false,
   });
 
   final double? scale;
@@ -104,6 +107,13 @@ final class CaptionPrefs {
   final double? edgeWidth;
   final int? edgeArgb;
   final String? fontFamily;
+
+  /// Drop shadow distance; null for the engine default.
+  final double? shadowOffset;
+
+  /// The user turned captions on in the system: videos start with
+  /// subtitles (docs/06 §7).
+  final bool captionsOn;
 }
 
 /// Subtitle style settings (SUB-014, SUB-016). Every choice defaults to
@@ -192,6 +202,7 @@ SubtitleStyle subtitleStyleFor(SettingsSnapshot s, {CaptionPrefs? system}) {
     colorArgb: s.get(SubtitleSettings.color).argb ?? system?.foregroundArgb,
     outlineWidth: s.get(SubtitleSettings.outline).width ?? system?.edgeWidth,
     outlineColorArgb: system?.edgeArgb,
+    shadowOffset: system?.shadowOffset,
     backgroundArgb: switch (background) {
       SubBackground.box => 0x99000000,
       SubBackground.opaque => 0xFF000000,
@@ -313,4 +324,45 @@ final subtitleSettingsContributions = [
 
 /// The system caption style for subtitles; null until C4's caption facade
 /// exists (ADR request). `videoOverrides` will point it at the facade.
-final captionPrefsProvider = Provider<CaptionPrefs?>((ref) => null);
+final captionPrefsProvider = Provider<CaptionPrefs?>(
+  (ref) => captionPrefsFrom(ref.watch(systemCaptionStyleProvider).value),
+);
+
+/// The system caption style and its changes (ADR-030); null where the
+/// platform has no caption settings or no facade yet.
+final systemCaptionStyleProvider = StreamProvider<SystemCaptionStyle?>((
+  ref,
+) async* {
+  final CaptionStyleFacade facade;
+  try {
+    facade = ref.watch(captionStyleProvider);
+  } on Object {
+    yield null;
+    return;
+  }
+  yield await facade.current();
+  yield* facade.changes;
+});
+
+/// What C1 takes from the system caption style (SUB-014). The edge maps
+/// to an outline or a shadow; an unset edge keeps the engine's outline so
+/// text stays readable on bright pictures.
+CaptionPrefs? captionPrefsFrom(SystemCaptionStyle? s) {
+  if (s == null) return null;
+  final box = s.backgroundArgb ?? s.windowArgb;
+  return CaptionPrefs(
+    scale: s.scale == 1 ? null : s.scale,
+    foregroundArgb: s.foregroundArgb,
+    backgroundArgb: box,
+    edgeWidth: switch (s.edge) {
+      CaptionEdge.none => null,
+      CaptionEdge.outline => 2.5,
+      CaptionEdge.raised || CaptionEdge.depressed => 1.5,
+      CaptionEdge.dropShadow => 0,
+    },
+    shadowOffset: s.edge == CaptionEdge.dropShadow ? 2 : null,
+    edgeArgb: s.edgeArgb,
+    fontFamily: s.fontFamily,
+    captionsOn: s.enabled,
+  );
+}

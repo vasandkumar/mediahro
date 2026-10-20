@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations_en.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
@@ -6,6 +9,7 @@ import 'package:mediahro/features/video/player/video_memory.dart';
 import 'package:mediahro/features/video/player/video_player_controller.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_style.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 import '../../../integration_test/support/c1_engine.dart';
@@ -75,6 +79,62 @@ void main() {
       expect(s.scale, 0.75);
       expect(s.backgroundArgb, isNull);
       expect(s.borderStyle, SubtitleBorderStyle.outlineAndShadow);
+    });
+  });
+
+  group('ADR-030 system caption style', () {
+    test('ADR-030 the system style maps to the engine style', () {
+      final prefs = captionPrefsFrom(
+        const SystemCaptionStyle(
+          enabled: true,
+          scale: 1.5,
+          foregroundArgb: 0xFFFFFF00,
+          windowArgb: 0xCC000000,
+          edge: CaptionEdge.dropShadow,
+          fontFamily: 'Roboto',
+        ),
+      )!;
+      expect(prefs.captionsOn, isTrue);
+      final st = style(system: prefs);
+      expect(st.scale, 1.5);
+      expect(st.colorArgb, 0xFFFFFF00);
+      expect(st.backgroundArgb, 0xCC000000);
+      expect(st.borderStyle, SubtitleBorderStyle.backgroundBox);
+      expect(st.shadowOffset, 2);
+      expect(st.font, 'Roboto');
+    });
+
+    test('ADR-030 an unset edge keeps the engine outline', () {
+      final prefs = captionPrefsFrom(const SystemCaptionStyle(enabled: false))!;
+      final st = style(system: prefs);
+      expect(st.outlineWidth, isNull);
+      expect(st.scale, isNull);
+      expect(prefs.captionsOn, isFalse);
+      expect(captionPrefsFrom(null), isNull);
+    });
+
+    test('ADR-030 the provider follows the facade and its changes', () async {
+      final facade = _Captions();
+      final container = ProviderContainer(
+        overrides: [captionStyleProvider.overrideWithValue(facade)],
+      );
+      addTearDown(container.dispose);
+      final sub = container.listen(captionPrefsProvider, (_, _) {});
+      addTearDown(sub.close);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(container.read(captionPrefsProvider)!.scale, 1.25);
+      facade.change(const SystemCaptionStyle(enabled: true, scale: 2));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(container.read(captionPrefsProvider)!.scale, 2);
+    });
+
+    test('ADR-030 without a facade there is no system style', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final sub = container.listen(captionPrefsProvider, (_, _) {});
+      addTearDown(sub.close);
+      await Future<void>.delayed(Duration.zero);
+      expect(container.read(captionPrefsProvider), isNull);
     });
   });
 
@@ -149,4 +209,68 @@ void main() {
       expect(engine.selections.last.$2, isNull);
     });
   });
+
+  group('SUB-014 captions on in the system (docs/06 section 7)', () {
+    late RecordingEngine engine;
+    late VideoPlayerController c;
+    var on = true;
+
+    setUp(() async {
+      on = true;
+      engine = RecordingEngine(
+        tracks: const [
+          Track(id: 1, type: TrackType.video, width: 1920, height: 1080),
+          Track(
+            id: 1,
+            type: TrackType.subtitle,
+            language: 'en',
+            isForced: true,
+          ),
+          Track(id: 2, type: TrackType.subtitle, language: 'de'),
+          Track(id: 3, type: TrackType.subtitle, language: 'en'),
+        ],
+      );
+      c = VideoPlayerController(
+        engine: engine,
+        memory: await VideoMemory.open(MemoryVideoMemoryPersistence()),
+        settings: settings,
+        systemLanguages: const ['en'],
+        systemCaptionsOn: () => on,
+      );
+    });
+
+    tearDown(() async {
+      c.dispose();
+      await engine.dispose();
+    });
+
+    test(
+      'SUB-014 captions on: subtitles start in my language, not forced',
+      () async {
+        await c.open(PlayRequest.uri(Uri.parse('file:///v/a.mkv')));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(engine.current.subtitleTrackId, 3);
+      },
+    );
+
+    test('SUB-014 captions off: nothing is turned on', () async {
+      on = false;
+      await c.open(PlayRequest.uri(Uri.parse('file:///v/a.mkv')));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(engine.current.subtitleTrackId, isNull);
+    });
+  });
+}
+
+final class _Captions implements CaptionStyleFacade {
+  final _changes = StreamController<SystemCaptionStyle>.broadcast();
+
+  void change(SystemCaptionStyle s) => _changes.add(s);
+
+  @override
+  Future<SystemCaptionStyle?> current() async =>
+      const SystemCaptionStyle(enabled: true, scale: 1.25);
+
+  @override
+  Stream<SystemCaptionStyle> get changes => _changes.stream;
 }
