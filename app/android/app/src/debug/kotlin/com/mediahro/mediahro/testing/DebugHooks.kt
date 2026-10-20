@@ -49,6 +49,7 @@ object DebugHooks {
         host.fake = { contract, _ -> answer(contract) }
         SessionHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         CarHooks.install(host.context, engine.dartExecutor.binaryMessenger)
+        SystemHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         WindowHooks.install(host, engine.dartExecutor.binaryMessenger)
         SecureHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         NetHooks.install(host.context, engine.dartExecutor.binaryMessenger)

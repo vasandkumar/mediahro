@@ -10,6 +10,7 @@ import 'package:mediahro/platform/android/android_power_status.dart';
 import 'package:mediahro/platform/android/android_security.dart';
 import 'package:mediahro/platform/android/android_sftp.dart';
 import 'package:mediahro/platform/android/android_storage.dart';
+import 'package:mediahro/platform/android/android_system.dart';
 import 'package:mediahro/platform/android/android_text.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -33,6 +34,8 @@ List<Override> overrides() => [
   mediaBrowseProvider.overrideWithValue(AndroidMediaBrowse()),
   alarmProvider.overrideWithValue(AndroidAlarms()),
   homeWidgetsProvider.overrideWithValue(AndroidHomeWidgets()),
+  systemIntegrationProvider.overrideWithValue(AndroidSystemIntegration()),
+  intentsProvider.overrideWithValue(AndroidIntents()),
   secureStorageProvider.overrideWithValue(AndroidSecureStorage()),
   biometricsProvider.overrideWithValue(AndroidBiometrics()),
   networkStatusProvider.overrideWithValue(AndroidNetworkStatus()),

@@ -5,7 +5,11 @@ import com.mediahro.mediahro.pigeon.AudioDeviceChangesStreamHandler
 import com.mediahro.mediahro.pigeon.AudioInterruptionsStreamHandler
 import com.mediahro.mediahro.pigeon.AlarmHostApi
 import com.mediahro.mediahro.pigeon.AlarmsFiredStreamHandler
+import com.mediahro.mediahro.pigeon.AppIntentsStreamHandler
 import com.mediahro.mediahro.pigeon.AudioOutputHostApi
+import com.mediahro.mediahro.pigeon.IntentsHostApi
+import com.mediahro.mediahro.pigeon.OpenRequestsStreamHandler
+import com.mediahro.mediahro.pigeon.SystemHostApi
 import com.mediahro.mediahro.pigeon.MediaBrowseFlutterApi
 import com.mediahro.mediahro.pigeon.HomeWidgetsHostApi
 import com.mediahro.mediahro.pigeon.MediaBrowseHostApi
@@ -51,6 +55,9 @@ import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.sftp.SftpModule
 import com.mediahro.mediahro.platform.text.SpeechModule
 import com.mediahro.mediahro.platform.storage.PhotoLibraryModule
+import com.mediahro.mediahro.platform.system.IncomingIntents
+import com.mediahro.mediahro.platform.system.IntentsModule
+import com.mediahro.mediahro.platform.system.SystemModule
 import com.mediahro.mediahro.platform.tls.TlsHub
 import com.mediahro.mediahro.platform.widgets.HomeWidgetsModule
 import com.mediahro.mediahro.platform.tls.TlsServerModule
@@ -120,6 +127,12 @@ object PlatformModules {
         AlarmHostApi.setUp(messenger, AlarmModule(context.applicationContext, host))
         AlarmsFiredStreamHandler.register(messenger, AlarmHub.handler)
         HomeWidgetsHostApi.setUp(messenger, HomeWidgetsModule(context.applicationContext))
+
+        // Open with, share targets, shortcuts and App Actions (CORE-003, SYS-003/004).
+        SystemHostApi.setUp(messenger, SystemModule(host))
+        IntentsHostApi.setUp(messenger, IntentsModule(context.applicationContext))
+        OpenRequestsStreamHandler.register(messenger, IncomingIntents.openHandler)
+        AppIntentsStreamHandler.register(messenger, IncomingIntents.intentHandler)
 
         audio?.dispose()
         val audioModule = AudioOutputModule(context.applicationContext).also { audio = it }
