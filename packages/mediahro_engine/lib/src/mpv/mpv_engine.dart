@@ -23,6 +23,7 @@ import 'package:mediahro_engine/src/mpv/mpv_options.dart';
 import 'package:mediahro_engine/src/mpv/playlist_files.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
 import 'package:mediahro_engine/src/mpv/software_renderer.dart';
+import 'package:mediahro_engine/src/mpv/stall_guard.dart';
 import 'package:mediahro_engine/src/mpv/state_mapping.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
@@ -155,6 +156,10 @@ final class MpvEngine implements PlaybackEngine {
   // Completed on the next playback-restart (end of a seek).
   final _restartWaiters = <Completer<void>>[];
   var _hevcChecked = false;
+  // VID-002: a hardware decoder that froze is rebuilt in software, once per
+  // item; mpv drops the file-local override when the item ends.
+  final _stall = StallGuard();
+  Timer? _stallTimer;
   int _generation = 0;
   Completer<void>? _opened;
   var _emitScheduled = false;
@@ -256,6 +261,12 @@ final class MpvEngine implements PlaybackEngine {
         );
       }
       await _attachSurface(client);
+      if (role == EngineRole.video) {
+        _stallTimer = Timer.periodic(
+          _stallTick,
+          (_) => unawaited(_checkStall()),
+        );
+      }
       return client;
     } on NativeLibraryUnavailable catch (e) {
       _fail(EngineErrorCode.libraryMissing, '$e');
@@ -716,6 +727,7 @@ final class MpvEngine implements PlaybackEngine {
     _source = src;
     _next = null;
     _hevcChecked = false;
+    _stall.reset();
     _externalChapters = o.chapters;
     _loading = true;
     _eof = false;
@@ -1214,6 +1226,42 @@ final class MpvEngine implements PlaybackEngine {
     ).stream;
   }
 
+  static const _stallTick = Duration(milliseconds: 500);
+
+  Future<void> _checkStall() async {
+    final rebuild = _stall.check(
+      elapsed: _stallTick,
+      position: _state.position,
+      playing: _deriveStatus() == PlaybackStatus.playing,
+      hardwareVideo:
+          _state.videoTrackId != null && _state.video.hwdec != HwdecPath.none,
+    );
+    if (rebuild) await recoverStalledDecoder();
+  }
+
+  /// Rebuilds the video decoder in software for the rest of the item, from
+  /// the last shown frame (VID-002 stall recovery; tests call it directly).
+  @visibleForTesting
+  Future<void> recoverStalledDecoder() async {
+    final c = _client;
+    if (c == null) return;
+    config.onLog?.call(
+      const MpvLogMessage(
+        'mediahro',
+        'warn',
+        'video decoder stalled; continuing in software',
+      ),
+    );
+    // mpv rebuilds the decoder and seeks back to the last shown frame; the
+    // file-local value ends with the item, so the next one starts on the
+    // configured decoder.
+    await _quiet(c.setProperty('file-local-options/hwdec', 'no'));
+    _state = _state.copyWith(
+      notices: {..._state.notices, EngineNotice.softwareDecodeFallback},
+    );
+    _scheduleEmit();
+  }
+
   /// Whether a visualiser tap's analysis core is running (tests).
   @visibleForTesting
   bool get audioTapActive => _taps.values.any((t) => t.active);
@@ -1510,6 +1558,7 @@ final class MpvEngine implements PlaybackEngine {
     if (_disposed) return;
     _disposed = true;
     _shuttingDown = true;
+    _stallTimer?.cancel();
     final client = await (_ready ?? Future<MpvClient?>.value());
     await _surfaceSub?.cancel();
     final surface = _surface;
