@@ -1,0 +1,32 @@
+{
+  "comment": "Copy of the libsmb2 and libnfs entries of mediahro-deps/versions.json (main), so the network-env job builds the same upstream releases the app ships. Patches are copies of mediahro-deps patches/<name>/ (B4a, mediahro-deps#10 at d2d9b65) and are applied in file-name order with patch -p1, as scripts/sources.py does. Update both together with versions.json.",
+  "libraries": [
+    {
+      "name": "libsmb2",
+      "min": "6.2",
+      "version": "6.2",
+      "tag": "libsmb2-6.2",
+      "source": "https://github.com/sahlberg/libsmb2/archive/refs/tags/{tag}.tar.gz",
+      "sha256": "8e1f9efc6b2e0f6546f0fe121ac0ddf4fc2f0908ae5a6bd1f185be7c9e0bcbb3",
+      "license": "LGPL-2.1-or-later",
+      "linking": "dynamic",
+      "verified": [
+        "tag-archive"
+      ]
+    },
+    {
+      "name": "libnfs",
+      "min": "6.0.2",
+      "version": "8.0.0",
+      "tag": "libnfs-8.0.0",
+      "source": "https://github.com/sahlberg/libnfs/archive/refs/tags/{tag}.tar.gz",
+      "sha256": "bc91216e927a85142b5de611c7f711558e02119a7daad67620ea631634038350",
+      "license": "LGPL-2.1-or-later",
+      "linking": "dynamic",
+      "note": "Library is LGPL-2.1+; protocol files BSD-2-Clause; the GPL utils are not built",
+      "verified": [
+        "tag-archive"
+      ]
+    }
+  ]
+}

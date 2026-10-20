@@ -81,6 +81,7 @@ final class PosixErrno {
   int get perm => 1;
   int get noent => 2;
   int get io => 5;
+  int get noexec => 8;
   int get acces => 13;
   int get exist => 17;
   int get notdir => 20;

@@ -56,6 +56,65 @@ class Smb2Bindings {
         void Function(ffi.Pointer<smb2_context>, ffi.Pointer<smb2dir>)
       >();
 
+  /// Asynchronous SMB2 Ioctl
+  ffi.Pointer<smb2_pdu> smb2_cmd_ioctl_async(
+    ffi.Pointer<smb2_context> smb2,
+    ffi.Pointer<smb2_ioctl_request> req,
+    ffi.Pointer<
+      ffi.NativeFunction<
+        ffi.Void Function(
+          ffi.Pointer<smb2_context> smb2,
+          ffi.Int status,
+          ffi.Pointer<ffi.Void> command_data,
+          ffi.Pointer<ffi.Void> cb_data,
+        )
+      >
+    >
+    cb,
+    ffi.Pointer<ffi.Void> cb_data,
+  ) {
+    return _smb2_cmd_ioctl_async(smb2, req, cb, cb_data);
+  }
+
+  late final _smb2_cmd_ioctl_asyncPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<smb2_pdu> Function(
+            ffi.Pointer<smb2_context>,
+            ffi.Pointer<smb2_ioctl_request>,
+            ffi.Pointer<
+              ffi.NativeFunction<
+                ffi.Void Function(
+                  ffi.Pointer<smb2_context> smb2,
+                  ffi.Int status,
+                  ffi.Pointer<ffi.Void> command_data,
+                  ffi.Pointer<ffi.Void> cb_data,
+                )
+              >
+            >,
+            ffi.Pointer<ffi.Void>,
+          )
+        >
+      >('smb2_cmd_ioctl_async');
+  late final _smb2_cmd_ioctl_async = _smb2_cmd_ioctl_asyncPtr
+      .asFunction<
+        ffi.Pointer<smb2_pdu> Function(
+          ffi.Pointer<smb2_context>,
+          ffi.Pointer<smb2_ioctl_request>,
+          ffi.Pointer<
+            ffi.NativeFunction<
+              ffi.Void Function(
+                ffi.Pointer<smb2_context> smb2,
+                ffi.Int status,
+                ffi.Pointer<ffi.Void> command_data,
+                ffi.Pointer<ffi.Void> cb_data,
+              )
+            >
+          >,
+          ffi.Pointer<ffi.Void>,
+        )
+      >();
+
   /// Sync call to connect to a share. On unix, if user is NULL then default to
   /// the current user.
   int smb2_connect_share(
@@ -177,6 +236,19 @@ class Smb2Bindings {
       >('smb2_get_error');
   late final _smb2_get_error = _smb2_get_errorPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<smb2_context>)>();
+
+  /// EVENT SYSTEM INTEGRATION ======================== The following functions
+  /// are used to integrate libsmb2 in an event system.
+  int smb2_get_fd(ffi.Pointer<smb2_context> smb2) {
+    return _smb2_get_fd(smb2);
+  }
+
+  late final _smb2_get_fdPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<smb2_context>)>>(
+        'smb2_get_fd',
+      );
+  late final _smb2_get_fd = _smb2_get_fdPtr
+      .asFunction<int Function(ffi.Pointer<smb2_context>)>();
 
   /// Gets the libsmb2 version being linked while used. This function will be
   /// available on 5.x
@@ -378,6 +450,24 @@ class Smb2Bindings {
         )
       >();
 
+  void smb2_queue_pdu(
+    ffi.Pointer<smb2_context> smb2,
+    ffi.Pointer<smb2_pdu> pdu,
+  ) {
+    return _smb2_queue_pdu(smb2, pdu);
+  }
+
+  late final _smb2_queue_pduPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(ffi.Pointer<smb2_context>, ffi.Pointer<smb2_pdu>)
+        >
+      >('smb2_queue_pdu');
+  late final _smb2_queue_pdu = _smb2_queue_pduPtr
+      .asFunction<
+        void Function(ffi.Pointer<smb2_context>, ffi.Pointer<smb2_pdu>)
+      >();
+
   /// readdir()
   ffi.Pointer<smb2dirent> smb2_readdir(
     ffi.Pointer<smb2_context> smb2,
@@ -446,6 +536,19 @@ class Smb2Bindings {
       .asFunction<
         int Function(ffi.Pointer<smb2_context>, ffi.Pointer<ffi.Char>)
       >();
+
+  /// Called to process the events when events become available for the smb2
+  /// file descriptor.
+  int smb2_service(ffi.Pointer<smb2_context> smb2, int revents) {
+    return _smb2_service(smb2, revents);
+  }
+
+  late final _smb2_servicePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.Int Function(ffi.Pointer<smb2_context>, ffi.Int)>
+      >('smb2_service');
+  late final _smb2_service = _smb2_servicePtr
+      .asFunction<int Function(ffi.Pointer<smb2_context>, int)>();
 
   /// Set authentication method. SMB2_SEC_UNDEFINED (use KRB if available or
   /// NTLM if not) SMB2_SEC_NTLMSSP SMB2_SEC_KRB5
@@ -666,6 +769,19 @@ class Smb2Bindings {
       .asFunction<
         int Function(ffi.Pointer<smb2_context>, ffi.Pointer<ffi.Char>)
       >();
+
+  /// Returns which events that we need to poll for for the smb2 file
+  /// descriptor.
+  int smb2_which_events(ffi.Pointer<smb2_context> smb2) {
+    return _smb2_which_events(smb2);
+  }
+
+  late final _smb2_which_eventsPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<smb2_context>)>>(
+        'smb2_which_events',
+      );
+  late final _smb2_which_events = _smb2_which_eventsPtr
+      .asFunction<int Function(ffi.Pointer<smb2_context>)>();
 }
 
 const int SMB2_NEGOTIATE_SIGNING_ENABLED = 1;
@@ -680,6 +796,62 @@ const int SMB2_TYPE_LINK = 2;
 
 /// This creates a new smb2fh based on fileid. Free it with smb2_close_async()
 final class smb2_context extends ffi.Opaque {}
+
+final class smb2_ioctl_reply extends ffi.Struct {
+  @ffi.Uint32()
+  external int ctl_code;
+
+  @ffi.Array.multi([16])
+  external ffi.Array<ffi.Uint8> file_id;
+
+  @ffi.Uint32()
+  external int input_offset;
+
+  @ffi.Uint32()
+  external int input_count;
+
+  @ffi.Uint32()
+  external int output_offset;
+
+  @ffi.Uint32()
+  external int output_count;
+
+  @ffi.Uint32()
+  external int flags;
+
+  external ffi.Pointer<ffi.Void> output;
+}
+
+final class smb2_ioctl_request extends ffi.Struct {
+  @ffi.Uint32()
+  external int ctl_code;
+
+  @ffi.Array.multi([16])
+  external ffi.Array<ffi.Uint8> file_id;
+
+  @ffi.Uint32()
+  external int input_offset;
+
+  @ffi.Uint32()
+  external int input_count;
+
+  @ffi.Uint32()
+  external int max_input_response;
+
+  @ffi.Uint32()
+  external int output_offset;
+
+  @ffi.Uint32()
+  external int output_count;
+
+  @ffi.Uint32()
+  external int max_output_response;
+
+  @ffi.Uint32()
+  external int flags;
+
+  external ffi.Pointer<ffi.Void> input;
+}
 
 final class smb2_libversion extends ffi.Struct {
   @ffi.Uint8()
@@ -731,6 +903,8 @@ enum smb2_negotiate_version {
     ),
   };
 }
+
+final class smb2_pdu extends ffi.Opaque {}
 
 final class smb2_stat_64 extends ffi.Struct {
   @ffi.Uint32()
