@@ -7,6 +7,8 @@ cd "$(dirname "$0")/../../app"
 mkdir -p ../build
 status=0
 for f in integration_test/*_test.dart; do
+  # Profile-mode budgets live in *_perf_test.dart and run only in the perf job.
+  case "$f" in *_perf_test.dart) continue;; esac
   ok=0
   for attempt in 1 2; do
     adb logcat -c || true
