@@ -49,11 +49,16 @@ void main() {
 
   late AndroidMediaSession session;
   late AndroidAudioOutput audio;
-  setUp(() {
+  setUp(() async {
     if (!android) return;
     session = AndroidMediaSession();
     audio = AndroidAudioOutput();
+    // Only the prompt test lets activate() ask for POST_NOTIFICATIONS.
+    await op('notificationPrompt', false);
   });
+
+  Future<Map<Object?, Object?>> diag() async =>
+      (await op('notificationDiag'))! as Map<Object?, Object?>;
 
   Future<void> startPlaying() async {
     await session.activate(MediaSessionKind.music);
@@ -153,26 +158,15 @@ void main() {
   }, skip: !android);
 
   testWidgets(
-    'SYS-002 media notification and SYS-006 foreground service ends on stop',
+    'SYS-006 mediaPlayback foreground service while playing, ends on stop',
     (tester) async {
       await startPlaying();
       await eventually(
         () async => await op('foreground') == true,
         reason: 'mediaPlayback foreground service while playing',
       );
-      expect(await op('notification'), isTrue);
-      // Paused: the notification keeps its controls (Media3 also keeps the
-      // service in the foreground for a grace period so a resume from the
-      // notification is allowed on Android 12+).
-      await session.setPlaybackStatus(
-        const SessionPlaybackStatus(
-          state: SessionPlaybackState.paused,
-          position: Duration(seconds: 31),
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(await op('notification'), isTrue);
-      // Stopped: out of the foreground at once, nothing keeps running.
+      // Paused keeps the service (Media3 grace period for a resume from the
+      // notification on Android 12+); stopped leaves the foreground at once.
       await session.setPlaybackStatus(
         const SessionPlaybackStatus(
           state: SessionPlaybackState.stopped,
@@ -185,13 +179,39 @@ void main() {
       );
       await eventually(
         () async => await op('notification') == false,
-        reason: 'stopped: notification removed',
+        reason: 'stopped: no notification left',
       );
       await session.deactivate();
       await eventually(
         () async => await op('service') == false,
         reason: 'deactivate stops the service',
       );
+    },
+    skip: !android,
+  );
+
+  testWidgets(
+    'SYS-002 notifications denied: playback, session and controls keep working',
+    (tester) async {
+      final before = await diag();
+      if (before['permission'] == true) {
+        return markTestSkipped('notifications already allowed: $before');
+      }
+      await startPlaying();
+      await eventually(
+        () async => await op('foreground') == true,
+        reason: 'foreground without the permission, ${await diag()}',
+      );
+      expect((await state())['title'], 'Blue in Green');
+      final got = <RemoteCommand>[];
+      final sub = session.commands.listen(got.add);
+      addTearDown(sub.cancel);
+      await op('pause');
+      await eventually(
+        () async => got.whereType<PauseCommand>().isNotEmpty,
+        reason: 'controls work while notifications are denied',
+      );
+      expect((await diag())['prompts'], 0, reason: 'prompt was off');
     },
     skip: !android,
   );
@@ -265,6 +285,55 @@ void main() {
       await expectLater(
         audio.requestBitPerfect('no-such-device', sampleRate: 44100),
         throwsA(isA<PlatformException>()),
+      );
+    },
+    skip: !android,
+  );
+
+  // Last: on a device where nobody answers, the permission sheet stays up.
+  testWidgets(
+    'SYS-002 first playback asks for notifications; the media notification shows once allowed',
+    (tester) async {
+      await op('notificationPrompt', true);
+      final asked = (await diag())['permission'] != true;
+      await startPlaying();
+      if (asked) {
+        expect((await diag())['prompts'], 1, reason: 'activate() asked once');
+      }
+      // Allow it on the device, or from the host while this test waits:
+      //   adb -s <serial> shell pm grant com.mediahro.app android.permission.POST_NOTIFICATIONS
+      final deadline = DateTime.now().add(const Duration(seconds: 60));
+      while ((await diag())['enabled'] != true) {
+        if (DateTime.now().isAfter(deadline)) {
+          return markTestSkipped(
+            'POST_NOTIFICATIONS not allowed during the run: ${await diag()}',
+          );
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+      // Re-post with the permission in place.
+      await session.setPlaybackStatus(
+        const SessionPlaybackStatus(
+          state: SessionPlaybackState.playing,
+          position: Duration(seconds: 32),
+          canSkipNext: true,
+        ),
+      );
+      await eventually(
+        () async => await op('notification') == true,
+        reason: 'media notification while playing, ${await diag()}',
+      );
+      await session.setPlaybackStatus(
+        const SessionPlaybackStatus(
+          state: SessionPlaybackState.paused,
+          position: Duration(seconds: 33),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        await op('notification'),
+        isTrue,
+        reason: 'paused keeps the controls, ${await diag()}',
       );
     },
     skip: !android,

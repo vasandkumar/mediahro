@@ -44,7 +44,7 @@ object PlatformModules {
         PhotoLibraryHostApi.setUp(messenger, PhotoLibraryModule(context.applicationContext, host))
 
         session?.dispose()
-        val sessionModule = MediaSessionModule(context.applicationContext).also { session = it }
+        val sessionModule = MediaSessionModule(context.applicationContext, host).also { session = it }
         MediaSessionHostApi.setUp(messenger, sessionModule)
         RemoteCommandsStreamHandler.register(messenger, sessionModule.commandsHandler)
 

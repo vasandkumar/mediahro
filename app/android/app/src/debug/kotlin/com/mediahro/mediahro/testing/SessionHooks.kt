@@ -1,6 +1,9 @@
 package com.mediahro.mediahro.testing
 
+import android.Manifest
 import android.app.NotificationManager
+import android.content.pm.PackageManager
+import android.os.Build
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -12,6 +15,7 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.mediahro.mediahro.platform.PlatformModules
+import com.mediahro.mediahro.platform.media.MediaSessionModule
 import com.mediahro.mediahro.platform.media.PlaybackService
 import com.mediahro.mediahro.platform.media.SessionHub
 import io.flutter.plugin.common.BasicMessageChannel
@@ -42,6 +46,11 @@ internal object SessionHooks {
             "notification" -> reply(
                 context.getSystemService(NotificationManager::class.java).activeNotifications.isNotEmpty(),
             )
+            "notificationDiag" -> reply(notificationDiag(context))
+            "notificationPrompt" -> {
+                MediaSessionModule.askForNotifications = arg as Boolean
+                reply(MediaSessionModule.notificationPrompts)
+            }
             "foreground" -> reply((SessionHub.service?.foregroundServiceType ?: 0) != 0)
             "service" -> reply(SessionHub.service != null)
             "stealFocus" -> {
@@ -76,6 +85,25 @@ internal object SessionHooks {
             }
             else -> withController(context) { c -> reply(command(c, op, arg)) }
         }
+    }
+
+    /** Why a media notification is or is not visible (SYS-002 on OEM builds). */
+    private fun notificationDiag(context: Context): Map<String, Any?> {
+        val nm = context.getSystemService(NotificationManager::class.java)
+        return mapOf(
+            "sdk" to Build.VERSION.SDK_INT,
+            "manufacturer" to Build.MANUFACTURER,
+            "enabled" to nm.areNotificationsEnabled(),
+            "permission" to (
+                Build.VERSION.SDK_INT < 33 ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+                ),
+            "channels" to nm.notificationChannels.map { "${it.id}:${it.importance}" },
+            "active" to nm.activeNotifications.map { "${it.id}:${it.notification.channelId}" },
+            "foreground" to ((SessionHub.service?.foregroundServiceType ?: 0) != 0),
+            "prompts" to MediaSessionModule.notificationPrompts,
+        )
     }
 
     private fun command(c: MediaController, op: String, arg: Any?): Any? {
