@@ -30,3 +30,14 @@ Before you start: in Mediahro, add the folder **Download/MediahroTest** as a sou
 15. Play a song, then a video. The lock-screen buttons control only what's playing now.
 
 Tell the orchestrator the numbers that failed and what you saw; everything else counts as passed.
+
+## Batch runner notes
+
+Notes for whoever runs a device batch (orchestrator, Samsung SM-M176B, Flutter 3.47.7). They apply to every batch.
+
+- Do not pass `--no-dds` to `flutter test integration_test/...`. On Flutter 3.47.7 it causes a spurious `VmServiceProxyGoldenFileComparator` error and the run hangs.
+- Pass `--no-uninstall` so runtime permission and appops grants survive from one test file to the next.
+- After the first install, grant `READ_MEDIA_VIDEO`, `READ_MEDIA_AUDIO`, `READ_MEDIA_IMAGES` and `POST_NOTIFICATIONS`, and run `appops set com.mediahro.app SCHEDULE_EXACT_ALARM allow` (needed by `c4a_android_car_alarm_test`).
+- Generate the engine corpus with `dart run tools/corpus/generate.dart`, then stage it on the phone with `tool/stage_corpus.py`, before any `engine_test` run (restage when a new sample such as `mp4_movtext.mp4` is added).
+- `c4a_android_tls_test` can hang after a failure. Always run it with a timeout.
+- Results of each batch go in `docs/release/android-batch-N-results.md` (batch 2: `android-batch-2-results.md`).
