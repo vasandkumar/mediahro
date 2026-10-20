@@ -62,17 +62,10 @@ Phase B lost most of its time waiting rather than working. Of 189 CI runs, 120 w
 7. **At most 3 lane sessions run at once (owner).** The orchestrator schedules them. Never message another lane directly, because that wakes a paused session; send anything for another lane to the orchestrator.
 8. **No GitHub CI for now (owner, 2026-10-20).** ci.yml and engine.yml run only on manual dispatch. **Proof is local:**
    - `tools/check` on your branch rebased on main.
-   - The integration tests for your IDs on the owner's Android test device, a Samsung SM-M176B on Android 16 paired over wireless debugging. It's shared: take `K:\Projects\.device-lock` first, as in rule 6.
-   - The Windows integration tests on this machine, if you touched shared Dart.
+   - List the integration tests for your IDs (and any native self-test, with its exact adb commands and expected output) in the PR; the orchestrator runs them on the owner's Samsung (rule 9).
 
-   Paste the commands and their pass lines into the PR's evidence table, with the device serial and the commit. The orchestrator re-runs `tools/check` on the merge result before merging. Never push in order to test, and never start a workflow.
-9. **Samsung only, never an emulator (owner, 2026-10-20).** The test device is the owner's Samsung SM-M176B (Android 16, arm64), serial `adb-RZGL225BN7H-KoTKDF._adb-tls-connect._tcp`. Lanes share it through a lock kept on the phone, which replaces the `K:\Projects\.device-lock` folder from rule 6:
-   - Take: `adb -s <serial> shell mkdir /data/local/tmp/mediahro-lock`. It fails if the lock is held, so retry after 60 s.
-   - Mark: write `<lane> <epoch>` to `/data/local/tmp/mediahro-lock/owner`.
-   - Release: `adb -s <serial> shell rm -rf /data/local/tmp/mediahro-lock`. Release even on failure.
-   - Stale: a lock older than 30 minutes is stale.
-   Hold it only while installing and testing. The orchestrator takes the same lock when it verifies PRs.
-   In Git Bash, put `export MSYS_NO_PATHCONV=1` before these commands. Otherwise Git Bash rewrites `/data/...` into a Windows path and mkdir fails with a misleading error.
+   Paste the commands and their pass lines into the PR's evidence table, with the commit. The orchestrator re-runs `tools/check` on the merge result before merging. Never push in order to test, and never start a workflow.
+9. **Samsung only, never an emulator (owner, 2026-10-20).** The test device is the owner's Samsung SM-M176B (Android 16, arm64), serial `adb-RZGL225BN7H-KoTKDF._adb-tls-connect._tcp`. **Lanes never touch the phone** — no adb install, push, shell or lock. Only the orchestrator runs anything on it (batch runs, native self-tests, PR verification), under the on-device lock `/data/local/tmp/mediahro-lock` (in Git Bash, `export MSYS_NO_PATHCONV=1` first). A lane that needs something run on the device stages it under its gitignored `build/` with the exact adb commands and expected output, and sends the path to the orchestrator.
 10. **Device testing in batches of 25 features (owner, 2026-10-20).**
     - A PR merges on local proof: `tools/check` plus unit and widget tests, re-run by the orchestrator on the merge result.
     - Its features are then "built, awaiting the device batch" (STATUS §1, *Android device batch*). They are not ☑ yet.
