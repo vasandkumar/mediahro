@@ -45,6 +45,7 @@ import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
 import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
+import com.mediahro.mediahro.platform.enterprise.EnterpriseModules
 import com.mediahro.mediahro.platform.display.HdrVideoViewFactory
 import com.mediahro.mediahro.platform.display.PipModule
 import com.mediahro.mediahro.platform.display.PowerStatusModule
@@ -237,6 +238,8 @@ object PlatformModules {
         GamepadHostApi.setUp(messenger, gamepadModule)
         GamepadConnectionsStreamHandler.register(messenger, gamepadModule.connectionsHandler)
         GamepadAxesStreamHandler.register(messenger, gamepadModule.axesHandler)
+        // Managed configuration and kiosk (B2B-001/002).
+        EnterpriseModules.register(context.applicationContext, host, messenger)
         debugHooks(host, engine)
     }
 

@@ -48,6 +48,30 @@ void main() {
     }
   });
 
+  test('B2B-001 managed restrictions are declared for MDM consoles', () {
+    expect(manifest.contains('android.content.APP_RESTRICTIONS'), isTrue);
+    final xml = File('android/app/src/main/res/xml/app_restrictions.xml')
+        .readAsStringSync();
+    for (final key in [
+      'allowed_sources',
+      'locked_settings',
+      'kiosk',
+      'branding_off',
+      'telemetry_off',
+      'playlist_url',
+      'update_channel',
+    ]) {
+      expect(xml.contains('android:key="$key"'), isTrue, reason: key);
+    }
+  });
+
+  test('B2B-002 boot start is declared in the enterprise build only', () {
+    final enterprise = File('android/app/src/enterprise/AndroidManifest.xml')
+        .readAsStringSync();
+    expect(enterprise.contains('RECEIVE_BOOT_COMPLETED'), isTrue);
+    expect(manifest.contains('RECEIVE_BOOT_COMPLETED'), isFalse);
+  });
+
   test('SYS-007 legacy storage permission stops at API 32', () {
     expect(
       RegExp(r'READ_EXTERNAL_STORAGE"\s+android:maxSdkVersion="32"')
