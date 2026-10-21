@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/features/photos/batch/batch_screen.dart';
 import 'package:mediahro/features/photos/compare/compare_screen.dart';
 import 'package:mediahro/features/photos/edit/apply_look_flow.dart';
 import 'package:mediahro/features/photos/edit/editor_screen.dart'
@@ -12,6 +13,7 @@ import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_selection.dart';
 import 'package:mediahro/features/photos/organise/write_back.dart';
+import 'package:mediahro/features/photos/output/output_actions.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
@@ -206,6 +208,19 @@ class SelectionBar extends ConsumerWidget {
                     case 'tags':
                       await editTagsFlow(context, ref, ids);
                       writeBack((w) => w.tags(chosen));
+                    case 'share':
+                      await showShareSheet(context, ref, chosen);
+                    case 'print':
+                      await printFlow(context, ref, chosen);
+                    case 'batch':
+                      final photos = chosen.where((e) => !e.isVideo).toList();
+                      if (photos.isEmpty) {
+                        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                          SnackBar(content: Text(l10n.photosLocationNoPhotos)),
+                        );
+                      } else {
+                        await openBatch(context, photos);
+                      }
                     case 'applyLook':
                       if (await applyCopiedLookFlow(context, ref, chosen) &&
                           context.mounted) {
@@ -249,6 +264,14 @@ class SelectionBar extends ConsumerWidget {
                       value: 'applyLook',
                       child: Text(l10n.photosApplyLook),
                     ),
+                  PopupMenuItem(value: 'share', child: Text(l10n.photosShare)),
+                  if (ref.watch(photoOutputSupportProvider).value?.print ??
+                      false)
+                    PopupMenuItem(
+                      value: 'print',
+                      child: Text(l10n.photosPrint),
+                    ),
+                  PopupMenuItem(value: 'batch', child: Text(l10n.photosBatch)),
                   PopupMenuItem(
                     value: 'compare',
                     child: Text(l10n.photosCompare),

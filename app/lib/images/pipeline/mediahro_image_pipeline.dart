@@ -673,6 +673,59 @@ final class MediahroImagePipeline implements ImagePipeline {
     return out;
   }
 
+  bool? _jxlWritable;
+
+  /// The formats this device can write: JPEG, PNG, WebP and JPEG XL from the
+  /// bundled libraries, HEIC and AVIF where the OS encodes them.
+  Future<Set<EncodeFormat>> encodableFormats() async {
+    _jxlWritable ??= await () async {
+      try {
+        await worker.encode(
+          PixelFrame(width: 1, height: 1, rgba: Uint8List(4)),
+          EncodeFormat.jxl,
+        );
+        return true;
+      } on ImageBackendUnavailable {
+        return false;
+      } on Object {
+        return false;
+      }
+    }();
+    final os = (await _imagingSupport()).encodable;
+    return {
+      EncodeFormat.jpeg,
+      EncodeFormat.png,
+      EncodeFormat.webp,
+      if (_jxlWritable ?? false) EncodeFormat.jxl,
+      if (os.contains('avif')) EncodeFormat.avif,
+      if (os.contains('heic')) EncodeFormat.heic,
+    };
+  }
+
+  /// Removes every piece of metadata from the file itself, keeping the
+  /// orientation and colour profile so it looks the same (IMG-010). Formats
+  /// that cannot be cleaned in place (HEIC, AVIF, RAW) throw
+  /// [UnsupportedError]; convert them instead.
+  Future<void> stripMetadataFile(ImageSource src) async {
+    await io.replace(src.uri, await strippedBytes(src));
+  }
+
+  /// The file's bytes without metadata (orientation and colour profile
+  /// stay), without re-encoding the picture. Throws [UnsupportedError] for
+  /// formats that cannot be cleaned that way.
+  Future<Uint8List> strippedBytes(ImageSource src) async =>
+      await tryStrippedBytes(src) ??
+      (throw UnsupportedError('This file cannot be cleaned in place.'));
+
+  /// Like [strippedBytes], null instead of an error when the format or size
+  /// does not allow it.
+  Future<Uint8List?> tryStrippedBytes(ImageSource src) async {
+    final length = await _length(src);
+    if (length > 256 << 20) return null;
+    final bytes = await _range(src.file, 0, length);
+    return await worker.strip(bytes, extension: extensionOf(src.uri));
+  }
+
   @override
   void cancelBelow(ThumbnailPriority priority) =>
       worker.pool.cancelBelow(priority.index);

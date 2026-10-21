@@ -565,5 +565,158 @@
         "type": "int"
       }
     }
-  }
+  },
+  "photosBatch": "Batch tools",
+  "photosBatchTitle": "{count, plural, =1{Batch: 1 photo} other{Batch: {count} photos}}",
+  "@photosBatchTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchRename": "Rename",
+  "photosBatchConvert": "Convert",
+  "photosBatchUpright": "Upright",
+  "photosBatchStrip": "Strip",
+  "photosBatchPattern": "New name",
+  "photosBatchPatternHelp": "Tap a token below to add it: the old name, a counter, the date taken, the width or the height. The extension is kept.",
+  "photosBatchPatternError": "This name has a token I don't know.",
+  "photosBatchPreview": "Preview",
+  "photosBatchMore": "and {count} more",
+  "@photosBatchMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchConflicts": "Some photos would get the same name. Change the pattern, for example by adding a counter.",
+  "photosBatchFormat": "Format",
+  "photosBatchSameFormat": "Keep each format",
+  "photosBatchQuality": "Quality {value}%",
+  "@photosBatchQuality": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchSize": "Size",
+  "photosBatchSizeOriginal": "Original size",
+  "photosBatchSizeEdge": "Up to {pixels} px",
+  "@photosBatchSizeEdge": {
+    "placeholders": {
+      "pixels": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchRemoveMetadata": "Remove metadata (location, camera, dates)",
+  "photosBatchConvertNote": "Converted copies are saved next to the originals. The originals are not changed. Photos are never enlarged.",
+  "photosBatchUprightNone": "None of these photos is turned by its EXIF orientation.",
+  "photosBatchUprightInfo": "{count, plural, =1{1 photo is stored sideways and shown upright by its EXIF orientation. It will be saved again with upright pixels.} other{{count} photos are stored sideways and shown upright by their EXIF orientation. They will be saved again with upright pixels.}} JPEG files lose a little quality.",
+  "@photosBatchUprightInfo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchStripLocation": "Remove the location only",
+  "photosBatchStripLocationHint": "Takes out the GPS position. Everything else stays.",
+  "photosBatchStripEverything": "Remove all metadata",
+  "photosBatchStripEverythingHint": "Takes out location, camera, serial numbers, dates, titles and keywords. Orientation and colour profile stay so the photo looks the same. HEIC, AVIF and RAW files can't be cleaned this way; convert them instead.",
+  "photosBatchChangesOriginals": "Change the original files?",
+  "photosBatchUprightConfirm": "{count, plural, =1{1 photo is saved over its original.} other{{count} photos are saved over their originals.}} This can't be undone.",
+  "@photosBatchUprightConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchStripConfirm": "{count, plural, =1{The metadata of 1 photo is removed from the file.} other{The metadata of {count} photos is removed from the files.}} This can't be undone.",
+  "@photosBatchStripConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchStartRename": "Rename",
+  "photosBatchStartConvert": "Convert",
+  "photosBatchStartUpright": "Turn upright",
+  "photosBatchStartStrip": "Remove",
+  "photosBatchWorking": "Working: {done} of {total}",
+  "@photosBatchWorking": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchStop": "Stop",
+  "photosBatchStopped": "Stopped before the end.",
+  "photosBatchReportTitle": "Batch finished",
+  "photosBatchReport": "{done} done, {skipped} left as they were, {failed} could not be processed.",
+  "@photosBatchReport": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "photosBatchFailedList": "Could not process:",
+  "photosBatchClose": "Close",
+  "photosShare": "Share",
+  "photosShareTitle": "{count, plural, =1{Share 1 photo} other{Share {count} photos}}",
+  "@photosShareTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosShareSize": "Size",
+  "photosShareSizeOriginal": "Original size",
+  "photosShareStrip": "Remove location and camera info",
+  "photosShareStripHint": "The photo looks the same. Where it was taken, the camera and the dates stay with you.",
+  "photosSharePreparing": "Preparing the photos",
+  "photosShareFailed": "Couldn't share. A photo may no longer be available.",
+  "photosWallpaper": "Set as wallpaper",
+  "photosWallpaperHome": "Home screen",
+  "photosWallpaperLock": "Lock screen",
+  "photosWallpaperBoth": "Home and lock screens",
+  "photosWallpaperSet": "Wallpaper set.",
+  "photosWallpaperFailed": "Couldn't set the wallpaper.",
+  "photosPrint": "Print",
+  "photosPrintTitle": "Print layout",
+  "photosPrintPerPage": "{count, plural, =1{1 photo per page} other{{count} photos per page}}",
+  "@photosPrintPerPage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPrintFill": "Fill the page (the edges may be cut)",
+  "photosPrintCaptions": "Add the file name under each photo",
+  "photosPrintFailed": "Couldn't start printing.",
+  "photosCopyImage": "Copy image",
+  "photosImageCopied": "Image copied.",
+  "photosCopyFailed": "Couldn't copy the image.",
+  "photosSettingsStripOnShare": "Remove location and camera info when sharing",
+  "photosSettingsStripOnShareHint": "Off: the share sheet starts with the original details. You can still switch it on for one share.",
+  "photosHdrOn": "Show in HDR",
+  "photosHdrOff": "Show without HDR"
 }
