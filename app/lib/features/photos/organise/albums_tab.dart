@@ -18,6 +18,7 @@ import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/trash_screen.dart';
+import 'package:mediahro/features/photos/vault/vault_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// The photos of one album, newest first. Refreshes when the album, the
@@ -131,6 +132,12 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
             onTap: () => Navigator.of(context).push<void>(
               MaterialPageRoute(builder: (_) => const PhotoDuplicatesScreen()),
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock_outline),
+            title: Text(l10n.photosVault),
+            subtitle: Text(l10n.photosVaultSubtitle),
+            onTap: () => unawaited(openVault(context)),
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline),

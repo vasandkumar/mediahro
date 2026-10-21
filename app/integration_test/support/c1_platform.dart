@@ -52,6 +52,12 @@ final class FakeDisplay implements DisplayFacade {
   @override
   Future<void> setOrientationLock(OrientationLock lock) async =>
       locks.add(lock);
+
+  @override
+  Future<PresentationHandle?> openPresentation(String displayId) async => null;
+
+  @override
+  Future<void> closePresentation(PresentationHandle handle) async {}
 }
 
 final class FakePip implements PipFacade {

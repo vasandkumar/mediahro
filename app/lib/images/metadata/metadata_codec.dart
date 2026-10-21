@@ -10,6 +10,7 @@ import 'package:mediahro/images/metadata/icc.dart';
 import 'package:mediahro/images/metadata/iptc.dart';
 import 'package:mediahro/images/metadata/iso_bmff.dart';
 import 'package:mediahro/images/metadata/jpeg.dart';
+import 'package:mediahro/images/metadata/pano_meta.dart';
 import 'package:mediahro/images/metadata/png.dart';
 import 'package:mediahro/images/metadata/tiff.dart';
 import 'package:mediahro/images/metadata/webp.dart';
@@ -169,6 +170,7 @@ final class ParsedMetadata {
     required this.metadata,
     this.orientation = 1,
     this.isPanorama = false,
+    this.panorama,
     this.hasGainMap = false,
     this.motionVideoLength,
     this.livePhotoId,
@@ -181,6 +183,9 @@ final class ParsedMetadata {
   /// EXIF orientation 1–8.
   final int orientation;
   final bool isPanorama;
+
+  /// The sphere the picture was cut from, when its XMP says so (IMG-001).
+  final PanoramaMeta? panorama;
 
   /// Gain-map HDR (IMG-002): hdrgm XMP, or an MPF directory next to it.
   final bool hasGainMap;
@@ -286,6 +291,7 @@ ParsedMetadata parseMetadata(Uint8List bytes, {String? extension}) {
       8,
     ),
     isPanorama: xmp?.isPanorama ?? false,
+    panorama: xmp == null ? null : PanoramaMeta.fromXmp(xmp),
     hasGainMap: hdr,
     motionVideoLength: xmp?.motionPhotoVideoLength,
     livePhotoId: tiff == null ? null : appleContentIdentifier(tiff),
