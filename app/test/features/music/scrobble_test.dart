@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,81 +79,6 @@ void main() {
         throwsA(isA<ScrobbleError>().having((e) => e.auth, 'auth', isTrue)),
       );
     });
-
-    test('MUS-009 Audioscrobbler: signed calls, mobile session, batch '
-        'indexing, error codes', () async {
-      final http = _Http();
-      final secure = _Secure();
-      final svc = AudioscrobblerService(
-        id: 'lastfm',
-        http: http,
-        secure: secure,
-        apiBase: Uri.https('ws.audioscrobbler.com', '/2.0/'),
-        apiKey: 'KEY',
-        apiSecret: 'SECRET',
-      );
-      http.reply('/2.0/', 200, {
-        'session': {'name': 'amy', 'key': 'SK'},
-      });
-      expect(await svc.signIn('amy', 'pw'), 'amy');
-      expect(secure.values['music.scrobble.lastfm.session'], 'SK');
-      // The password is in the signed request, never stored.
-      expect(secure.values.values, isNot(contains('pw')));
-      final form = Uri.splitQueryString(utf8.decode(http.bodies.last));
-      final expected = md5
-          .convert(
-            utf8.encode(
-              'api_keyKEYmethodauth.getMobileSessionpasswordpwusernameamySECRET',
-            ),
-          )
-          .toString();
-      expect(form['api_sig'], expected);
-      expect(form['format'], 'json');
-
-      http.reply('/2.0/', 200, {'scrobbles': <String, Object?>{}});
-      await svc.submit([
-        ScrobbleTrack(artist: 'A', title: 'One', playedAt: DateTime.utc(2026)),
-        ScrobbleTrack(
-          artist: 'B',
-          title: 'Two',
-          album: 'X',
-          playedAt: DateTime.utc(2026, 1, 1, 0, 5),
-        ),
-      ]);
-      final s = Uri.splitQueryString(utf8.decode(http.bodies.last));
-      expect(s['method'], 'track.scrobble');
-      expect(s['sk'], 'SK');
-      expect(s['artist[0]'], 'A');
-      expect(s['track[1]'], 'Two');
-      expect(s['album[1]'], 'X');
-      expect(
-        s['timestamp[1]'],
-        '${DateTime.utc(2026, 1, 1, 0, 5).millisecondsSinceEpoch ~/ 1000}',
-      );
-
-      http.reply('/2.0/', 403, {'error': 9, 'message': 'Invalid session key'});
-      await expectLater(
-        svc.submit([
-          ScrobbleTrack(artist: 'A', title: 'x', playedAt: DateTime.utc(2026)),
-        ]),
-        throwsA(isA<ScrobbleError>().having((e) => e.auth, 'auth', isTrue)),
-      );
-      http.reply('/2.0/', 503, {'error': 16, 'message': 'try later'});
-      await expectLater(
-        svc.submit([
-          ScrobbleTrack(artist: 'A', title: 'x', playedAt: DateTime.utc(2026)),
-        ]),
-        throwsA(isA<ScrobbleError>().having((e) => e.auth, 'auth', isFalse)),
-      );
-    });
-
-    test(
-      'MUS-009 Last.fm needs keys from the build; Libre.fm works without',
-      () {
-        expect(AudioscrobblerService.lastFm(_Http(), _Secure()), isNull);
-        expect(AudioscrobblerService.libreFm(_Http(), _Secure()).id, 'librefm');
-      },
-    );
   });
 
   group('MUS-009 scrobbler', () {
@@ -342,7 +266,6 @@ void main() {
           ),
           scrobbleServicesProvider.overrideWithValue([
             ListenBrainzService(http, secure),
-            AudioscrobblerService.libreFm(http, secure),
           ]),
         ],
         child: MediahroApp(router: buildRouter(initialLocation: '/music')),
@@ -354,8 +277,9 @@ void main() {
     await tester.tap(find.text('Scrobbling'));
     await settle(tester);
     expect(find.text('ListenBrainz'), findsOneWidget);
-    expect(find.text('Libre.fm'), findsOneWidget);
-    expect(find.text('Not connected'), findsNWidgets(2));
+    expect(find.text('Libre.fm'), findsNothing);
+    expect(find.text('Last.fm'), findsNothing);
+    expect(find.text('Not connected'), findsOneWidget);
 
     // Declining the consent changes nothing.
     final endpoint = CoreSettings.endpoint('listenbrainz');
@@ -396,7 +320,7 @@ void main() {
     await settle(tester);
     expect(secure.values, isEmpty);
     expect(store.get(endpoint), isFalse);
-    expect(find.text('Not connected'), findsNWidgets(2));
+    expect(find.text('Not connected'), findsOneWidget);
     await finish(tester);
   });
 }
