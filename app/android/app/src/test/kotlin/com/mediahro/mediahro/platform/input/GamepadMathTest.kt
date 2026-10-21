@@ -39,12 +39,20 @@ class GamepadMathTest {
         assertEquals(GamepadMath.AXIS_RX, pad.rightX)
         assertEquals(GamepadMath.AXIS_RY, pad.rightY)
         assertEquals(GamepadMath.AXIS_LTRIGGER, pad.leftTrigger)
-        val plain = GamepadMath.layout { false }
-        assertEquals(GamepadMath.AXIS_Z, plain.rightX)
-        assertEquals(GamepadMath.AXIS_RZ, plain.rightY)
-        assertEquals(GamepadMath.AXIS_BRAKE, plain.leftTrigger)
-        assertEquals(GamepadMath.AXIS_GAS, plain.rightTrigger)
-        assertEquals(GamepadMath.AXIS_HAT_X, plain.hatX)
+        // An unknown device (an injected event has none) gets Z/RZ and LTRIGGER/RTRIGGER.
+        val unknown = GamepadMath.layout { false }
+        assertEquals(GamepadMath.AXIS_Z, unknown.rightX)
+        assertEquals(GamepadMath.AXIS_RZ, unknown.rightY)
+        assertEquals(GamepadMath.AXIS_LTRIGGER, unknown.leftTrigger)
+        assertEquals(GamepadMath.AXIS_RTRIGGER, unknown.rightTrigger)
+        assertEquals(GamepadMath.AXIS_HAT_X, unknown.hatX)
+        // A pad that reports BRAKE/GAS and no LTRIGGER/RTRIGGER uses them.
+        val brakeGas = GamepadMath.layout { it == GamepadMath.AXIS_BRAKE || it == GamepadMath.AXIS_GAS }
+        assertEquals(GamepadMath.AXIS_BRAKE, brakeGas.leftTrigger)
+        assertEquals(GamepadMath.AXIS_GAS, brakeGas.rightTrigger)
+        // One that reports both keeps LTRIGGER/RTRIGGER.
+        val both = GamepadMath.layout { it in setOf(GamepadMath.AXIS_BRAKE, GamepadMath.AXIS_LTRIGGER) }
+        assertEquals(GamepadMath.AXIS_LTRIGGER, both.leftTrigger)
     }
 
     @Test

@@ -163,9 +163,14 @@ final class AndroidTlsServerFacade implements TlsServerFacade {
     TlsServerHostApi? api,
     TlsSocketHostApi? sockets,
     Stream<TlsEventMsg> Function()? events,
+    this.mutualTimeout = const Duration(seconds: 30),
   }) : _api = api ?? TlsServerHostApi(),
        _sockets = sockets ?? TlsSocketHostApi(),
        _events = _shared(events);
+
+  /// The most a mutual-TLS connect may take: the native side has its own 15 s
+  /// limits on the connection and the handshake; this is the safety net.
+  final Duration mutualTimeout;
 
   final TlsServerHostApi _api;
   final TlsSocketHostApi _sockets;
@@ -201,7 +206,15 @@ final class AndroidTlsServerFacade implements TlsServerFacade {
   }) async => _AndroidTlsSocket(
     _sockets,
     _events,
-    await _api.connectMutual(host, port, identity.label, peerSha256),
+    await _api
+        .connectMutual(host, port, identity.label, peerSha256)
+        .timeout(
+          mutualTimeout,
+          onTimeout: () => throw PlatformException(
+            code: 'timeout',
+            message: 'The paired device did not answer in time',
+          ),
+        ),
   );
 }
 
@@ -227,7 +240,10 @@ final class _AndroidTlsListener implements TlsListener {
   Future<void> close() async {
     _events.forget(_msg.id);
     await _api.closeListener(_msg.id);
-    await _connections.close();
+    // Not awaited: a controller's close() completes only once its listener has
+    // seen the end of the stream, and a listener that is paused (a StreamIterator
+    // between moveNext calls) never does, which hung every caller of close().
+    unawaited(_connections.close());
   }
 }
 
