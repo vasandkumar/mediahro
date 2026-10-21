@@ -62,3 +62,5 @@ flutter:
     - assets/shaders/
     # Offline GeoNames gazetteer for place names (IMG-007, CC BY 4.0).
     - assets/gazetteer/
+  shaders:
+    - shaders/pano_equirect.frag
