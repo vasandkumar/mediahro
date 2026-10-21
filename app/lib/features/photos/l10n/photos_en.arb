@@ -1119,5 +1119,15 @@
   "photosSlideshowDone": "Done",
   "photosSlideshowExternal": "Show on the external display",
   "photosSlideshowExternalStop": "Show on this screen only",
+  "photosSourceAll": "All sources",
+  "photosSourceFilter": "Show photos from",
+  "photosSourceUnreachable": "{name}, not reachable. Its photos shown are from the last time it was.",
+  "@photosSourceUnreachable": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "photosSlideshowExternalFailed": "That display cannot show the slideshow. It stays on this screen."
 }

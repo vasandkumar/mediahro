@@ -1,5 +1,5 @@
 ---
-ids: [IMG-003]
+ids: [IMG-003, IMG-016]
 ---
 # The photo timeline
 
@@ -10,6 +10,14 @@ Photos shows every picture and video from your sources, newest first, grouped by
 - **Scroll fast with the edge handle.** Drag the handle on the right edge to jump to a month; a bubble shows where you are.
 - **Change the size of the photos.** Pinch with two fingers, or open the size button in the top bar and choose 1 to 6 columns.
 - **Square or proportional.** The layout button switches between a tidy square grid and rows that keep each photo's proportions.
+
+## Several sources
+
+When photos come from more than one source (the phone, a folder, a network share), a row of chips appears above the timeline: **All sources**, then one chip per source with how many photos it holds. Tap a source to see only its photos, tap **All sources** to see everything again. The choice lasts until you close the app.
+
+A source that could not be reached the last time Mediahro looked shows a crossed-out cloud on its chip. Its photos stay in the timeline, from what Mediahro already knew. Their previews still show if they were made before; opening one while the source is away says it cannot be read, and works again once the source is back.
+
+Nextcloud, Immich, PhotoPrism and cloud drives are not photo sources yet; they arrive with the server connections.
 
 ## What the little labels mean
 
