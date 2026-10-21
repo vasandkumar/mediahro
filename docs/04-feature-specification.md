@@ -167,7 +167,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | MUS-007 | Queues | Multiple named queues; play next/add to queue/add to another queue; reorder; save as playlist; history | All | 1.0 |
 | MUS-008 | Smart playlists | Rule builder over tags, play count, last played, rating, date added, length, path | All | 1.0 |
 | MUS-009 | Scrobbling | Native Last.fm, ListenBrainz (incl. offline queue), Libre.fm; per-source toggle | All | 1.0 |
-| MUS-010 | Fingerprinting | AcoustID/Chromaprint to identify untagged tracks (opt-in) | All | 1.0 |
+| MUS-010 | Fingerprinting | Removed from 1.0 by owner decision 2026-10-22 (ADR-047): online identification needs an external API key | All | — |
 | MUS-011 | Sleep timer and alarms | Sleep by time/tracks with fade; wake alarm with playlist (A W M) | All | 1.0 |
 | MUS-012 | Widgets and quick controls | Home-screen widgets (A), Lock Screen/Home widgets (I), menu-bar extra (M), taskbar thumbnail toolbar and SMTC (W) | All | 1.0 |
 | MUS-013 | Car | Android Auto (MediaBrowser tree: queues, playlists, albums, artists, folders, podcasts) and CarPlay (templates) with voice | A I | 1.0 |
