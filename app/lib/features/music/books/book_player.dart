@@ -256,8 +256,10 @@ final class BookPlayer {
     final book = _state.book;
     if (book == null) return;
     final s = speed.clamp(0.5, 3.0);
-    await engine.setRate(s);
+    // The wanted speed first: the engine's own report of it must not look
+    // like a speed that fell back.
     _set(_state.copyWith(speed: s));
+    await engine.setRate(s);
     await _save(force: true);
   });
 
