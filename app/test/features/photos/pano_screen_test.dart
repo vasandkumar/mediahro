@@ -379,7 +379,7 @@ void main() {
     testWidgets('IMG-001 a device with a sensor follows the facade readings', (
       tester,
     ) async {
-      final facade = _Facade(true);
+      final facade = _Facade(sensor: true);
       addTearDown(facade.readings.close);
       await open(tester, facade: facade);
       expect(find.byTooltip('Stop following the phone'), findsOneWidget);
@@ -398,7 +398,7 @@ void main() {
     testWidgets('IMG-001 a device without a sensor shows no motion button', (
       tester,
     ) async {
-      final facade = _Facade(false);
+      final facade = _Facade(sensor: false);
       addTearDown(facade.readings.close);
       await open(tester, facade: facade);
       expect(find.byTooltip('Stop following the phone'), findsNothing);
@@ -417,7 +417,7 @@ void main() {
     testWidgets('IMG-001 with reduced motion the facade is not listened to', (
       tester,
     ) async {
-      final facade = _Facade(true);
+      final facade = _Facade(sensor: true);
       addTearDown(facade.readings.close);
       await open(tester, facade: facade, reduceMotion: true);
       expect(facade.readings.hasListener, isFalse);
@@ -427,9 +427,9 @@ void main() {
 }
 
 final class _Facade implements MotionFacade {
-  _Facade(this._available);
+  _Facade({required this.sensor});
 
-  final bool _available;
+  final bool sensor;
   final StreamController<MotionAttitude> readings =
       StreamController<MotionAttitude>.broadcast();
 
@@ -437,5 +437,5 @@ final class _Facade implements MotionFacade {
   Stream<MotionAttitude> get attitude => readings.stream;
 
   @override
-  Future<bool> get available async => _available;
+  Future<bool> get available async => sensor;
 }
