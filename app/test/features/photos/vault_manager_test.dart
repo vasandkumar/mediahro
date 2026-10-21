@@ -480,6 +480,69 @@ void main() {
     });
   });
 
+  group('PRIV-007 buffers the platform returns are read-only', () {
+    setUp(() => crypto.readOnlyResults = true);
+
+    test('PRIV-007 two vaults, a PIN each, open and lock', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await addTo(r.vault!, 'real.jpg');
+      await r.vault!.close();
+      final real = await manager.openWithPin('246810');
+      expect(real.isOpen, isTrue);
+      expect(real.vault!.container.list().single.name, 'real.jpg');
+      // Closing zeroes the secret; it must not throw.
+      await real.vault!.close();
+      expect(real.vault!.isClosed, isTrue);
+      expect(() => real.vault!.secretCopy(), throwsA(isA<VaultLocked>()));
+      final decoy = await manager.openWithPin('135790');
+      expect(decoy.isOpen, isTrue);
+      expect(decoy.vault!.container.list(), isEmpty);
+      await decoy.vault!.close();
+      expect(crypto.openHandles, 0);
+    });
+
+    test(
+      'PRIV-007 Change PIN seals the secret again and keeps the photos',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
+        expect(
+          await manager.changePin(r.vault!, '555555'),
+          VaultOutcome.opened,
+        );
+        await r.vault!.close();
+        expect((await manager.openWithPin('246810')).isOpen, isFalse);
+        final ok = await manager.openWithPin('555555');
+        expect(ok.vault!.container.list().single.name, 'real.jpg');
+        await ok.vault!.close();
+      },
+    );
+
+    test('PRIV-007 the fingerprint opens the vault', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await addTo(r.vault!, 'real.jpg');
+      await manager.setFingerprint(r.vault!, enabled: true);
+      await r.vault!.close();
+      final f = await manager.openWithFingerprint();
+      expect(f.isOpen, isTrue, reason: '${f.outcome}');
+      expect(f.vault!.container.list().single.name, 'real.jpg');
+      await f.vault!.close();
+      expect(crypto.openHandles, 0);
+    });
+
+    test(
+      'PRIV-007 a wrong PIN with read-only buffers is still just wrong',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        expect(
+          (await manager.openWithPin('000000')).outcome,
+          VaultOutcome.wrongPin,
+        );
+      },
+    );
+  });
+
   group('PRIV-007 changing and ending', () {
     test(
       'PRIV-007 a new PIN opens, the old one does not, items stay',
