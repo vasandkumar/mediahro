@@ -13,17 +13,24 @@ import 'package:mediahro_design/mediahro_design.dart';
 /// Global search (LIB-005): instant prefix search over titles, file names,
 /// tags, artists, albums, people and places, with filters.
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({this.initialKinds = const {}, super.key});
+  const SearchScreen({
+    this.initialKinds = const {},
+    this.initialQuery,
+    super.key,
+  });
 
   /// Scope of the current mode by default (docs/06 §2 "scoped by mode").
   final Set<ItemKind> initialKinds;
+
+  /// Text to search for at once (a shared text, a voice search).
+  final String? initialQuery;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.initialQuery);
   late Set<ItemKind> _kinds = {...widget.initialKinds};
   final Set<ResolutionClass> _resolutions = {};
   final Set<String> _hdr = {};
@@ -31,6 +38,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   int? _minRating;
   List<ItemRow>? _results;
   int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_controller.text.isNotEmpty) unawaited(_run());
+  }
 
   @override
   void dispose() {

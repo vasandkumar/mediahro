@@ -113,6 +113,8 @@ dependencies {
     implementation("androidx.browser:browser:1.8.0")
     // HEIC encode (IMG-010/015, ADR-037): the platform encoder behind a small wrapper; Apache-2.0.
     implementation("androidx.heifwriter:heifwriter:1.1.0")
+    // Scheduled background jobs (ADR-049): WorkManager, Apache-2.0, no network or telemetry.
+    implementation("androidx.work:work-runtime-ktx:2.10.2")
     // Tips and the supporter subscription (SUP-002): the Play rail, store flavour only.
     // The library only talks to the Play Store app on the device.
     "storeImplementation"("com.android.billingclient:billing-ktx:9.1.0")

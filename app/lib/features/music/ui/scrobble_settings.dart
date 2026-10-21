@@ -45,8 +45,6 @@ final class _View {
 
 NetworkEndpoint? _endpoint(String id) => switch (id) {
   'listenbrainz' => Endpoints.listenBrainz,
-  'lastfm' => Endpoints.lastFm,
-  'librefm' => Endpoints.libreFm,
   _ => null,
 };
 
@@ -79,11 +77,8 @@ class _ScrobbleSettingsScreenState
     if (mounted) setState(() => _view = view);
   }
 
-  String _title(AppLocalizations l10n, String id) => switch (id) {
-    'listenbrainz' => l10n.musicScrobbleListenBrainz,
-    'lastfm' => l10n.musicScrobbleLastFm,
-    _ => l10n.musicScrobbleLibreFm,
-  };
+  String _title(AppLocalizations l10n, String id) =>
+      l10n.musicScrobbleListenBrainz;
 
   /// Shows what is sent and turns the endpoint on; false when declined.
   Future<bool> _consent(ScrobbleService svc) async {
@@ -281,16 +276,12 @@ class _SignInDialog extends StatefulWidget {
 }
 
 class _SignInDialogState extends State<_SignInDialog> {
-  final _user = TextEditingController();
   final _secret = TextEditingController();
   String? _error;
   bool _busy = false;
 
-  bool get _token => widget.service is ListenBrainzService;
-
   @override
   void dispose() {
-    _user.dispose();
     _secret.dispose();
     super.dispose();
   }
@@ -304,10 +295,6 @@ class _SignInDialogState extends State<_SignInDialog> {
       final svc = widget.service;
       final name = switch (svc) {
         ListenBrainzService() => await svc.signIn(_secret.text),
-        AudioscrobblerService() => await svc.signIn(
-          _user.text.trim(),
-          _secret.text,
-        ),
         _ => throw StateError('unknown service'),
       };
       if (mounted) Navigator.of(context).pop(name);
@@ -326,36 +313,18 @@ class _SignInDialogState extends State<_SignInDialog> {
     final l10n = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!_token)
-            TextField(
-              controller: _user,
-              autofocus: true,
-              autofillHints: const [AutofillHints.username],
-              decoration: InputDecoration(labelText: l10n.musicScrobbleUser),
-            ),
-          TextField(
-            controller: _secret,
-            autofocus: _token,
-            obscureText: true,
-            autofillHints: _token ? null : const [AutofillHints.password],
-            decoration: InputDecoration(
-              labelText: _token
-                  ? l10n.musicScrobbleToken
-                  : l10n.musicScrobblePassword,
-              helperText: _token
-                  ? l10n.musicScrobbleTokenHint
-                  : l10n.musicScrobblePasswordNote,
-              helperMaxLines: 3,
-              errorText: _error,
-              errorMaxLines: 3,
-            ),
-            onSubmitted: (_) => unawaited(_submit()),
-          ),
-        ],
+      content: TextField(
+        controller: _secret,
+        autofocus: true,
+        obscureText: true,
+        decoration: InputDecoration(
+          labelText: l10n.musicScrobbleToken,
+          helperText: l10n.musicScrobbleTokenHint,
+          helperMaxLines: 3,
+          errorText: _error,
+          errorMaxLines: 3,
+        ),
+        onSubmitted: (_) => unawaited(_submit()),
       ),
       actions: [
         TextButton(

@@ -6,6 +6,10 @@ The single progress view for the owner. Every PR updates the rows it touches. Ge
 
 _Last updated: 2026-10-22 by the orchestrator._
 
+## Release tiers (ADR-050, 2026-10-22)
+
+Essential first: the first Play internal upload happens when all 53 Essential Android features are verified. Tiers: docs/release/feature-tiers-android.md. At decision time Essential stood at 25 verified, 23 built, 1 partly built, 4 blocked.
+
 ## 1. Phase and milestone gates
 
 | Phase / milestone | Lanes | State | Exit criteria (docs/10 §3, §8) |
