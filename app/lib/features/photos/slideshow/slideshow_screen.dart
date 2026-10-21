@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' as ui show FlutterView;
 
 import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter/services.dart';
@@ -116,6 +117,7 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     }
     _order = _newOrder(widget.start);
     unawaited(_enter());
+    unawaited(_watchDisplays());
     unawaited(_show(_order.current, first: true));
     unawaited(_startMusic());
   }
@@ -136,6 +138,96 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     } on Object {
       // A platform without it.
     }
+  }
+
+  Future<void> _watchDisplays() async {
+    final display = _display;
+    if (display == null) return;
+    try {
+      _look(await display.displays());
+      _displayChanges = display.changes.listen(_look);
+    } on Object {
+      // No display facade here: the show stays on this screen.
+    }
+  }
+
+  void _look(List<DisplayInfo> displays) {
+    if (_disposed || !mounted) return;
+    DisplayInfo? found;
+    for (final d in displays) {
+      if (d.isExternal) {
+        found = d;
+        break;
+      }
+    }
+    final held = _presentation;
+    final gone = held != null && found?.id != held.displayId;
+    if (found?.id == _external?.id && !gone) return;
+    setState(() {
+      _external = found;
+      if (gone) {
+        // The presentation closes by itself when its display goes.
+        _presentation = null;
+        _externalView = null;
+      }
+    });
+  }
+
+  /// Starts or stops the show on the external display.
+  Future<void> _toggleExternal() async {
+    final display = _display;
+    final held = _presentation;
+    if (display == null) return;
+    if (held != null) {
+      setState(() {
+        _presentation = null;
+        _externalView = null;
+      });
+      try {
+        await display.closePresentation(held);
+      } on Object {
+        // Closed with the display at the latest.
+      }
+      return;
+    }
+    final target = _external;
+    if (target == null) return;
+    PresentationHandle? handle;
+    try {
+      handle = await display.openPresentation(target.id);
+    } on Object {
+      handle = null;
+    }
+    if (_disposed || !mounted) {
+      if (handle != null) unawaited(display.closePresentation(handle));
+      return;
+    }
+    final view = handle == null
+        ? null
+        : WidgetsBinding.instance.platformDispatcher.view(id: handle.id);
+    if (handle == null || view == null) {
+      // This platform cannot draw there: the show stays on this screen, which
+      // is what mirroring shows.
+      if (handle != null) unawaited(display.closePresentation(handle));
+      _toastExternalFailed();
+      return;
+    }
+    setState(() {
+      _presentation = handle;
+      _externalView = view;
+    });
+  }
+
+  void _toastExternalFailed() {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).photosSlideshowExternalFailed,
+          ),
+        ),
+      );
   }
 
   Future<void> _leave() async {
@@ -169,6 +261,15 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     }
     _preload.clear();
     unawaited(_music.stop());
+    unawaited(_displayChanges?.cancel());
+    final held = _presentation;
+    if (held != null) {
+      try {
+        unawaited(_display?.closePresentation(held) ?? Future<void>.value());
+      } on Object {
+        // Closed with the display at the latest.
+      }
+    }
     unawaited(_leave());
     if (_awake) {
       _awake = false;
@@ -301,6 +402,15 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
 
   DisplayFacade? _display;
   bool _awake = false;
+
+  // An external display, if one is connected, and the show on it (ADR-044).
+  // The pictures are drawn there; the controls stay on this screen. The
+  // slideshow shows library photos only (never the vault, ADR-043), so
+  // nothing sensitive reaches the other screen.
+  DisplayInfo? _external;
+  PresentationHandle? _presentation;
+  ui.FlutterView? _externalView;
+  StreamSubscription<List<DisplayInfo>>? _displayChanges;
 
   /// The screen stays on while the show plays and may sleep while it is
   /// paused or has ended.
@@ -437,219 +547,264 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     final l10n = AppLocalizations.of(context);
     final current = _current;
     final scrim = Colors.black.withValues(alpha: 0.6);
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-            unawaited(_next()),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-            unawaited(_previous()),
-        const SingleActivator(LogicalKeyboardKey.equal): _faster,
-        const SingleActivator(LogicalKeyboardKey.add): _faster,
-        const SingleActivator(LogicalKeyboardKey.minus): _slower,
-        const SingleActivator(LogicalKeyboardKey.escape): () =>
-            Navigator.of(context).maybePop(),
-      },
-      child: Focus(
-        autofocus: true,
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _toggleChrome,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (_outgoing != null) _layer(_outgoing!, incoming: false),
-                if (current != null)
-                  Semantics(
-                    liveRegion: true,
-                    label: current.entry.name,
-                    child: _layer(current, incoming: true),
-                  )
-                else if (!_failedAll)
-                  const Center(child: CircularProgressIndicator()),
-                if (_failedAll)
-                  Center(
-                    child: Text(
-                      l10n.photosSlideshowFailed,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                if (_ended)
-                  Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          l10n.photosSlideshowEnded,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(color: Colors.white),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton(
-                          onPressed: _restart,
-                          child: Text(l10n.photosSlideshowAgain),
-                        ),
-                      ],
-                    ),
-                  ),
-                // Top bar.
-                PositionedDirectional(
-                  top: 0,
-                  start: 0,
-                  end: 0,
-                  child: IgnorePointer(
-                    ignoring: !_chrome,
-                    child: AnimatedOpacity(
-                      opacity: _chrome ? 1 : 0,
-                      duration: KMotion.base,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [scrim, Colors.transparent],
-                          ),
-                        ),
-                        child: SafeArea(
-                          bottom: false,
-                          child: Row(
-                            children: [
-                              IconButton(
-                                tooltip: l10n.photosSlideshowClose,
-                                color: Colors.white,
-                                icon: const Icon(Icons.close),
-                                onPressed: () =>
-                                    Navigator.of(context).maybePop(),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  l10n.photosSlideshowPosition(
-                                    _order.place,
-                                    _photos.length,
-                                  ),
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(color: Colors.white),
-                                ),
-                              ),
-                              if (_musicOn)
-                                Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Icon(
-                                    Icons.music_note,
-                                    color: Colors.white,
-                                    semanticLabel: l10n.photosSlideshowMusicOn,
-                                  ),
-                                ),
-                              IconButton(
-                                tooltip: l10n.photosSlideshowOptions,
-                                color: Colors.white,
-                                icon: const Icon(Icons.tune),
-                                onPressed: () => unawaited(_options()),
-                              ),
-                            ],
-                          ),
-                        ),
+    return ViewAnchor(
+      view: _externalView == null
+          ? null
+          : View(
+              view: _externalView!,
+              child: _ExternalSurface(
+                children: [
+                  if (_outgoing != null) _layer(_outgoing!, incoming: false),
+                  if (current != null) _layer(current, incoming: true),
+                ],
+              ),
+            ),
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.space): _togglePlay,
+          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+              unawaited(_next()),
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+              unawaited(_previous()),
+          const SingleActivator(LogicalKeyboardKey.equal): _faster,
+          const SingleActivator(LogicalKeyboardKey.add): _faster,
+          const SingleActivator(LogicalKeyboardKey.minus): _slower,
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              Navigator.of(context).maybePop(),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
+            backgroundColor: Colors.black,
+            body: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _toggleChrome,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_outgoing != null) _layer(_outgoing!, incoming: false),
+                  if (current != null)
+                    Semantics(
+                      liveRegion: true,
+                      label: current.entry.name,
+                      child: _layer(current, incoming: true),
+                    )
+                  else if (!_failedAll)
+                    const Center(child: CircularProgressIndicator()),
+                  if (_failedAll)
+                    Center(
+                      child: Text(
+                        l10n.photosSlideshowFailed,
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
-                  ),
-                ),
-                // Bottom bar.
-                PositionedDirectional(
-                  bottom: 0,
-                  start: 0,
-                  end: 0,
-                  child: IgnorePointer(
-                    ignoring: !_chrome,
-                    child: AnimatedOpacity(
-                      opacity: _chrome ? 1 : 0,
-                      duration: KMotion.base,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [scrim, Colors.transparent],
+                  if (_ended)
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.photosSlideshowEnded,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(color: Colors.white),
                           ),
-                        ),
-                        child: SafeArea(
-                          top: false,
-                          // A wrap: the buttons and the speed fit a narrow phone.
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              IconButton(
-                                tooltip: l10n.photosSlideshowSlower,
-                                color: Colors.white,
-                                icon: const Icon(Icons.fast_rewind),
-                                onPressed: _o.speed > SlideshowOptions.minSpeed
-                                    ? _slower
-                                    : null,
-                              ),
-                              IconButton(
-                                tooltip: l10n.photosSlideshowPrevious,
-                                color: Colors.white,
-                                icon: const Icon(Icons.skip_previous),
-                                onPressed: () => unawaited(_previous()),
-                              ),
-                              IconButton(
-                                tooltip: _playing
-                                    ? l10n.photosSlideshowPause
-                                    : l10n.photosSlideshowPlay,
-                                color: Colors.white,
-                                iconSize: 40,
-                                icon: Icon(
-                                  _playing
-                                      ? Icons.pause_circle_outline
-                                      : Icons.play_circle_outline,
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: _restart,
+                            child: Text(l10n.photosSlideshowAgain),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Top bar.
+                  PositionedDirectional(
+                    top: 0,
+                    start: 0,
+                    end: 0,
+                    child: IgnorePointer(
+                      ignoring: !_chrome,
+                      child: AnimatedOpacity(
+                        opacity: _chrome ? 1 : 0,
+                        duration: KMotion.base,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [scrim, Colors.transparent],
+                            ),
+                          ),
+                          child: SafeArea(
+                            bottom: false,
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowClose,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () =>
+                                      Navigator.of(context).maybePop(),
                                 ),
-                                onPressed: _togglePlay,
-                              ),
-                              IconButton(
-                                tooltip: l10n.photosSlideshowNext,
-                                color: Colors.white,
-                                icon: const Icon(Icons.skip_next),
-                                onPressed: () => unawaited(_next()),
-                              ),
-                              IconButton(
-                                tooltip: l10n.photosSlideshowFaster,
-                                color: Colors.white,
-                                icon: const Icon(Icons.fast_forward),
-                                onPressed: _o.speed < SlideshowOptions.maxSpeed
-                                    ? _faster
-                                    : null,
-                              ),
-                              Semantics(
-                                liveRegion: true,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
+                                Expanded(
                                   child: Text(
-                                    l10n.photosSlideshowSpeed(
-                                      slideshowSpeedText(context, _o.speed),
+                                    l10n.photosSlideshowPosition(
+                                      _order.place,
+                                      _photos.length,
                                     ),
                                     style: Theme.of(context)
                                         .textTheme
-                                        .labelLarge
+                                        .titleSmall
                                         ?.copyWith(color: Colors.white),
                                   ),
                                 ),
-                              ),
-                            ],
+                                if (_musicOn)
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: Colors.white,
+                                      semanticLabel:
+                                          l10n.photosSlideshowMusicOn,
+                                    ),
+                                  ),
+                                if (_external != null)
+                                  IconButton(
+                                    tooltip: _presentation == null
+                                        ? l10n.photosSlideshowExternal
+                                        : l10n.photosSlideshowExternalStop,
+                                    color: Colors.white,
+                                    icon: Icon(
+                                      _presentation == null
+                                          ? Icons.cast
+                                          : Icons.cast_connected,
+                                    ),
+                                    onPressed: () =>
+                                        unawaited(_toggleExternal()),
+                                  ),
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowOptions,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.tune),
+                                  onPressed: () => unawaited(_options()),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  // Bottom bar.
+                  PositionedDirectional(
+                    bottom: 0,
+                    start: 0,
+                    end: 0,
+                    child: IgnorePointer(
+                      ignoring: !_chrome,
+                      child: AnimatedOpacity(
+                        opacity: _chrome ? 1 : 0,
+                        duration: KMotion.base,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [scrim, Colors.transparent],
+                            ),
+                          ),
+                          child: SafeArea(
+                            top: false,
+                            // A wrap: the buttons and the speed fit a narrow phone.
+                            child: Wrap(
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowSlower,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.fast_rewind),
+                                  onPressed:
+                                      _o.speed > SlideshowOptions.minSpeed
+                                      ? _slower
+                                      : null,
+                                ),
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowPrevious,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.skip_previous),
+                                  onPressed: () => unawaited(_previous()),
+                                ),
+                                IconButton(
+                                  tooltip: _playing
+                                      ? l10n.photosSlideshowPause
+                                      : l10n.photosSlideshowPlay,
+                                  color: Colors.white,
+                                  iconSize: 40,
+                                  icon: Icon(
+                                    _playing
+                                        ? Icons.pause_circle_outline
+                                        : Icons.play_circle_outline,
+                                  ),
+                                  onPressed: _togglePlay,
+                                ),
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowNext,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.skip_next),
+                                  onPressed: () => unawaited(_next()),
+                                ),
+                                IconButton(
+                                  tooltip: l10n.photosSlideshowFaster,
+                                  color: Colors.white,
+                                  icon: const Icon(Icons.fast_forward),
+                                  onPressed:
+                                      _o.speed < SlideshowOptions.maxSpeed
+                                      ? _faster
+                                      : null,
+                                ),
+                                Semantics(
+                                  liveRegion: true,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    child: Text(
+                                      l10n.photosSlideshowSpeed(
+                                        slideshowSpeedText(context, _o.speed),
+                                      ),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The pictures alone, on black, for the external display.
+class _ExternalSurface extends StatelessWidget {
+  const _ExternalSurface({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: Colors.black,
+    child: Stack(fit: StackFit.expand, children: children),
+  );
 }

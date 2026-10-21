@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart' hide ImageInfo;
@@ -43,6 +44,27 @@ final class _Music implements SlideshowMusic {
 
 final class _Display implements DisplayFacade {
   final List<bool> awake = [];
+  List<DisplayInfo> shown = const [];
+  final StreamController<List<DisplayInfo>> changesController =
+      StreamController<List<DisplayInfo>>.broadcast();
+  PresentationHandle? handle;
+  final List<String> opened = [];
+  final List<PresentationHandle> closed = [];
+
+  @override
+  Future<List<DisplayInfo>> displays() async => shown;
+
+  @override
+  Stream<List<DisplayInfo>> get changes => changesController.stream;
+
+  @override
+  Future<PresentationHandle?> openPresentation(String displayId) async {
+    opened.add(displayId);
+    return handle;
+  }
+
+  @override
+  Future<void> closePresentation(PresentationHandle h) async => closed.add(h);
 
   @override
   Future<void> keepScreenOn({required bool on}) async => awake.add(on);
@@ -68,9 +90,20 @@ void main() {
     Random? random,
     _Music? withMusic,
     Set<int> failures = const {},
+    bool external = false,
   }) async {
     h = await PhotosHarness.create(tester);
-    display = _Display();
+    display = _Display()
+      ..shown = [
+        const DisplayInfo(id: 'main', name: 'Phone', refreshRate: 60),
+        if (external)
+          const DisplayInfo(
+            id: 'tv',
+            name: 'TV',
+            refreshRate: 60,
+            isExternal: true,
+          ),
+      ];
     music = withMusic ?? _Music();
     photos = fakeEntries(days: 1, perDay: count, firstId: 1);
     failing = failures;
@@ -498,6 +531,67 @@ void main() {
     await tester.tap(find.text('Play again'));
     await tester.pump();
     expect(display.awake.last, isTrue);
+  });
+
+  group('IMG-012 the external display (ADR-044)', () {
+    testWidgets('IMG-012 with only the phone there is no cast button', (
+      tester,
+    ) async {
+      tester0 = tester;
+      await open(tester);
+      await tester.pump();
+      expect(find.byTooltip('Show on the external display'), findsNothing);
+    });
+
+    testWidgets('IMG-012 a platform that cannot present keeps the show here', (
+      tester,
+    ) async {
+      tester0 = tester;
+      await open(tester, external: true);
+      await tester.pump();
+      await tester.tap(find.byTooltip('Show on the external display'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(display.opened, ['tv']);
+      expect(
+        find.text(
+          'That display cannot show the slideshow. It stays on this screen.',
+        ),
+        findsOneWidget,
+      );
+      // Still running here.
+      expect(find.byTooltip('Show on this screen only'), findsNothing);
+      expect(position(), '1 of 4');
+    });
+
+    testWidgets(
+      'IMG-012 a presentation with no view behind it is closed again',
+      (tester) async {
+        tester0 = tester;
+        await open(tester, external: true);
+        display.handle = const PresentationHandle(id: 99, displayId: 'tv');
+        await tester.pump();
+        await tester.tap(find.byTooltip('Show on the external display'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(display.closed, [display.handle]);
+        expect(find.byTooltip('Show on this screen only'), findsNothing);
+      },
+    );
+
+    testWidgets('IMG-012 the button goes when the display is unplugged', (
+      tester,
+    ) async {
+      tester0 = tester;
+      await open(tester, external: true);
+      await tester.pump();
+      expect(find.byTooltip('Show on the external display'), findsOneWidget);
+      display.changesController.add(const [
+        DisplayInfo(id: 'main', name: 'Phone', refreshRate: 60),
+      ]);
+      await tester.pump();
+      expect(find.byTooltip('Show on the external display'), findsNothing);
+    });
   });
 }
 

@@ -1115,5 +1115,8 @@
   "photosSlideshowMusicNone": "None",
   "photosSlideshowMusicLibrary": "Music library",
   "photosSlideshowMusicPlaylist": "Playlist",
-  "photosSlideshowDone": "Done"
+  "photosSlideshowDone": "Done",
+  "photosSlideshowExternal": "Show on the external display",
+  "photosSlideshowExternalStop": "Show on this screen only",
+  "photosSlideshowExternalFailed": "That display cannot show the slideshow. It stays on this screen."
 }
