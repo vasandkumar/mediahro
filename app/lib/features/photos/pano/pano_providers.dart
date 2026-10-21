@@ -9,18 +9,39 @@ import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/images/metadata/pano_meta.dart';
+import 'package:mediahro/platform/motion.dart';
+import 'package:mediahro/platform/platform_facades.dart' show motionProvider;
 
-/// Where the phone points, as the platform reports it (IMG-001). A platform
-/// module provides one where the phone has motion sensors (see
-/// `docs/lanes/requests/c3-pano-motion-sensor.md`); until then the
-/// look-around works by touch, keys and buttons only.
+/// Where the phone points, as the platform reports it (IMG-001, ADR-042).
+/// Where the phone has no sensor the look-around works by touch, keys and
+/// buttons only.
 abstract interface class PanoMotionSource {
   /// Readings of the aim of the back of the phone, a few dozen a second while
   /// someone listens, none otherwise.
   Stream<PanoAttitude> get attitude;
+
+  /// Whether the phone has a usable sensor.
+  Future<bool> get available;
 }
 
-final panoMotionProvider = Provider<PanoMotionSource?>((ref) => null);
+/// The platform's [MotionFacade] as the look-around's source.
+final class MotionFacadeSource implements PanoMotionSource {
+  const MotionFacadeSource(this._motion);
+
+  final MotionFacade _motion;
+
+  @override
+  Stream<PanoAttitude> get attitude =>
+      _motion.attitude.map((a) => PanoAttitude(yaw: a.yaw, pitch: a.pitch));
+
+  @override
+  Future<bool> get available => _motion.available;
+}
+
+/// The look-around's motion source: the platform's motion facade.
+final panoMotionProvider = Provider<PanoMotionSource?>(
+  (ref) => MotionFacadeSource(ref.watch(motionProvider)),
+);
 
 /// A 360° picture ready to draw.
 final class PanoImage {

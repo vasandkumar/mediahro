@@ -14,6 +14,8 @@ import 'package:mediahro/features/photos/pano/pano_screen.dart';
 import 'package:mediahro/features/photos/pano/pano_view.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/metadata/pano_meta.dart';
+import 'package:mediahro/platform/motion.dart';
+import 'package:mediahro/platform/platform_facades.dart' show motionProvider;
 
 import 'photos_harness.dart';
 
@@ -23,6 +25,9 @@ final class _Motion implements PanoMotionSource {
 
   @override
   Stream<PanoAttitude> get attitude => controller.stream;
+
+  @override
+  Future<bool> get available async => true;
 }
 
 Future<ui.Image> _sphere(WidgetTester tester) async {
@@ -51,6 +56,7 @@ void main() {
     WidgetTester tester, {
     PanoramaMeta? meta,
     PanoMotionSource? motion,
+    MotionFacade? facade,
     bool reduceMotion = false,
     Future<PanoImage> Function()? load,
   }) async {
@@ -76,7 +82,10 @@ void main() {
                 ? load()
                 : Future.value(PanoImage(image: image.clone(), meta: meta)),
           ),
-          panoMotionProvider.overrideWithValue(motion),
+          if (facade != null)
+            motionProvider.overrideWithValue(facade)
+          else
+            panoMotionProvider.overrideWithValue(motion),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -365,4 +374,68 @@ void main() {
       },
     );
   });
+
+  group('IMG-001 the platform motion facade steers the look-around', () {
+    testWidgets('IMG-001 a device with a sensor follows the facade readings', (
+      tester,
+    ) async {
+      final facade = _Facade(true);
+      addTearDown(facade.readings.close);
+      await open(tester, facade: facade);
+      expect(find.byTooltip('Stop following the phone'), findsOneWidget);
+      expect(facade.readings.hasListener, isTrue);
+      final c = controllerOf(tester);
+      facade.readings.add(const MotionAttitude(yaw: 0, pitch: 0));
+      await tester.pump();
+      final start = c.view;
+      for (var i = 0; i < 30; i++) {
+        facade.readings.add(const MotionAttitude(yaw: 0.6, pitch: 0.1));
+        await tester.pump();
+      }
+      expect(c.view.yaw > start.yaw + 0.3, isTrue);
+    });
+
+    testWidgets('IMG-001 a device without a sensor shows no motion button', (
+      tester,
+    ) async {
+      final facade = _Facade(false);
+      addTearDown(facade.readings.close);
+      await open(tester, facade: facade);
+      expect(find.byTooltip('Stop following the phone'), findsNothing);
+      expect(find.byTooltip('Look around by moving the phone'), findsNothing);
+      expect(facade.readings.hasListener, isFalse);
+    });
+
+    testWidgets('IMG-001 the default facade (none) leaves touch and keys', (
+      tester,
+    ) async {
+      await open(tester, facade: const UnsupportedMotion());
+      expect(find.byTooltip('Look around by moving the phone'), findsNothing);
+      expect(find.byTooltip('Look right'), findsOneWidget);
+    });
+
+    testWidgets('IMG-001 with reduced motion the facade is not listened to', (
+      tester,
+    ) async {
+      final facade = _Facade(true);
+      addTearDown(facade.readings.close);
+      await open(tester, facade: facade, reduceMotion: true);
+      expect(facade.readings.hasListener, isFalse);
+      expect(find.byTooltip('Look around by moving the phone'), findsOneWidget);
+    });
+  });
+}
+
+final class _Facade implements MotionFacade {
+  _Facade(this._available);
+
+  final bool _available;
+  final StreamController<MotionAttitude> readings =
+      StreamController<MotionAttitude>.broadcast();
+
+  @override
+  Stream<MotionAttitude> get attitude => readings.stream;
+
+  @override
+  Future<bool> get available async => _available;
 }
