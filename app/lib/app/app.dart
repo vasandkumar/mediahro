@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/app_strings.dart';
 import 'package:mediahro/app/appearance.dart';
+import 'package:mediahro/app/incoming/incoming_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/app/locales.dart';
 import 'package:mediahro/app/router.dart';
@@ -58,6 +59,11 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
           fullScreenRoutes: ref.read(appRoutesProvider),
         );
     router.routerDelegate.addListener(() => _rememberMode(router, store));
+    // SYS-003/004, CORE-003: what other apps hand over waits until the router
+    // exists, then is delivered once.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ref.read(appRouterProvider.notifier).set(router),
+    );
     _lifecycle = AppLifecycleListener(
       onHide: () => unawaited(store.flush()),
       onPause: () => unawaited(store.flush()),
@@ -81,6 +87,13 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
 
   @override
   void dispose() {
+    if (_router != null) {
+      try {
+        ref.read(appRouterProvider.notifier).set(null);
+      } on Object {
+        // The container is already gone (tests); nothing is waiting on it.
+      }
+    }
     _lifecycle?.dispose();
     super.dispose();
   }

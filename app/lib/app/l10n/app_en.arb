@@ -415,5 +415,21 @@
   "appShortcutUnbound": "Not set",
   "@appShortcutUnbound": {
     "description": "Shown when an action has no key."
+  },
+  "appIncomingNotOpened": "Couldn't open this link or file. Choose another.",
+  "@appIncomingNotOpened": {
+    "description": "Snackbar when another app hands Mediahro a link or file it does not accept (Open with, Share)."
+  },
+  "appIncomingUnsupported": "Couldn't open this kind of file. Choose another.",
+  "@appIncomingUnsupported": {
+    "description": "Snackbar when another app hands Mediahro a file type it cannot open yet."
+  },
+  "appIncomingImage": "Photos from other apps can't be opened yet. Open it from the Photos tab instead.",
+  "@appIncomingImage": {
+    "description": "Snackbar when another app hands Mediahro an image."
+  },
+  "appIncomingFailed": "Couldn't open this file. It may be corrupt or on a disconnected drive.",
+  "@appIncomingFailed": {
+    "description": "Snackbar when a file handed over by another app cannot be read."
   }
 }

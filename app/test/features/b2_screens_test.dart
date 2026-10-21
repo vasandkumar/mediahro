@@ -225,6 +225,24 @@ void main() {
     },
   );
 
+  testWidgets('SYS-004 a search opened with a text runs it at once', (
+    tester,
+  ) async {
+    final seed = Seed(db);
+    await seed.item('a.mkv', title: 'Blade Runner');
+    await seed.item('c.mkv', title: 'Alien');
+    await _pump(
+      tester,
+      const SearchScreen(initialQuery: 'blade'),
+      db: db,
+      policy: policy,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('blade'), findsOneWidget);
+    expect(find.text('Blade Runner'), findsOneWidget);
+    expect(find.text('Alien'), findsNothing);
+  });
+
   testWidgets(
     'CORE-005 open URL validates, remembers and hands the URL to the player',
     (tester) async {
