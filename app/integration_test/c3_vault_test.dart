@@ -1,0 +1,178 @@
+// Lane C3 device batch, the vault (IMG-011, PRIV-007): the real OS crypto and
+// Keystore behind the vault on the Samsung (C4a's AndroidVaultCrypto). The
+// fingerprint prompt and the screen capture block are manual checks (listed
+// in the PR).
+//
+//   flutter test integration_test/c3_vault_test.dart -d <serial> --no-dds \
+//     -P kotlin.incremental=false
+//
+// Reports (binding.reportData): vault_kdf_ms (one PIN check at the shipped
+// 600,000 rounds, two vaults in parallel), vault_seal_ms_per_mib.
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:mediahro/features/photos/vault/vault_manager.dart';
+import 'package:mediahro/platform/platform_bindings.dart';
+import 'package:mediahro/platform/platform_facades.dart';
+
+void main() {
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  late Directory dir;
+  late ProviderContainer c;
+  late VaultManager manager;
+
+  // The vault key and the vault entries in secure storage are the app's own,
+  // not the test's: on a phone that already has a real vault these tests
+  // would use (and, in reset, delete) the real key. They run only where there
+  // is no vault yet.
+  var realVault = false;
+
+  /// True (and the test is marked skipped) when the phone has a real vault.
+  bool skipForRealVault() {
+    if (!realVault) return false;
+    markTestSkipped('this phone has a vault of its own; not touching its key');
+    return true;
+  }
+
+  setUp(() async {
+    dir = Directory.systemTemp.createTempSync('c3-vault');
+    c = ProviderContainer(overrides: platformOverrides());
+    if (!Platform.isAndroid) return;
+    final real = Directory.fromUri(
+      await c.read(imagingProvider).noBackupDirectory('vault'),
+    );
+    realVault =
+        real.existsSync() && real.listSync().whereType<Directory>().isNotEmpty;
+    manager = VaultManager(
+      root: Directory('${dir.path}/vault'),
+      crypto: c.read(vaultCryptoProvider),
+      secure: c.read(secureStorageProvider),
+    );
+  });
+
+  tearDown(() async {
+    if (Platform.isAndroid && !realVault) await manager.reset();
+    c.dispose();
+    dir.deleteSync(recursive: true);
+  });
+
+  Uint8List bytes(int n, int seed) =>
+      Uint8List.fromList(List.generate(n, (i) => (i * 31 + seed) & 0xFF));
+
+  testWidgets('IMG-011 two vaults, a PIN each, and a photo that reads back', (
+    tester,
+  ) async {
+    if (skipForRealVault()) return;
+    final m = manager;
+    final kdf = Stopwatch()..start();
+    final made = await m.setUp(pin: '246810', decoyPin: '135790');
+    kdf.stop();
+    expect(made.isOpen, isTrue, reason: '${made.outcome}');
+    final data = bytes(3 << 20, 7);
+    final sw = Stopwatch()..start();
+    final item = await made.vault!.container.add(
+      name: 'a.jpg',
+      kind: 'image',
+      content: Stream.value(data),
+      size: data.length,
+    );
+    sw.stop();
+    await made.vault!.close();
+    binding.reportData = {
+      'vault_kdf_ms': kdf.elapsedMilliseconds,
+      'vault_seal_ms_per_mib': sw.elapsedMilliseconds ~/ 3,
+    };
+
+    final again = await m.openWithPin('246810');
+    expect(again.isOpen, isTrue, reason: '${again.outcome}');
+    expect(await again.vault!.container.readAll(item.id), data);
+    await again.vault!.close();
+
+    final other = await m.openWithPin('135790');
+    expect(other.vault!.container.list(), isEmpty);
+    await other.vault!.close();
+
+    expect((await m.openWithPin('000000')).outcome, VaultOutcome.wrongPin);
+  }, skip: !Platform.isAndroid);
+
+  testWidgets('IMG-011 nothing readable is on disk and the folder is private', (
+    tester,
+  ) async {
+    if (skipForRealVault()) return;
+    final m = manager;
+    final r = await m.setUp(pin: '246810');
+    final secret = bytes(200000, 3);
+    await r.vault!.container.add(
+      name: 'private holiday.jpg',
+      kind: 'image',
+      content: Stream.value(secret),
+      size: secret.length,
+    );
+    await r.vault!.close();
+    for (final f in Directory(
+      '${dir.path}/vault',
+    ).listSync(recursive: true).whereType<File>()) {
+      final text = String.fromCharCodes(f.readAsBytesSync());
+      expect(text, isNot(contains('private holiday')));
+      expect(
+        text,
+        isNot(contains(String.fromCharCodes(secret.sublist(500, 540)))),
+      );
+    }
+  }, skip: !Platform.isAndroid);
+
+  testWidgets(
+    'IMG-011 locking releases the keystore handle and a tampered file fails',
+    (tester) async {
+      if (skipForRealVault()) return;
+      final m = manager;
+      final r = await m.setUp(pin: '246810');
+      final data = bytes(500000, 5);
+      final item = await r.vault!.container.add(
+        name: 'a.jpg',
+        kind: 'image',
+        content: Stream.value(data),
+        size: data.length,
+      );
+      await r.vault!.close();
+      final file = File('${r.vault!.container.directory.path}/${item.id}.mv');
+      final tampered = file.readAsBytesSync()..[600] ^= 1;
+      file.writeAsBytesSync(tampered);
+      final again = await m.openWithPin('246810');
+      await expectLater(
+        again.vault!.container.readAll(item.id),
+        throwsA(isA<Object>()),
+      );
+      await again.vault!.close();
+    },
+    skip: !Platform.isAndroid,
+  );
+
+  testWidgets(
+    'IMG-011 reset deletes the Keystore key and a new vault can be made',
+    (tester) async {
+      if (skipForRealVault()) return;
+      final m = manager;
+      final first = await m.setUp(pin: '246810');
+      expect(first.isOpen, isTrue, reason: '${first.outcome}');
+      final item = await first.vault!.container.add(
+        name: 'a.jpg',
+        kind: 'image',
+        content: Stream.value(bytes(1000, 1)),
+        size: 1000,
+      );
+      await first.vault!.close();
+      await m.reset();
+      expect(m.exists, isFalse);
+      final second = await m.setUp(pin: '135790');
+      expect(second.isOpen, isTrue, reason: '${second.outcome}');
+      expect(second.vault!.container.list(), isEmpty);
+      expect(second.vault!.container.byId(item.id), isNull);
+      await second.vault!.close();
+    },
+    skip: !Platform.isAndroid,
+  );
+}
