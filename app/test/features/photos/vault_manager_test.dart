@@ -1019,6 +1019,62 @@ void main() {
         expect(high.iterations, VaultManager.maxRounds);
       },
     );
+
+    test('PRIV-007 a storage error turning the fingerprint on at set-up costs nothing else', () async {
+      secure.failWrites = StateError('storage');
+      final r = await manager.setUp(
+        pin: '246810',
+        decoyPin: '135790',
+        fingerprint: true,
+      );
+      secure.failWrites = null;
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      await addTo(r.vault!, 'real.jpg');
+      await r.vault!.close();
+      expect(vaultDirs(), hasLength(2));
+      expect(await manager.fingerprintOn, isFalse);
+      final again = await manager.openWithPin('246810');
+      expect(again.vault!.container.list().single.name, 'real.jpg');
+      await again.vault!.close();
+      expect((await manager.openWithPin('135790')).isOpen, isTrue);
+    });
+
+    test(
+      'PRIV-007 a stopped reset is finished as the app starts, without set-up',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        File('${root.path}/.reset').writeAsBytesSync(const []);
+        File('${root.path}/.reset.part').writeAsBytesSync(const []);
+        expect(manager.exists, isFalse);
+        final before = crypto.resets;
+        await manager.recoverPending();
+        expect(crypto.resets, before + 1);
+        expect(File('${root.path}/.reset').existsSync(), isFalse);
+        expect(File('${root.path}/.reset.part').existsSync(), isFalse);
+        expect(vaultDirs(), isEmpty);
+        // A keystore failure there is not thrown: the journal waits.
+        File('${root.path}/.reset').writeAsBytesSync(const []);
+        crypto.failReset = VaultCryptoError.unavailable;
+        await manager.recoverPending();
+        expect(File('${root.path}/.reset').existsSync(), isTrue);
+        crypto.failReset = null;
+      },
+    );
+
+    test(
+      'PRIV-007 a storage error while finishing a reset is reported by set-up',
+      () async {
+        File('${root.path}/.reset').createSync(recursive: true);
+        // A platform error, not the keystore's own kind.
+        crypto.failResetWith = StateError('platform');
+        expect(
+          (await manager.setUp(pin: '246810', decoyPin: '135790')).outcome,
+          VaultOutcome.unavailable,
+        );
+        crypto.failResetWith = null;
+      },
+    );
     test(
       'PRIV-007 a set-up that fails leaves no folder and no marker',
       () async {

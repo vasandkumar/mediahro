@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io' show FileSystemException;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -130,13 +129,6 @@ class _VaultGateState extends ConsumerState<VaultGate> {
         );
       }
       return;
-    } on FileSystemException {
-      if (mounted) {
-        setState(
-          () => _message = AppLocalizations.of(context).photosVaultResetFailed,
-        );
-      }
-      return;
     } on VaultCryptoException catch (e) {
       // Nothing was deleted; the user can try again.
       if (mounted) {
@@ -145,6 +137,14 @@ class _VaultGateState extends ConsumerState<VaultGate> {
             AppLocalizations.of(context),
             VaultOpenResult(VaultManager.outcomeOf(e)),
           ),
+        );
+      }
+      return;
+    } on Object {
+      // A file or a storage error: say so rather than hang the form.
+      if (mounted) {
+        setState(
+          () => _message = AppLocalizations.of(context).photosVaultResetFailed,
         );
       }
       return;

@@ -223,6 +223,17 @@ final class VaultManager {
     }
   }
 
+  /// Finishes what a stopped reset or set-up left, as the app starts, so the
+  /// screens never see a half-done state. Best effort: a failure (the key
+  /// cannot be deleted just now) leaves the journal for the next start.
+  Future<void> recoverPending() async {
+    try {
+      await _recover();
+    } on Object {
+      // Tried again by set-up and at the next start.
+    }
+  }
+
   /// Finishes what a stopped reset or set-up left, before anything else. A
   /// reset that was confirmed is rolled forward (folders moved away, the
   /// phone key deleted, folders and the fingerprint and back-off records
@@ -231,6 +242,10 @@ final class VaultManager {
   /// cannot be deleted; the journal then stays and the next start tries again.
   Future<void> _recover() async {
     if (!root.existsSync()) return;
+    for (final name in ['$_setupMarker.part', '$_resetJournal.part']) {
+      final stale = File('${root.path}${Platform.pathSeparator}$name');
+      if (stale.existsSync()) await stale.delete();
+    }
     if (_resetFile.existsSync()) {
       await _moveAway();
       await crypto.reset();
@@ -348,7 +363,7 @@ final class VaultManager {
       await _recover();
     } on VaultCryptoException catch (e) {
       return VaultOpenResult(outcomeOf(e));
-    } on FileSystemException {
+    } on Object {
       return const VaultOpenResult(VaultOutcome.unavailable);
     }
     if (exists) return const VaultOpenResult(VaultOutcome.damaged);
@@ -370,6 +385,7 @@ final class VaultManager {
     final handles = <VaultKeyHandle>[];
     final secrets = <Uint8List>[];
     final containers = <VaultContainer>[];
+    var committed = false;
     try {
       // Before any folder: until this is deleted at the end there is no vault.
       await _flag(_setupFile);
@@ -434,22 +450,35 @@ final class VaultManager {
       }
       // The commit: both folders are whole, and now they are the vault.
       await _setupFile.delete();
+      committed = true;
+      // From here on the vault exists and nothing is ever deleted: a failure
+      // below only costs a handle or the fingerprint.
       // The other vault's handle and secret are not needed any more.
       for (final h in handles) {
-        if (h != realHandle) await crypto.close(h);
+        if (h == realHandle) continue;
+        try {
+          await crypto.close(h);
+        } on Object {
+          // Released with the process.
+        }
       }
       for (final s in secrets) {
         if (s != realSecret) s.fillRange(0, s.length, 0);
       }
       final vault = OpenVault._(real!, this, realHandle!, realSecret!);
       if (fingerprint) {
-        final r = await setFingerprint(vault, enabled: true);
-        if (r != VaultOutcome.opened) {
+        try {
+          await setFingerprint(vault, enabled: true);
+        } on Object {
           // The vault exists; the fingerprint can be turned on later.
         }
       }
       return VaultOpenResult(VaultOutcome.opened, vault: vault);
     } on Object catch (e) {
+      if (committed) {
+        // Not reachable by design; if it ever is, the vault stays.
+        return const VaultOpenResult(VaultOutcome.unavailable);
+      }
       for (final c in containers) {
         c.close();
       }
@@ -1128,7 +1157,11 @@ final class VaultManager {
       var undone = true;
       for (final (from, to) in moved) {
         try {
-          if (to.existsSync()) await to.rename(from.path);
+          if (!to.existsSync()) {
+            undone = false;
+          } else {
+            await to.rename(from.path);
+          }
         } on Object {
           undone = false;
         }

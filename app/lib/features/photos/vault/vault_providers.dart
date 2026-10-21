@@ -27,14 +27,16 @@ final FutureProvider<Directory> vaultRootProvider = FutureProvider<Directory>((
 /// platform has no OS crypto yet (ADR-039) or no folder that stays out of
 /// backups, so the vault can never run on pure-Dart crypto.
 final FutureProvider<VaultManager> vaultManagerProvider =
-    FutureProvider<VaultManager>(
-      (ref) async => VaultManager(
+    FutureProvider<VaultManager>((ref) async {
+      final manager = VaultManager(
         root: await ref.watch(vaultRootProvider.future),
         crypto: ref.watch(vaultCryptoProvider),
         secure: ref.watch(secureStorageProvider),
-      ),
-      retry: _noRetry,
-    );
+      );
+      // A stopped reset or set-up is finished before any screen asks.
+      await manager.recoverPending();
+      return manager;
+    }, retry: _noRetry);
 
 /// What the vault screens show now.
 class VaultState {
