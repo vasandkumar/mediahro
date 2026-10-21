@@ -122,9 +122,9 @@ void main() {
   testWidgets('PRIV-004 your feeds and stations are listed with what added '
       'them; removing one asks first', (tester) async {
     final usage = RecordingPrivacyUsage()
-      ..addFeedHost('https://feeds.example.com', 'The Show')
-      ..addFeedHost('https://feeds.example.com', 'Another Show')
-      ..addFeedHost('http://radio.example.net:8000', 'Jazz FM');
+      ..addFeedHost('feeds.example.com', 'The Show')
+      ..addFeedHost('feeds.example.com', 'Another Show')
+      ..addFeedHost('radio.example.net', 'Jazz FM');
     await pumpApp(
       tester,
       initialLocation: '/settings/privacy',
@@ -152,10 +152,31 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove and unsubscribe'));
     await tester.pumpAndSettle();
-    expect(usage.feedHosts().map((h) => h.origin), [
-      'https://feeds.example.com',
-    ]);
+    expect(usage.feedHosts().map((h) => h.host), ['feeds.example.com']);
     expect(find.text('radio.example.net'), findsNothing);
+  });
+
+  testWidgets('PRIV-004 removing a host before the app has started says '
+      'so and removes nothing', (tester) async {
+    final usage = RecordingPrivacyUsage()
+      ..feedRemovalReady = false
+      ..addFeedHost('radio.example.net', 'Jazz FM');
+    await pumpApp(
+      tester,
+      initialLocation: '/settings/privacy',
+      overrides: [privacyUsageProvider.overrideWithValue(usage)],
+    );
+    await scrollTo(tester, find.byTooltip('Remove radio.example.net'));
+    await tester.tap(find.byTooltip('Remove radio.example.net'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove and unsubscribe'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Mediahro is still starting. Try again in a moment.'),
+      findsOneWidget,
+    );
+    expect(usage.feedHosts(), hasLength(1));
+    expect(find.text('radio.example.net'), findsOneWidget);
   });
 
   testWidgets('PRIV-004 with no feeds or stations the section says so', (

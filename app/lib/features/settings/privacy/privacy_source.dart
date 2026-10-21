@@ -15,17 +15,15 @@ final class UserConfiguredHost {
 }
 
 /// A host a podcast subscription or a radio station asked for, with the
-/// names of what added it (POD-002, MUS-014). Removing it unsubscribes or
-/// deletes all of them.
+/// names of everything that added it (POD-002, MUS-014). The network policy
+/// matches hosts by name, so there is one row per host, whatever the scheme
+/// and port. Removing it unsubscribes or deletes all of them.
 @immutable
 final class FeedHostRow {
-  const FeedHostRow({required this.origin, required this.labels});
+  const FeedHostRow({required this.host, required this.labels});
 
-  /// `scheme://host[:port]`.
-  final String origin;
+  final String host;
   final List<String> labels;
-
-  String get host => Uri.parse(origin).host;
 }
 
 /// What the privacy dashboard (CORE-015) reads besides the toggles: last
@@ -39,8 +37,10 @@ abstract interface class PrivacyUsage implements Listenable {
   /// Hosts the user's podcasts and stations asked for, by host.
   List<FeedHostRow> feedHosts();
 
-  /// Removes [origin], unsubscribing or deleting whatever added it.
-  Future<void> removeFeedHost(String origin);
+  /// Removes [host], unsubscribing or deleting whatever added it. False
+  /// when that cannot be done yet (the app is still starting): nothing was
+  /// changed, try again.
+  Future<bool> removeFeedHost(String host);
 
   /// Managed configuration (B2B-001) forces [endpoint] off.
   bool isForcedOff(NetworkEndpoint endpoint);
@@ -63,7 +63,7 @@ final class NoPrivacyUsage extends ChangeNotifier implements PrivacyUsage {
   List<FeedHostRow> feedHosts() => const [];
 
   @override
-  Future<void> removeFeedHost(String origin) async {}
+  Future<bool> removeFeedHost(String host) async => true;
 
   @override
   bool isForcedOff(NetworkEndpoint endpoint) => false;
@@ -116,20 +116,25 @@ final class RecordingPrivacyUsage extends ChangeNotifier
       UserConfiguredHost(host: e.key, lastUsed: e.value),
   ]..sort((a, b) => a.host.compareTo(b.host));
 
-  void addFeedHost(String origin, String label) {
-    (_feeds[origin] ??= []).add(label);
+  /// Whether [removeFeedHost] can be done yet.
+  bool feedRemovalReady = true;
+
+  void addFeedHost(String host, String label) {
+    (_feeds[host] ??= []).add(label);
     notifyListeners();
   }
 
   @override
   List<FeedHostRow> feedHosts() => [
-    for (final e in _feeds.entries) FeedHostRow(origin: e.key, labels: e.value),
-  ]..sort((a, b) => a.origin.compareTo(b.origin));
+    for (final e in _feeds.entries) FeedHostRow(host: e.key, labels: e.value),
+  ]..sort((a, b) => a.host.compareTo(b.host));
 
   @override
-  Future<void> removeFeedHost(String origin) async {
-    _feeds.remove(origin);
+  Future<bool> removeFeedHost(String host) async {
+    if (!feedRemovalReady) return false;
+    _feeds.remove(host);
     notifyListeners();
+    return true;
   }
 }
 

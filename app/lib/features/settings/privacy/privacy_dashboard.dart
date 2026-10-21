@@ -161,7 +161,7 @@ class PrivacyDashboard extends ConsumerWidget {
           else
             for (final h in usage.feedHosts())
               KRow(
-                key: ValueKey('privacy.feed.${h.origin}'),
+                key: ValueKey('privacy.feed.${h.host}'),
                 title: h.host,
                 subtitle: h.labels.join(', '),
                 leading: Icon(KIcon.server.resolve(theme.family)),
@@ -203,7 +203,13 @@ class PrivacyDashboard extends ConsumerWidget {
         ],
       ),
     );
-    if (ok ?? false) await usage.removeFeedHost(h.origin);
+    if (!(ok ?? false)) return;
+    final removed = await usage.removeFeedHost(h.host);
+    if (!removed && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.settingsPrivacyFeedHostRemoveNotReady)),
+      );
+    }
   }
 }
 

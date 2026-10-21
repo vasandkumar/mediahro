@@ -117,6 +117,50 @@ void main() {
     expect(policy.feedHostEntries.single.label, 'New name');
   });
 
+  test('PRIV-004 an owner has one origin: editing a station to another '
+      'address takes the old one away', () async {
+    await add('http://old.example.net:8000/live', 'radio:r', 'Radio');
+    await add('https://other.example.com/x.xml', 'podcast:p', 'Other');
+    expect(policy.isUserConfiguredHost('old.example.net'), isTrue);
+    await add('https://new.example.org/live', 'radio:r', 'Radio');
+    expect(policy.isUserConfiguredHost('old.example.net'), isFalse);
+    expect(policy.isUserConfiguredHost('new.example.org'), isTrue);
+    expect(policy.feedHostEntries.map((e) => e.origin), [
+      'https://new.example.org',
+      'https://other.example.com',
+    ]);
+    // Kept across a restart.
+    final again = await PersistentNetworkPolicy.load(db);
+    expect(again.isUserConfiguredHost('old.example.net'), isFalse);
+    await again.dispose();
+    // The same host on another port is the same owner's new origin too.
+    await add('https://new.example.org:8443/live', 'radio:r', 'Radio');
+    expect(
+      policy.feedHostEntries.where((e) => e.owner == 'radio:r').single.origin,
+      'https://new.example.org:8443',
+    );
+  });
+
+  test('PRIV-004 pruning forgets owners that no longer exist, only for the '
+      'prefix asked', () async {
+    await add('https://a.example.com/a.xml', 'podcast:a');
+    await add('https://b.example.com/b.xml', 'podcast:b');
+    await add('https://c.example.net/live', 'radio:c');
+    await policy.pruneFeedOwners('podcast', {'a'});
+    expect(policy.feedHostEntries.map((e) => e.owner), [
+      'podcast:a',
+      'radio:c',
+    ]);
+    expect(policy.isUserConfiguredHost('b.example.com'), isFalse);
+    // Kept across a restart.
+    final again = await PersistentNetworkPolicy.load(db);
+    expect(again.isUserConfiguredHost('b.example.com'), isFalse);
+    expect(again.isUserConfiguredHost('c.example.net'), isTrue);
+    await again.dispose();
+    await policy.pruneFeedOwners('radio', {});
+    expect(policy.feedHostEntries.map((e) => e.owner), ['podcast:a']);
+  });
+
   test('PRIV-004 a fresh start reloads the hosts, and what is not valid '
       'is ignored', () async {
     await add('https://feeds.example.com/x.xml', 'podcast:a', 'The Show');
@@ -172,12 +216,44 @@ void main() {
     await add('https://shared.example.com/b.mp3', 'radio:b');
     await add('https://other.example.com/c.xml', 'podcast:c');
     // The radio remover forgets to clear its entry; the policy still does.
-    final owners = await policy.removeFeedHost('https://shared.example.com');
+    final owners = await policy.removeFeedHost('shared.example.com');
     expect(owners, ['podcast:a', 'radio:b']);
     expect(removed, ['podcast:a', 'radio:b']);
     expect(policy.isUserConfiguredHost('shared.example.com'), isFalse);
     expect(policy.isUserConfiguredHost('other.example.com'), isTrue);
-    expect(await policy.removeFeedHost('https://gone.example.com'), isEmpty);
+    expect(await policy.removeFeedHost('gone.example.com'), isEmpty);
+  });
+
+  test('PRIV-004 hosts are matched by name: one removal takes the owners '
+      'on every scheme and port of that host', () async {
+    policy.registerOwnerRemover('radio', (id) async {});
+    await add('http://radio.example.net:8000/a', 'radio:a');
+    await add('https://radio.example.net/b', 'radio:b');
+    await add('https://other.example.net/c', 'radio:c');
+    expect(policy.isUserConfiguredHost('radio.example.net'), isTrue);
+    expect(await policy.removeFeedHost('RADIO.example.net'), [
+      'radio:a',
+      'radio:b',
+    ]);
+    expect(policy.feedHostEntries.map((e) => e.owner), ['radio:c']);
+  });
+
+  test('PRIV-004 removing a host is refused, changing nothing, until the '
+      'feature that owns it has registered how to remove it', () async {
+    await add('https://feeds.example.com/a.xml', 'podcast:a');
+    await add('https://feeds.example.com/b.mp3', 'radio:b');
+    expect(await policy.removeFeedHost('feeds.example.com'), isNull);
+    expect(policy.feedHostEntries, hasLength(2));
+    final removed = <String>[];
+    policy.registerOwnerRemover('podcast', (id) async => removed.add(id));
+    // One of the two is still not registered: nothing happens.
+    expect(await policy.removeFeedHost('feeds.example.com'), isNull);
+    expect(removed, isEmpty);
+    expect(policy.feedHostEntries, hasLength(2));
+    policy.registerOwnerRemover('radio', (id) async => removed.add(id));
+    expect(await policy.removeFeedHost('feeds.example.com'), hasLength(2));
+    expect(removed, ['a', 'b']);
+    expect(policy.feedHostEntries, isEmpty);
   });
 
   test('PRIV-004 changes are announced for the dashboard', () async {

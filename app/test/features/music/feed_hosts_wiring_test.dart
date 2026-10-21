@@ -90,6 +90,9 @@ void main() {
       hosts.entries.clear();
       await svc.syncHosts();
       expect(hosts.entries.single.$2, 'podcast:${show.id}');
+      // And the hosts of subscriptions that no longer exist are dropped.
+      expect(hosts.pruned.single.$1, 'podcast');
+      expect(hosts.pruned.single.$2, {show.id});
     });
   });
 
@@ -134,6 +137,8 @@ void main() {
       final radio = RadioStations(MusicPrefs(db), hosts: hosts);
       await radio.syncHosts();
       expect(hosts.entries.single.$2, 'radio:old');
+      expect(hosts.pruned.single.$1, 'radio');
+      expect(hosts.pruned.single.$2, {'old'});
       await radio.dispose();
     });
   });
@@ -152,4 +157,10 @@ final class _Hosts implements FeedHostRegistry {
 
   @override
   Future<void> removeFeedOwner(String owner) async => removed.add(owner);
+
+  final pruned = <(String, Set<String>)>[];
+
+  @override
+  Future<void> pruneFeedOwners(String prefix, Set<String> existingIds) async =>
+      pruned.add((prefix, existingIds));
 }

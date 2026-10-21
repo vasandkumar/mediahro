@@ -650,5 +650,6 @@
       }
     }
   },
-  "settingsPrivacyFeedHostRemoveAction": "Remove and unsubscribe"
+  "settingsPrivacyFeedHostRemoveAction": "Remove and unsubscribe",
+  "settingsPrivacyFeedHostRemoveNotReady": "Mediahro is still starting. Try again in a moment."
 }

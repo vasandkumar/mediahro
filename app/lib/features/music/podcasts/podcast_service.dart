@@ -317,11 +317,16 @@ final class PodcastService {
   }
 
   /// Records the hosts of subscriptions made before hosts were recorded
-  /// (the user subscribed, so this is their choice).
+  /// (the user subscribed, so this is their choice), and forgets the hosts
+  /// of subscriptions that are gone (removed while nothing was listening).
   Future<void> syncHosts() async {
-    for (final s in await store.shows()) {
+    final shows = await store.shows();
+    for (final s in shows) {
       await _recordHost(s);
     }
+    await hosts?.pruneFeedOwners('podcast', {
+      for (final s in await store.shows()) s.id,
+    });
   }
 
   /// Per-show choices: order, automatic downloads, deleting what is played.

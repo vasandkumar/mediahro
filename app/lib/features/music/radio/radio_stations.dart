@@ -189,6 +189,7 @@ final class RadioStations {
   /// recorded (they were added by the user, so this is their choice).
   Future<void> syncHosts() async {
     await _recordHosts(await all());
+    await hosts?.pruneFeedOwners('radio', {for (final s in await all()) s.id});
   }
 
   Future<void> dispose() => _changes.close();

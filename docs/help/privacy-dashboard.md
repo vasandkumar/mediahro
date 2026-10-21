@@ -29,7 +29,7 @@ Network shares and media servers you add are always reachable, because you asked
 
 ## Your feeds and stations
 
-When you subscribe to a podcast, add a radio station, or import a list of podcasts, Mediahro allows that one host (the site the feed or stream address is on) and lists it under **Your feeds and stations**, with the name of the podcast or station that added it. Nothing else is allowed because of it. A host two podcasts share stays until both are gone.
+When you subscribe to a podcast, add a radio station, or import a list of podcasts, Mediahro allows that one host (the site the feed or stream address is on) and lists it under **Your feeds and stations**, with the name of the podcast or station that added it. Nothing else is allowed because of it. A host two podcasts share stays until both are gone. Hosts are matched by name, so a host is listed once whatever its web address starts with or which port it uses.
 
 Tap the bin next to a host to remove it. Because the host exists only for what you added, this also unsubscribes from the podcasts and deletes the stations on it, and Mediahro asks first. Unsubscribing or deleting a station anywhere else removes its host too.
 

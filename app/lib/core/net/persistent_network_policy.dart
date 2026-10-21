@@ -70,6 +70,10 @@ abstract interface class FeedHostRegistry {
   });
 
   Future<void> removeFeedOwner(String owner);
+
+  /// Forgets the owners with [prefix] (`podcast`, `radio`) whose id is not in
+  /// [existingIds]: what was removed while no registry was listening.
+  Future<void> pruneFeedOwners(String prefix, Set<String> existingIds);
 }
 
 /// Unsubscribes or deletes what an owner names (the part after the prefix),
@@ -252,40 +256,66 @@ final class PersistentNetworkPolicy
     final origin = normalizeOrigin(url);
     if (origin == null) return;
     final entry = FeedHostEntry(origin: origin, owner: owner, label: label);
-    final i = _feedHosts.indexWhere(
-      (e) => e.origin == origin && e.owner == owner,
-    );
+    // An owner has one address at a time: editing a station's URL to
+    // another origin takes the old origin away.
+    final count = _feedHosts.length;
+    _feedHosts.removeWhere((e) => e.owner == owner && e.origin != origin);
+    var changed = _feedHosts.length != count;
+    final i = _feedHosts.indexWhere((e) => e.owner == owner);
     if (i >= 0) {
-      if (_feedHosts[i] == entry) return;
-      _feedHosts[i] = entry;
+      if (_feedHosts[i] != entry) {
+        _feedHosts[i] = entry;
+        changed = true;
+      }
     } else {
       _feedHosts.add(entry);
+      changed = true;
     }
-    await _saveFeedHosts();
+    if (changed) await _saveFeedHosts();
   }
 
   @override
   Future<void> removeFeedOwner(String owner) => _removeOwners([owner]);
+
+  @override
+  Future<void> pruneFeedOwners(String prefix, Set<String> existingIds) async {
+    final p = '$prefix:';
+    final before = _feedHosts.length;
+    _feedHosts.removeWhere(
+      (e) =>
+          e.owner.startsWith(p) &&
+          !existingIds.contains(e.owner.substring(p.length)),
+    );
+    if (_feedHosts.length != before) await _saveFeedHosts();
+  }
 
   /// Registers what removing an owner with [prefix] (`podcast`, `radio`)
   /// means: unsubscribing or deleting the station.
   void registerOwnerRemover(String prefix, FeedOwnerRemover remover) =>
       _ownerRemovers[prefix] = remover;
 
-  /// The user removes [origin] in the privacy dashboard: everything that
-  /// added it is unsubscribed or deleted, and the host goes. Returns the
-  /// owners removed.
-  Future<List<String>> removeFeedHost(String origin) async {
+  /// The user removes [host] in the privacy dashboard: everything that
+  /// added it (whatever its scheme and port) is unsubscribed or deleted, and
+  /// the host goes. Returns the owners removed, or null, changing nothing,
+  /// while the feature that owns one of them has not registered what removing
+  /// it means (the app is still starting): removing only the host would not
+  /// stick, because the subscription would record it again.
+  Future<List<String>?> removeFeedHost(String host) async {
+    final h = host.toLowerCase();
     final owners = [
       for (final e in _feedHosts)
-        if (e.origin == origin) e.owner,
+        if (e.host == h) e.owner,
     ];
-    for (final owner in owners) {
+    String prefix(String owner) {
       final colon = owner.indexOf(':');
-      final remover = colon < 0
-          ? null
-          : _ownerRemovers[owner.substring(0, colon)];
-      if (remover != null) await remover(owner.substring(colon + 1));
+      return colon < 0 ? '' : owner.substring(0, colon);
+    }
+
+    if (owners.any((o) => !_ownerRemovers.containsKey(prefix(o)))) return null;
+    for (final owner in owners) {
+      await _ownerRemovers[prefix(owner)]!(
+        owner.substring(prefix(owner).length + 1),
+      );
     }
     // Whatever no remover took care of goes too.
     await _removeOwners(owners);
