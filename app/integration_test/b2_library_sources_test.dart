@@ -28,6 +28,7 @@ import 'package:mediahro/core/scanner/scan_service.dart';
 import 'package:mediahro/core/search/library_search.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/features/sources/sources_screen.dart';
+import 'package:mediahro/platform/platform_bindings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
@@ -450,9 +451,11 @@ void main() {
     },
   );
 
-  // Cells that need lane C4's facades: skipped until C4 provides them.
+  // Cells that need lane C4's facades. The container carries the platform's
+  // real bindings, as the app's own container does, so they run on the device;
+  // a platform without the facade skips with `pending: C4 ...`.
   T? facade<T>(ProviderListenable<T> p) {
-    final c = ProviderContainer();
+    final c = ProviderContainer(overrides: platformOverrides());
     addTearDown(c.dispose);
     try {
       return c.read(p);
