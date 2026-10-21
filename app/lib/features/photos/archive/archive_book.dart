@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:mediahro/features/photos/archive/comic_order.dart';
+import 'package:mediahro/features/photos/archive/fd_archive_source.dart';
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
@@ -140,8 +141,8 @@ abstract interface class ArchiveBooks {
 }
 
 /// Opens archives with libarchive on a worker isolate (`archiveFileSystem`).
-/// Android hands out `content://` documents; those are read through a
-/// detached fd that stays open while the book does, as `/proc/self/fd/N`.
+/// Android hands out `content://` documents; those are read with `pread` on a
+/// detached fd that stays open while the book does (never by a `/proc` path).
 final class FfiArchiveBooks implements ArchiveBooks {
   FfiArchiveBooks(this._storage, {FdIo? io}) : _io = io ?? PosixFdIo();
 
@@ -151,19 +152,15 @@ final class FfiArchiveBooks implements ArchiveBooks {
   @override
   Future<ArchiveBook> open(ArchiveRef ref, {String? passphrase}) async {
     int? fd;
-    final String path;
+    final ArchiveSource source;
     if (ref.uri.scheme == 'content') {
       fd = await _storage.openDocumentFd(ref.uri);
-      path = '/proc/self/fd/$fd';
+      source = SyncArchiveSource(fdSyncFileSystem(fd), ref.name);
     } else {
-      path = ref.uri.toFilePath();
+      source = LocalArchiveSource(ref.uri.toFilePath());
     }
     final root = Uri(scheme: 'archive', path: '/${_id(ref.key)}/');
-    final fs = archiveFileSystem(
-      root,
-      LocalArchiveSource(path),
-      passphrase: passphrase,
-    );
+    final fs = archiveFileSystem(root, source, passphrase: passphrase);
     var released = false;
     Future<void> release() async {
       if (released) return;

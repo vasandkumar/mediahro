@@ -4,6 +4,8 @@
 //
 //   flutter test integration_test/c3_archives_test.dart -d <serial> --no-dds \
 //     -P kotlin.incremental=false
+import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/features/photos/archive/archive_book.dart';
 import 'package:mediahro/platform/storage.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show PosixFdIo;
 
 /// A stored (uncompressed) ZIP of [files], enough for libarchive.
 Uint8List zipOf(Map<String, Uint8List> files) {
@@ -116,6 +119,60 @@ void main() {
     await book.close();
   });
 
+  // Android hands out content: documents as a detached fd. It is read with
+  // pread, never opened again as /proc/self/fd/N (refused on Android 16).
+  testWidgets('IMG-017 an archive that arrives as a detached fd is read', (
+    tester,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('c3-cbz');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    Uint8List page(int n) => Uint8List.fromList(List.generate(64, (i) => n));
+    final file = File('${dir.path}/doc.cbz')
+      ..writeAsBytesSync(zipOf({'b/2.jpg': page(2), 'b/1.jpg': page(1)}));
+    final libc = DynamicLibrary.process();
+    final cMalloc = libc
+        .lookupFunction<
+          Pointer<Uint8> Function(IntPtr),
+          Pointer<Uint8> Function(int)
+        >('malloc');
+    final cFree = libc
+        .lookupFunction<
+          Void Function(Pointer<Uint8>),
+          void Function(Pointer<Uint8>)
+        >('free');
+    final open = libc
+        .lookupFunction<
+          Int32 Function(Pointer<Uint8>, Int32),
+          int Function(Pointer<Uint8>, int)
+        >('open');
+    final name = utf8.encode(file.path);
+    final path = cMalloc(name.length + 1);
+    path.asTypedList(name.length + 1)
+      ..setAll(0, name)
+      ..[name.length] = 0;
+    addTearDown(() => cFree(path));
+    final fds = <int>[];
+    final books = FfiArchiveBooks(
+      _FdStorage(() {
+        final fd = open(path, 0); // O_RDONLY
+        expect(fd, greaterThanOrEqualTo(0));
+        fds.add(fd);
+        return fd;
+      }),
+    );
+    final book = await books.open(
+      ArchiveRef(uri: Uri.parse('content://docs/doc/9'), name: 'doc.cbz'),
+    );
+    expect(book.paths, ['b/1.jpg', 'b/2.jpg']);
+    final second = await book.openPage(1);
+    expect(await second.read(0, 64), page(2));
+    await second.close();
+    await book.close();
+    // The fd is closed with the book.
+    expect(fds, hasLength(1));
+    expect(() => PosixFdIo().size(fds.single), throwsA(anything));
+  });
+
   testWidgets('IMG-017 a file that is not an archive is refused', (
     tester,
   ) async {
@@ -133,6 +190,22 @@ void main() {
 
 /// Files here are plain paths; the storage facade is not used.
 final class _NoStorage implements StorageFacade {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Hands out a fresh detached fd for any document.
+final class _FdStorage implements StorageFacade {
+  _FdStorage(this._open);
+
+  final int Function() _open;
+
+  @override
+  Future<int> openDocumentFd(
+    Uri uri, {
+    DocumentMode mode = DocumentMode.read,
+  }) async => _open();
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
