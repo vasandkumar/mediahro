@@ -149,12 +149,43 @@ final class _Generator {
     });
   }
 
+  /// Samples made with tools FFmpeg does not have (APE, MPC, Dolby Vision,
+  /// HDR10+): small LFS files in test-media/corpus, listed in
+  /// tools/corpus/external/samples.json (recipe: README.md there). They are
+  /// copied next to the generated files so every harness finds them the same
+  /// way. A checkout without the LFS objects (pointer files) skips them.
+  void _prebuilt() {
+    final list = File('tools/corpus/external/samples.json');
+    if (!list.existsSync()) return;
+    final entries =
+        (jsonDecode(list.readAsStringSync()) as Map<String, Object?>)['items']!
+            as List<Object?>;
+    for (final e in entries.cast<Map<String, Object?>>()) {
+      final name = e['file']! as String;
+      if (_only != null && !_only!.hasMatch(name)) continue;
+      final src = File('test-media/corpus/$name');
+      // An LFS pointer is a few hundred bytes of text.
+      if (!src.existsSync() || src.lengthSync() < 1024) {
+        skipped.add({'file': name, 'reason': 'LFS object not fetched'});
+        continue;
+      }
+      src.copySync(p(name));
+      items.add({
+        'file': name,
+        'category': e['category'],
+        'ids': e['ids'],
+        'expect': e['expect'],
+      });
+    }
+  }
+
   Future<void> run({RegExp? only}) async {
     _only = only;
     _subtitleFiles();
     await _containers();
     await _videoCodecs();
     await _hdr();
+    _prebuilt();
     await _audio();
     await _subtitles();
     await _edgeCases();
