@@ -10,7 +10,7 @@ ids: [IMG-017]
 - **Order.** Pages come folder by folder, then by name with numbers as numbers (page 2 before page 10). Files that are not pictures, hidden files, macOS `__MACOSX` folders and `Thumbs.db` are left out.
 - **Turn the page** by tapping the left or right third of the screen, swiping, using the arrow buttons or the slider, or with the keyboard (arrows, space, Page Up/Down, Home, End). The middle third shows or hides the controls.
 - **Pinch** to zoom into a page and drag to move around.
-- Mediahro remembers the page each book was left at (the last 50 books) and opens it there next time.
+- Mediahro remembers the page each book was left at (the last 50 books) and opens it there next time. This is kept on the phone only: under a code made from the book's address (not its name), outside the settings (so not in a settings export) and left out of Android backups and phone-to-phone transfers.
 
 ## Reading settings (the tune button)
 
@@ -22,6 +22,6 @@ These settings are kept for all books.
 
 ## Passwords and problems
 
-- A password-protected archive asks for its password. Cancel leaves the book.
+- A password-protected archive asks for its password. A wrong password is said so and asked for again. Cancel leaves the book.
 - An archive that cannot be read, or has no pictures, says so.
 - Archives are checked against limits (number of entries, path length, size) so that a booby-trapped file cannot use up your phone.
