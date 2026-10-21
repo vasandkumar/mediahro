@@ -1088,6 +1088,71 @@ void main() {
   });
 
   group('POD-002 podcast downloads', () {
+    test('PRIV-004 removing an episode (or its show, or its host) closes the '
+        'files still open for it: the next read fails', () async {
+      final net = FakeNet();
+      final bytes = List<int>.generate(600 << 10, (i) => i & 255);
+      net
+        ..serveBytes('https://cdn.example/a.mp3', bytes)
+        ..serveBytes('https://cdn.example/b.mp3', bytes);
+      final fs = HttpUrlFileSystem(net.http, trustedFor: (_) async => const {});
+      final a = Uri.parse('https://cdn.example/a.mp3');
+      final b = Uri.parse('https://cdn.example/b.mp3');
+      final streamA = await fs.open(a);
+      final downloadA = await fs.open(podcastDownloadUri(a));
+      final streamB = await fs.open(b);
+      expect(await streamA.read(0, 10), bytes.sublist(0, 10));
+      expect(net.openChains, 3);
+      await fs.revoke(a);
+      for (final f in [streamA, downloadA]) {
+        await expectLater(f.read(0, 10), throwsA(isA<VirtualFileException>()));
+      }
+      expect(net.openChains, 1);
+      // Another episode goes on.
+      expect(await streamB.read(0, 10), bytes.sublist(0, 10));
+      await streamB.close();
+      expect(net.openChains, 0);
+      // Revoking what is not open, or twice, is harmless.
+      await fs.revoke(a);
+      await fs.revoke(b);
+    });
+
+    test('PRIV-004 ManagerEpisodeDownloads.remove closes a stream of that '
+        'episode', () async {
+      final db = LibraryDatabase.memory();
+      final dir = Directory.systemTemp.createTempSync('c2_pod_rv');
+      addTearDown(() async {
+        await db.close();
+        try {
+          dir.deleteSync(recursive: true);
+        } on FileSystemException {
+          // Best effort.
+        }
+      });
+      final net = FakeNet()
+        ..serveBytes('https://cdn.example/a.mp3', List<int>.filled(4000, 7));
+      final fs = HttpUrlFileSystem(net.http, trustedFor: (_) async => const {});
+      final downloads = ManagerEpisodeDownloads(
+        manager: DownloadManager(
+          db: db,
+          directory: Directory('${dir.path}/d'),
+          opener: fs.open,
+        ),
+        mounts: MountedFileSystems(),
+        fileSystem: fs,
+      );
+      final url = Uri.parse('https://cdn.example/a.mp3');
+      final stream = await downloads.openStream(url);
+      expect(await stream.read(0, 4), [7, 7, 7, 7]);
+      await downloads.remove(url);
+      await expectLater(
+        stream.read(0, 4),
+        throwsA(isA<VirtualFileException>()),
+      );
+      expect(net.openChains, 0);
+      await downloads.manager.dispose();
+    });
+
     test('POD-002 a download is opened by the podcast file system only, '
         'never by a source the listener added for the same host', () async {
       final db = LibraryDatabase.memory();

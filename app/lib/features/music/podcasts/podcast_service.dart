@@ -148,6 +148,11 @@ final class PodcastService {
   final DateTime Function() _clock;
 
   final _changes = StreamController<void>.broadcast();
+  final _unsubscribed = StreamController<String>.broadcast();
+
+  /// Fires with a show's id once it has been unsubscribed from (anything
+  /// still playing from it must stop).
+  Stream<String> get unsubscribed => _unsubscribed.stream;
 
   /// The tail of each show's queue of changes (see [_locked]).
   final _tails = <String, Future<void>>{};
@@ -340,6 +345,7 @@ final class PodcastService {
     await store.remove(showId);
     await hosts?.removeFeedOwner(owner(showId));
     _changes.add(null);
+    _unsubscribed.add(showId);
   });
 
   /// The owner name a subscription's host is recorded under.
@@ -549,7 +555,10 @@ final class PodcastService {
     return out;
   }
 
-  Future<void> dispose() => _changes.close();
+  Future<void> dispose() async {
+    await _changes.close();
+    await _unsubscribed.close();
+  }
 
   // ------------------------------------------------------------ internals --
 

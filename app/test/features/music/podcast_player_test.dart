@@ -120,6 +120,23 @@ void main() {
     expect(engine.rates.last, 1);
   });
 
+  test('PRIV-004 unsubscribing stops what is playing from that show and '
+      'closes its stream; another show is left alone', () async {
+    await pod.play(show, show.episodes[1]);
+    expect(pod.state.active, isTrue);
+    await service.unsubscribe('other-show');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(pod.state.active, isTrue);
+    expect(downloads.streamed.single.closed, isFalse);
+    await service.unsubscribe(show.id);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(pod.state.active, isFalse);
+    expect(downloads.streamed.single.closed, isTrue);
+    expect(engine.current.status, PlaybackStatus.idle);
+    // Nothing is saved for a show that is gone.
+    expect(await store.progress(show.id), isEmpty);
+  });
+
   test('POD-002 the stream of an episode is closed when the player moves '
       'on, and when it is disposed', () async {
     await pod.play(show, show.episodes[1]);
