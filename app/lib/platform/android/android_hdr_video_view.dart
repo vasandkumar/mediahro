@@ -37,8 +37,25 @@ class AndroidHdrVideoSurface {
   final _destroyed = StreamController<void>.broadcast();
 
   /// Completes true once the view's surface exists; false if the view was
-  /// disposed first.
-  Future<bool> ready() async => (await _channel.invokeMethod<bool>('ready'))!;
+  /// disposed first. The native view is created a few frames after the
+  /// widget is built, so until its channel exists the call is retried
+  /// every [retryEvery]; it throws a [TimeoutException] after [timeout].
+  Future<bool> ready({
+    Duration timeout = const Duration(seconds: 10),
+    Duration retryEvery = const Duration(milliseconds: 50),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      try {
+        return (await _channel.invokeMethod<bool>('ready'))!;
+      } on MissingPluginException {
+        if (DateTime.now().isAfter(deadline)) {
+          throw TimeoutException('the HDR video view was not created', timeout);
+        }
+        await Future<void>.delayed(retryEvery);
+      }
+    }
+  }
 
   /// The surface went away; the engine must detach.
   Stream<void> get destroyed => _destroyed.stream;

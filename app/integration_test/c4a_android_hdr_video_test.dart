@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -26,9 +27,18 @@ void main() {
         home: SizedBox.expand(child: AndroidHdrVideoView(handle: handle)),
       ),
     );
-    final ready = await tester.runAsync(
-      () => surface.ready().timeout(const Duration(seconds: 15)),
+    // The native view is created a few frames after the widget is built:
+    // keep pumping frames while ready() waits for it.
+    bool? ready;
+    unawaited(
+      surface.ready().then((v) => ready = v).catchError((Object _) => false),
     );
+    for (var i = 0; i < 150 && ready == null; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+    }
     expect(ready, isTrue);
 
     // The engine plugin finds the surface by handle (a JNI reference for mpv).

@@ -170,10 +170,14 @@ internal object Tls {
         serverName: String?,
         alpn: List<String>,
         timeoutMs: Int,
+        versions: List<String> = this.versions.toList(),
+        mutual: Boolean = false,
     ): SSLSocket {
         val ssl = context.socketFactory.createSocket(plain, peerHost, peerPort, true) as SSLSocket
         ssl.useClientMode = true
         ssl.enabledProtocols = versions.filter { it in ssl.supportedProtocols }.toTypedArray()
+        // Mutual TLS: forward-secret AEAD suites only; no such suite is an SSLException, never a fallback.
+        if (mutual) ssl.enabledCipherSuites = MutualTls.select(ssl.supportedCipherSuites)
         val params = ssl.sslParameters
         val sni = serverName ?: peerHost
         if (!isIpLiteral(sni)) params.serverNames = listOf(SNIHostName(sni))
@@ -362,7 +366,13 @@ class TlsServerModule : TlsServerHostApi {
             val trust = PeerSetTrustManager(trustedPeers.toSet())
             val server = mutualContext(label, trust).serverSocketFactory.createServerSocket(port.toInt()) as SSLServerSocket
             server.needClientAuth = true
-            server.enabledProtocols = arrayOf("TLSv1.3", "TLSv1.2").filter { it in server.supportedProtocols }.toTypedArray()
+            try {
+                server.enabledCipherSuites = MutualTls.select(server.supportedCipherSuites)
+            } catch (e: IOException) {
+                runCatching { server.close() }
+                throw FlutterError("unavailable", e.message)
+            }
+            server.enabledProtocols = MutualTls.PROTOCOLS.filter { it in server.supportedProtocols }.toTypedArray()
             val id = TlsHub.nextId("l")
             listeners[id] = server to trust
             Thread({ acceptLoop(id, server) }, "mediahro-tls-listen-$id").apply {
@@ -414,7 +424,7 @@ class TlsServerModule : TlsServerHostApi {
             val context = mutualContext(label, PeerSetTrustManager(setOf(peerSha256)))
             val plain = Tls.plainSocket(host, port.toInt(), 15_000)
             val ssl = try {
-                Tls.layer(context, plain, host, port.toInt(), null, emptyList(), 15_000)
+                Tls.layer(context, plain, host, port.toInt(), null, emptyList(), 15_000, MutualTls.PROTOCOLS, mutual = true)
             } catch (e: IOException) {
                 runCatching { plain.close() }
                 throw FlutterError("handshakeFailed", e.message)

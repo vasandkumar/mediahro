@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.apache.sshd.common.config.keys.KeyUtils
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory
 import org.apache.sshd.common.keyprovider.MappedKeyPairProvider
+import org.apache.sshd.common.util.io.PathUtils
 import org.apache.sshd.server.SshServer
 import org.apache.sshd.sftp.server.SftpSubsystemFactory
 
@@ -64,6 +65,8 @@ internal object SftpHooks {
         }
         File(root, "Films").mkdirs()
         File(root, "Films/clip.bin").writeBytes(ByteArray(100_000) { (it % 251).toByte() })
+        // Android has no user home folder, which SSHD asks for (known_hosts, key lookup).
+        PathUtils.setUserHomeFolderResolver { root.toPath() }
         val host = rsa()
         val client = rsa()
         val ssh = SshServer.setUpDefaultServer().apply {
