@@ -122,10 +122,13 @@ void main() {
         expect(t.album, 'Device Album', reason: name);
       }
       expect((await lib.albums()).single.title, 'Device Album');
+      // Anything beside the files this test created is a leftover temp or
+      // backup. Compare file names only: the full path itself contains
+      // 'mediahro' (com.mediahro.app) on a device.
       final leftovers = media
           .listSync()
-          .map((e) => e.path)
-          .where((p) => p.contains('mediahro'));
+          .map((e) => e.uri.pathSegments.lastWhere((s) => s.isNotEmpty))
+          .where((name) => !files.containsKey(name));
       expect(leftovers, isEmpty);
       await editor.undoLast();
       for (final name in files.keys) {

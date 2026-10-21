@@ -112,6 +112,13 @@ void main() {
       await player.next();
       expect(player.state.station?.id, 'loop');
       await player.pause();
+      // `pause()` returns once mpv has accepted the command; the snapshot
+      // follows with mpv's own `pause` property event. Wait for that event
+      // instead of reading the snapshot in the same turn (a live stream
+      // pauses like a file: c2_music_test does the same on a local track).
+      await engine.state
+          .firstWhere((s) => s.status == PlaybackStatus.paused)
+          .timeout(const Duration(seconds: 5));
       expect(engine.current.status, PlaybackStatus.paused);
       await player.dispose();
       await engine.dispose();
