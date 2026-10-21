@@ -66,8 +66,14 @@ final class AndroidDisplay implements DisplayFacade {
       _presentation.close(handle.id);
 
   @override
-  Future<void> present(PresentationHandle handle, PresentationFrame frame) =>
-      _presentation.present(handle.id, PresentationFrameCodec.toMap(frame));
+  Future<void> present(
+    PresentationHandle handle,
+    PresentationFrame frame,
+  ) async {
+    // A frame outside the limits is a FormatException from this future, never sent.
+    final map = PresentationFrameCodec.toMap(frame);
+    await _presentation.present(handle.id, map);
+  }
 
   static DisplayInfo _info(DisplayInfoMsg d) => DisplayInfo(
     id: d.id,
