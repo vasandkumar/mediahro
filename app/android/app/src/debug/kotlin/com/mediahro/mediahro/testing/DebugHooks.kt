@@ -56,6 +56,7 @@ object DebugHooks {
         TlsHooks.install(engine.dartExecutor.binaryMessenger)
         SftpHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         InputHooks.install(engine.dartExecutor.binaryMessenger)
+        MotionVideoHooks.install(host.context, engine.dartExecutor.binaryMessenger)
     }
 
     private fun answer(contract: ActivityResultContract<*, *>): Result<Any?>? {
