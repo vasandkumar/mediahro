@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
-import 'package:mediahro/platform/vault_crypto.dart';
+import 'package:mediahro/features/photos/vault/vault_providers.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 
 import 'fake_vault_crypto.dart';
 
@@ -992,6 +994,55 @@ void main() {
       final s = await manager.setUp(pin: '111111', decoyPin: '222222');
       expect(s.isOpen, isTrue, reason: '${s.outcome}');
       await s.vault!.close();
+    });
+
+    test('PRIV-007 a reset whose undo finds a folder gone says it will finish later', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      // At the moment the key is to go, one moved folder disappears.
+      crypto
+        ..failReset = VaultCryptoError.unavailable
+        ..beforeReset = () {
+          root
+              .listSync()
+              .whereType<Directory>()
+              .firstWhere(
+                (d) => d.path
+                    .split(Platform.pathSeparator)
+                    .last
+                    .startsWith('.trash-'),
+              )
+              .deleteSync(recursive: true);
+        };
+      await expectLater(manager.reset(), throwsA(isA<VaultResetPending>()));
+      crypto
+        ..failReset = null
+        ..beforeReset = null;
+      // The journal stays, so the next start finishes the reset.
+      expect(File('${root.path}/.reset').existsSync(), isTrue);
+      expect(manager.exists, isFalse);
+      await manager.recoverPending();
+      expect(File('${root.path}/.reset').existsSync(), isFalse);
+      expect(root.listSync().whereType<Directory>(), isEmpty);
+    });
+
+    test('PRIV-007 the real provider finishes a stopped reset as the manager starts', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      File('${root.path}/.reset').writeAsBytesSync(const []);
+      final before = crypto.resets;
+      final container = ProviderContainer(
+        overrides: [
+          vaultRootProvider.overrideWith((ref) async => root),
+          vaultCryptoProvider.overrideWithValue(crypto),
+          secureStorageProvider.overrideWithValue(secure),
+        ],
+      );
+      addTearDown(container.dispose);
+      final made = await container.read(vaultManagerProvider.future);
+      expect(crypto.resets, before + 1);
+      expect(File('${root.path}/.reset').existsSync(), isFalse);
+      expect(made.exists, isFalse);
     });
 
     test('PRIV-007 a reset that works leaves no journal', () async {

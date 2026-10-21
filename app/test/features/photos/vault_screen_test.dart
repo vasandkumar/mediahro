@@ -159,13 +159,13 @@ void main() {
     await settleReal(tester);
   }
 
-  Future<void> typePin(WidgetTester tester, String pin) async {
+  Future<void> typePin(WidgetTester tester, String pin, {Finder? until}) async {
     for (final d in pin.split('')) {
       await tester.tap(find.text(d));
       await tester.pump();
     }
     await tester.tap(find.byIcon(Icons.check));
-    await settleReal(tester);
+    await settleReal(tester, until: until);
   }
 
   /// A made vault with [names] (as videos, so no picture is decoded) in the
@@ -727,7 +727,11 @@ void main() {
       await seeded(tester, names: ['one.mp4']);
       crypto.loseKeys();
       await open(tester);
-      await typePin(tester, '246810');
+      await typePin(
+        tester,
+        '246810',
+        until: find.textContaining('key is gone'),
+      );
       expect(find.textContaining('key is gone'), findsOneWidget);
       await tester.tap(find.text('Reset the vault'));
       await tester.pumpAndSettle();
@@ -738,9 +742,37 @@ void main() {
       await tester.tap(find.text('Reset the vault'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
-      await settleReal(tester);
+      await settleReal(tester, until: find.text('Set up the vault'));
       expect(manager.exists, isFalse);
       expect(find.text('Set up the vault'), findsOneWidget);
+    });
+
+    testWidgets('PRIV-007 a reset that fails for another reason says so', (
+      tester,
+    ) async {
+      await seeded(tester, names: ['one.mp4']);
+      crypto.loseKeys();
+      await open(tester);
+      await typePin(
+        tester,
+        '246810',
+        until: find.textContaining('key is gone'),
+      );
+      // Not the keystore own kind of failure (a platform error).
+      crypto.failResetWith = StateError('platform');
+      await tester.tap(find.text('Reset the vault'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
+      await settleReal(
+        tester,
+        until: find.text('The reset could not be finished. Try again.'),
+      );
+      expect(
+        find.text('The reset could not be finished. Try again.'),
+        findsOneWidget,
+      );
+      // The form is not stuck: Reset can be tried again.
+      expect(find.text('Reset the vault'), findsOneWidget);
     });
   });
 
@@ -750,12 +782,12 @@ void main() {
     await seeded(tester, names: ['one.mp4']);
     crypto.loseKeys();
     await open(tester);
-    await typePin(tester, '246810');
+    await typePin(tester, '246810', until: find.textContaining('key is gone'));
     crypto.failReset = VaultCryptoError.unavailable;
     await tester.tap(find.text('Reset the vault'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
-    await settleReal(tester);
+    await settleReal(tester, until: find.textContaining("isn't available"));
     expect(manager.exists, isTrue);
     expect(find.textContaining("isn't available"), findsOneWidget);
     expect(find.text('Reset the vault'), findsOneWidget);

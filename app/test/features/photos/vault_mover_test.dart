@@ -4,7 +4,10 @@ import 'dart:typed_data';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
+import 'package:mediahro/features/photos/photos_providers.dart'
+    show loadPhotoEntries, photoEntriesSql;
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_mover.dart';
@@ -110,6 +113,24 @@ void main() {
   Future<int> itemRows() async => (await db.select(db.items).get()).length;
 
   group('IMG-011 moving photos in', () {
+    test(
+      'ADR-043 nothing moved to the vault can be listed for a slideshow',
+      () async {
+        final keep = await photo('keep.jpg');
+        final gone = await photo('gone.jpg');
+        final film = await photo('gone.mp4', video: true);
+        await mover.moveIn(vault, [gone, film]);
+        // The slideshow takes library entries (PhotoEntry); this is the query
+        // every list of them comes from, with hidden items unlocked too.
+        final query = db.customSelect(
+          photoEntriesSql(const rules.Visibility(unlocked: true)),
+          readsFrom: {db.items, db.imageMeta, db.ratings, db.sources},
+        );
+        final listed = await loadPhotoEntries(query);
+        expect(listed.map((e) => e.id), [keep.id]);
+      },
+    );
+
     test('IMG-011 a moved photo is encrypted in, read back and gone from its folder', () async {
       final data = bytesOf(5000, 3);
       final p = await photo('trip/a.jpg', data: data);

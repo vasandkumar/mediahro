@@ -184,9 +184,13 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   Error? failResetWith;
   int resets = 0;
 
+  /// Runs inside [reset] before anything else (to change the disk then).
+  void Function()? beforeReset;
+
   @override
   Future<void> reset() async {
     calls.add('reset');
+    beforeReset?.call();
     if (failResetWith != null) throw failResetWith!;
     if (failReset != null) throw VaultCryptoException(failReset!);
     resets++;
