@@ -50,6 +50,7 @@ Uint8List sampleJpeg({
   String? xmp,
   Uint8List? photoshop,
   bool jfif = true,
+  List<String> comments = const [],
   List<int> trailer = const [],
 }) {
   final b = BytesBuilder()..add([0xFF, 0xD8]);
@@ -73,6 +74,9 @@ Uint8List sampleJpeg({
   if (photoshop != null) {
     b.add(_seg(0xED, [...'Photoshop 3.0'.codeUnits, 0, ...photoshop]));
   }
+  for (final c in comments) {
+    b.add(_seg(0xFE, c.codeUnits));
+  }
   b
     ..add(_seg(0xDB, [0, ...List.filled(64, 8)]))
     ..add(_seg(0xC0, [8, 0, 2, 0, 4, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]))
@@ -93,7 +97,11 @@ Uint8List _pngChunk(String type, List<int> data) {
 }
 
 /// A 4×2 RGBA PNG skeleton.
-Uint8List samplePng({Uint8List? exif, String? xmp}) {
+Uint8List samplePng({
+  Uint8List? exif,
+  String? xmp,
+  List<(String, List<int>)> extra = const [],
+}) {
   final b = BytesBuilder()
     ..add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
     ..add(
@@ -119,6 +127,9 @@ Uint8List samplePng({Uint8List? exif, String? xmp}) {
         ...utf8.encode(xmp),
       ]),
     );
+  }
+  for (final (type, data) in extra) {
+    b.add(_pngChunk(type, data));
   }
   b
     ..add(_pngChunk('IDAT', scanData))

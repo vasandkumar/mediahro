@@ -624,6 +624,67 @@ void main() {
       expect(WebpFile.parse(webp).exif, isNull);
     });
 
+    test('IMG-006 PNG: every text chunk and the modification time go', () {
+      final text = [
+        ('tEXt', [...'Author'.codeUnits, 0, ...'Jane Doe'.codeUnits]),
+        (
+          'zTXt',
+          [...'Comment'.codeUnits, 0, 0, 0x78, 0x9C, 0x03, 0x00, 0, 0, 0, 1],
+        ),
+        (
+          'iTXt',
+          [
+            ...'Raw profile type iptc'.codeUnits,
+            0, 0, 0, 0, 0,
+            ...'location secret'.codeUnits, //
+          ],
+        ),
+        ('tIME', [0x07, 0xE8, 10, 21, 9, 30, 0]),
+      ];
+      final source = samplePng(
+        exif: sampleExif(orientation: 1),
+        xmp: xmpDoc('<xmp:Rating>3</xmp:Rating>'),
+        extra: text,
+      );
+      final before = PngFile.parse(source).chunks.map((c) => c.type).toList();
+      expect(before, containsAll(['tEXt', 'zTXt', 'iTXt', 'tIME']));
+      final out = stripMetadata(source)!;
+      final types = PngFile.parse(out).chunks.map((c) => c.type).toList();
+      expect(types, ['IHDR', 'IDAT', 'IEND']);
+      expect(String.fromCharCodes(out), isNot(contains('Jane Doe')));
+      expect(String.fromCharCodes(out), isNot(contains('location secret')));
+    });
+
+    test('IMG-006 PNG: orientation stays in a fresh eXIf chunk', () {
+      final out = stripMetadata(
+        samplePng(
+          exif: sampleExif(),
+          extra: const [
+            ('tEXt', [0x41, 0, 0x42]),
+          ],
+        ),
+      )!;
+      expect(PngFile.parse(out).exif, isNotNull);
+      expect(parseMetadata(out).orientation, 6);
+    });
+
+    test('IMG-006 JPEG: comment segments go with the rest', () {
+      final source = sampleJpeg(
+        exif: sampleExif(),
+        comments: ['shot at the secret cabin', 'Edited with SuperApp'],
+      );
+      expect(String.fromCharCodes(source), contains('secret cabin'));
+      final out = stripMetadata(source)!;
+      expect(String.fromCharCodes(out), isNot(contains('secret cabin')));
+      expect(String.fromCharCodes(out), isNot(contains('SuperApp')));
+      final markers = JpegFile.parse(out).segments.map((s) => s.marker);
+      expect(markers, isNot(contains(0xFE)));
+      expect(
+        _tail(out, scanData.length + 2),
+        _tail(source, scanData.length + 2),
+      );
+    });
+
     test('IMG-006 TIFF loses GPS and text tags', () {
       final tiff = writeMetadata(sampleTiff(), _edit).file!;
       final m = parseMetadata(stripMetadata(tiff)!).metadata;
