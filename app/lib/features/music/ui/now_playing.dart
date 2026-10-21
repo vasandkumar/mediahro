@@ -9,6 +9,7 @@ import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/ui/book_player_screen.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/lyrics_view.dart';
@@ -42,6 +43,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final book = ref.watch(bookPlayerStateProvider).value;
+    if (book != null && book.active) return BookPlayerScreen(state: book);
     final l10n = AppLocalizations.of(context);
     final s = ref.watch(musicPlayerStateProvider).value;
     final player = ref.read(musicPlayerProvider);

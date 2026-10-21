@@ -487,6 +487,7 @@ class _SleepSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final timer = ref.read(sleepTimerProvider);
     final s = ref.watch(sleepTimerStateProvider).value ?? SleepTimerState.off;
+    final book = ref.watch(bookPlayerStateProvider).value;
     void close() => Navigator.of(context).pop();
     return SafeArea(
       child: ListView(
@@ -500,11 +501,16 @@ class _SleepSheet extends ConsumerWidget {
             subtitle: s.active ? Text(sleepLabel(l10n, s)) : null,
           ),
           // A running timer's controls come first.
-          if (s.active)
+          if (s.active || (book?.stopAtChapterEnd ?? false))
             ListTile(
               title: Text(l10n.musicSleepOff),
               onTap: () {
                 timer.cancel();
+                unawaited(
+                  ref
+                      .read(bookPlayerProvider)
+                      .setStopAtChapterEnd(enabled: false),
+                );
                 close();
               },
             ),
@@ -518,6 +524,19 @@ class _SleepSheet extends ConsumerWidget {
               title: Text(l10n.musicSleepMinutes(m)),
               onTap: () {
                 timer.startTime(Duration(minutes: m));
+                close();
+              },
+            ),
+          if (book?.active ?? false)
+            ListTile(
+              title: Text(l10n.musicBookSleepEndOfChapter),
+              selected: book!.stopAtChapterEnd,
+              onTap: () {
+                unawaited(
+                  ref
+                      .read(bookPlayerProvider)
+                      .setStopAtChapterEnd(enabled: true),
+                );
                 close();
               },
             ),
