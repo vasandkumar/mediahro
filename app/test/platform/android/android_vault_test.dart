@@ -17,8 +17,8 @@ final class _FakeCrypto extends VaultCryptoHostApi {
   }
 
   @override
-  Future<int> openMasterKey(bool requireBiometry) async {
-    calls.add('open:$requireBiometry');
+  Future<int> openMasterKey(bool requireBiometry, Uint8List? secret) async {
+    calls.add('open:$requireBiometry:${secret?.length}');
     _fail();
     return 7;
   }
@@ -99,7 +99,16 @@ void main() {
     );
     await crypto.close(master);
     await crypto.reset();
-    expect(api.calls, ['open:true', 'adopt:7:2', 'close:7', 'reset']);
+    expect(api.calls, ['open:true:null', 'adopt:7:2', 'close:7', 'reset']);
+  });
+
+  test('IMG-011 the secret reaches the native side and is optional', () async {
+    await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: Uint8List.fromList([1, 2, 3]),
+    );
+    await crypto.openMasterKey(requireBiometry: false);
+    expect(api.calls, ['open:false:3', 'open:false:null']);
   });
 
   test('IMG-011 every native failure code maps to its error', () async {

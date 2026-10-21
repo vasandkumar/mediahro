@@ -115,6 +115,12 @@ internal object VaultCipher {
 
     /** Wrapped with a master secret released only after the user authenticates. */
     const val MODE_USER: Byte = 1
+
+    /** Wrapped under a key derived from the Keystore master and a caller secret (HKDF, ADR-039 amendment 2). */
+    const val MODE_DEVICE_SECRET: Byte = 2
+
+    /** Wrapped under a key derived from the fingerprint-released master secret and a caller secret. */
+    const val MODE_USER_SECRET: Byte = 3
     const val HEADER = 2
     private val WRAP_AAD = "mediahro.vault.filekey.v1".toByteArray()
 }

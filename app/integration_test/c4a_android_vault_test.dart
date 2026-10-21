@@ -139,6 +139,53 @@ void main() {
     expect(await crypto.open(other, nonce, Uint8List(0), sealed), bytes(32));
   }, skip: !android);
 
+  testWidgets('IMG-011 a secret binds the file keys of a handle to it', (
+    tester,
+  ) async {
+    final crypto = AndroidVaultCrypto();
+    final a1 = await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: bytes(32, 11),
+    );
+    final b = await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: bytes(32, 12),
+    );
+    final none = await crypto.openMasterKey(requireBiometry: false);
+    addTearDown(() => Future.wait([a1, b, none].map(crypto.close)));
+    final key = await crypto.newFileKey(a1);
+    final nonce = bytes(VaultCryptoFacade.nonceLength);
+    final sealed = await crypto.seal(key, nonce, Uint8List(0), bytes(48));
+
+    Matcher keyLost() => throwsA(
+      isA<VaultCryptoException>().having(
+        (e) => e.error,
+        'error',
+        VaultCryptoError.keyLost,
+      ),
+    );
+    await expectLater(crypto.adoptFileKey(b, key.bytes), keyLost());
+    await expectLater(crypto.adoptFileKey(none, key.bytes), keyLost());
+
+    // The same secret on a new handle (after a restart) opens it.
+    final a2 = await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: bytes(32, 11),
+    );
+    addTearDown(() => crypto.close(a2));
+    final again = await crypto.adoptFileKey(a2, key.bytes);
+    expect(await crypto.open(again, nonce, Uint8List(0), sealed), bytes(48));
+
+    // A file key made without a secret does not open under one.
+    final plain = await crypto.newFileKey(none);
+    await expectLater(crypto.adoptFileKey(a1, plain.bytes), keyLost());
+    // An empty secret is refused, not treated as none.
+    await expectLater(
+      crypto.openMasterKey(requireBiometry: false, secret: Uint8List(0)),
+      throwsA(isA<VaultCryptoException>()),
+    );
+  }, skip: !android);
+
   testWidgets('IMG-011 reset deletes the master key; nothing re-creates it', (
     tester,
   ) async {

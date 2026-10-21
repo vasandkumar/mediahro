@@ -55,14 +55,20 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
     /** First-time creation of a master key, one at a time. */
     private val createMutex = Mutex()
 
-    override suspend fun openMasterKey(requireBiometry: Boolean): Long {
-        val wrapper = if (requireBiometry) openUser() else openDevice()
-        return ids.incrementAndGet().also { sessions[it] = VaultSession(wrapper) }
+    override suspend fun openMasterKey(requireBiometry: Boolean, secret: ByteArray?): Long {
+        try {
+            if (secret != null && secret.isEmpty()) throw FlutterError("unavailable", "An empty secret is not a secret")
+            val wrapper = if (requireBiometry) openUser(secret) else openDevice(secret)
+            return ids.incrementAndGet().also { sessions[it] = VaultSession(wrapper) }
+        } finally {
+            // The native copy of the caller's secret is never kept.
+            secret?.fill(0)
+        }
     }
 
     // ---- master key held by the Keystore (no user step) ----
 
-    private suspend fun openDevice(): KeyWrapper = withContext(Dispatchers.IO) {
+    private suspend fun openDevice(secret: ByteArray?): KeyWrapper = withContext(Dispatchers.IO) {
         createMutex.withLock {
             val exists = keystore.has(DEVICE_KEY)
             if (!exists && prefs.getBoolean(DEVICE_MARK, false)) {
@@ -76,7 +82,43 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             }
             if (!exists) prefs.edit().putBoolean(DEVICE_MARK, true).commit()
             Log.i(TAG, "device master key in secure hardware: ${keystore.isInsideSecureHardware(key)}")
-            DeviceWrapper(key, keystore)
+            if (secret == null) DeviceWrapper(key, keystore) else deviceSecretWrapper(secret)
+        }
+    }
+
+    /**
+     * With a caller secret the master material cannot be the AES key's bytes
+     * (they never leave the Keystore). A non-exportable Keystore HMAC-SHA-256
+     * key turns a fixed label into 32 bytes of key material, the same on every
+     * open and only on this device; HKDF mixes it with the secret. Chosen over
+     * a stored random secret released by the AES key because it adds no blob
+     * to store, back up or lose. Called with [createMutex] held.
+     */
+    private fun deviceSecretWrapper(secret: ByteArray): KeyWrapper {
+        val exists = keystore.has(DEVICE_HMAC_KEY)
+        if (!exists && prefs.getBoolean(DEVICE_HMAC_MARK, false)) {
+            throw FlutterError("keyLost", "The device key for this vault is gone")
+        }
+        val hmacKey = try {
+            keystore.vaultHmacKey(DEVICE_HMAC_KEY)
+        } catch (e: GeneralSecurityException) {
+            throw FlutterError("unavailable", "No Keystore key: ${e.message}")
+        }
+        if (!exists) prefs.edit().putBoolean(DEVICE_HMAC_MARK, true).commit()
+        val material = try {
+            keystore.hmac(hmacKey, HMAC_LABEL)
+        } catch (e: GeneralSecurityException) {
+            throw FlutterError("keyLost", "The device key for this vault cannot be used: ${e.message}")
+        }
+        return derivedWrapper(material, secret, VaultCipher.MODE_DEVICE_SECRET)
+    }
+
+    /** The wrapper for key material and a secret; both buffers belong to the caller, who zeroes [material]. */
+    private fun derivedWrapper(material: ByteArray, secret: ByteArray, mode: Byte): KeyWrapper {
+        try {
+            return SoftWrapper(Hkdf.wrappingKey(material, secret), mode)
+        } finally {
+            material.fill(0)
         }
     }
 
@@ -101,15 +143,22 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
 
     // ---- master secret released by a fingerprint ----
 
-    private class UserWrapper(private val secret: ByteArray) : KeyWrapper {
-        override fun wrap(dataKey: ByteArray): ByteArray = VaultCipher.wrap(secret, dataKey, VaultCipher.MODE_USER)
+    /** Wraps under key bytes held in memory: the fingerprint-released master secret, or a key derived with a caller secret. */
+    private class SoftWrapper(private val key: ByteArray, private val mode: Byte) : KeyWrapper {
+        override fun wrap(dataKey: ByteArray): ByteArray = VaultCipher.wrap(key, dataKey, mode)
 
-        override fun unwrap(wrapped: ByteArray): ByteArray = VaultCipher.unwrap(secret, wrapped, VaultCipher.MODE_USER)
+        override fun unwrap(wrapped: ByteArray): ByteArray = VaultCipher.unwrap(key, wrapped, mode)
 
-        override fun destroy() = secret.fill(0)
+        override fun destroy() = key.fill(0)
     }
 
-    private suspend fun openUser(): KeyWrapper {
+    private suspend fun openUser(secret: ByteArray?): KeyWrapper {
+        val master = unlockUserMaster()
+        return if (secret == null) SoftWrapper(master, VaultCipher.MODE_USER) else derivedWrapper(master, secret, VaultCipher.MODE_USER_SECRET)
+    }
+
+    /** The fingerprint-released master secret (the caller zeroes it or hands it to a wrapper). */
+    private suspend fun unlockUserMaster(): ByteArray {
         // First use creates the secret once, however many opens race.
         createMutex.withLock {
             if (prefs.getString(USER_SECRET, null) == null) return createUser()
@@ -132,7 +181,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             is BiometricAuth.Outcome.Success -> withContext(Dispatchers.IO) {
                 val c = outcome.result.cryptoObject?.cipher ?: throw FlutterError("authFailed", "No cipher")
                 try {
-                    UserWrapper(c.doFinal(stored))
+                    c.doFinal(stored)
                 } catch (e: GeneralSecurityException) {
                     throw FlutterError("keyLost", "The device key for this vault cannot open it: ${e.message}")
                 }
@@ -143,7 +192,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
     }
 
     /** Called with [createMutex] held and no stored secret. */
-    private suspend fun createUser(): KeyWrapper = withContext(Dispatchers.IO) {
+    private suspend fun createUser(): ByteArray = withContext(Dispatchers.IO) {
         val secret = VaultCipher.newKey()
         val (public, private) = try {
             keystore.vaultKeyPair(USER_KEY)
@@ -158,7 +207,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             secret.fill(0)
             throw FlutterError("unavailable", "Could not store the vault key")
         }
-        UserWrapper(secret)
+        secret
     }
 
     // ---- per-file keys and chunks ----
@@ -201,8 +250,9 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             createMutex.withLock {
                 sessions.keys.toList().forEach { sessions.remove(it)?.close() }
                 keystore.delete(DEVICE_KEY)
+                keystore.delete(DEVICE_HMAC_KEY)
                 keystore.delete(USER_KEY)
-                prefs.edit().remove(USER_SECRET).remove(DEVICE_MARK).commit()
+                prefs.edit().remove(USER_SECRET).remove(DEVICE_MARK).remove(DEVICE_HMAC_MARK).commit()
             }
         }
     }
@@ -218,5 +268,8 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
         private const val USER_KEY = "mediahro.vault.master.fingerprint"
         private const val USER_SECRET = "vault.master.user"
         private const val DEVICE_MARK = "vault.master.device.created"
+        private const val DEVICE_HMAC_KEY = "mediahro.vault.master.hmac"
+        private const val DEVICE_HMAC_MARK = "vault.master.device.hmac.created"
+        private val HMAC_LABEL = "mediahro-vault-v1/device-material".toByteArray()
     }
 }

@@ -12,15 +12,18 @@ import org.junit.Test
 
 class VaultSessionTest {
     /** A master secret in memory, like the biometric path; [copy] survives [destroy] for checking results. */
-    private class MemoryWrapper(val copy: ByteArray = VaultCipher.newKey()) : KeyWrapper {
+    private class MemoryWrapper(
+        val copy: ByteArray = VaultCipher.newKey(),
+        val mode: Byte = VaultCipher.MODE_USER,
+    ) : KeyWrapper {
         private val secret = copy.copyOf()
         val unwraps = AtomicInteger()
 
-        override fun wrap(dataKey: ByteArray) = VaultCipher.wrap(secret, dataKey, VaultCipher.MODE_USER)
+        override fun wrap(dataKey: ByteArray) = VaultCipher.wrap(secret, dataKey, mode)
 
         override fun unwrap(wrapped: ByteArray): ByteArray {
             unwraps.incrementAndGet()
-            return VaultCipher.unwrap(secret, wrapped, VaultCipher.MODE_USER)
+            return VaultCipher.unwrap(secret, wrapped, mode)
         }
 
         override fun destroy() = secret.fill(0)
@@ -119,6 +122,64 @@ class VaultSessionTest {
             assertTrue(pool.awaitTermination(20, TimeUnit.SECONDS))
             // Everything the racing seals returned opens with the real key: none used a zeroed one.
             val data = VaultCipher.unwrap(wrapper.copy, wrapped, VaultCipher.MODE_USER)
+            val spec = VaultCipher.spec(data)
+            for ((n, sealed) in results) assertArrayEquals(plain, VaultCipher.open(spec, n, aad, sealed))
+        }
+    }
+
+    @Test
+    fun `IMG-011 sessions on keys derived from different secrets cannot open each other's file keys`() {
+        val master = ByteArray(32) { (it + 9).toByte() }
+        fun session(secret: String) = VaultSession(
+            MemoryWrapper(Hkdf.wrappingKey(master, secret.toByteArray()), VaultCipher.MODE_USER_SECRET),
+        )
+        val a = session("pin-A")
+        val key = a.newFileKey()
+        val sealed = a.seal(key, nonce, aad, plain)
+        // The same master and the same secret opens it, a new session after "restart".
+        val again = session("pin-A")
+        again.adopt(key)
+        assertArrayEquals(plain, again.open(key, nonce, aad, sealed))
+        // Another secret, or none (the plain master), does not.
+        assertEquals("keyLost", code { session("pin-B").adopt(key) })
+        assertEquals("keyLost", code { VaultSession(MemoryWrapper(master)).adopt(key) })
+    }
+
+    @Test
+    fun `IMG-011 close racing seals on a derived key never encrypts under a wiped key`() {
+        repeat(20) { round ->
+            val derived = Hkdf.wrappingKey(ByteArray(32) { 3 }, "pin-A".toByteArray())
+            val wrapper = MemoryWrapper(derived, VaultCipher.MODE_USER_SECRET)
+            val s = VaultSession(wrapper)
+            val wrapped = s.newFileKey()
+            val results = java.util.Collections.synchronizedList(mutableListOf<Pair<ByteArray, ByteArray>>())
+            val pool = Executors.newFixedThreadPool(6)
+            val start = CountDownLatch(1)
+            repeat(4) { t ->
+                pool.execute {
+                    start.await()
+                    var i = 0
+                    while (true) {
+                        val n = ByteArray(12) { (t * 50 + i % 200 + it).toByte() }
+                        try {
+                            results += n to s.seal(wrapped, n, aad, plain)
+                        } catch (e: VaultFailure) {
+                            assertEquals("unavailable", e.code)
+                            break
+                        }
+                        i++
+                    }
+                }
+            }
+            pool.execute {
+                start.await()
+                Thread.sleep((round % 3).toLong())
+                s.close()
+            }
+            start.countDown()
+            pool.shutdown()
+            assertTrue(pool.awaitTermination(20, TimeUnit.SECONDS))
+            val data = VaultCipher.unwrap(wrapper.copy, wrapped, VaultCipher.MODE_USER_SECRET)
             val spec = VaultCipher.spec(data)
             for ((n, sealed) in results) assertArrayEquals(plain, VaultCipher.open(spec, n, aad, sealed))
         }
