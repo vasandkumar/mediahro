@@ -98,6 +98,31 @@ void main() {
     expect((await m.openWithPin('000000')).outcome, VaultOutcome.wrongPin);
   }, skip: !Platform.isAndroid);
 
+  testWidgets(
+    'IMG-011 Change PIN seals the secret again and keeps the photos',
+    (tester) async {
+      if (skipForRealVault()) return;
+      final m = manager;
+      final r = await m.setUp(pin: '246810', decoyPin: '135790');
+      final data = bytes(200000, 5);
+      final item = await r.vault!.container.add(
+        name: 'a.jpg',
+        kind: 'image',
+        content: Stream.value(data),
+        size: data.length,
+      );
+      expect(await m.changePin(r.vault!, '555555'), VaultOutcome.opened);
+      await r.vault!.close();
+      // The old PIN is a wrong PIN, not a lost key.
+      expect((await m.openWithPin('246810')).outcome, VaultOutcome.wrongPin);
+      final again = await m.openWithPin('555555');
+      expect(again.isOpen, isTrue, reason: '${again.outcome}');
+      expect(await again.vault!.container.readAll(item.id), data);
+      await again.vault!.close();
+    },
+    skip: !Platform.isAndroid,
+  );
+
   testWidgets('IMG-011 nothing readable is on disk and the folder is private', (
     tester,
   ) async {

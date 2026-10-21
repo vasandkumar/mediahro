@@ -46,7 +46,12 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   void loseKeys() {
     _masters[false] = _bytes(32);
     _masters[true] = _bytes(32);
+    _lost = true;
   }
+
+  // True from loseKeys until reset: opening any key says keyLost, as the real
+  // facade does when the keystore entry is gone.
+  bool _lost = false;
 
   @override
   Future<VaultKeyHandle> openMasterKey({
@@ -54,6 +59,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     Uint8List? secret,
   }) async {
     calls.add('openMaster:$requireBiometry');
+    if (_lost) throw const VaultCryptoException(VaultCryptoError.keyLost);
     final fail = requireBiometry ? failBiometricOpen : failPlainOpen;
     if (fail != null) throw VaultCryptoException(fail);
     final id = _next++;
@@ -171,16 +177,21 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
 
   /// Set to make [reset] fail.
   VaultCryptoError? failReset;
+
+  /// Set to make [reset] fail with something that is not a keystore error.
+  Error? failResetWith;
   int resets = 0;
 
   @override
   Future<void> reset() async {
     calls.add('reset');
+    if (failResetWith != null) throw failResetWith!;
     if (failReset != null) throw VaultCryptoException(failReset!);
     resets++;
     // New keys, as a new keystore entry would be; open handles are closed.
     _open.clear();
     loseKeys();
+    _lost = false;
   }
 
   @override
@@ -195,11 +206,18 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
 final class MemorySecureStorage implements SecureStorageFacade {
   final Map<String, String> values = {};
 
+  /// Set to make [write] fail, as a storage error would.
+  Error? failWrites;
+
   @override
   Future<String?> read(String key) async => values[key];
 
   @override
-  Future<void> write(String key, String value) async => values[key] = value;
+  Future<void> write(String key, String value) async {
+    final fail = failWrites;
+    if (fail != null) throw fail;
+    values[key] = value;
+  }
 
   @override
   Future<void> delete(String key) async => values.remove(key);

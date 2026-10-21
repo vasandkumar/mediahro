@@ -17,13 +17,14 @@ void main() {
   late Directory dir;
   late FakeVaultCrypto crypto;
   late VaultKeyHandle master;
-  late Uint8List token;
 
   setUp(() async {
     dir = Directory.systemTemp.createTempSync('mediahro-vault-container');
     crypto = FakeVaultCrypto();
-    master = await crypto.openMasterKey(requireBiometry: false);
-    token = bytesOf(32, 9);
+    master = await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: bytesOf(32, 9),
+    );
   });
 
   tearDown(() {
@@ -38,15 +39,14 @@ void main() {
     directory: Directory('${dir.path}/c'),
     crypto: crypto,
     master: master,
-    token: token,
   );
 
-  Future<VaultContainer> reopen([Uint8List? t]) => VaultContainer.open(
-    directory: Directory('${dir.path}/c'),
-    crypto: crypto,
-    master: master,
-    token: t ?? token,
-  );
+  Future<VaultContainer> reopen([VaultKeyHandle? handle]) =>
+      VaultContainer.open(
+        directory: Directory('${dir.path}/c'),
+        crypto: crypto,
+        master: handle ?? master,
+      );
 
   Future<VaultItem> put(
     VaultContainer c,
@@ -62,7 +62,7 @@ void main() {
   );
 
   test(
-    'IMG-011 items survive closing and opening with the same token',
+    'IMG-011 items survive closing and opening with the same handle',
     () async {
       final c = await make();
       final a = await put(c, 'beach.jpg', bytesOf(1000));
@@ -74,13 +74,23 @@ void main() {
     },
   );
 
-  test(
-    'IMG-011 a wrong token opens nothing, as if the index were damaged',
-    () async {
-      (await make()).close();
-      await expectLater(reopen(bytesOf(32)), throwsA(isA<VaultCorrupt>()));
-    },
-  );
+  test('IMG-011 a handle opened with another secret opens nothing', () async {
+    (await make()).close();
+    final other = await crypto.openMasterKey(
+      requireBiometry: false,
+      secret: bytesOf(32, 10),
+    );
+    await expectLater(
+      reopen(other),
+      throwsA(
+        isA<VaultCryptoException>().having(
+          (e) => e.error,
+          'error',
+          VaultCryptoError.keyLost,
+        ),
+      ),
+    );
+  });
 
   test(
     'IMG-011 nothing readable is written outside the encrypted files',
@@ -161,7 +171,7 @@ void main() {
     await b.close();
   });
 
-  test('IMG-011 pictures are stored sealed and need the token', () async {
+  test('IMG-011 pictures are stored sealed', () async {
     final c = await make();
     final item = await put(c, 'a.jpg', bytesOf(100));
     expect(await c.thumbnail(item.id), isNull);
@@ -172,7 +182,6 @@ void main() {
       directory: Directory('${dir.path}/c'),
       crypto: crypto,
       master: master,
-      token: token,
     );
     expect(await other.thumbnail(item.id), bytesOf(777, 5));
   });
@@ -210,72 +219,6 @@ void main() {
     expect(back.halfStars, 8);
     expect(back.favourite, isTrue);
     expect(back.label, 'red');
-  });
-
-  group('IMG-011 changing the token', () {
-    test('IMG-011 preparing a new index changes nothing until it is committed', () async {
-      final c = await make();
-      final item = await put(c, 'a.jpg', bytesOf(100));
-      await c.putThumbnail(item.id, bytesOf(50, 2));
-      final newToken = bytesOf(32, 77);
-      await c.prepareRekey(newToken);
-      expect(File('${dir.path}/c/index.mv.next').existsSync(), isTrue);
-      c.close();
-      // The old pair still opens, the new one opens as the pair a cut-off left.
-      expect((await reopen()).list().single.name, 'a.jpg');
-      await expectLater(reopen(newToken), throwsA(isA<VaultCorrupt>()));
-      final cut = await VaultContainer.open(
-        directory: Directory('${dir.path}/c'),
-        crypto: crypto,
-        master: master,
-        token: newToken,
-        next: true,
-      );
-      expect(cut.list().single.name, 'a.jpg');
-    });
-
-    test(
-      'IMG-011 committing makes the new token the one, pictures included',
-      () async {
-        final c = await make();
-        final item = await put(c, 'a.jpg', bytesOf(100));
-        await c.putThumbnail(item.id, bytesOf(50, 2));
-        final newToken = bytesOf(32, 77);
-        await c.prepareRekey(newToken);
-        await c.commitRekey(newToken);
-        expect(File('${dir.path}/c/index.mv.next').existsSync(), isFalse);
-        // The same container goes on with the new token.
-        await put(c, 'b.jpg', bytesOf(10, 4));
-        expect(await c.thumbnail(item.id), bytesOf(50, 2));
-        c.close();
-        await expectLater(reopen(), throwsA(isA<VaultCorrupt>()));
-        final again = await reopen(newToken);
-        expect(again.list().map((i) => i.name).toSet(), {'a.jpg', 'b.jpg'});
-        expect(await again.thumbnail(item.id), bytesOf(50, 2));
-        expect(await again.readAll(item.id), bytesOf(100));
-      },
-    );
-
-    test('IMG-011 a half-made new index can be dropped', () async {
-      final c = await make();
-      await c.prepareRekey(bytesOf(32, 77));
-      await c.abandonRekey();
-      expect(File('${dir.path}/c/index.mv.next').existsSync(), isFalse);
-      expect((await reopen()).list(), isEmpty);
-    });
-
-    test('IMG-011 a failed commit leaves the old token in use', () async {
-      final c = await make();
-      await put(c, 'a.jpg', bytesOf(100));
-      // No index.mv.next to rename: the commit fails.
-      await expectLater(
-        c.commitRekey(bytesOf(32, 77)),
-        throwsA(isA<FileSystemException>()),
-      );
-      await put(c, 'b.jpg', bytesOf(10));
-      c.close();
-      expect((await reopen()).list(), hasLength(2));
-    });
   });
 
   group('IMG-011 locking in the middle of work', () {
@@ -319,41 +262,37 @@ void main() {
       },
     );
 
-    test(
-      'IMG-011 work already running finishes on its own copy of the token',
-      () async {
-        final c = await make();
-        final started = Completer<void>();
-        final release = Completer<void>();
-        Stream<List<int>> slow() async* {
-          yield bytesOf(1000);
-          started.complete();
-          await release.future;
-          yield bytesOf(1000, 2);
-        }
+    test('IMG-011 work already running finishes after a lock', () async {
+      final c = await make();
+      final started = Completer<void>();
+      final release = Completer<void>();
+      Stream<List<int>> slow() async* {
+        yield bytesOf(1000);
+        started.complete();
+        await release.future;
+        yield bytesOf(1000, 2);
+      }
 
-        final pending = c.add(
-          name: 'a.jpg',
-          kind: 'image',
-          content: slow(),
-          size: 2000,
-        );
-        await started.future;
-        c.close();
-        release.complete();
-        final item = await pending;
-        expect(item.name, 'a.jpg');
-        // The token is zeroed now, and the index on disk still opens with
-        // the real one.
-        expect(c.tokenCopy, throwsA(isA<VaultLocked>()));
-        final again = await reopen();
-        expect(again.byId(item.id), isNotNull);
-        expect(await again.readAll(item.id), [
-          ...bytesOf(1000),
-          ...bytesOf(1000, 2),
-        ]);
-      },
-    );
+      final pending = c.add(
+        name: 'a.jpg',
+        kind: 'image',
+        content: slow(),
+        size: 2000,
+      );
+      await started.future;
+      c.close();
+      release.complete();
+      final item = await pending;
+      expect(item.name, 'a.jpg');
+      // The token is zeroed now, and the index on disk still opens with
+      // the real one.
+      final again = await reopen();
+      expect(again.byId(item.id), isNotNull);
+      expect(await again.readAll(item.id), [
+        ...bytesOf(1000),
+        ...bytesOf(1000, 2),
+      ]);
+    });
 
     test('IMG-011 work that has not started is refused once locked', () async {
       final c = await make();
@@ -393,14 +332,6 @@ void main() {
       c.close();
       expect((await reopen()).list(), hasLength(3));
     });
-
-    test('IMG-011 the token is zeroed once the work is over', () async {
-      final c = await make();
-      await put(c, 'a.jpg', bytesOf(10));
-      c.close();
-      await Future<void>.delayed(Duration.zero);
-      expect(c.tokenCopy, throwsA(isA<VaultLocked>()));
-    });
   });
 
   group('IMG-011 files belong where they were made', () {
@@ -413,12 +344,7 @@ void main() {
         final other = Directory('${dir.path}/other')..createSync();
         File('${dir.path}/c/index.mv').copySync('${other.path}/index.mv');
         await expectLater(
-          VaultContainer.open(
-            directory: other,
-            crypto: crypto,
-            master: master,
-            token: token,
-          ),
+          VaultContainer.open(directory: other, crypto: crypto, master: master),
           throwsA(isA<VaultCorrupt>()),
         );
       },
@@ -459,20 +385,6 @@ void main() {
     c.close();
     expect(c.isClosed, isTrue);
     expect(c.list, throwsA(isA<VaultLocked>()));
-    expect(c.tokenCopy, throwsA(isA<VaultLocked>()));
     await expectLater(c.readAll(item.id), throwsA(isA<VaultLocked>()));
-  });
-
-  test('IMG-011 a token the caller keeps is not the one inside', () async {
-    final mine = bytesOf(32, 9);
-    final c = await VaultContainer.create(
-      directory: Directory('${dir.path}/c'),
-      crypto: crypto,
-      master: master,
-      token: mine,
-    );
-    c.close();
-    // Zeroing the container's copy leaves the caller's alone.
-    expect(mine, bytesOf(32, 9));
   });
 }
