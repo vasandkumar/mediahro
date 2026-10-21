@@ -30,6 +30,7 @@ import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_shake.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
+import 'package:mediahro/features/music/player/spoken_mode.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/podcasts/episode_downloads.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
@@ -417,6 +418,7 @@ final podcastBootProvider = Provider<void>((ref) {
 final podcastPlayerProvider = Provider<PodcastPlayer>((ref) {
   final sleep = ref.watch(sleepTimerProvider);
   final p = PodcastPlayer(
+    mode: ref.watch(spokenModeProvider),
     player: ref.watch(musicPlayerProvider),
     engine: ref.watch(playbackEngineProvider(EngineRole.music)),
     dsp: ref.watch(musicDspProvider),
@@ -485,8 +487,12 @@ final bookLibraryProvider = Provider<BookLibrary>(
   ),
 );
 
+/// Who owns the engine's speed while spoken word plays (books, podcasts).
+final spokenModeProvider = Provider<SpokenMode>((ref) => SpokenMode());
+
 final bookPlayerProvider = Provider<BookPlayer>((ref) {
   final b = BookPlayer(
+    mode: ref.watch(spokenModeProvider),
     player: ref.watch(musicPlayerProvider),
     engine: ref.watch(playbackEngineProvider(EngineRole.music)),
     dsp: ref.watch(musicDspProvider),

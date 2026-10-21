@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/player/spoken_mode.dart';
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:mediahro/features/music/podcasts/podcast_service.dart';
 import 'package:mediahro/features/music/podcasts/podcast_store.dart';
@@ -75,8 +76,10 @@ final class PodcastPlayer {
     required this.service,
     this.holdAtEnd,
     this.saveEvery = const Duration(seconds: 5),
+    SpokenMode? mode,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now,
+       _mode = mode ?? SpokenMode();
 
   final MusicPlayer player;
   final PlaybackEngine engine;
@@ -88,6 +91,7 @@ final class PodcastPlayer {
   final bool Function()? holdAtEnd;
   final Duration saveEvery;
   final DateTime Function() _clock;
+  final SpokenMode _mode;
 
   PodcastStore get _store => service.store;
 
@@ -133,6 +137,7 @@ final class PodcastPlayer {
     final source = local != null
         ? UriSource(local.uri, title: episode.title)
         : UriSource(Uri.parse(episode.url), title: episode.title);
+    _mode.claim(this);
     _opening = true;
     _playedMarked = false;
     _ended = false;
@@ -301,6 +306,7 @@ final class PodcastPlayer {
     final source = local != null
         ? UriSource(local.uri, title: episode.title)
         : UriSource(Uri.parse(episode.url), title: episode.title);
+    _mode.claim(this);
     _opening = true;
     _playedMarked = false;
     _ended = false;
@@ -363,8 +369,10 @@ final class PodcastPlayer {
     _lastSave = null;
     _wasPlaying = false;
     _set(const PodcastPlayerState());
-    await dsp.setSkipSilence(enabled: false);
-    await engine.setRate(1);
+    if (_mode.release(this)) {
+      await dsp.setSkipSilence(enabled: false);
+      await engine.setRate(1);
+    }
   }
 
   Future<void> _serial(Future<void> Function() op) {
