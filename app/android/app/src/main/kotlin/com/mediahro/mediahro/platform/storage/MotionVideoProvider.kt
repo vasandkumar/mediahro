@@ -7,8 +7,6 @@ import android.database.Cursor
 import android.net.Uri
 import java.io.FileInputStream
 import java.io.FileNotFoundException
-import java.net.URLDecoder
-import java.net.URLEncoder
 
 /**
  * The URI of a Motion Photo's video component served in place (IMG-016). The
@@ -19,26 +17,40 @@ import java.net.URLEncoder
  * Pure string handling, unit-tested.
  */
 internal object MotionVideoUri {
-    /** Only MediaStore images may be served; anything else is refused. */
-    private const val MEDIA_PREFIX = "content://media/"
+    /**
+     * Only photos of the MediaStore images collection may be served
+     * (`content://media/<volume>/images/media/<id>`), not every
+     * `content://media/` URI.
+     */
+    private val servable = Regex("""content://media/[A-Za-z0-9_\-]+/images/media/\d+""")
 
-    fun isServable(assetId: String): Boolean = assetId.startsWith(MEDIA_PREFIX) && assetId.length > MEDIA_PREFIX.length
+    fun isServable(assetId: String): Boolean = servable.matches(assetId)
 
-    /** `content://<authority>/<percent-encoded asset id>`. */
+    /** `content://<authority>/<percent-encoded asset id>`; the id is one path segment. */
     fun build(authority: String, assetId: String): String {
-        require(isServable(assetId)) { "not a MediaStore asset" }
-        return "content://$authority/" + URLEncoder.encode(assetId, "UTF-8")
+        require(isServable(assetId)) { "not a MediaStore image" }
+        return "content://$authority/" + percentEncode(assetId)
     }
 
-    /** The asset id behind an encoded path segment, or null if it is not a servable one. */
-    fun assetOf(segment: String?): String? {
-        if (segment.isNullOrEmpty()) return null
-        val decoded = try {
-            URLDecoder.decode(segment, "UTF-8")
-        } catch (e: IllegalArgumentException) {
-            return null
+    /**
+     * The asset id for a path segment **as Android hands it over**: `Uri.lastPathSegment`
+     * has already percent-decoded it once, so it is checked as it is and never
+     * decoded again. Null if it is not a servable one.
+     */
+    fun assetOf(decodedSegment: String?): String? = decodedSegment?.takeIf(::isServable)
+
+    /** Percent-encodes everything but unreserved characters (RFC 3986), so a space is %20 and not +. */
+    fun percentEncode(text: String): String {
+        val out = StringBuilder()
+        for (b in text.toByteArray(Charsets.UTF_8)) {
+            val c = b.toInt() and 0xff
+            if (c.toChar().isLetterOrDigit() && c < 0x80 || c.toChar() in "-._~") {
+                out.append(c.toChar())
+            } else {
+                out.append('%').append("0123456789ABCDEF"[c shr 4]).append("0123456789ABCDEF"[c and 15])
+            }
         }
-        return decoded.takeIf(::isServable)
+        return out.toString()
     }
 }
 
