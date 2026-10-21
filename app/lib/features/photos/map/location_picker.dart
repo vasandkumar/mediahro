@@ -1,21 +1,15 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/photos/map/gazetteer.dart';
-import 'package:mediahro/features/photos/map/map_providers.dart';
-import 'package:mediahro/features/photos/map/map_surface.dart';
-import 'package:mediahro/features/photos/map/photos_map_tab.dart'
-    show MapControls;
-import 'package:mediahro/features/photos/map/tiles_prompt.dart';
-import 'package:mediahro/features/photos/map/web_mercator.dart';
+import 'package:mediahro/features/photos/map/gazetteer_providers.dart';
+import 'package:mediahro/features/photos/map/geo_point.dart';
 
 /// A position the user chose.
 typedef PickedLocation = ({double lat, double lon});
 
-/// Opens the map full screen and returns where the pin was left, or null
-/// when the user backed out (IMG-007 set location).
+/// Opens the location chooser and returns the position, or null when the
+/// user backed out (IMG-007 set location).
 Future<PickedLocation?> pickLocation(
   BuildContext context, {
   GeoPoint? initial,
@@ -26,9 +20,12 @@ Future<PickedLocation?> pickLocation(
   ),
 );
 
-/// Pan the map under a fixed pin, or search a city, then confirm. The pin is
-/// at the centre of the screen, so the choice works with a finger, a mouse
-/// or the arrow keys alike.
+/// `48.85661, 2.35222`: five decimals are about a metre.
+String formatPosition(GeoPoint p) =>
+    '${p.lat.toStringAsFixed(5)}, ${p.lon.toStringAsFixed(5)}';
+
+/// Choose a place by searching the offline gazetteer, or type latitude and
+/// longitude; nothing is sent anywhere.
 class LocationPickerScreen extends ConsumerStatefulWidget {
   const LocationPickerScreen({this.initial, super.key});
 
@@ -40,48 +37,44 @@ class LocationPickerScreen extends ConsumerStatefulWidget {
 }
 
 class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
-  late final MapController _controller = MapController(
-    initialCenter: widget.initial,
-    initialZoom: widget.initial == null ? 2 : 14,
-  );
   final TextEditingController _query = TextEditingController();
+  late final TextEditingController _coords = TextEditingController(
+    text: widget.initial == null ? '' : formatPosition(widget.initial!),
+  );
   List<GazetteerPlace> _matches = const [];
+  GazetteerPlace? _place;
 
   @override
   void dispose() {
-    _controller.dispose();
     _query.dispose();
+    _coords.dispose();
     super.dispose();
   }
+
+  GeoPoint? get _position => parsePosition(_coords.text);
 
   void _search(String text) {
     final g = ref.read(gazetteerProvider).value;
     setState(() => _matches = g?.search(text) ?? const []);
   }
 
-  void _goTo(GazetteerPlace p) {
-    final cam = _controller.camera;
-    if (cam == null) return;
-    setState(() => _matches = const []);
-    _query.clear();
+  void _choose(GazetteerPlace p) {
     FocusScope.of(context).unfocus();
-    unawaited(
-      _controller.animateTo(
-        MapCamera(
-          center: (lat: p.latitude, lon: p.longitude),
-          zoom: 11,
-          size: cam.size,
-        ).constrained(),
-      ),
-    );
+    _query.clear();
+    _coords.text = formatPosition((lat: p.latitude, lon: p.longitude));
+    setState(() {
+      _matches = const [];
+      _place = p;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final tilesOn = ref.watch(mapTilesEnabledProvider).value ?? false;
+    final theme = Theme.of(context);
     final hasSearch = ref.watch(gazetteerProvider).value != null;
+    final typed = _coords.text.trim().isNotEmpty;
+    final position = _position;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.photosPickLocationTitle),
@@ -91,153 +84,79 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: MapSurface(
-              controller: _controller,
-              tiles: ref.watch(mapTileSourceProvider),
-              autofocus: true,
-              onTap: (camera, at) {
-                // Bring the tapped spot under the pin.
-                final mid = Offset(
-                  camera.size.width / 2,
-                  camera.size.height / 2,
-                );
-                unawaited(_controller.animateTo(camera.panned(mid - at)));
-              },
-              overlay: (context, camera) => [
-                // The pin's tip is the chosen position (the screen centre).
-                IgnorePointer(
-                  child: Center(
-                    child: Transform.translate(
-                      offset: const Offset(0, -24),
-                      child: Icon(
-                        Icons.location_on,
-                        size: 48,
-                        color: scheme.error,
-                        shadows: const [
-                          Shadow(blurRadius: 4, color: Color(0x66000000)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          PositionedDirectional(
-            top: 8,
-            start: 8,
-            end: 8,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!tilesOn) const MapTilesOffCard(),
-                if (hasSearch) ...[
-                  Material(
-                    elevation: 2,
-                    borderRadius: BorderRadius.circular(28),
-                    child: TextField(
-                      controller: _query,
-                      onChanged: _search,
-                      textInputAction: TextInputAction.search,
-                      decoration: InputDecoration(
-                        hintText: l10n.photosPickLocationSearch,
-                        prefixIcon: const Icon(Icons.search),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_query.text.trim().isNotEmpty)
-                    Card(
-                      margin: const EdgeInsets.only(top: 4),
-                      child: _matches.isEmpty
-                          ? Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(l10n.photosPickLocationNoMatch),
-                            )
-                          : Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (final p in _matches)
-                                  ListTile(
-                                    title: Text(p.name),
-                                    subtitle: Text(p.country),
-                                    onTap: () => _goTo(p),
-                                  ),
-                              ],
-                            ),
-                    ),
-                ],
-              ],
-            ),
-          ),
-          PositionedDirectional(
-            bottom: 112,
-            end: 8,
-            child: MapControls(controller: _controller),
-          ),
-          PositionedDirectional(
-            bottom: 0,
-            start: 0,
-            end: 0,
-            child: Material(
-              elevation: 6,
-              color: scheme.surfaceContainerHigh,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ListenableBuilder(
-                    listenable: _controller,
-                    builder: (context, _) {
-                      final c = _controller.camera?.center;
-                      final text = c == null
-                          ? ''
-                          : '${c.lat.toStringAsFixed(5)}, '
-                                '${c.lon.toStringAsFixed(5)}';
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.photosPickLocationHint,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 4),
-                          Semantics(
-                            liveRegion: true,
-                            child: Text(
-                              text,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              onPressed: c == null
-                                  ? null
-                                  : () => Navigator.pop<PickedLocation>(
-                                      context,
-                                      (lat: c.lat, lon: c.lon),
-                                    ),
-                              child: Text(l10n.photosPickLocationUse),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Text(l10n.photosPickLocationHint, style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 16),
+            if (hasSearch) ...[
+              TextField(
+                controller: _query,
+                onChanged: _search,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  labelText: l10n.photosPickLocationSearch,
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(),
                 ),
               ),
+              if (_query.text.trim().isNotEmpty)
+                Card(
+                  margin: const EdgeInsets.only(top: 4),
+                  child: _matches.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(l10n.photosPickLocationNoMatch),
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final p in _matches)
+                              ListTile(
+                                title: Text(p.name),
+                                subtitle: Text(p.country),
+                                onTap: () => _choose(p),
+                              ),
+                          ],
+                        ),
+                ),
+              const SizedBox(height: 16),
+            ],
+            TextField(
+              controller: _coords,
+              onChanged: (_) => setState(() => _place = null),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+              decoration: InputDecoration(
+                labelText: l10n.photosPickLocationCoordinates,
+                helperText: l10n.photosPickLocationCoordinatesHelp,
+                errorText: typed && position == null
+                    ? l10n.photosPickLocationInvalid
+                    : null,
+                border: const OutlineInputBorder(),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            if (position != null && _place != null)
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  l10n.photosPickLocationPlace(_place!.name, _place!.country),
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: position == null
+                  ? null
+                  : () => Navigator.pop<PickedLocation>(context, position),
+              child: Text(l10n.photosPickLocationUse),
+            ),
+          ],
+        ),
       ),
     );
   }

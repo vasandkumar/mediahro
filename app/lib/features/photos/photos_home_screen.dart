@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
-import 'package:mediahro/features/photos/map/photos_map_tab.dart';
 import 'package:mediahro/features/photos/map/places_tab.dart';
 import 'package:mediahro/features/photos/organise/albums_tab.dart';
 import 'package:mediahro/features/photos/organise/folders_tab.dart';
@@ -24,7 +23,7 @@ class PhotosHomeScreen extends ConsumerWidget {
       return PendingScreen(title: l10n.appNavPhotos, milestone: 'M5');
     }
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(l10n.appNavPhotos),
@@ -37,18 +36,11 @@ class PhotosHomeScreen extends ConsumerWidget {
               Tab(text: l10n.photosTabAlbums),
               Tab(text: l10n.photosTabFolders),
               Tab(text: l10n.photosTabPlaces),
-              Tab(text: l10n.photosTabMap),
             ],
           ),
         ),
         body: const TabBarView(
-          children: [
-            TimelineTab(),
-            AlbumsTab(),
-            FoldersTab(),
-            PlacesTab(),
-            PhotosMapTab(),
-          ],
+          children: [TimelineTab(), AlbumsTab(), FoldersTab(), PlacesTab()],
         ),
       ),
     );

@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/photos/info/edit_metadata_dialog.dart';
-import 'package:mediahro/features/photos/map/map_providers.dart';
+import 'package:mediahro/features/photos/map/gazetteer_providers.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';

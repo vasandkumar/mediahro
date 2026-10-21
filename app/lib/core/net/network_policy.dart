@@ -126,11 +126,6 @@ abstract final class Endpoints {
     purpose: EndpointPurpose.scrobbling,
     policyUrl: 'https://trakt.tv/privacy',
   );
-  static const mapTiles = NetworkEndpoint(
-    id: 'maptiles',
-    hosts: ['tiles.mediahro.com'],
-    purpose: EndpointPurpose.maps,
-  );
   static const introDb = NetworkEndpoint(
     id: 'introdb',
     hosts: ['api.introdb.app'],
@@ -153,7 +148,6 @@ abstract final class Endpoints {
     lastFm,
     libreFm,
     trakt,
-    mapTiles,
     introDb,
   ];
 }
