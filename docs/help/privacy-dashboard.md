@@ -15,7 +15,7 @@ These three are off on every new install:
 
 ## Online services
 
-Each service that can add information to your library has its own switch: subtitle downloads, film and series details, lyrics, album art and tags, song recognition, listening history, map tiles, skip-intro markers and remote settings. Each row shows:
+Each service that can add information to your library has its own switch: subtitle downloads, film and series details, lyrics, album art and tags, song recognition, listening history, skip-intro markers and remote settings. Each row shows:
 
 - what the service is used for,
 - the internet addresses it uses,

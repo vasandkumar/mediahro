@@ -551,10 +551,6 @@
   "@settingsPrivacyPurposeScrobbling": {
     "description": "What a network service is used for, shown in the privacy dashboard."
   },
-  "settingsPrivacyPurposeMaps": "Map tiles",
-  "@settingsPrivacyPurposeMaps": {
-    "description": "What a network service is used for, shown in the privacy dashboard."
-  },
   "settingsPrivacyPurposeSkipMarkers": "Skip intro markers",
   "@settingsPrivacyPurposeSkipMarkers": {
     "description": "What a network service is used for, shown in the privacy dashboard."
@@ -617,10 +613,6 @@
   },
   "settingsPrivacyServiceLibreFm": "Libre.fm",
   "@settingsPrivacyServiceLibreFm": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceMapTiles": "Map tiles",
-  "@settingsPrivacyServiceMapTiles": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
   "settingsPrivacyServiceIntroDb": "IntroDB",

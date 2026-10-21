@@ -160,7 +160,6 @@ String privacyPurpose(EndpointPurpose p, AppLocalizations l10n) => switch (p) {
   EndpointPurpose.artwork => l10n.settingsPrivacyPurposeArtwork,
   EndpointPurpose.fingerprinting => l10n.settingsPrivacyPurposeFingerprinting,
   EndpointPurpose.scrobbling => l10n.settingsPrivacyPurposeScrobbling,
-  EndpointPurpose.maps => l10n.settingsPrivacyPurposeMaps,
   EndpointPurpose.skipMarkers => l10n.settingsPrivacyPurposeSkipMarkers,
   EndpointPurpose.userConfigured => l10n.settingsPrivacyPurposeUserConfigured,
 };
@@ -184,7 +183,6 @@ String privacyServiceName(NetworkEndpoint e, AppLocalizations l10n) =>
       'listenbrainz' => l10n.settingsPrivacyServiceListenBrainz,
       'lastfm' => l10n.settingsPrivacyServiceLastFm,
       'librefm' => l10n.settingsPrivacyServiceLibreFm,
-      'maptiles' => l10n.settingsPrivacyServiceMapTiles,
       'introdb' => l10n.settingsPrivacyServiceIntroDb,
       'trakt' => l10n.settingsPrivacyServiceTrakt,
       _ => e.id,

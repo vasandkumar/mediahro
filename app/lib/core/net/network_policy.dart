@@ -16,7 +16,6 @@ enum EndpointPurpose {
   artwork,
   fingerprinting,
   scrobbling,
-  maps,
   skipMarkers,
   userConfigured,
 }
