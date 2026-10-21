@@ -147,6 +147,26 @@ final class MediahroImagePipeline implements ImagePipeline {
     onQueued: onQueued,
   );
 
+  /// Thumbnail sizes the app asks for; [forgetThumbnails] clears them all.
+  static const List<int> thumbnailEdges = [128, 192, 256, 384, 512, 768, 1024];
+
+  /// Deletes every cached thumbnail of a photo (it was moved to the vault).
+  Future<void> forgetThumbnails({
+    required Uri uri,
+    required int size,
+    DateTime? mtime,
+    int orientation = 1,
+  }) => cache.forget([
+    for (final edge in thumbnailEdges)
+      ThumbnailCache.keyFor(
+        uri: uri,
+        edge: edge,
+        mtime: mtime,
+        size: size,
+        orientation: orientation,
+      ),
+  ]);
+
   /// Like [thumbnailFile] for callers that know the file's size and time
   /// from the index: a cache hit needs no I/O at all, and [open] is called
   /// only on a miss. [open] may hand back a source the pipeline then closes
