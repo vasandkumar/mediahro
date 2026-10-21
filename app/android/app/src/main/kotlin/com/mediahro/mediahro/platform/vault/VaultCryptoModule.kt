@@ -57,9 +57,11 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
 
     override suspend fun openMasterKey(requireBiometry: Boolean, secret: ByteArray?): Long {
         try {
-            if (secret != null && secret.isEmpty()) throw FlutterError("unavailable", "An empty secret is not a secret")
+            if (secret != null) Hkdf.checkSecret(secret)
             val wrapper = if (requireBiometry) openUser(secret) else openDevice(secret)
             return ids.incrementAndGet().also { sessions[it] = VaultSession(wrapper) }
+        } catch (e: VaultFailure) {
+            throw FlutterError(e.code, e.message)
         } finally {
             // The native copy of the caller's secret is never kept.
             secret?.fill(0)
@@ -80,43 +82,71 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             } catch (e: GeneralSecurityException) {
                 throw FlutterError("unavailable", "No Keystore key: ${e.message}")
             }
-            if (!exists) prefs.edit().putBoolean(DEVICE_MARK, true).commit()
+            markCreated(DEVICE_MARK)
             Log.i(TAG, "device master key in secure hardware: ${keystore.isInsideSecureHardware(key)}")
             if (secret == null) DeviceWrapper(key, keystore) else deviceSecretWrapper(secret)
         }
     }
 
     /**
-     * With a caller secret the master material cannot be the AES key's bytes
-     * (they never leave the Keystore). A non-exportable Keystore HMAC-SHA-256
-     * key turns a fixed label into 32 bytes of key material, the same on every
-     * open and only on this device; HKDF mixes it with the secret. Chosen over
-     * a stored random secret released by the AES key because it adds no blob
-     * to store, back up or lose. Called with [createMutex] held.
+     * With a caller secret the master material cannot be the bytes of the AES
+     * key (they never leave the Keystore). A non-exportable Keystore
+     * HMAC-SHA-256 key signs a label plus the secret, so the material depends
+     * on the secret and each guess of it costs one HMAC inside the Keystore of
+     * the device (TEE or StrongBox): no offline brute force. HKDF then mixes
+     * the material with the secret. Chosen over a stored random secret
+     * released by the AES key because it adds no blob to store, back up or
+     * lose. Called with [createMutex] held.
      */
-    private fun deviceSecretWrapper(secret: ByteArray): KeyWrapper {
+    private fun deviceSecretWrapper(secret: ByteArray): KeyWrapper =
+        derivedWrapper(secretMaterial(DEVICE_LABEL, secret), secret, VaultCipher.MODE_DEVICE_SECRET)
+
+    /**
+     * 32 bytes from the Keystore HMAC key over [label] and [secret]; the key
+     * is created once and never silently again (see [markCreated]). Called
+     * with [createMutex] held.
+     */
+    private fun secretMaterial(label: ByteArray, secret: ByteArray): ByteArray {
         val exists = keystore.has(DEVICE_HMAC_KEY)
         if (!exists && prefs.getBoolean(DEVICE_HMAC_MARK, false)) {
             throw FlutterError("keyLost", "The device key for this vault is gone")
         }
-        val hmacKey = try {
-            keystore.vaultHmacKey(DEVICE_HMAC_KEY)
+        val input = Hkdf.macInput(label, secret)
+        try {
+            val hmacKey = keystore.vaultHmacKey(DEVICE_HMAC_KEY)
+            markCreated(DEVICE_HMAC_MARK)
+            return keystore.hmac(hmacKey, input)
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            throw FlutterError("keyInvalidated", "The device key of the vault was invalidated")
+        } catch (e: UserNotAuthenticatedException) {
+            // The device is locked: a Keystore operation needs it unlocked.
+            throw FlutterError("authFailed", "Unlock the device to open the vault: ${e.message}")
         } catch (e: GeneralSecurityException) {
-            throw FlutterError("unavailable", "No Keystore key: ${e.message}")
+            throw FlutterError("unavailable", "The device key cannot be used: ${e.message}")
+        } catch (e: RuntimeException) {
+            throw FlutterError("unavailable", "The device key cannot be used: ${e.message}")
+        } finally {
+            input.fill(0)
         }
-        if (!exists) prefs.edit().putBoolean(DEVICE_HMAC_MARK, true).commit()
-        val material = try {
-            keystore.hmac(hmacKey, HMAC_LABEL)
-        } catch (e: GeneralSecurityException) {
-            throw FlutterError("keyLost", "The device key for this vault cannot be used: ${e.message}")
-        }
-        return derivedWrapper(material, secret, VaultCipher.MODE_DEVICE_SECRET)
     }
 
-    /** The wrapper for key material and a secret; both buffers belong to the caller, who zeroes [material]. */
+    /** Records that a Keystore key exists whenever it does and the record is missing; a failed write is an error. */
+    private fun markCreated(name: String) {
+        if (prefs.getBoolean(name, false)) return
+        if (!prefs.edit().putBoolean(name, true).commit()) throw FlutterError("unavailable", "Could not record the vault key")
+    }
+
+    /**
+     * The wrapper for key material and a secret; [material] is zeroed here. A
+     * derivation failure is a vault error, never a crash.
+     */
     private fun derivedWrapper(material: ByteArray, secret: ByteArray, mode: Byte): KeyWrapper {
         try {
-            return SoftWrapper(Hkdf.wrappingKey(material, secret), mode)
+            return SoftWrapper(Hkdf.wrappingKey(material, secret, mode), mode)
+        } catch (e: VaultFailure) {
+            throw FlutterError(e.code, e.message)
+        } catch (e: RuntimeException) {
+            throw FlutterError("unavailable", "Could not derive the vault key: ${e.message}")
         } finally {
             material.fill(0)
         }
@@ -131,6 +161,11 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             VaultCipher.checkHeader(wrapped, VaultCipher.MODE_DEVICE)
             try {
                 return keystore.open(key, wrapped.copyOfRange(VaultCipher.HEADER, wrapped.size), VaultCipher.wrapAad(VaultCipher.MODE_DEVICE))
+            } catch (e: KeyPermanentlyInvalidatedException) {
+                throw VaultFailure("keyInvalidated", "The device key was invalidated")
+            } catch (e: UserNotAuthenticatedException) {
+                // A locked device is not a lost key.
+                throw VaultFailure("authFailed", "Unlock the device to open the vault")
             } catch (e: GeneralSecurityException) {
                 throw VaultFailure("keyLost", "The device key cannot open this file key")
             } catch (e: IllegalArgumentException) {
@@ -154,7 +189,18 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
 
     private suspend fun openUser(secret: ByteArray?): KeyWrapper {
         val master = unlockUserMaster()
-        return if (secret == null) SoftWrapper(master, VaultCipher.MODE_USER) else derivedWrapper(master, secret, VaultCipher.MODE_USER_SECRET)
+        if (secret == null) return SoftWrapper(master, VaultCipher.MODE_USER)
+        // The master released by the fingerprint plus a Keystore HMAC of the secret: guesses cost the Keystore too.
+        val tag = try {
+            withContext(Dispatchers.IO) { createMutex.withLock { secretMaterial(USER_LABEL, secret) } }
+        } catch (e: FlutterError) {
+            master.fill(0)
+            throw e
+        }
+        val material = master + tag
+        master.fill(0)
+        tag.fill(0)
+        return derivedWrapper(material, secret, VaultCipher.MODE_USER_SECRET)
     }
 
     /** The fingerprint-released master secret (the caller zeroes it or hands it to a wrapper). */
@@ -270,6 +316,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
         private const val DEVICE_MARK = "vault.master.device.created"
         private const val DEVICE_HMAC_KEY = "mediahro.vault.master.hmac"
         private const val DEVICE_HMAC_MARK = "vault.master.device.hmac.created"
-        private val HMAC_LABEL = "mediahro-vault-v1/device-material".toByteArray()
+        private val DEVICE_LABEL = "mediahro-vault-v1/device-material".toByteArray()
+        private val USER_LABEL = "mediahro-vault-v1/fingerprint-material".toByteArray()
     }
 }

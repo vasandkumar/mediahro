@@ -179,11 +179,19 @@ void main() {
     // A file key made without a secret does not open under one.
     final plain = await crypto.newFileKey(none);
     await expectLater(crypto.adoptFileKey(a1, plain.bytes), keyLost());
-    // An empty secret is refused, not treated as none.
-    await expectLater(
-      crypto.openMasterKey(requireBiometry: false, secret: Uint8List(0)),
-      throwsA(isA<VaultCryptoException>()),
-    );
+    // A secret that is not exactly 32 bytes is refused, never treated as none.
+    for (final n in [0, 1, 31, 33]) {
+      await expectLater(
+        crypto.openMasterKey(requireBiometry: false, secret: bytes(n, 5)),
+        throwsA(
+          isA<VaultCryptoException>().having(
+            (e) => e.error,
+            'error',
+            VaultCryptoError.unavailable,
+          ),
+        ),
+      );
+    }
   }, skip: !android);
 
   testWidgets('IMG-011 reset deletes the master key; nothing re-creates it', (

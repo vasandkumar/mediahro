@@ -41,7 +41,14 @@ abstract interface class VaultCryptoFacade {
   /// opened with another secret or none (those fail with
   /// [VaultCryptoError.keyLost]). The native side zeroes its copy after use;
   /// the caller zeroes its own. Without a secret nothing changes. A [secret]
-  /// must not be empty.
+  /// must be exactly 32 bytes (a PIN-derived key); any other length fails with
+  /// [VaultCryptoError.unavailable]. On Android the derivation also needs one
+  /// operation of a device-bound OS key per open, so a guessed secret cannot
+  /// be tested offline.
+  ///
+  /// On a handle opened with a secret, a [VaultCryptoError.keyLost] from
+  /// [adoptFileKey] can also mean the secret is wrong, not only that the key
+  /// is gone: the UI should offer "try again" before a reset.
   ///
   /// Throws [VaultCryptoException] with [VaultCryptoError.cancelled],
   /// [VaultCryptoError.notEnrolled], [VaultCryptoError.keyInvalidated],

@@ -131,7 +131,7 @@ class VaultSessionTest {
     fun `IMG-011 sessions on keys derived from different secrets cannot open each other's file keys`() {
         val master = ByteArray(32) { (it + 9).toByte() }
         fun session(secret: String) = VaultSession(
-            MemoryWrapper(Hkdf.wrappingKey(master, secret.toByteArray()), VaultCipher.MODE_USER_SECRET),
+            MemoryWrapper(Hkdf.wrappingKey(master, secret.toByteArray(), VaultCipher.MODE_USER_SECRET), VaultCipher.MODE_USER_SECRET),
         )
         val a = session("pin-A")
         val key = a.newFileKey()
@@ -148,7 +148,7 @@ class VaultSessionTest {
     @Test
     fun `IMG-011 close racing seals on a derived key never encrypts under a wiped key`() {
         repeat(20) { round ->
-            val derived = Hkdf.wrappingKey(ByteArray(32) { 3 }, "pin-A".toByteArray())
+            val derived = Hkdf.wrappingKey(ByteArray(32) { 3 }, "pin-A".toByteArray(), VaultCipher.MODE_USER_SECRET)
             val wrapper = MemoryWrapper(derived, VaultCipher.MODE_USER_SECRET)
             val s = VaultSession(wrapper)
             val wrapped = s.newFileKey()
