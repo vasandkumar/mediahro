@@ -171,10 +171,13 @@ internal object Tls {
         alpn: List<String>,
         timeoutMs: Int,
         versions: List<String> = this.versions.toList(),
+        mutual: Boolean = false,
     ): SSLSocket {
         val ssl = context.socketFactory.createSocket(plain, peerHost, peerPort, true) as SSLSocket
         ssl.useClientMode = true
         ssl.enabledProtocols = versions.filter { it in ssl.supportedProtocols }.toTypedArray()
+        // Mutual TLS: forward-secret AEAD suites only; no such suite is an SSLException, never a fallback.
+        if (mutual) ssl.enabledCipherSuites = MutualTls.select(ssl.supportedCipherSuites)
         val params = ssl.sslParameters
         val sni = serverName ?: peerHost
         if (!isIpLiteral(sni)) params.serverNames = listOf(SNIHostName(sni))
@@ -363,7 +366,13 @@ class TlsServerModule : TlsServerHostApi {
             val trust = PeerSetTrustManager(trustedPeers.toSet())
             val server = mutualContext(label, trust).serverSocketFactory.createServerSocket(port.toInt()) as SSLServerSocket
             server.needClientAuth = true
-            server.enabledProtocols = MUTUAL_VERSIONS.filter { it in server.supportedProtocols }.toTypedArray()
+            try {
+                server.enabledCipherSuites = MutualTls.select(server.supportedCipherSuites)
+            } catch (e: IOException) {
+                runCatching { server.close() }
+                throw FlutterError("unavailable", e.message)
+            }
+            server.enabledProtocols = MutualTls.PROTOCOLS.filter { it in server.supportedProtocols }.toTypedArray()
             val id = TlsHub.nextId("l")
             listeners[id] = server to trust
             Thread({ acceptLoop(id, server) }, "mediahro-tls-listen-$id").apply {
@@ -415,7 +424,7 @@ class TlsServerModule : TlsServerHostApi {
             val context = mutualContext(label, PeerSetTrustManager(setOf(peerSha256)))
             val plain = Tls.plainSocket(host, port.toInt(), 15_000)
             val ssl = try {
-                Tls.layer(context, plain, host, port.toInt(), null, emptyList(), 15_000, MUTUAL_VERSIONS)
+                Tls.layer(context, plain, host, port.toInt(), null, emptyList(), 15_000, MutualTls.PROTOCOLS, mutual = true)
             } catch (e: IOException) {
                 runCatching { plain.close() }
                 throw FlutterError("handshakeFailed", e.message)
@@ -433,15 +442,6 @@ class TlsServerModule : TlsServerHostApi {
 
     companion object {
         private const val KEYSTORE = "AndroidKeyStore"
-
-        /**
-         * Mutual TLS runs on TLS 1.2 only (NET-017). In TLS 1.3 the client finishes its handshake
-         * before the server checks the client certificate, so an unpaired client would see a
-         * successful connect and a failure only on its first read; in TLS 1.2 the server refuses
-         * it during the handshake, which is what the facade promises. Both ends are pinned to
-         * each other's certificate, so the older protocol costs no security here.
-         */
-        private val MUTUAL_VERSIONS = listOf("TLSv1.2")
         private const val DAY_MS = 24L * 60 * 60 * 1000
     }
 }
