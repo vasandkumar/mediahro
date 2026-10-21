@@ -10,9 +10,14 @@ import 'package:mediahro/ui/mini_player_slot.dart';
 final List<Override> musicOverrides = [
   miniPlayerSlotProvider.overrideWith((ref) {
     if (!ref.watch(musicLibraryAvailableProvider)) return null;
+    // Starts the podcast refresh once the library is open.
+    ref.watch(podcastBootProvider);
     final hasTrack = ref.watch(
       musicPlayerStateProvider.select(
-        (s) => s.value?.current != null || s.value?.station != null,
+        (s) =>
+            s.value?.current != null ||
+            s.value?.station != null ||
+            s.value?.episode != null,
       ),
     );
     return hasTrack ? musicMiniPlayerSlot : null;

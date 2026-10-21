@@ -194,6 +194,13 @@ final class PodcastStore {
   static String idOf(String url) =>
       sha1.convert(utf8.encode(url.trim())).toString().substring(0, 16);
 
+  /// The speed a show with none of its own starts at: the last one chosen.
+  Future<double> lastSpeed() async =>
+      (jsonDouble(await prefs.read('pod.lastSpeed')) ?? 1).clamp(0.5, 3.0);
+
+  Future<void> setLastSpeed(double speed) =>
+      prefs.write('pod.lastSpeed', speed);
+
   Future<List<String>> ids() async => [
     for (final v in await prefs.readList(_index) ?? const [])
       if (v is String) v,

@@ -359,6 +359,12 @@ final class PodcastService {
     ], played: played);
   }
 
+  /// The offline copy of [episode], when it is on the device.
+  Future<File?> localFile(ParsedEpisode episode) async {
+    final d = await downloads.status(Uri.parse(episode.url));
+    return d != null && d.done ? d.file : null;
+  }
+
   /// Keeps an offline copy of [episode]. Podcast links hop through other
   /// hosts, so the redirect chain is allowed first.
   Future<void> download(PodcastShow show, ParsedEpisode episode) async {
