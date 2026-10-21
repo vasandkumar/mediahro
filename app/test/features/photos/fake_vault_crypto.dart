@@ -36,6 +36,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   VaultCryptoError? failChunks;
 
   int sealCalls = 0;
+
+  /// Every `open` after this many calls fails (a chunk that does not read
+  /// back).
+  int? failOpensAfter;
   int openCalls = 0;
 
   Uint8List _bytes(int n) =>
@@ -162,6 +166,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   ) async {
     openCalls++;
     if (failChunks != null) throw VaultCryptoException(failChunks!);
+    final limit = failOpensAfter;
+    if (limit != null && openCalls > limit) {
+      throw const VaultCryptoException(VaultCryptoError.integrityFailure);
+    }
     final fileKey = await _unwrap(key.master, key.bytes);
     try {
       final box = SecretBox(

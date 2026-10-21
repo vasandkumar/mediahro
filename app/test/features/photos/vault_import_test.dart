@@ -4,8 +4,30 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/features/photos/vault/vault_import.dart';
 import 'package:mediahro/platform/storage.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show FdIo;
 
 final class _Storage implements StorageFacade {
+  final List<int> opened = [];
+
+  @override
+  Future<int> openDocumentFd(
+    Uri uri, {
+    DocumentMode mode = DocumentMode.read,
+  }) async {
+    opened.add(opened.length + 100);
+    return opened.last;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+final class _Closes implements FdIo {
+  final List<int> closed = [];
+
+  @override
+  void close(int fd) => closed.add(fd);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -75,6 +97,36 @@ void main() {
         expect(r.size, 10);
       },
     );
+
+    test('PRIV-007 a content document is read through its fd path and the fd is closed at once', () async {
+      final f = File('${dir.path}/doc.bin')
+        ..writeAsBytesSync(bytes((2 << 20) + 3));
+      final storage = _Storage();
+      final io = _Closes();
+      final r = await openPickedStream(
+        storage,
+        Uri.parse('content://media/doc/1'),
+        io: io,
+        pathOfFd: (fd) => f.path,
+      );
+      expect(r.size, (2 << 20) + 3);
+      // The probe's fd is closed already; the read opens and closes its own.
+      expect(io.closed, [100]);
+      final all = BytesBuilder();
+      await r.content.forEach(all.add);
+      expect(all.takeBytes(), bytes((2 << 20) + 3));
+      expect(io.closed, [100, 101]);
+    });
+
+    test('PRIV-007 a file that shrinks while being read is an error, not a short copy', () async {
+      final f = File('${dir.path}/s.bin')..writeAsBytesSync(bytes(3 << 20));
+      final r = await openPickedStream(_Storage(), f.uri);
+      f.writeAsBytesSync(bytes(1 << 20));
+      await expectLater(
+        r.content.toList(),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
 
     test('PRIV-007 cancelling the stream closes the file', () async {
       final f = File('${dir.path}/c.bin')..writeAsBytesSync(bytes(3 << 20));

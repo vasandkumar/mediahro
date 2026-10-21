@@ -1077,5 +1077,30 @@
         "type": "String"
       }
     }
-  }
+  },
+  "photosVaultMoveSidecars": "Subtitle, artwork and info files next to a video, with its name, are deleted with it.",
+  "photosVaultMoveStopped": "Stopped: {moved} of {total} moved.",
+  "@photosVaultMoveStopped": {
+    "placeholders": {
+      "moved": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultAddInterrupted": "Adding was interrupted when the vault locked: {added} of {total} added.",
+  "@photosVaultAddInterrupted": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultAdding": "Adding to the vault",
+  "photosVaultTakeOutFailed": "{count, plural, =1{1 item could not be taken out and is still in the vault.} other{{count} items could not be taken out and are still in the vault.}}"
 }

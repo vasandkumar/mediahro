@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
@@ -61,11 +61,16 @@ final class VaultMover {
   /// Longest edge of the stored picture of an item.
   static const int thumbnailEdge = 384;
 
-  Stream<List<int>> _read(PhotoEntry p, int length) async* {
+  Stream<List<int>> _read(
+    PhotoEntry p,
+    int length,
+    void Function(double)? onFraction,
+  ) async* {
     final src = await files.open(p);
     try {
       for (var at = 0; at < length; at += 1 << 20) {
         yield await src.file.read(at, (length - at).clamp(0, 1 << 20));
+        onFraction?.call(length == 0 ? 1 : (at + (1 << 20)) / length);
       }
     } finally {
       await src.file.close();
@@ -116,25 +121,100 @@ final class VaultMover {
 
   /// Removes the photo from the library in one transaction. The playlist
   /// rows go first: they would only lose their link and keep a title.
-  Future<void> _scrubLibrary(PhotoEntry p) async {
+  Future<void> _scrubLibrary(PhotoEntry p, Uri origin) async {
     try {
       // Freed pages are overwritten, best effort (not every build allows it).
       await db.customStatement('PRAGMA secure_delete = ON');
     } on Object {
       // A pragma the build does not know.
     }
+    // Files the library cached for the item (artwork a scraper fetched,
+    // subtitles downloaded for it) go first, then the rows that name them.
+    final artwork = await (db.select(
+      db.artworks,
+    )..where((a) => a.ownerType.equals('item') & a.ownerId.equals(p.id))).get();
+    final subtitles = await (db.select(
+      db.subtitleCache,
+    )..where((s) => s.itemId.equals(p.id))).get();
+    for (final path in [
+      for (final a in artwork)
+        if (a.cachePath != null) a.cachePath!,
+      for (final s in subtitles) s.path,
+    ]) {
+      try {
+        final f = File(path);
+        if (f.existsSync()) f.deleteSync();
+      } on FileSystemException {
+        // Left for a cache clean-up; the row below no longer points at it.
+      }
+    }
+    final uri = '$origin';
     await db.transaction(() async {
       await (db.delete(
         db.playlistItems,
       )..where((r) => r.itemId.equals(p.id))).go();
+      await (db.delete(db.artworks)
+            ..where((a) => a.ownerType.equals('item') & a.ownerId.equals(p.id)))
+          .go();
+      // Queues remember a title and a place by themselves; scrobbles remember
+      // a payload.
+      await (db.delete(
+        db.queueItems,
+      )..where((q) => q.itemId.equals(p.id) | q.uri.equals(uri))).go();
+      await (db.delete(
+        db.scrobbleQueue,
+      )..where((q) => q.itemId.equals(p.id))).go();
       await (db.delete(db.items)..where((i) => i.id.equals(p.id))).go();
     });
+  }
+
+  /// Names of files that sit beside a video and belong to it: subtitles,
+  /// artwork and an info file, with the video's own name.
+  static List<String> sidecarNames(String videoName) {
+    final dot = videoName.lastIndexOf('.');
+    final base = dot <= 0 ? videoName : videoName.substring(0, dot);
+    const subtitle = ['srt', 'ass', 'ssa', 'sub', 'idx', 'vtt', 'sup'];
+    const languages = [
+      'en', 'nl', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'ja', 'ko', 'zh', 'ar', //
+      'hi', 'tr', 'pl', 'sv', 'da', 'fi', 'no', 'he', 'cs', 'el', 'hu', 'ro', //
+      'uk', 'id', 'th', 'vi', 'forced',
+    ];
+    return [
+      for (final e in subtitle) '$base.$e',
+      for (final l in languages)
+        for (final e in subtitle) '$base.$l.$e',
+      '$base.nfo',
+      for (final k in [
+        'poster', 'fanart', 'thumb', 'landscape', 'banner', 'clearlogo', //
+        'backdrop', 'cover',
+      ])
+        for (final e in ['jpg', 'jpeg', 'png', 'webp']) '$base-$k.$e',
+      for (final e in ['jpg', 'jpeg', 'png', 'tbn']) '$base.$e',
+    ];
+  }
+
+  /// Deletes the sidecars of a video that has just moved in (the flow told
+  /// the user it would). Returns how many could not be deleted.
+  Future<int> _deleteSidecars(Uri origin) async {
+    var failed = 0;
+    final dir = origin.resolve('.');
+    final name = origin.pathSegments.last;
+    for (final side in sidecarNames(Uri.decodeComponent(name))) {
+      final uri = dir.resolve(Uri.encodeComponent(side));
+      try {
+        if (await io.exists(uri)) await io.delete(uri);
+      } on Object {
+        failed++;
+      }
+    }
+    return failed;
   }
 
   Future<VaultMoveReport> moveIn(
     VaultContainer container,
     List<PhotoEntry> photos, {
     void Function(int done)? onProgress,
+    void Function(double fraction)? onItemProgress,
     bool Function()? cancelled,
   }) async {
     var moved = 0;
@@ -166,7 +246,7 @@ final class VaultMover {
         item = await container.add(
           name: p.name,
           kind: p.isVideo ? 'video' : 'image',
-          content: _read(p, length),
+          content: _read(p, length, onItemProgress),
           size: length,
           takenAt: p.date,
           width: p.width,
@@ -176,6 +256,9 @@ final class VaultMover {
           favourite: facts.favourite,
           label: facts.label?.name,
         );
+        // Every chunk must read back before the only other copy goes (the
+        // add above checked the first and last).
+        await container.verify(item.id);
         final thumb = await _thumbnailOf(p);
         if (thumb != null) {
           try {
@@ -187,8 +270,15 @@ final class VaultMover {
         await io.delete(origin);
         originalDeleted = true;
         // From here the vault holds the only copy: nothing below may touch it.
+        if (p.isVideo) {
+          try {
+            await _deleteSidecars(origin);
+          } on Object {
+            // Beside the video, not in the vault: not worth failing for.
+          }
+        }
         try {
-          await _scrubLibrary(p);
+          await _scrubLibrary(p, origin);
           await pipeline.forgetThumbnails(
             uri: origin,
             size: p.size,
@@ -223,7 +313,7 @@ final class VaultMover {
             leftInLibrary.add(p.name);
           } else {
             try {
-              await _scrubLibrary(p);
+              await _scrubLibrary(p, origin);
               await pipeline.forgetThumbnails(
                 uri: origin,
                 size: p.size,

@@ -465,6 +465,21 @@ final class VaultContainer {
     }
   }
 
+  /// Decrypts every chunk of an item and throws away the result: a file
+  /// that reads back whole is a file the original may be removed for (M3).
+  /// Throws [VaultCorrupt] (or the facade's error) when any chunk fails.
+  Future<void> verify(String id) async {
+    final f = await openFile(id);
+    try {
+      final length = await f.length() ?? 0;
+      for (var at = 0; at < length; at += 1 << 20) {
+        await f.read(at, 1 << 20);
+      }
+    } finally {
+      await f.close();
+    }
+  }
+
   /// All bytes of an item.
   Future<Uint8List> readAll(String id) async {
     final f = await openFile(id);

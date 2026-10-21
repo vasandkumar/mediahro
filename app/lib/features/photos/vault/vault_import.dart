@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:mediahro/platform/storage.dart';
-import 'package:mediahro_ffi/mediahro_ffi.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show FdIo, PosixFdIo;
 
 /// What a picked file is, by its name: the kinds the vault keeps.
 enum VaultKind { image, video, audio }
@@ -40,50 +40,46 @@ const int _piece = 1 << 20;
 
 /// A file the user picked, to be read in pieces: its size and the bytes as
 /// a stream. Nothing stays open until the stream is listened to, and the file
-/// is closed when the stream ends or is cancelled. Android hands out
-/// `content://` URIs, read through a detached fd; elsewhere a `file:` URI read
-/// with dart:io.
+/// is closed when the stream ends or is cancelled. Reads are asynchronous
+/// (dart:io's file threads), not on the UI isolate, and each piece is handed
+/// on without another copy. Android hands out `content://` URIs: the detached
+/// fd is opened again as `/proc/self/fd/N` (an independent file with its own
+/// position) and the fd itself is closed at once.
 Future<({int size, Stream<List<int>> content})> openPickedStream(
   StorageFacade storage,
   Uri uri, {
   FdIo? io,
+  String Function(int fd) pathOfFd = _procPath,
 }) async {
-  if (uri.scheme == 'content') {
-    final fdIo = io ?? PosixFdIo();
-    final probe = await storage.openDocumentFd(uri);
-    final int size;
+  final fdIo = io ?? PosixFdIo();
+  Future<RandomAccessFile> openFile() async {
+    if (uri.scheme != 'content') return await File(uri.toFilePath()).open();
+    final fd = await storage.openDocumentFd(uri);
     try {
-      size = fdIo.size(probe);
+      return await File(pathOfFd(fd)).open();
     } finally {
-      fdIo.close(probe);
+      fdIo.close(fd);
     }
-    Stream<List<int>> read() async* {
-      final fd = await storage.openDocumentFd(uri);
-      try {
-        for (var at = 0; at < size; at += _piece) {
-          final n = size - at < _piece ? size - at : _piece;
-          yield Uint8List.fromList(fdIo.pread(fd, at, n));
-        }
-      } finally {
-        fdIo.close(fd);
-      }
-    }
-
-    return (size: size, content: read());
   }
-  const fs = LocalFileSystem();
-  final probe = await fs.open(uri);
+
+  final probe = await openFile();
   final int size;
   try {
-    size = await probe.length() ?? 0;
+    size = await probe.length();
   } finally {
     await probe.close();
   }
+
   Stream<List<int>> read() async* {
-    final file = await fs.open(uri);
+    final file = await openFile();
     try {
       for (var at = 0; at < size; at += _piece) {
-        yield await file.read(at, size - at < _piece ? size - at : _piece);
+        final n = size - at < _piece ? size - at : _piece;
+        final piece = await file.read(n);
+        if (piece.length != n) {
+          throw FileSystemException('the file ended early', uri.path);
+        }
+        yield piece;
       }
     } finally {
       await file.close();
@@ -92,3 +88,5 @@ Future<({int size, Stream<List<int>> content})> openPickedStream(
 
   return (size: size, content: read());
 }
+
+String _procPath(int fd) => '/proc/self/fd/$fd';

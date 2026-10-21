@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
@@ -393,5 +393,187 @@ void main() {
         expect(out.takeBytes(), data);
       },
     );
+  });
+
+  group('PRIV-007 a video leaves nothing behind', () {
+    Future<PhotoEntry> scraped() async {
+      final v = await photo('film/Movie (2020).mkv', video: true);
+      final folder = '${dir.path}/lib/film';
+      for (final side in [
+        'Movie (2020).srt',
+        'Movie (2020).en.srt',
+        'Movie (2020).nfo',
+        'Movie (2020)-poster.jpg',
+        'Movie (2020)-fanart.jpg',
+      ]) {
+        File('$folder/$side').writeAsBytesSync([1, 2, 3]);
+      }
+      // A neighbour that is not this video's: it stays.
+      File('$folder/Other (2019).srt').writeAsBytesSync([4]);
+      File('$folder/poster.jpg').writeAsBytesSync([5]);
+      return v;
+    }
+
+    test('PRIV-007 the files beside the video go with it', () async {
+      final v = await scraped();
+      final r = await mover.moveIn(vault, [v]);
+      expect(r.moved, 1);
+      final left = Directory('${dir.path}/lib/film')
+          .listSync()
+          .map((e) => e.path.split(Platform.pathSeparator).last)
+          .toSet();
+      expect(left, {'Other (2019).srt', 'poster.jpg'});
+      expect(vault.list().single.kind, 'video');
+    });
+
+    test(
+      'PRIV-007 artwork, downloaded subtitles and queue entries go too',
+      () async {
+        final v = await photo('Movie.mkv', video: true);
+        final art = File('${dir.path}/cache/poster.jpg')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync([1]);
+        final sub = File('${dir.path}/cache/movie.en.srt')
+          ..writeAsBytesSync([2]);
+        await db
+            .into(db.artworks)
+            .insert(
+              ArtworksCompanion.insert(
+                ownerType: 'item',
+                ownerId: v.id,
+                role: 'poster',
+                uri: 'https://example.invalid/poster.jpg',
+                cachePath: Value(art.path),
+              ),
+            );
+        // Artwork of something else with the same number stays.
+        await db
+            .into(db.artworks)
+            .insert(
+              ArtworksCompanion.insert(
+                ownerType: 'album',
+                ownerId: v.id,
+                role: 'cover',
+                uri: 'https://example.invalid/cover.jpg',
+              ),
+            );
+        await db
+            .into(db.subtitleCache)
+            .insert(
+              SubtitleCacheCompanion.insert(
+                itemId: v.id,
+                provider: 'os',
+                language: 'en',
+                path: sub.path,
+                fetchedAt: DateTime(2026),
+              ),
+            );
+        final queue = await db
+            .into(db.queues)
+            .insert(
+              QueuesCompanion.insert(
+                name: 'Now',
+                mode: 'video',
+                updatedAt: DateTime(2026),
+              ),
+            );
+        await db
+            .into(db.queueItems)
+            .insert(
+              QueueItemsCompanion.insert(
+                queueId: queue,
+                position: 0,
+                itemId: Value(v.id),
+                uri: const Value('file:///x/Movie.mkv'),
+                title: const Value('Movie'),
+              ),
+            );
+        await db
+            .into(db.scrobbleQueue)
+            .insert(
+              ScrobbleQueueCompanion.insert(
+                itemId: Value(v.id),
+                service: 'x',
+                payload: '{"title":"Movie"}',
+                playedAt: DateTime(2026),
+              ),
+            );
+        final r = await mover.moveIn(vault, [v]);
+        expect(r.moved, 1);
+        expect(art.existsSync(), isFalse);
+        expect(sub.existsSync(), isFalse);
+        expect(
+          await (db.select(
+            db.artworks,
+          )..where((a) => a.ownerType.equals('item'))).get(),
+          isEmpty,
+        );
+        expect(await db.select(db.artworks).get(), hasLength(1));
+        expect(await db.select(db.subtitleCache).get(), isEmpty);
+        expect(await db.select(db.queueItems).get(), isEmpty);
+        expect(await db.select(db.scrobbleQueue).get(), isEmpty);
+      },
+    );
+
+    test('PRIV-007 a queue entry known only by its address goes too', () async {
+      final v = await photo('Movie.mkv', video: true);
+      final queue = await db
+          .into(db.queues)
+          .insert(
+            QueuesCompanion.insert(
+              name: 'Now',
+              mode: 'video',
+              updatedAt: DateTime(2026),
+            ),
+          );
+      final origin = await mover.files.uriOf(v);
+      await db
+          .into(db.queueItems)
+          .insert(
+            QueueItemsCompanion.insert(
+              queueId: queue,
+              position: 0,
+              uri: Value('$origin'),
+              title: const Value('Movie'),
+            ),
+          );
+      await mover.moveIn(vault, [v]);
+      expect(await db.select(db.queueItems).get(), isEmpty);
+    });
+  });
+
+  group('PRIV-007 every chunk is checked before the original goes', () {
+    test(
+      'PRIV-007 a chunk that does not read back keeps the original',
+      () async {
+        final p = await photo('big.mp4', video: true, data: bytesOf(700000, 5));
+        // The add checks the first and last chunk (two reads); the full check
+        // then fails on its first.
+        crypto.failOpensAfter = crypto.openCalls + 2;
+        final r = await mover.moveIn(vault, [p]);
+        expect(r.failed, ['big.mp4']);
+        expect(File('${dir.path}/lib/big.mp4').existsSync(), isTrue);
+        expect(vault.list(), isEmpty);
+        expect(await itemRows(), 1);
+      },
+    );
+
+    test('PRIV-007 a file that reads back whole is moved', () async {
+      final p = await photo('ok.mp4', video: true, data: bytesOf(700000, 6));
+      final r = await mover.moveIn(vault, [p]);
+      expect(r.moved, 1);
+      expect(File('${dir.path}/lib/ok.mp4').existsSync(), isFalse);
+    });
+
+    test('PRIV-007 the progress of a big item is reported', () async {
+      final p = await photo('big.mp4', video: true, data: bytesOf(3 << 20, 7));
+      final fractions = <double>[];
+      await mover.moveIn(vault, [p], onItemProgress: fractions.add);
+      expect(fractions, isNotEmpty);
+      expect(fractions.last, closeTo(1, 1e-9));
+      expect(fractions.every((f) => f >= 0 && f <= 1.0000001), isTrue);
+      final sorted = [...fractions]..sort();
+      expect(fractions, sorted);
+    });
   });
 }

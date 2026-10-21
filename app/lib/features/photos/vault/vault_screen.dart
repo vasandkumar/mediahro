@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/vault/screen_awake.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_gate.dart';
 import 'package:mediahro/features/photos/vault/vault_import.dart';
@@ -269,9 +270,23 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
   Set<String> get _chosen => widget.chosen;
   bool _fingerprintOn = false;
 
+  /// How far the files being added have got (0 to 1), or null.
+  double? _progress;
+
+  /// Keeps the screen on while files go in or out: it going off would send
+  /// the app to the background and lock the vault half way.
+  late final ScreenAwake _awake;
+
   @override
   void initState() {
     super.initState();
+    DisplayFacade? display;
+    try {
+      display = ref.read(displayProvider);
+    } on Object {
+      display = null;
+    }
+    _awake = ScreenAwake(display);
     unawaited(_readFingerprint());
   }
 
@@ -314,66 +329,113 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
       kinds: {PickKind.image, PickKind.video, PickKind.audio},
       multiple: true,
     );
+    if (picked.isEmpty || !mounted || !_live) return;
+    // Kept: this screen may be gone (the vault locked) before the end, and the
+    // person is still told how far it got.
+    final messenger = ScaffoldMessenger.maybeOf(context);
     var added = 0;
     var skipped = 0;
-    for (final f in picked) {
-      if (!_live) return;
-      try {
-        final kind = vaultKindOf(f.name);
-        if (kind == null) {
-          skipped++;
-          continue;
+    var interrupted = false;
+    await _awake.hold();
+    try {
+      for (var n = 0; n < picked.length; n++) {
+        final f = picked[n];
+        if (!_live) {
+          interrupted = true;
+          break;
         }
-        // In pieces: a film does not have to fit in memory.
-        final source = await openPickedStream(storage, f.uri);
-        if (!_live) return;
-        await _c.add(
-          name: f.name,
-          kind: kind.name,
-          content: source.content,
-          size: source.size,
-        );
-        added++;
-      } on VaultLocked {
-        // Locked while adding.
-        return;
-      } on Object {
-        skipped++;
+        try {
+          final kind = vaultKindOf(f.name);
+          if (kind == null) {
+            skipped++;
+            continue;
+          }
+          // In pieces: a film does not have to fit in memory.
+          final source = await openPickedStream(storage, f.uri);
+          if (!_live) {
+            interrupted = true;
+            break;
+          }
+          var sent = 0;
+          await _c.add(
+            name: f.name,
+            kind: kind.name,
+            content: source.content.map((b) {
+              sent += b.length;
+              if (mounted) {
+                setState(() {
+                  _progress =
+                      (n + (source.size == 0 ? 1 : sent / source.size)) /
+                      picked.length;
+                });
+              }
+              return b;
+            }),
+            size: source.size,
+          );
+          added++;
+        } on VaultLocked {
+          interrupted = true;
+          break;
+        } on Object {
+          skipped++;
+        }
       }
+    } finally {
+      await _awake.release();
+      if (mounted) setState(() => _progress = null);
     }
-    if (!_live) return;
-    setState(() {});
-    _toast(
-      [
-        if (added > 0) l10n.photosVaultAdded(added),
-        if (skipped > 0) l10n.photosVaultSkipped(skipped),
-      ].join(' '),
-    );
+    final text = [
+      if (added > 0) l10n.photosVaultAdded(added),
+      if (skipped > 0) l10n.photosVaultSkipped(skipped),
+      if (interrupted) l10n.photosVaultAddInterrupted(added, picked.length),
+    ].join(' ');
+    if (mounted) {
+      setState(() {});
+      _toast(text);
+    } else {
+      messenger
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(text)));
+    }
   }
 
   Future<void> _takeOut(List<VaultItem> items) async {
     final l10n = AppLocalizations.of(context);
     final storage = ref.read(storageProvider);
     var n = 0;
+    var failed = 0;
+    await _awake.hold();
     try {
       for (final i in items) {
         if (!_live) return;
-        final uri = await storage.saveFile(
-          suggestedName: i.name,
-          mimeType: _mimeOf(i),
-          content: restoredContent(_c, i),
-        );
-        if (uri == null) continue;
-        if (!_live) return;
-        await _c.remove(i.id);
-        n++;
+        try {
+          final uri = await storage.saveFile(
+            suggestedName: i.name,
+            mimeType: _mimeOf(i),
+            content: restoredContent(_c, i),
+          );
+          if (uri == null) continue;
+          if (!_live) return;
+          await _c.remove(i.id);
+          n++;
+        } on VaultLocked {
+          return;
+        } on Object {
+          // Counted, not named: nothing about the item goes into a log.
+          failed++;
+        }
       }
-    } on VaultLocked {
-      return;
+    } finally {
+      await _awake.release();
     }
     if (!_live) return;
     setState(_chosen.clear);
-    if (n > 0) _toast(l10n.photosVaultTakenOut(n));
+    final text = [
+      if (n > 0) l10n.photosVaultTakenOut(n),
+      if (failed > 0) l10n.photosVaultTakeOutFailed(failed),
+    ].join(' ');
+    if (text.isNotEmpty) _toast(text);
   }
 
   Future<void> _delete(List<VaultItem> items) async {
@@ -480,6 +542,16 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     ];
     return Scaffold(
       appBar: AppBar(
+        bottom: _progress == null
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(4),
+                child: Semantics(
+                  liveRegion: true,
+                  label: l10n.photosVaultAdding,
+                  child: LinearProgressIndicator(value: _progress),
+                ),
+              ),
         title: Text(
           _chosen.isEmpty
               ? l10n.photosVault

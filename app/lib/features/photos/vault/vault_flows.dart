@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/vault/screen_awake.dart';
 import 'package:mediahro/features/photos/vault/vault_gate.dart';
 import 'package:mediahro/features/photos/vault/vault_mover.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
+import 'package:mediahro/platform/platform_facades.dart';
 
 /// The lock screen as a route of its own, for moving photos in from outside
 /// the vault: pops with true once the vault is open.
@@ -143,7 +145,17 @@ Future<bool> _moveToVault(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(l10n.photosVaultMoveTitle(images.length)),
-      content: Text(l10n.photosVaultMoveBody),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.photosVaultMoveBody),
+          if (images.any((p) => p.isVideo)) ...[
+            const SizedBox(height: 12),
+            Text(l10n.photosVaultMoveSidecars),
+          ],
+        ],
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
@@ -161,7 +173,16 @@ Future<bool> _moveToVault(
     return false;
   }
   final done = ValueNotifier<int>(0);
+  final fraction = ValueNotifier<double>(0);
   final navigator = Navigator.of(context, rootNavigator: true);
+  // The screen stays on for the move: it going off would lock the vault.
+  DisplayFacade? display;
+  try {
+    display = container.read(displayProvider);
+  } on Object {
+    display = null;
+  }
+  final awake = ScreenAwake(display);
   unawaited(
     showDialog<void>(
       context: context,
@@ -169,17 +190,22 @@ Future<bool> _moveToVault(
       builder: (ctx) => PopScope(
         canPop: false,
         child: AlertDialog(
-          content: ValueListenableBuilder<int>(
-            valueListenable: done,
-            builder: (ctx, n, _) => Semantics(
+          content: ListenableBuilder(
+            listenable: Listenable.merge([done, fraction]),
+            builder: (ctx, _) => Semantics(
               liveRegion: true,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(l10n.photosVaultMoving(n, images.length)),
+                  Text(l10n.photosVaultMoving(done.value, images.length)),
                   const SizedBox(height: 12),
-                  LinearProgressIndicator(value: n / images.length),
+                  // Whole items done, and how far into the one in hand.
+                  LinearProgressIndicator(
+                    value:
+                        (done.value + fraction.value.clamp(0, 1)) /
+                        images.length,
+                  ),
                 ],
               ),
             ),
@@ -188,6 +214,7 @@ Future<bool> _moveToVault(
       ),
     ),
   );
+  await awake.hold();
   final VaultMoveReport report;
   try {
     report = await container
@@ -195,12 +222,18 @@ Future<bool> _moveToVault(
         .moveIn(
           vault.container,
           images,
-          onProgress: (n) => done.value = n,
+          onProgress: (n) {
+            fraction.value = 0;
+            done.value = n;
+          },
+          onItemProgress: (f) => fraction.value = f,
           cancelled: () => guard.backgrounded,
         );
   } finally {
     navigator.pop();
     done.dispose();
+    fraction.dispose();
+    await awake.release();
     if (!wasOpen) session.lock();
   }
   messenger?.showSnackBar(
@@ -212,6 +245,8 @@ Future<bool> _moveToVault(
             l10n.photosVaultMoveFailed(report.failed.length),
           if (report.leftInLibrary.isNotEmpty)
             l10n.photosVaultMoveCleanup(report.leftInLibrary.length),
+          if (report.stopped)
+            l10n.photosVaultMoveStopped(report.moved, images.length),
         ].join(' '),
       ),
     ),
