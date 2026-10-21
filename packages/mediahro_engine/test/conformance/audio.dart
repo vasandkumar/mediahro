@@ -563,6 +563,174 @@ void audioSuite() {
       skip: skip,
     );
 
+    // A DoP stream must not reach a changed output unchecked (device,
+    // exclusivity, native DSD off, the OS moving the route): the engine
+    // pauses first, checks, and plays PCM from the same place if the output
+    // no longer carries the stream. The capture is the output file; the
+    // item is opened paused, with its output verified and open, so that not a
+    // single frame can have been written before the change (the capture
+    // output runs faster than real time, so a change mid-playback cannot be
+    // timed; the same code path runs, with the item playing, on a device).
+    group('AUD-043 DoP is re-checked while playing', () {
+      Future<(MpvEngine, File)> startDop({
+        AudioBridge? bridge,
+        EnginePlatform? platform,
+      }) async {
+        final dir = await Directory.systemTemp.createTemp('mh-dopr');
+        addTearDown(() => dir.delete(recursive: true));
+        final file = File('${dir.path}${Platform.pathSeparator}o.pcm');
+        final options = {
+          'ao': 'pcm',
+          'ao-pcm-file': file.path,
+          'ao-pcm-waveheader': 'no',
+          'ao-pcm-append': 'yes',
+          'audio-format': 's32',
+        };
+        final e = MpvEngine(
+          EngineRole.music,
+          config: MpvEngineConfig(
+            platform: platform,
+            video: VideoOutputMode.none,
+            libmpvPath: env.libmpvPath,
+            audioBridge: bridge,
+            extraOptions: options,
+          ),
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop &&
+              s.status == PlaybackStatus.paused,
+          reason: 'DoP opened and verified, paused',
+        );
+        return (e, file);
+      }
+
+      // Which captured frames (stereo s32) are DoP: the marker bytes
+      // 0x05 / 0xFA alternating over at least 64 frames in a row.
+      List<bool> dopFrames(File f) {
+        final d = ByteData.sublistView(f.readAsBytesSync());
+        final n = d.lengthInBytes ~/ 8;
+        int marker(int i) => (d.getInt32(i * 8, Endian.little) >> 24) & 0xFF;
+        final dop = List.filled(n, false);
+        var run = 0;
+        for (var i = 0; i < n; i++) {
+          final m = marker(i);
+          final alternates =
+              (m == 0x05 || m == 0xFA) && (i == 0 || marker(i - 1) != m);
+          run = alternates ? run + 1 : 0;
+          if (run >= 64) {
+            for (var k = i - 63; k <= i; k++) {
+              dop[k] = true;
+            }
+          }
+        }
+        return dop;
+      }
+
+      // The item was paused with nothing written, so after the change not a
+      // single frame of the capture may be DoP, and the item must have gone
+      // on (as PCM).
+      void expectNoDop(File f) {
+        final dop = dopFrames(f);
+        expect(dop.length, greaterThan(100000), reason: 'the item went on');
+        expect(dop.any((x) => x), isFalse, reason: 'DoP frames emitted');
+      }
+
+      Future<void> untilEnded(MpvEngine e) => waitFor(
+        e,
+        (s) => s.status == PlaybackStatus.ended,
+        timeout: const Duration(seconds: 30),
+      );
+
+      test('AUD-043 a non-exclusive output mid-DoP leads to PCM', () async {
+        final (e, file) = await startDop();
+        expect(file.lengthSync(), 0, reason: 'nothing written yet');
+        await e.setAudioOutput(
+          const AudioOutputConfig(nativeDsd: true, passthroughCodecs: ['dop']),
+        );
+        await e.play();
+        await untilEnded(e);
+        expect(e.current.error, isNull);
+        expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+        expectNoDop(file);
+      }, skip: skip);
+
+      test('AUD-043 native DSD switched off mid-DoP leads to PCM', () async {
+        final (e, file) = await startDop();
+        expect(file.lengthSync(), 0, reason: 'nothing written yet');
+        await e.setAudioOutput(
+          const AudioOutputConfig(exclusive: true, passthroughCodecs: ['dop']),
+        );
+        await e.play();
+        await untilEnded(e);
+        expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+        expectNoDop(file);
+      }, skip: skip);
+
+      test(
+        'AUD-043 an unchanged output is re-checked and DoP goes on',
+        () async {
+          final (e, file) = await startDop();
+          await e.setAudioOutput(
+            _dopOutput.copyWith(
+              latencyOffset: const Duration(milliseconds: 20),
+            ),
+          );
+          await e.play();
+          await untilEnded(e);
+          expect(e.current.audio.path, AudioOutputPath.dop);
+          final dop = dopFrames(file);
+          expect(dop.length, closeTo(352800, 4000));
+          expect(
+            dop.where((x) => !x).length,
+            lessThan(200),
+            reason: 'the whole stream stays DoP, marker order unbroken',
+          );
+        },
+        skip: skip,
+      );
+
+      test(
+        'AUD-043 the OS moving the route off the DAC mid-DoP leads to PCM',
+        () async {
+          final results = <String, Object?>{
+            'prefer': {
+              'applied': true,
+              'bitPerfect': true,
+              'sampleRate': 176400,
+              'device': 'USB DAC',
+            },
+          };
+          final (e, file) = await startDop(
+            platform: EnginePlatform.android,
+            bridge: AudioBridge(
+              channel: MethodChannel(
+                'mh/test/audio',
+                const StandardMethodCodec(),
+                _FakeMessenger(results),
+              ),
+            ),
+          );
+          expect(file.lengthSync(), 0, reason: 'nothing written yet');
+          // The DAC is unplugged: the OS no longer grants the path.
+          results['prefer'] = {'applied': false, 'bitPerfect': false};
+          await e.audioRouteChanged();
+          await e.play();
+          await untilEnded(e);
+          expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+          expectNoDop(file);
+        },
+        skip: skip,
+      );
+    });
+
     for (final (granted, expectDop) in [(false, false), (true, true)]) {
       test('AUD-043 on a phone the OS must grant the bit-perfect path '
           '(granted: $granted)', () async {

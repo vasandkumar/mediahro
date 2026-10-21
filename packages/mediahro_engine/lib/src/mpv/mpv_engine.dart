@@ -389,7 +389,7 @@ final class MpvEngine implements PlaybackEngine {
   /// mixer in between), and the app has listed `dop` among the selected
   /// device's passthrough formats, which it does only for a device that
   /// advertises DoP rates. The rest is checked on the real output before
-  /// anything is heard (see [_dopOutputVerified]).
+  /// anything is heard (see [_dopOutputOk]).
   bool get _dopAllowed =>
       _output.nativeDsd &&
       _output.exclusive &&
@@ -432,16 +432,32 @@ final class MpvEngine implements PlaybackEngine {
     );
   }
 
-  /// Waits (up to 3 s) for the output to open, which mpv does while the item
-  /// is still paused, and checks that it really carries the DoP samples
-  /// untouched: the device runs at the DoP rate with at least 24 bits, and
-  /// on Android and iOS the OS granted the bit-perfect path at that rate.
-  Future<bool> _dopOutputVerified(DsdInfo info) async {
+  /// Checks that the output really carries the DoP samples untouched: it is
+  /// open, runs exclusively at the DoP rate with at least 24 bits, and on
+  /// Android and iOS the OS granted the bit-perfect path at that rate. Reads
+  /// the output as it is now, not what was last reported. With [wait], gives
+  /// the output up to 3 s to open (mpv opens it while the item is paused).
+  Future<bool> _dopOutputOk(
+    MpvClient c,
+    DsdInfo info, {
+    bool wait = false,
+  }) async {
     final mobile =
         platform == EnginePlatform.android || platform == EnginePlatform.ios;
-    final deadline = DateTime.now().add(const Duration(seconds: 3));
-    while (DateTime.now().isBefore(deadline)) {
-      final out = _audioOutParams;
+    final deadline = DateTime.now().add(
+      wait ? const Duration(seconds: 3) : const Duration(seconds: 2),
+    );
+    Future<Object?> read(String name) async {
+      try {
+        return await c.getProperty(name);
+      } on MpvException {
+        return null;
+      }
+    }
+
+    while (true) {
+      final raw = await read('audio-out-params');
+      final out = raw is Map<String, Object?> ? raw : null;
       final os = _osOutput;
       if (out != null && (!mobile || os != null)) {
         final bits = sampleFormatBits(out['format'] as String?) ?? 0;
@@ -451,12 +467,68 @@ final class MpvEngine implements PlaybackEngine {
             (os!.applied &&
                 os.bitPerfect &&
                 (os.sampleRate == null || os.sampleRate == info.dopRate));
-        return rateOk && bits >= 24 && _exclusive && osOk;
+        return rateOk &&
+            bits >= 24 &&
+            await read('audio-exclusive') == true &&
+            osOk;
       }
+      if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
-    return false;
   }
+
+  // True while a DoP item is being opened or its output re-checked: the
+  // output events of that work are not new route changes.
+  var _dopBusy = false;
+  OpenOptions _openOptions = const OpenOptions();
+
+  /// A DoP item is playing and the output changed under it (a new config,
+  /// another device, the OS moved the route, the output reopened): pause at
+  /// once, check the output again, and only resume when it still carries the
+  /// stream untouched. Otherwise the item continues as PCM from where it
+  /// was. Nothing is played in between.
+  Future<void> _dopRecheck({bool? wasPlaying, bool refreshOs = false}) async {
+    final c = _client;
+    final info = _dopInfo;
+    if (!_dop || c == null || info == null || _dopBusy && wasPlaying == null) {
+      return;
+    }
+    _dopBusy = true;
+    final gen = _generation;
+    try {
+      final resume = wasPlaying ?? !_paused;
+      await _quiet(c.setProperty('pause', 'yes'));
+      if (refreshOs) {
+        _preferredRate = null;
+        await _syncOutputPreference();
+      }
+      final ok = _dopAllowed && await _dopOutputOk(c, info);
+      if (gen != _generation || !_dop) return;
+      if (ok) {
+        if (resume) await _quiet(c.setProperty('pause', 'no'));
+        return;
+      }
+      // The same file as PCM from the current position.
+      final at = _state.position;
+      _skipDop = true;
+      _dopBusy = false;
+      final src = _source;
+      if (src != null) {
+        await open(
+          src,
+          opts: _openOptions.copyWith(start: at, autoplay: resume),
+        );
+      }
+    } finally {
+      _dopBusy = false;
+    }
+  }
+
+  /// The OS changed the audio route (a DAC unplugged, a new default device).
+  /// Called by the platform module on such events; checked at once, not on
+  /// the next sample.
+  @visibleForTesting
+  Future<void> audioRouteChanged() => _dopRecheck(refreshOs: true);
 
   /// Per-file mpv options that keep the DoP stream bit-exact: any gain,
   /// filter, speed change or pitch correction would corrupt the markers
@@ -467,6 +539,8 @@ final class MpvEngine implements PlaybackEngine {
     'speed': '1',
     'replaygain': 'no',
     'audio-pitch-correction': 'no',
+    // A delay pads or trims samples, which breaks the marker sequence.
+    'audio-delay': '0',
   };
 
   Future<void> _quiet(Future<Object?> f) async {
@@ -480,6 +554,7 @@ final class MpvEngine implements PlaybackEngine {
 
   void _fail(EngineErrorCode code, String detail) {
     _loading = false;
+    _dopBusy = false;
     _state = _state.copyWith(
       status: PlaybackStatus.error,
       error: EngineError(code: code, detail: detail),
@@ -610,6 +685,17 @@ final class MpvEngine implements PlaybackEngine {
     }
     if (name.startsWith('audio') || name == 'current-ao') {
       _refreshAudioInfo();
+      // The output changed under a playing DoP stream.
+      if (_dop &&
+          !_dopBusy &&
+          const {
+            'audio-out-params',
+            'current-ao',
+            'audio-device',
+            'audio-exclusive',
+          }.contains(name)) {
+        unawaited(_dopRecheck());
+      }
     }
     if (name.endsWith('drop-count')) {
       _state = _state.copyWith(
@@ -825,6 +911,7 @@ final class MpvEngine implements PlaybackEngine {
       );
     }
     final o = opts ?? const OpenOptions();
+    _openOptions = o;
     final gen = ++_generation;
     _source = src;
     _next = null;
@@ -861,6 +948,7 @@ final class MpvEngine implements PlaybackEngine {
         : await _oneGaplessTrim(src);
     if (gen != _generation) return;
     _dop = dop != null;
+    _dopBusy = _dop;
     _dopInfo = dop?.info;
     _refreshAudioInfo();
     String url;
@@ -925,16 +1013,18 @@ final class MpvEngine implements PlaybackEngine {
     if (gen != _generation) return;
     final info = _dopInfo;
     if (_dop && info != null) {
-      final ok = await _dopOutputVerified(info);
+      final ok = await _dopOutputOk(c, info, wait: true);
       if (gen != _generation) return;
       if (!ok) {
         // The device would not carry the stream untouched: play the DSD
         // as PCM instead, never as DoP.
+        _dopBusy = false;
         _skipDop = true;
         await open(src, opts: o);
         return;
       }
       if (o.autoplay) await _quiet(c.setProperty('pause', 'no'));
+      _dopBusy = false;
     }
     _scheduleEmit();
   }
@@ -1087,7 +1177,7 @@ final class MpvEngine implements PlaybackEngine {
   @override
   Future<void> setAudioDelay(Duration delay) async {
     final c = await _live();
-    if (c == null) return;
+    if (c == null || _dop) return;
     await _quiet(
       c.setProperty('audio-delay', secondsValue(delay + _output.latencyOffset)),
     );
@@ -1622,6 +1712,14 @@ final class MpvEngine implements PlaybackEngine {
   Future<void> setAudioOutput(AudioOutputConfig config) async {
     final c = await _live();
     if (c == null) return;
+    // A DoP stream on the old output must not reach the new one unchecked:
+    // pause first, apply, check the new output, then resume or play PCM.
+    final recheck = _dop && _dopInfo != null && !_dopBusy;
+    final wasPlaying = !_paused;
+    if (recheck) {
+      _dopBusy = true;
+      await _quiet(c.setProperty('pause', 'yes'));
+    }
     final latencyChanged = config.latencyOffset != _output.latencyOffset;
     _output = config;
     await _setAll(c, audioOutputProperties(config, platform));
@@ -1629,6 +1727,17 @@ final class MpvEngine implements PlaybackEngine {
     if (latencyChanged) await setAudioDelay(_state.audioDelay);
     _preferredRate = null;
     await _syncOutputPreference();
+    if (recheck) {
+      // Close the output and open it again on the new device: a paused item
+      // opens its output once decoding restarts, which a seek to where it is
+      // does.
+      await _quiet(c.command(['ao-reload']));
+      await _quiet(
+        c.command(['seek', secondsValue(_state.position), 'absolute+exact']),
+      );
+      _dopBusy = false;
+      await _dopRecheck(wasPlaying: wasPlaying);
+    }
   }
 
   @override
@@ -1733,7 +1842,7 @@ final class MpvEngine implements PlaybackEngine {
       ScreenshotFormat.webp => 'webp',
       ScreenshotFormat.jpeg => 'jpg',
     };
-    final dir = await Directory.systemTemp.createTemp('mediahro-shot');
+    final dir = await createScratch('shot');
     final file = File('${dir.path}${Platform.pathSeparator}frame.$ext');
     try {
       await c.setProperty('screenshot-format', ext == 'jpg' ? 'jpeg' : ext);
@@ -1748,7 +1857,7 @@ final class MpvEngine implements PlaybackEngine {
         EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
       );
     } finally {
-      await dir.delete(recursive: true).catchError((Object _) => dir);
+      await deleteScratch(dir);
     }
   }
 

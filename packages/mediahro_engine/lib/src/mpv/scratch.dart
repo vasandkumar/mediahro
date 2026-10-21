@@ -34,6 +34,17 @@ const EngineException sensitiveNeedsMemory = EngineException(
 
 const String _parentName = 'mediahro-scratch';
 
+// Folders earlier versions made directly in the temporary directory.
+const List<String> _legacyPrefixes = [
+  'mediahro-pcm',
+  'mediahro-subx',
+  'mediahro-subimg',
+  'mediahro-cast',
+  'mediahro-shot',
+  'mediahro-disc',
+  'mh-subs',
+];
+
 // Folders of this process that are in use (never swept).
 final Set<String> _active = {};
 bool _swept = false;
@@ -95,9 +106,7 @@ Future<void> sweepStaleScratch({
     candidates.addAll(
       Directory.systemTemp.listSync().whereType<Directory>().where((d) {
         final name = d.uri.pathSegments.where((s) => s.isNotEmpty).last;
-        return name.startsWith('mediahro-pcm') ||
-            name.startsWith('mediahro-subx') ||
-            name.startsWith('mediahro-subimg');
+        return _legacyPrefixes.any(name.startsWith);
       }),
     );
   } on FileSystemException {
