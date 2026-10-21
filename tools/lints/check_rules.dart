@@ -57,6 +57,12 @@ final rules = <Rule>[
     allowedIn: ['app/lib/core/net/'],
   ),
   Rule(
+    'no_svg_network',
+    'SVGs are loaded from bytes or files through the VFS only; flutter_svg network loaders bypass NetworkGateway (PRIV-004).',
+    RegExp(r'\bSvgPicture\s*\.\s*network\b|\bSvgNetworkLoader\b'),
+    appliesTo: ['app/lib/', 'packages/'],
+  ),
+  Rule(
     'no_ui_literal',
     'UI strings come from ARB fragments via AppLocalizations (CLAUDE.md §1.9).',
     RegExp(
