@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:mediahro/app/background_work_dispatcher.dart';
+import 'package:mediahro/app/incoming/app_incoming_handler.dart';
+import 'package:mediahro/app/incoming/incoming_router.dart';
 import 'package:mediahro/app/media_wiring.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/router.dart';
@@ -10,6 +12,8 @@ import 'package:mediahro/features/library/widgets.dart'
     show openItemActionProvider;
 import 'package:mediahro/features/music/music_wiring.dart';
 import 'package:mediahro/features/photos/map/map_licences.dart';
+import 'package:mediahro/features/photos/viewer/external_image_viewer.dart'
+    show externalImageRoutes;
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart'
     show photoRoutes;
 import 'package:mediahro/features/video/player/bundled_shaders.dart';
@@ -39,8 +43,15 @@ Future<void> main() async {
       ...musicOverrides,
       ...videoOverrides,
       openItemActionProvider.overrideWithValue(openItemByKind),
-      appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
+      appRoutesProvider.overrideWithValue([
+        ...videoRoutes,
+        ...photoRoutes,
+        ...externalImageRoutes,
+      ]),
     ],
   )..read(backgroundWorkDispatcherProvider);
+  // CORE-003, SYS-003, SYS-004: what other apps hand over (Open with, Share,
+  // shortcuts) is received from the first moment and held until the app shows.
+  startIncoming(container, handlerFor: AppIncomingHandler.new);
   showApp(container);
 }

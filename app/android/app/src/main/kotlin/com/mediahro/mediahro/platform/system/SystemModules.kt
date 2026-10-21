@@ -79,9 +79,27 @@ object IncomingIntents {
             return true
         }
         val uris = urisOf(context, intent)
-        if (uris.isEmpty()) return false
+        if (uris.isEmpty()) {
+            // A shared text that is not a link is a search, never a fetch (SYS-004).
+            val query = sharedSearchText(intent.action, intent.getStringExtra(Intent.EXTRA_TEXT)) ?: return false
+            emit(AppIntentMsg(AppIntentKindMsg.SEARCH, query))
+            return true
+        }
         emit(OpenRequestMsg(uris.map(Uri::toString)))
         return true
+    }
+
+    /** The longest search text taken from a share. */
+    const val MAX_SEARCH_TEXT = 200
+
+    /**
+     * The text of a SEND that holds no link: trimmed, control characters turned into
+     * spaces, cut to [MAX_SEARCH_TEXT]. Null for anything else. Pure, so it is unit-tested on the JVM.
+     */
+    fun sharedSearchText(action: String?, text: String?): String? {
+        if (action != Intent.ACTION_SEND || text == null || linkTextIn(text) != null) return null
+        val clean = text.map { if (it.isISOControl()) ' ' else it }.joinToString("").trim()
+        return clean.take(MAX_SEARCH_TEXT).ifEmpty { null }
     }
 
     @Synchronized
