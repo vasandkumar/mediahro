@@ -55,6 +55,14 @@ android {
         }
     }
 
+    // Only the store flavour links Play Billing (docs/07 rule 5); the others
+    // share a no-op PurchasesBinding from src/noBilling.
+    sourceSets {
+        for (flavour in listOf("direct", "foss", "enterprise")) {
+            getByName(flavour).java.srcDir("src/noBilling/kotlin")
+        }
+    }
+
     signingConfigs {
         if (hasUploadKey) {
             create("upload") {
@@ -105,6 +113,9 @@ dependencies {
     implementation("androidx.browser:browser:1.8.0")
     // HEIC encode (IMG-010/015, ADR-037): the platform encoder behind a small wrapper; Apache-2.0.
     implementation("androidx.heifwriter:heifwriter:1.1.0")
+    // Tips and the supporter subscription (SUP-002): the Play rail, store flavour only.
+    // The library only talks to the Play Store app on the device.
+    "storeImplementation"("com.android.billingclient:billing-ktx:9.1.0")
     // SFTP (ADR-017): sshj over the platform JCA; no bundled crypto provider.
     implementation("com.hierynomus:sshj:0.41.2") {
         exclude(group = "org.bouncycastle")
