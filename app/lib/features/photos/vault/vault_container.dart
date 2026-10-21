@@ -616,8 +616,14 @@ final class VaultContainer {
   void close() {
     if (_closed) return;
     _closed = true;
-    _items = const [];
-    unawaited(_tail.whenComplete(() => _token.fillRange(0, _token.length, 0)));
+    // The list stays until the work under way is over: an add that is half
+    // done must save the index with every item, not only its own.
+    unawaited(
+      _tail.whenComplete(() {
+        _items = const [];
+        _token.fillRange(0, _token.length, 0);
+      }),
+    );
   }
 
   bool get isClosed => _closed;

@@ -653,14 +653,21 @@ final class VaultManager {
     }
     final salt = randomBytes(16);
     final token = await derivePinToken(newPin, salt, iterations);
+    var committed = false;
     try {
       await vault.container.prepareRekey(token);
       await _writeSalt(here, salt, iterations, next: true);
       await vault.container.commitRekey(token);
+      committed = true;
       await _saltNextFile(here).rename(_saltFile(here).path);
     } on Object {
-      await vault.container.abandonRekey();
-      if (_saltNextFile(here).existsSync()) _saltNextFile(here).deleteSync();
+      // Before the new index is in place the old pair is whole and the new
+      // files go. After it, salt.next is the only salt that opens the folder:
+      // it stays, and the next open finishes the rename.
+      if (!committed) {
+        await vault.container.abandonRekey();
+        if (_saltNextFile(here).existsSync()) _saltNextFile(here).deleteSync();
+      }
       rethrow;
     } finally {
       token.fillRange(0, token.length, 0);

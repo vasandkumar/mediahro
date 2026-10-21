@@ -558,6 +558,34 @@ void main() {
     });
   });
 
+  group('PRIV-007 the last rename of a Change PIN fails', () {
+    test(
+      'PRIV-007 the new salt is kept and the new PIN opens next time',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
+        final dir = r.vault!.container.directory;
+        final oldSalt = File('${dir.path}/salt').readAsBytesSync();
+        // A folder where the salt file is makes the final rename fail.
+        File('${dir.path}/salt').deleteSync();
+        Directory('${dir.path}/salt').createSync();
+        await expectLater(
+          manager.changePin(r.vault!, '555555'),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(File('${dir.path}/salt.next').existsSync(), isTrue);
+        await r.vault!.close();
+        Directory('${dir.path}/salt').deleteSync();
+        File('${dir.path}/salt').writeAsBytesSync(oldSalt);
+        final fresh = make();
+        final again = await fresh.openWithPin('555555');
+        expect(again.isOpen, isTrue, reason: '${again.outcome}');
+        expect(again.vault!.container.list().single.name, 'real.jpg');
+        await again.vault!.close();
+      },
+    );
+  });
+
   group('PRIV-007 a Change PIN that is cut short', () {
     late String name;
     late Directory dir;

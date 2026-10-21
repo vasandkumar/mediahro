@@ -279,6 +279,46 @@ void main() {
   });
 
   group('IMG-011 locking in the middle of work', () {
+    test('IMG-011 an add in flight when the vault locks keeps the items already in it', () async {
+      final c = await make();
+      final first = await put(c, 'old.jpg', bytesOf(100));
+      final started = Completer<void>();
+      final release = Completer<void>();
+      Stream<List<int>> slow() async* {
+        yield bytesOf(1000);
+        started.complete();
+        await release.future;
+        yield bytesOf(1000, 2);
+      }
+
+      final pending = c.add(
+        name: 'new.jpg',
+        kind: 'image',
+        content: slow(),
+        size: 2000,
+      );
+      await started.future;
+      c.close();
+      release.complete();
+      final item = await pending;
+      final again = await reopen();
+      expect(again.list().map((i) => i.id).toSet(), {first.id, item.id});
+    });
+
+    test(
+      'IMG-011 a remove in flight when the vault locks keeps the other items',
+      () async {
+        final c = await make();
+        final a = await put(c, 'a.jpg', bytesOf(100));
+        final b = await put(c, 'b.jpg', bytesOf(100, 2));
+        final gone = c.remove(a.id);
+        await Future<void>.delayed(Duration.zero);
+        c.close();
+        await gone;
+        expect((await reopen()).list().map((i) => i.id), [b.id]);
+      },
+    );
+
     test(
       'IMG-011 work already running finishes on its own copy of the token',
       () async {
