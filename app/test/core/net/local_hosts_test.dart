@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -199,14 +200,41 @@ void main() {
       },
     );
 
-    test('a name that does not resolve is left to fail on its own', () async {
+    test('a name that cannot be checked is refused: no answer, no '
+        'addresses, an error', () async {
       expect(
         await resolvesToNonPublic(
           'gone.example',
           lookup: (h) async => throw const SocketException('no such host'),
         ),
-        isFalse,
+        isTrue,
       );
+      expect(
+        await resolvesToNonPublic('empty.example', lookup: (h) async => []),
+        isTrue,
+      );
+      expect(
+        await resolvesToNonPublic(
+          'slow.example',
+          lookup: (h) => Completer<List<InternetAddress>>().future,
+        ),
+        isTrue,
+      );
+    }, timeout: const Timeout(Duration(seconds: 20)));
+  });
+
+  group('trustedFeedHosts', () {
+    test("only a host on the listener's own network is trusted for its "
+        'feed; a feed on the internet is checked on every hop', () {
+      expect(trustedFeedHosts('192.168.1.9'), {'192.168.1.9'});
+      expect(trustedFeedHosts('NAS.local.'), {'nas.local'});
+      expect(trustedFeedHosts('localhost'), {'localhost'});
+      expect(trustedFeedHosts('127.1'), {'127.1'});
+      expect(trustedFeedHosts('feeds.example.com'), isEmpty);
+      expect(trustedFeedHosts('8.8.8.8'), isEmpty);
+      // Not "local" in the LAN sense, so not trusted either.
+      expect(trustedFeedHosts('0.0.0.0'), isEmpty);
+      expect(trustedFeedHosts('router'), isEmpty);
     });
   });
 }
