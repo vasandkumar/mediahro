@@ -232,5 +232,5 @@ Future<ui.Image> _pic(WidgetTester tester) async =>
         const ui.Rect.fromLTWH(0, 0, 8, 6),
         ui.Paint()..color = const Color(0xFF336699),
       );
-      return rec.endRecording().toImage(8, 6);
+      return await rec.endRecording().toImage(8, 6);
     }))!;
