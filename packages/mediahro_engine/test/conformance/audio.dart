@@ -563,6 +563,128 @@ void audioSuite() {
       skip: skip,
     );
 
+    test(
+      'AUD-043 DoP needs a named device, never the system default',
+      () async {
+        final s = await dsdWith(
+          config: const AudioOutputConfig(
+            nativeDsd: true,
+            exclusive: true,
+            passthroughCodecs: ['dop'],
+          ),
+        );
+        expect(s.error, isNull);
+        expect(s.audio.path, isNot(AudioOutputPath.dop));
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 a DoP item is pinned to its device and falls back to null',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('mh-dopp');
+        addTearDown(() => dir.delete(recursive: true));
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+            'ao-pcm-waveheader': 'no',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(e, (s) => s.audio.path == AudioOutputPath.dop);
+        // If the DAC goes away mpv must open its silent null output, not the
+        // speaker; and the device is the named one, not 'auto'.
+        expect(await prop(e, 'audio-device'), 'pcm/dac');
+        expect(await prop(e, 'audio-fallback-to-null'), isTrue);
+        // The next item is ordinary: the setting is the item's own.
+        await e.open(UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))));
+        await waitPlaying(e);
+        expect(await prop(e, 'audio-fallback-to-null'), isFalse);
+        expect(await prop(e, 'audio-device'), 'pcm/dac');
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 mpv losing the pinned device on its own leads to PCM',
+      () async {
+        // The observer path: nobody calls the engine, mpv itself loses the
+        // device (a driver that does not exist stands in for an unplugged
+        // DAC). The item is paused with its output open, so nothing can have
+        // been written; the engine finds mpv on its null output, which is not
+        // the DAC, and plays the file as PCM on the chosen output.
+        final dir = await Directory.systemTemp.createTemp('mh-dopv');
+        addTearDown(() => dir.delete(recursive: true));
+        final file = File('${dir.path}${Platform.pathSeparator}o.pcm');
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': file.path,
+            'ao-pcm-waveheader': 'no',
+            'ao-pcm-append': 'yes',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop &&
+              s.status == PlaybackStatus.paused,
+        );
+        await e.debugSetMpvProperty('audio-device', 'nonexistent/dac');
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path != AudioOutputPath.dop &&
+              s.audio.path != AudioOutputPath.unknown,
+          reason: 'PCM after the device was lost',
+        );
+        expect(
+          await prop(e, 'audio-device'),
+          'pcm/dac',
+          reason: 'chosen output',
+        );
+        await e.play();
+        await waitFor(
+          e,
+          (s) => s.status == PlaybackStatus.ended,
+          timeout: const Duration(seconds: 30),
+        );
+        expect(e.current.error, isNull);
+        final d = ByteData.sublistView(file.readAsBytesSync());
+        var run = 0;
+        var longest = 0;
+        for (var i = 0; i + 1 < d.lengthInBytes ~/ 8; i++) {
+          final m = (d.getInt32(i * 8, Endian.little) >> 24) & 0xFF;
+          final n = (d.getInt32((i + 1) * 8, Endian.little) >> 24) & 0xFF;
+          run = (m == 0x05 && n == 0xFA) || (m == 0xFA && n == 0x05)
+              ? run + 1
+              : 0;
+          if (run > longest) longest = run;
+        }
+        expect(longest, lessThan(64), reason: 'no DoP frames were written');
+        expect(d.lengthInBytes, greaterThan(100000), reason: 'the item played');
+      },
+      skip: skip,
+    );
+
     // A DoP stream must not reach a changed output unchecked (device,
     // exclusivity, native DSD off, the OS moving the route): the engine
     // pauses first, checks, and plays PCM from the same place if the output
@@ -865,6 +987,7 @@ Future<_Pcm> _capture(Future<void> Function(MpvEngine e) body) async {
 
 /// An exclusive output whose device is listed as taking DoP.
 const _dopOutput = AudioOutputConfig(
+  deviceId: 'pcm/dac',
   nativeDsd: true,
   exclusive: true,
   passthroughCodecs: ['dop'],
