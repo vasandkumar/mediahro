@@ -34,7 +34,7 @@ Version 1.0 · 2026-10-19 · Synthesises `research/03`. Policy text was checked 
 | 4.2 Minimum functionality | Works on its own | Yes |
 | 5.1.1 Privacy | Policy in ASC and in-app; consent; data minimisation — prefer PHPicker | PHPicker for picking; `PHPhotoLibrary` only for "Photos library" mode; limited access handled; `PHPhotoLibraryPreventAutomaticLimitedAccessAlert=YES` |
 | 5.1.2 / ATT | Only if tracking | No ATT prompt (no tracking) |
-| 5.2 IP | No third-party marks without permission; third-party services per their terms | "Works with Plex/Jellyfin…" factual only; no Dolby/DTS marks; OpenSubtitles/TMDB/LRCLIB per their API terms |
+| 5.2 IP | No third-party marks without permission; third-party services per their terms | "Works with Plex/Jellyfin…" factual only; no Dolby/DTS marks; LRCLIB and MusicBrainz per their API terms |
 | Age rating | New questionnaire mandatory; "unrestricted web access" answer raises rating | URL opening scoped to media; no browser |
 | Accessibility labels | Voluntary now, expected to become required | Declared per doc 06 §7 |
 | Platform | Xcode 26 / iOS 26 SDK now; iOS 27 SDK from April 2027; iOS 13+ target (we target iOS 16+); iPhone Duo screenshots from April 2027; macOS 27 Apple-silicon-only | CI on macOS 26 runners; arm64 + x86_64 universal for macOS until 27 |
@@ -109,7 +109,7 @@ Play Billing consumables ("Buy the team a coffee" tiers) and a subscription; fee
 
 | Channel | Requirements | Mediahro flavour |
 |---|---|---|
-| F-Droid | Built from source by F-Droid; no proprietary SDKs; reproducible build recommended (keeps our signing key); anti-features declared (NonFreeNet for optional OpenSubtitles/TMDB); `funding.json`/`FUNDING.yml`; fastlane metadata | `foss` |
+| F-Droid | Built from source by F-Droid; no proprietary SDKs; reproducible build recommended (keeps our signing key); anti-features declared (NonFreeNet for the optional online services: LRCLIB, MusicBrainz, ListenBrainz, IntroDB); `funding.json`/`FUNDING.yml`; fastlane metadata | `foss` |
 | IzzyOnDroid | Our APK from GitHub releases | `foss` |
 | Samsung Galaxy Store | Seller Portal; privacy URL; age rating; no beta binaries | `store` APK |
 | Amazon Appstore | Fire OS APK; Fire TV category (1.1) | `store` |
@@ -122,7 +122,7 @@ Play Billing consumables ("Buy the team a coffee" tiers) and a subscription; fee
 
 ### 6.1 Privacy policy (PRIVACY.md and mediahro.com/privacy)
 
-Lists: data processed on device (library index, positions, settings); optional transmissions (crash reports via self-hosted Sentry — device model, OS version, app version, stack; usage analytics via Aptabase — anonymous events, country derived from IP then discarded); third-party services the user may enable (OpenSubtitles, TMDB, LRCLIB, MusicBrainz/AcoustID, ListenBrainz/Last.fm, OSM tiles, IntroDB) with links to their policies; retention (90 days crash, 12 months aggregates); deletion/withdrawal (toggle off; email); no sale/sharing; no children's targeting; EU representative/DSA trader info; contact.
+Lists: data processed on device (library index, positions, settings); optional transmissions (on hold, PRIV-002/PRIV-003, owner 2026-10-22: crash reports via self-hosted Sentry — device model, OS version, app version, stack; usage analytics via Aptabase — anonymous events, country derived from IP then discarded); third-party services the user may enable (LRCLIB, MusicBrainz and Cover Art Archive, ListenBrainz, IntroDB; ADR-048 removed every service that needs a publisher API key) with links to their policies; retention (90 days crash, 12 months aggregates); deletion/withdrawal (toggle off; email); no sale/sharing; no children's targeting; EU representative/DSA trader info; contact.
 
 ### 6.2 GDPR/CCPA posture
 

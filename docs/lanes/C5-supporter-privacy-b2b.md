@@ -22,8 +22,8 @@ CORE-012, CORE-013, SUP-001…006, PRIV-001…006, PRIV-008, B2B-001…006. PRIV
    - Transparency page (SUP-006).
 2. **Privacy:**
    - **Zero telemetry by default (PRIV-001).**
-   - **Opt-in crash reports (PRIV-002):** self-hosted Sentry with PII scrubbing (no paths, filenames or IPs) and a view-before-send. The host is an owner task (STATUS §4).
-   - **Opt-in usage analytics (PRIV-003):** Aptabase.
+   - **ON HOLD (owner 2026-10-22, ADR-048 amendment; do not build until the owner decides):** **Opt-in crash reports (PRIV-002):** self-hosted Sentry with PII scrubbing (no paths, filenames or IPs) and a view-before-send. The host is an owner task (STATUS §4).
+   - **ON HOLD (owner 2026-10-22, ADR-048 amendment; do not build until the owner decides):** **Opt-in usage analytics (PRIV-003):** Aptabase.
    - **Network allow-list (PRIV-004):** audit every endpoint any lane added to `Endpoints.all`, and add a CI test asserting that only allow-listed hosts are reachable.
    - **Parsing safety (PRIV-005):** a review across lanes, with fuzz targets wired into `nightly.yml`. Ask the orchestrator to apply the workflow edit.
    - **Credentials (PRIV-006):** only in `SecureStorageFacade`, with an audit test.

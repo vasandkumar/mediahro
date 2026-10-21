@@ -17,7 +17,7 @@ When photos come from more than one source (the phone, a folder, a network share
 
 A source that could not be reached the last time Mediahro looked shows a crossed-out cloud on its chip. Its photos stay in the timeline, from what Mediahro already knew. Their previews still show if they were made before; opening one while the source is away says it cannot be read, and works again once the source is back.
 
-Nextcloud, Immich, PhotoPrism and cloud drives are not photo sources yet; they arrive with the server connections.
+Nextcloud, Immich and PhotoPrism are not photo sources yet; they arrive with the server connections.
 
 ## What the little labels mean
 
@@ -31,4 +31,4 @@ Nextcloud, Immich, PhotoPrism and cloud drives are not photo sources yet; they a
 
 Mediahro makes small preview pictures of your photos in the background, starting with the ones you can see and then the ones near them. They are kept on the device so the next visit is instant. If previews ever take too much space, clear them in Settings; they are made again as you scroll.
 
-Pictures from a network share or cloud drive are read only when needed. Nothing in your photos is uploaded anywhere.
+Pictures from a network share are read only when needed. Nothing in your photos is uploaded anywhere.

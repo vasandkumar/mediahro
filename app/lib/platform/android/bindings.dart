@@ -19,7 +19,13 @@ import 'package:mediahro/platform/android/android_system.dart';
 import 'package:mediahro/platform/android/android_text.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
 import 'package:mediahro/platform/android/android_vault.dart';
+import 'package:mediahro/platform/android/presentation_main.dart'
+    show presentationMain;
 import 'package:mediahro/platform/platform_facades.dart';
+
+/// Dart entry points that native code starts engines at (the external-display
+/// page); referenced here so they stay in the compiled program.
+const List<Function> nativeEntryPoints = [presentationMain];
 
 /// Facade implementations for Android (Kotlin, Media3) through Pigeon files in app/pigeons/android/
 /// (lane C4a, ADR-025). Each entry overrides one provider from

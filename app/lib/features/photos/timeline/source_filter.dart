@@ -132,7 +132,7 @@ class SourceFilterBar extends StatelessWidget {
                       : null,
                   child: ChoiceChip(
                     avatar: Icon(_iconOf(s), size: 18),
-                    label: Text('${s.name} (${s.count})'),
+                    label: Text(l10n.photosSourceChip(s.name, s.count)),
                     selected: selected == s.id,
                     onSelected: (_) => onSelect(s.id),
                   ),

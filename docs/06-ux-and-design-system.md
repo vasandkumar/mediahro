@@ -72,7 +72,7 @@ Navigation surfaces:
 
 ### 3.4 Sources
 
-- List of sources with health dot, last scan, item counts; add flow: Local folder · Network share (SMB/NFS/WebDAV/FTP/SFTP) with discovery list · Media server (Jellyfin/Emby/Plex/Subsonic/Immich/Nextcloud/Audiobookshelf) · Cloud drive · DLNA · Another Mediahro.
+- List of sources with health dot, last scan, item counts; add flow: Local folder · Network share (SMB/NFS/WebDAV/FTP/SFTP) with discovery list · Media server (Jellyfin/Emby/Plex/Subsonic/Immich/Nextcloud/Audiobookshelf) · DLNA · Another Mediahro.
 - Credentials screens explain where secrets are stored; test connection before save; per-source toggles (scan schedule, metadata, include in modes).
 
 ### 3.5 Settings

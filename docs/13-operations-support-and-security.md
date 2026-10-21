@@ -62,7 +62,7 @@ Hostile media files (containers, codecs, subtitles, images, archives, playlists)
   - Crypto runs through OS APIs behind `VaultCryptoFacade`, and the vault window is excluded from screenshots and recents by `SecureWindowFacade` (ADR-039). The decoy vault is indistinguishable from the real one on entry and on disk (ADR-040).
 - **Updates:** store-signed or EdDSA-signed appcasts; installers signed; checksums and SBOM published; reproducible F-Droid builds.
 - **Supply chain:** pinned dependency hashes (`deps.lock`, pub lockfile, Gradle verification metadata, SPM resolved); Dependabot/Renovate; SBOM diff review; `mediahro-deps` built from tagged upstream sources with verified signatures where available; GitHub Actions pinned by SHA; release environment with required reviewers.
-- **Secrets:** none in the repo; API keys for third-party services bundled per flavour with rate limits and revocation plan; app never holds user passwords in memory longer than needed.
+- **Secrets:** none in the repo; no publisher-held API keys, app keys or OAuth client IDs (ADR-048); users supply their own tokens (ListenBrainz) and store them in the OS keystore; app never holds user passwords in memory longer than needed.
 - **Privacy:** telemetry opt-in; PII scrubbing; data map in PRIVACY.md; access to the VPS limited to the owner with hardware keys.
 - **Permissions:** least privilege per doc 07; no all-files access; no location; no contacts.
 

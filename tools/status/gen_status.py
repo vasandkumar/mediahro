@@ -63,6 +63,8 @@ def main() -> None:
             rows.append("|---|---|---|:-:|:-:|:-:|:-:|---|")
         st = f.platform_state()
         notes = "" if f.release_raw == "1.0" else f"Rel. {f.release_raw}"
+        if f.removed:
+            notes = "Removed from 1.0 by owner decision."
         rows.append(
             f"| {f.fid} | {f.name} | {lane_for(f.fid)} | "
             + " | ".join(cell(st[p]) for p in features.PLATFORMS)

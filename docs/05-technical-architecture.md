@@ -20,7 +20,7 @@ Version 1.0 · 2026-10-19 · Synthesises `research/04` and `research/03`. This d
 ├─────────────────┬────────────────────────┬────────────────────────────────────┤
 │ Playback engine │ Image engine           │ Platform services (native)          │
 │ libmpv (LGPL)   │ libvips + libjxl +     │ Kotlin: Media3 session, SAF,        │
-│ via dart:ffi,   │ libavif + LibRaw +     │   MediaStore, Cast SDK, bit-perfect │
+│ via dart:ffi,   │ libavif + LibRaw +     │   MediaStore, bit-perfect           │
 │ mpv_render_ctx  │ libheif(platform-first)│ Swift: AVAudioSession, NowPlaying,  │
 │ → Flutter       │ via dart:ffi; OS       │   PiP, PhotoKit, AirPlay, CarPlay   │
 │ Texture         │ decoders first         │ C++/WinRT: SMTC, WASAPI, WIC, MSIX  │
@@ -142,7 +142,7 @@ Music playback uses the same `MpvEngine` instance pool (one for video, one for m
 
 ### 4.5 Casting pipeline
 
-Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` chooses passthrough (MP4/H.264/AAC), remux (MKV→fMP4 via FFmpeg libavformat) or transcode (FFmpeg + hardware encoder via MediaCodec/VideoToolbox/D3D12 where available) based on receiver capabilities. Subtitles converted to WebVTT. Cast senders: Cast SDK (A I, Play/App Store flavours), Open Screen `libcast` (M W, FOSS flavour), AirPlay (I M) via `AVPlayer` on an HLS URL from the same server, DLNA via AVTransport.
+Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` chooses passthrough (MP4/H.264/AAC), remux (MKV→fMP4 via FFmpeg libavformat) or transcode (FFmpeg + hardware encoder via MediaCodec/VideoToolbox/D3D12 where available) based on receiver capabilities. Subtitles converted to WebVTT. Cast senders: open CASTv2 sender in Dart on every platform and flavour (no Google Cast SDK, ADR-035), AirPlay (I M) via `AVPlayer` on an HLS URL from the same server, DLNA via AVTransport.
 
 ## 5. Image pipeline
 
@@ -181,7 +181,7 @@ Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` cho
 | Android (Kotlin) | `MediaSessionModule` | Media3 `MediaSessionService`, notification, Android Auto `MediaLibraryService`, Assistant |
 | | `StorageModule` | SAF trees, MediaStore queries/observers, Photo Picker, `READ_MEDIA_VISUAL_USER_SELECTED`, trash via `MediaStore.createTrashRequest` |
 | | `AudioModule` | `setPreferredMixerAttributes` bit-perfect, AAudio device enumeration, AVRCP, audio focus |
-| | `CastModule` | Cast SDK (Play flavour only) |
+| | `CastModule` | Removed (ADR-035): CAST-001 is the open CASTv2 sender in Dart (C4d) on every flavour, so there is no Android cast code |
 | | `PipModule`, `DisplayModule` (frame-rate switching `Surface.setFrameRate`/`preferredDisplayModeId`), `KioskModule` (lock task), `ManagedConfigModule` |
 | iOS/macOS (Swift) | `AudioSessionModule` | `AVAudioSession`, Now Playing, remote commands, AirPlay route picker, CarPlay templates |
 | | `PipModule` | `AVPictureInPictureController` with `AVSampleBufferDisplayLayer` fed by engine frames |
@@ -202,7 +202,7 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 - Server clients generated from OpenAPI (Jellyfin, Immich, Audiobookshelf) or hand-written (Plex, Subsonic, Emby, Nextcloud) in `mediahro_servers`, with a common `ServerLibrary` interface (browse, search, stream URL, progress, download).
 - Discovery: mDNS/DNS-SD (`_smb._tcp`, `_webdav._tcp`, `_googlecast._tcp`, `_airplay._tcp`, `_http._tcp`, `_jellyfin._tcp`), SSDP (needs multicast entitlement on Apple), WS-Discovery/NetBIOS for Windows shares.
 - TLS: platform stacks; certificate pinning not used (self-hosted servers); self-signed certificates accepted per-server after explicit fingerprint confirmation.
-- Allow-list: the only Mediahro-controlled endpoints are `api.mediahro.com` (feature flags/static JSON on GitHub Pages) and the opt-in Sentry/Aptabase hosts; third-party endpoints (OpenSubtitles, TMDB, LRCLIB, MusicBrainz, ListenBrainz/Last.fm, IntroDB, AcoustID) each sit behind a user toggle (PRIV-004). There is no map-tile endpoint (ADR-041).
+- Allow-list: the only Mediahro-controlled endpoints are `api.mediahro.com` (feature flags/static JSON on GitHub Pages) and the opt-in Sentry/Aptabase hosts (on hold: PRIV-002/PRIV-003 are not built until the owner decides); third-party endpoints (LRCLIB, MusicBrainz and Cover Art Archive, ListenBrainz, IntroDB) each sit behind a user toggle (PRIV-004). Hosts that need a publisher API key are not on the list (ADR-048: OpenSubtitles, Subdl, Podnapisi, TMDB, TheTVDB, Last.fm, Libre.fm, Trakt, AcoustID, cloud-drive OAuth hosts). There is no map-tile endpoint (ADR-041).
 
 ## 10. Native dependency matrix (versions pinned in `mediahro-deps`)
 
@@ -226,12 +226,11 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 | libcurl + libssh2 | current | curl / BSD-3 | any | TLS via OS backends (Schannel/SecureTransport/Android) |
 | libarchive | 3.x | BSD-2 | any | ZIP/RAR/7z/CBZ (RAR5 via unrar-free codepath only) |
 | libebur128 | 1.2 | MIT | any | |
-| chromaprint | 1.6 | LGPL-2.1+ | dynamic | AcoustID |
+| chromaprint | 1.6 | LGPL-2.1+ | dynamic | LIB-014 audio duplicates only (AcoustID lookup removed, ADR-047) |
 | whisper.cpp | current | MIT | any | model downloaded on demand |
 | uchardet | 0.0.8 | MPL-1.1 | any | |
 | SQLite | 3.4x bundled (A, W); system on I, M (≥ 3.30, §6) | public domain | any | FTS5 and JSON required, never stripped |
-| Open Screen libcast | current | BSD-3 | any | desktop/FOSS Cast sender |
-| Google Cast SDK | current | proprietary | Play/App Store flavours only | excluded from FOSS |
+| Open CASTv2 sender (Dart, ADR-035) | current | project code | any | CAST-001 on every flavour; replaces Open Screen libcast and the Google Cast SDK; no Google Cast SDK in any build |
 | Sentry Flutter, Aptabase Flutter | current | MIT | any | opt-in, FOSS flavour excludes Sentry if non-FOSS deps |
 
 All `.so` built with NDK r28+ (16 KB page alignment), all Apple binaries as dynamic `.xcframework`s signed by us, Windows as `.dll`s next to the executable. A CI licence scan fails the build if any artefact's configure flags or linked symbols indicate GPL code.
@@ -240,9 +239,9 @@ All `.so` built with NDK r28+ (16 KB page alignment), all Apple binaries as dyna
 
 | Flavour | Stores | Differences |
 |---|---|---|
-| `store` | App Store, Mac App Store, Google Play, Microsoft Store | IAP rails; Cast SDK (A I); platform ML; sandbox (MAS) |
+| `store` | App Store, Mac App Store, Google Play, Microsoft Store | IAP rails; platform ML; sandbox (MAS); open CASTv2 sender on all flavours (ADR-035) |
 | `direct` | Direct macOS DMG (notarised), Windows installer + winget | Web supporter links; Sparkle/own updater; no sandbox (M) |
-| `foss` | F-Droid, GitHub releases | No proprietary SDKs (no Cast SDK → Open Screen; no ML Kit; no Sentry if required); donation links; reproducible |
+| `foss` | F-Droid, GitHub releases | No proprietary SDKs (no Google Cast SDK, ADR-035; no ML Kit; no Sentry if required); donation links; reproducible |
 | `enterprise` | MDM/custom app distribution | Managed config defaults; branding hooks; commercial licence |
 
 Flavour differences are compile-time (`--dart-define=MEDIAHRO_FLAVOR=`) and Gradle/Xcode configurations; feature code checks `Flavor` only through a `Capabilities` service.
@@ -255,7 +254,7 @@ Flavour differences are compile-time (`--dart-define=MEDIAHRO_FLAVOR=`) and Grad
 | 002 | No GPL in binaries; LGPL dynamic; Exiv2/x264/x265/rubberband/libdvdcss excluded | Accepted |
 | 003 | OS decoders first for HEVC/HEIC/DV/AAC; software fallback | Accepted |
 | 004 | Own thin `dart:ffi` wrapper over `mpv_render_context` instead of depending on media_kit's Dart layer (use its prebuilts only during bootstrap, replaced by `mediahro-deps`) | Accepted |
-| 005 | Telemetry opt-in only; Sentry self-hosted + Aptabase | Accepted |
+| 005 | Telemetry opt-in only; Sentry self-hosted + Aptabase (PRIV-002/PRIV-003 on hold, ADR-048 amendment) | Accepted |
 | 006 | SQLite/drift with FTS5; no cloud backend | Accepted |
 | 007 | No torrent, no IPTV lists, no add-on marketplace | Accepted |
 | 008 | Vault encryption design (AES-256-GCM chunks, OS-wrapped key) | Accepted |
@@ -297,6 +296,8 @@ Flavour differences are compile-time (`--dart-define=MEDIAHRO_FLAVOR=`) and Grad
 | 044 | **External-display presentations (IMG-012 slideshow, CAST-004; orchestrator, 2026-10-21).** **Context:** `DisplayFacade` can list external displays but cannot draw on one; the slideshow and CAST-004 need content on an external screen while the controls stay on the device. **Decision:** `DisplayFacade` gains `Future<PresentationHandle?> openPresentation(String displayId)` and `Future<void> closePresentation(PresentationHandle handle)`. `PresentationHandle` (immutable: `id` int, `displayId` String) exposes an id the app uses to render into a separate Flutter view or surface for that display; `openPresentation` returns null when the platform cannot do it. Android: `android.app.Presentation` hosting a `FlutterView` or a texture fed by the same engine. iOS: a `UIScene` on the external `UIScreen`. macOS and Windows: a second window on that display. Only the app's own rendering is shown; no DRM-protected or vault (sensitive, ADR-043) content is sent to an external display unless the user confirms. A presentation closes automatically when its display disconnects (the `changes` stream). **Consequences:** C4a implements Android; C4b and C4c implement the other platforms later; C3 uses it for the slideshow; C4d for CAST-004. Until then every implementation returns null and `closePresentation` is a no-op. **Amendment 1 (2026-10-21, orchestrator):** Android cannot attach a second FlutterView to the primary engine, so a presentation hosts a spawned engine (entrypoint `presentationMain`) that shows only what the app sends. DisplayFacade gains `Future<void> present(PresentationHandle handle, PresentationFrame frame)`; `PresentationFrame` = { `Uint8List? image` (encoded, already decoded/rotated/colour-managed by the sender; null clears to black), `BoxFit fit`, `PresentationTransition transition` (none, crossfade), `Duration transitionDuration`, `PresentationMotion? motion` (from/to normalised rects + duration for Ken Burns; null under reduced motion), `String? caption` }. iOS: UIImageView in the external UIScene; macOS/Windows: borderless second window. Video on external displays (CAST-004) is a later ADR. | Accepted (2026-10-21, orchestrator) |
 | 045 | **`PlaybackEngine.audioRouteChanged` (AUD-043 DoP safety; orchestrator, 2026-10-21).** **Context:** B1's PR #102 added `audioRouteChanged()` to `MpvEngine` as `@visibleForTesting`. It re-checks a playing DoP item after an OS audio route change (re-requests bit-perfect on Android and iOS, then verifies the stream or reopens the item as PCM). The app cannot call it, because the engine pool hands out the `PlaybackEngine` interface (and `CrossfadingEngine`). **Decision:** `PlaybackEngine` gains `Future<void> audioRouteChanged()`, called by the platform layer when the OS audio route changes (device added or removed, output becoming noisy). `MpvEngine` makes its existing method public (the `@visibleForTesting` annotation is dropped). `CrossfadingEngine` forwards to both cores. The Unavailable engine and the fakes are no-ops. **Consequences:** C4a adds a debounced `AudioRouteWatcher` (Android) wired from the engine providers; native DSD is offered in the UI only once the watcher is wired. | Accepted (2026-10-21, orchestrator) |
 | 046 | **On-device face grouping with YuNet + SFace (IMG-005 People, owner decision 2026-10-21).** Detection: OpenCV Zoo YuNet (face_detection_yunet, MIT, ~0.23 MB) for boxes and 5 landmarks; alignment by 5-point similarity transform in Dart; embedding: OpenCV Zoo SFace int8 (face_recognition_sface, Apache-2.0 as declared by the Zoo, ~9.9 MB, 128-d, LFW 0.993). Runtime: a minimal custom ONNX Runtime build (MIT) in mediahro-deps limited to the operators these two models use (~4–5 MB per ABI), reached through ffigen bindings in packages/mediahro_ffi, inference in an isolate. Everything runs on the device; nothing is uploaded; MediaPipe, ML Kit, InsightFace/ArcFace (non-commercial) and FaceNet (no weights licence) are rejected. Model files are pinned by SHA-256 in mediahro-deps with their LICENSE texts and a provenance note: the SFace weights' training data is not stated by upstream (opencv_zoo issues #313/#318), accepted by the owner as a known risk; revisit if upstream clarifies. Embeddings and person clusters are stored only in the encrypted-at-rest app database scope used for photo metadata, never exported, and are deleted with the photo or when People is turned off; People is off by default (opt-in). Vault items are never analysed. | Accepted (2026-10-21, owner) |
+| 047 | **MUS-010 fingerprinting removed from 1.0 (owner).** Identifying untagged tracks needs the AcoustID web service and an API key; the owner chose not to depend on an external API key, so MUS-010 is removed from 1.0 and no AcoustID host is added to the PRIV-004 allow-list. Chromaprint stays in mediahro-deps only if another feature uses it; otherwise it may be dropped from the Android archive to save size. | Accepted (2026-10-22, owner) |
+| 048 | **Features needing a publisher API key removed (owner, 2026-10-22).** Owner decision: "Except ListenBrainz, remove the rest which requires API key or any key." Rule: 1.0 ships no feature, or feature part, that needs an API key, app key, OAuth client ID/secret or paid API that the app publisher would have to obtain. Kept: ListenBrainz (the user supplies their own token); anything that needs only the end user's own credentials (their SMB, NFS, WebDAV, SFTP, FTP, DLNA, Plex, Jellyfin, Emby, Immich, Nextcloud, PhotoPrism, Audiobookshelf servers; user-added radio and podcast feeds); Google Play Billing; the open CASTv2 sender; on-device features; and keyless public services (MusicBrainz web service with a User-Agent, Cover Art Archive, LRCLIB, IntroDB anonymous reads). **Removed:** NET-007 (cloud drives: Google Drive, OneDrive, Dropbox, Box, pCloud, MEGA, Yandex, Proton Drive; each needs a registered OAuth client). **Narrowed:** LIB-010 (Trakt sync removed; Jellyfin/Emby/Plex stay), LIB-011 (TMDB/TVDB scraping removed; filename parser, NFO, local artwork sidecars, server-provided metadata and manual match stay), LIB-012 (TMDB collections removed), SUB-020 (OpenSubtitles.com and Subdl removed; Podnapisi stays, keyless status to be confirmed by the owner), MUS-009 (Last.fm and Libre.fm removed; ListenBrainz stays), IMG-016 (cloud drives removed). Earlier removals that this ADR joins: MUS-010 (ADR-047), photo map tiles (ADR-041). **Consequences:** the OpenSubtitles, Subdl, TMDB, TheTVDB, Last.fm, Libre.fm, Trakt and AcoustID hosts leave the PRIV-004 allow-list (§9 and `Endpoints` in app/lib/core/net/network_policy.dart, which the lanes remove under this ADR), together with their privacy-dashboard rows and strings; the OAuth cloud-drive code and the "Cloud drive" add-source entry go; the owner tasks for these keys and client IDs are cancelled (STATUS §4). **Rule from now on: any feature that needs an API key, OAuth client ID or paid API is raised with the owner before any work starts.** **Amendment (2026-10-22, owner):** SUB-020 online subtitle search removed entirely (Podnapisi too); Libre.fm stays removed; no bring-your-own-key options; PRIV-002/PRIV-003 crash reports and analytics on hold until the owner decides. | Accepted (2026-10-22, owner) |
 
 ## 13. Risks and mitigations
 

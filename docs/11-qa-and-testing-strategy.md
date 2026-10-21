@@ -6,7 +6,7 @@ Version 1.0 · 2026-10-19 · Every acceptance criterion in doc 04 maps to at lea
 
 | Layer | Tooling | Scope | Gate |
 |---|---|---|---|
-| Unit | `dart test` | Parsers (tags, subtitles, playlists, XMP), smart-rule engine, filename parser (TMDB matcher), queue logic, DSP math (EQ coefficients, R128), settings, managed-config overlay, server client mappers | Every PR, 100 % of core packages; coverage ≥ 85 % on `core/`, `mediahro_subtitles`, `mediahro_servers` |
+| Unit | `dart test` | Parsers (tags, subtitles, playlists, XMP), smart-rule engine, filename parser, queue logic, DSP math (EQ coefficients, R128), settings, managed-config overlay, server client mappers | Every PR, 100 % of core packages; coverage ≥ 85 % on `core/`, `mediahro_subtitles`, `mediahro_servers` |
 | FFI contract | `dart test` with native libs | mpv property/command round-trips, vips decode of each format, smb2/nfs/curl virtual-file read/seek, archive listing | Every PR (desktop runners) |
 | Widget / golden | `flutter_test` | Every screen per platform family theme, light/dark, 3 text scales, RTL, reduced motion | Every PR; goldens per platform family |
 | Integration | `integration_test` on emulator/simulator/desktop | End-to-end flows: open file → play → seek → subtitle → PiP; add SMB source → scan → play; music queue/gapless; gallery scroll; vault; IAP sandbox; managed config | Every PR (smoke) + nightly (full) |

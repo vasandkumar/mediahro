@@ -6,4 +6,6 @@
     <!-- Deleted photos wait here for 30 days (IMG-014); a backup would keep
          them past their deletion. -->
     <exclude domain="file" path="photo-trash" />
+    <!-- Where comics were left off (IMG-017): reading history stays on the device. -->
+    <exclude domain="file" path="photos-private" />
 </full-backup-content>
