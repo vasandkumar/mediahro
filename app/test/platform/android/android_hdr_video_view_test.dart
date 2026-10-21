@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/platform/android/android_hdr_video_view.dart';
@@ -41,6 +43,30 @@ void main() {
       (_) {},
     );
     await seen;
+  });
+
+  test('VID-031 ready retries until the native view exists', () async {
+    const channel = MethodChannel('mediahro/hdr_video/10');
+    final surface = AndroidHdrVideoSurface(10);
+    addTearDown(surface.dispose);
+    final result = surface.ready(retryEvery: const Duration(milliseconds: 10));
+    // The view appears after a few attempts.
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    messenger.setMockMethodCallHandler(channel, (call) async => true);
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    expect(await result, isTrue);
+  });
+
+  test('VID-031 ready gives up when no view is ever created', () async {
+    final surface = AndroidHdrVideoSurface(11);
+    addTearDown(surface.dispose);
+    await expectLater(
+      surface.ready(
+        timeout: const Duration(milliseconds: 80),
+        retryEvery: const Duration(milliseconds: 10),
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
   });
 
   test('VID-031 the view type is the one the native factory registers', () {
