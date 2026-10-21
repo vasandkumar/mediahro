@@ -1,13 +1,13 @@
 # Corpus samples made with external tools
 
-`test-media/corpus/*` (Git LFS) holds synthetic files that FFmpeg cannot make. They are our own signals (a 440 Hz sine, `testsrc2`), so they carry no third-party content; the tools below are only used to write them and are never shipped. `tools/corpus/generate.dart` copies them into the generated corpus (`_prebuilt`).
+`test-media/corpus/*` (Git LFS) holds synthetic files that FFmpeg cannot make. The FFmpeg used (gyan.dev full build) contains GPL encoders (`libx265`, `libx264`); the project's own FFmpeg stays LGPL (docs/09). They are our own signals (a 440 Hz sine, `testsrc2`), so they carry no third-party content; the tools below are only used to write them and are never shipped. `tools/corpus/generate.dart` copies them into the generated corpus (`_prebuilt`).
 
 | File | Tool | Licence |
 |---|---|---|
 | `ape_tone.ape` | Monkey's Audio SDK 13.42 (`MAC` console encoder) | "Monkey's Audio License Agreement (3 clause BSD)" |
 | `mpc_tone.mpc` | `mpcenc` 1.30.1 (Musepack `musepack_src_r475`) | LGPL-2.1-or-later (used as an offline test-data generator only; its output is plain data) |
-| `dv_p81.mp4`, `dv_p81.mkv` | `dovi_tool` 2.3.3 (MIT) + FFmpeg 8.1 | MIT |
-| `hdr10p.mp4`, `hdr10p.mkv` | `hdr10plus_tool` 1.7.2 (MIT) + FFmpeg 8.1 | MIT |
+| `dv_p81.mp4`, `dv_p81.mkv` | `dovi_tool` 2.3.3 (MIT) + FFmpeg 8.1 with `libx265` for the base stream | tool MIT; **libx265 is GPL-2.0+**, used only as an offline test-data generator (never shipped, linked or committed; only the output files are) |
+| `hdr10p.mp4`, `hdr10p.mkv` | `hdr10plus_tool` 1.7.2 (MIT) + FFmpeg 8.1 with `libx265` for the base stream | tool MIT; libx265 as above |
 
 SHA-256 of the committed files: see `test-media/LICENSES.md`.
 

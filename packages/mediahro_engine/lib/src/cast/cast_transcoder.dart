@@ -87,7 +87,7 @@ final class CastTranscoder {
       if (encoder == 'libvpx' && !receiver.videoCodecs.contains('vp8')) {
         continue;
       }
-      final dir = await Directory.systemTemp.createTemp('mediahro-cast');
+      final dir = await createScratch('cast');
       try {
         final t = await _launch(
           source,
@@ -104,7 +104,7 @@ final class CastTranscoder {
         return t;
       } on Object catch (e) {
         lastError = e;
-        await dir.delete(recursive: true).catchError((Object _) => dir);
+        await deleteScratch(dir);
       }
     }
     throw StateError('no cast encoder available: $lastError');
@@ -201,7 +201,7 @@ final class CastTranscoder {
     await _client.destroy();
     await _protocol?.dispose();
     if (!_done.isCompleted) _done.complete();
-    await directory.delete(recursive: true).catchError((Object _) => directory);
+    await deleteScratch(directory);
   }
 }
 

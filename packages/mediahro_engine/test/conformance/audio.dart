@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart' show loudnessGainDb;
@@ -400,6 +401,502 @@ void audioSuite() {
     }, skip: skip);
 
     test(
+      'AUD-043 native DSD plays as DoP, bit-exact under volume and speed',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('mh-dop');
+        addTearDown(() => dir.delete(recursive: true));
+        final out = '${dir.path}${Platform.pathSeparator}dop.pcm';
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': out,
+            'ao-pcm-waveheader': 'no',
+            'ao-pcm-append': 'yes',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        // Gain, speed and a DSP chain would corrupt DoP; the engine ignores
+        // them for the item.
+        await e.setVolume(0.5);
+        await e.setRate(1.5);
+        await e.setAudioDsp(
+          const AudioDspChain(loudness: LoudnessMode.ebuR128),
+        );
+        await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        final playing = await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop && s.audio.sampleRate != null,
+          reason: 'DoP output path',
+        );
+        expect(playing.audio.sampleRate, 176400, reason: 'DSD64 / 16');
+        expect(playing.audio.bitDepth, anyOf(24, 32));
+        await waitFor(
+          e,
+          (s) => s.status == PlaybackStatus.ended,
+          timeout: const Duration(seconds: 30),
+          reason: 'DSD played to the end',
+        );
+        var last = -1;
+        for (var i = 0; i < 30; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          final size = File(out).lengthSync();
+          if (size == last) break;
+          last = size;
+        }
+        final pcm = ByteData.sublistView(File(out).readAsBytesSync());
+        final frames = pcm.lengthInBytes ~/ 8;
+        // 2 s of DSD64 is 352,800 DoP frames.
+        expect(frames, closeTo(352800, 2000));
+        // The source: the first block of each channel, bits oldest-first.
+        final src = File(corpusPath('dsd64.dsf')).readAsBytesSync();
+        int rev(int b) {
+          var r = 0;
+          for (var i = 0; i < 8; i++) {
+            if (b & (1 << i) != 0) r |= 1 << (7 - i);
+          }
+          return r;
+        }
+
+        const dataAt = 92;
+        const block = 4096;
+        for (var f = 0; f < block ~/ 2; f++) {
+          for (var c = 0; c < 2; c++) {
+            final v = pcm.getInt32((f * 2 + c) * 4, Endian.little);
+            final marker = (v >> 24) & 0xFF;
+            expect(marker, f.isEven ? 0x05 : 0xFA, reason: 'marker at $f');
+            final older = rev(src[dataAt + c * block + 2 * f]);
+            final newer = rev(src[dataAt + c * block + 2 * f + 1]);
+            expect((v >> 16) & 0xFF, older, reason: 'older byte at $f/$c');
+            expect((v >> 8) & 0xFF, newer, reason: 'newer byte at $f/$c');
+          }
+        }
+        // The markers alternate for the whole stream, with no gap or repeat.
+        for (var f = 0; f < frames; f += 97) {
+          final marker = (pcm.getInt32(f * 8, Endian.little) >> 24) & 0xFF;
+          expect(marker, f.isEven ? 0x05 : 0xFA, reason: 'marker at $f');
+        }
+      },
+      skip: skip,
+    );
+
+    // DoP to a device that does not decode it is noise, so each condition
+    // of the guard is tested on its own: the engine plays PCM instead.
+    Future<PlaybackState> dsdWith({
+      required AudioOutputConfig config,
+      Map<String, String> options = const {},
+    }) async {
+      final dir = await Directory.systemTemp.createTemp('mh-dopg');
+      addTearDown(() => dir.delete(recursive: true));
+      final e = headlessEngine(
+        role: EngineRole.music,
+        nullAudio: false,
+        extraOptions: {
+          'ao': 'pcm',
+          'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+          'ao-pcm-waveheader': 'no',
+          'audio-format': 's32',
+          ...options,
+        },
+      );
+      addTearDown(e.dispose);
+      await e.setAudioOutput(config);
+      await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+      final playing = await waitPlaying(e);
+      return playing;
+    }
+
+    test('AUD-043 DoP needs an exclusive output', () async {
+      final s = await dsdWith(
+        config: const AudioOutputConfig(
+          nativeDsd: true,
+          passthroughCodecs: ['dop'],
+        ),
+      );
+      expect(s.error, isNull);
+      expect(s.audio.path, isNot(AudioOutputPath.dop));
+    }, skip: skip);
+
+    test('AUD-043 DoP needs the device to be listed as taking it', () async {
+      final s = await dsdWith(
+        config: const AudioOutputConfig(nativeDsd: true, exclusive: true),
+      );
+      expect(s.error, isNull);
+      expect(s.audio.path, isNot(AudioOutputPath.dop));
+    }, skip: skip);
+
+    test(
+      'AUD-043 DoP is dropped when the opened output is not 24-bit',
+      () async {
+        // A 16-bit output would truncate the markers: PCM conversion instead.
+        final s = await dsdWith(
+          config: _dopOutput,
+          options: {'audio-format': 's16'},
+        );
+        expect(s.error, isNull);
+        expect(s.audio.path, isNot(AudioOutputPath.dop));
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 a DSD item is not joined gaplessly to the one before',
+      () async {
+        final e = headlessEngine(role: EngineRole.music);
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))));
+        await waitPlaying(e);
+        await e.setNext(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        expect(
+          e.current.nextPrepared,
+          isFalse,
+          reason: 'opened by the app later',
+        );
+        await e.setNext(UriSource(Uri.file(corpusPath('gapless_flac_2.flac'))));
+        expect(e.current.nextPrepared, isTrue);
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 DoP needs a named device, never the system default',
+      () async {
+        final s = await dsdWith(
+          config: const AudioOutputConfig(
+            nativeDsd: true,
+            exclusive: true,
+            passthroughCodecs: ['dop'],
+          ),
+        );
+        expect(s.error, isNull);
+        expect(s.audio.path, isNot(AudioOutputPath.dop));
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 a DoP item is pinned to its device and falls back to null',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('mh-dopp');
+        addTearDown(() => dir.delete(recursive: true));
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+            'ao-pcm-waveheader': 'no',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(e, (s) => s.audio.path == AudioOutputPath.dop);
+        // If the DAC goes away mpv must open its silent null output, not the
+        // speaker; and the device is the named one, not 'auto'.
+        expect(await prop(e, 'audio-device'), 'pcm/dac');
+        expect(await prop(e, 'audio-fallback-to-null'), isTrue);
+        // The next item is ordinary: the setting is the item's own.
+        await e.open(UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))));
+        await waitPlaying(e);
+        expect(await prop(e, 'audio-fallback-to-null'), isFalse);
+        expect(await prop(e, 'audio-device'), 'pcm/dac');
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 mpv losing the pinned device on its own leads to PCM',
+      () async {
+        // The observer path: nobody calls the engine, mpv itself loses the
+        // device (a driver that does not exist stands in for an unplugged
+        // DAC). The item is paused with its output open, so nothing can have
+        // been written; the engine finds mpv on its null output, which is not
+        // the DAC, and plays the file as PCM on the chosen output.
+        final dir = await Directory.systemTemp.createTemp('mh-dopv');
+        addTearDown(() => dir.delete(recursive: true));
+        final file = File('${dir.path}${Platform.pathSeparator}o.pcm');
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': file.path,
+            'ao-pcm-waveheader': 'no',
+            'ao-pcm-append': 'yes',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop &&
+              s.status == PlaybackStatus.paused,
+        );
+        await e.debugSetMpvProperty('audio-device', 'nonexistent/dac');
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path != AudioOutputPath.dop &&
+              s.audio.path != AudioOutputPath.unknown,
+          reason: 'PCM after the device was lost',
+        );
+        expect(
+          await prop(e, 'audio-device'),
+          'pcm/dac',
+          reason: 'chosen output',
+        );
+        await e.play();
+        await waitFor(
+          e,
+          (s) => s.status == PlaybackStatus.ended,
+          timeout: const Duration(seconds: 30),
+        );
+        expect(e.current.error, isNull);
+        final d = ByteData.sublistView(file.readAsBytesSync());
+        var run = 0;
+        var longest = 0;
+        for (var i = 0; i + 1 < d.lengthInBytes ~/ 8; i++) {
+          final m = (d.getInt32(i * 8, Endian.little) >> 24) & 0xFF;
+          final n = (d.getInt32((i + 1) * 8, Endian.little) >> 24) & 0xFF;
+          run = (m == 0x05 && n == 0xFA) || (m == 0xFA && n == 0x05)
+              ? run + 1
+              : 0;
+          if (run > longest) longest = run;
+        }
+        expect(longest, lessThan(64), reason: 'no DoP frames were written');
+        expect(d.lengthInBytes, greaterThan(100000), reason: 'the item played');
+      },
+      skip: skip,
+    );
+
+    // A DoP stream must not reach a changed output unchecked (device,
+    // exclusivity, native DSD off, the OS moving the route): the engine
+    // pauses first, checks, and plays PCM from the same place if the output
+    // no longer carries the stream. The capture is the output file; the
+    // item is opened paused, with its output verified and open, so that not a
+    // single frame can have been written before the change (the capture
+    // output runs faster than real time, so a change mid-playback cannot be
+    // timed; the same code path runs, with the item playing, on a device).
+    group('AUD-043 DoP is re-checked while playing', () {
+      Future<(MpvEngine, File)> startDop({
+        AudioBridge? bridge,
+        EnginePlatform? platform,
+      }) async {
+        final dir = await Directory.systemTemp.createTemp('mh-dopr');
+        addTearDown(() => dir.delete(recursive: true));
+        final file = File('${dir.path}${Platform.pathSeparator}o.pcm');
+        final options = {
+          'ao': 'pcm',
+          'ao-pcm-file': file.path,
+          'ao-pcm-waveheader': 'no',
+          'ao-pcm-append': 'yes',
+          'audio-format': 's32',
+        };
+        final e = MpvEngine(
+          EngineRole.music,
+          config: MpvEngineConfig(
+            platform: platform,
+            video: VideoOutputMode.none,
+            libmpvPath: env.libmpvPath,
+            audioBridge: bridge,
+            extraOptions: options,
+          ),
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(
+          UriSource(Uri.file(corpusPath('dsd64.dsf'))),
+          opts: const OpenOptions(autoplay: false),
+        );
+        await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop &&
+              s.status == PlaybackStatus.paused,
+          reason: 'DoP opened and verified, paused',
+        );
+        return (e, file);
+      }
+
+      // Which captured frames (stereo s32) are DoP: the marker bytes
+      // 0x05 / 0xFA alternating over at least 64 frames in a row.
+      List<bool> dopFrames(File f) {
+        final d = ByteData.sublistView(f.readAsBytesSync());
+        final n = d.lengthInBytes ~/ 8;
+        int marker(int i) => (d.getInt32(i * 8, Endian.little) >> 24) & 0xFF;
+        final dop = List.filled(n, false);
+        var run = 0;
+        for (var i = 0; i < n; i++) {
+          final m = marker(i);
+          final alternates =
+              (m == 0x05 || m == 0xFA) && (i == 0 || marker(i - 1) != m);
+          run = alternates ? run + 1 : 0;
+          if (run >= 64) {
+            for (var k = i - 63; k <= i; k++) {
+              dop[k] = true;
+            }
+          }
+        }
+        return dop;
+      }
+
+      // The item was paused with nothing written, so after the change not a
+      // single frame of the capture may be DoP, and the item must have gone
+      // on (as PCM).
+      void expectNoDop(File f) {
+        final dop = dopFrames(f);
+        expect(dop.length, greaterThan(100000), reason: 'the item went on');
+        expect(dop.any((x) => x), isFalse, reason: 'DoP frames emitted');
+      }
+
+      Future<void> untilEnded(MpvEngine e) => waitFor(
+        e,
+        (s) => s.status == PlaybackStatus.ended,
+        timeout: const Duration(seconds: 30),
+      );
+
+      test('AUD-043 a non-exclusive output mid-DoP leads to PCM', () async {
+        final (e, file) = await startDop();
+        expect(file.lengthSync(), 0, reason: 'nothing written yet');
+        await e.setAudioOutput(
+          const AudioOutputConfig(nativeDsd: true, passthroughCodecs: ['dop']),
+        );
+        await e.play();
+        await untilEnded(e);
+        expect(e.current.error, isNull);
+        expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+        expectNoDop(file);
+      }, skip: skip);
+
+      test('AUD-043 native DSD switched off mid-DoP leads to PCM', () async {
+        final (e, file) = await startDop();
+        expect(file.lengthSync(), 0, reason: 'nothing written yet');
+        await e.setAudioOutput(
+          const AudioOutputConfig(exclusive: true, passthroughCodecs: ['dop']),
+        );
+        await e.play();
+        await untilEnded(e);
+        expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+        expectNoDop(file);
+      }, skip: skip);
+
+      test(
+        'AUD-043 an unchanged output is re-checked and DoP goes on',
+        () async {
+          final (e, file) = await startDop();
+          await e.setAudioOutput(
+            _dopOutput.copyWith(
+              latencyOffset: const Duration(milliseconds: 20),
+            ),
+          );
+          await e.play();
+          await untilEnded(e);
+          expect(e.current.audio.path, AudioOutputPath.dop);
+          final dop = dopFrames(file);
+          expect(dop.length, closeTo(352800, 4000));
+          expect(
+            dop.where((x) => !x).length,
+            lessThan(200),
+            reason: 'the whole stream stays DoP, marker order unbroken',
+          );
+        },
+        skip: skip,
+      );
+
+      test(
+        'AUD-043 the OS moving the route off the DAC mid-DoP leads to PCM',
+        () async {
+          final results = <String, Object?>{
+            'prefer': {
+              'applied': true,
+              'bitPerfect': true,
+              'sampleRate': 176400,
+              'device': 'USB DAC',
+            },
+          };
+          final (e, file) = await startDop(
+            platform: EnginePlatform.android,
+            bridge: AudioBridge(
+              channel: MethodChannel(
+                'mh/test/audio',
+                const StandardMethodCodec(),
+                _FakeMessenger(results),
+              ),
+            ),
+          );
+          expect(file.lengthSync(), 0, reason: 'nothing written yet');
+          // The DAC is unplugged: the OS no longer grants the path.
+          results['prefer'] = {'applied': false, 'bitPerfect': false};
+          await e.audioRouteChanged();
+          await e.play();
+          await untilEnded(e);
+          expect(e.current.audio.path, isNot(AudioOutputPath.dop));
+          expectNoDop(file);
+        },
+        skip: skip,
+      );
+    });
+
+    for (final (granted, expectDop) in [(false, false), (true, true)]) {
+      test('AUD-043 on a phone the OS must grant the bit-perfect path '
+          '(granted: $granted)', () async {
+        // The OS answers the bit-perfect request through a fake messenger
+        // (no Flutter test binding, which would break the HTTP tests).
+        final channel = MethodChannel(
+          'mh/test/audio',
+          const StandardMethodCodec(),
+          _FakeMessenger({
+            'prefer': {
+              'applied': granted,
+              'bitPerfect': granted,
+              'sampleRate': granted ? 176400 : null,
+              'device': 'USB DAC',
+            },
+          }),
+        );
+        final dir = await Directory.systemTemp.createTemp('mh-dopm');
+        addTearDown(() => dir.delete(recursive: true));
+        final e = MpvEngine(
+          EngineRole.music,
+          config: MpvEngineConfig(
+            platform: EnginePlatform.android,
+            video: VideoOutputMode.none,
+            libmpvPath: env.libmpvPath,
+            audioBridge: AudioBridge(channel: channel),
+            extraOptions: {
+              'ao': 'pcm',
+              'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+              'ao-pcm-waveheader': 'no',
+              'audio-format': 's32',
+            },
+          ),
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        final s = await waitPlaying(e);
+        expect(s.error, isNull);
+        expect(s.audio.path == AudioOutputPath.dop, expectDop);
+      }, skip: skip);
+    }
+
+    test(
       'AUD-044 latency offset shifts audio for Bluetooth A/V sync',
       () async {
         final e = await openItem('mkv_multitrack.mkv');
@@ -486,4 +983,36 @@ Future<_Pcm> _capture(Future<void> Function(MpvEngine e) body) async {
   final bytes = await File(file).readAsBytes();
   await dir.delete(recursive: true);
   return _Pcm(Int16List.sublistView(Uint8List.fromList(bytes)), 2);
+}
+
+/// An exclusive output whose device is listed as taking DoP.
+const _dopOutput = AudioOutputConfig(
+  deviceId: 'pcm/dac',
+  nativeDsd: true,
+  exclusive: true,
+  passthroughCodecs: ['dop'],
+);
+
+/// Answers every method call of a [MethodChannel] with a fixed result.
+final class _FakeMessenger implements BinaryMessenger {
+  _FakeMessenger(this.results);
+
+  final Map<String, Object?> results;
+
+  @override
+  Future<ByteData?> send(String channel, ByteData? message) async {
+    const codec = StandardMethodCodec();
+    final call = codec.decodeMethodCall(message);
+    return codec.encodeSuccessEnvelope(results[call.method]);
+  }
+
+  @override
+  Future<void> handlePlatformMessage(
+    String channel,
+    ByteData? data,
+    PlatformMessageResponseCallback? callback,
+  ) async {}
+
+  @override
+  void setMessageHandler(String channel, MessageHandler? handler) {}
 }
