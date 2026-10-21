@@ -15,6 +15,46 @@ abstract interface class DisplayFacade {
   /// Window brightness for the player gesture (A I), 0–1; null resets.
   Future<void> setWindowBrightness(double? value);
   Future<void> setOrientationLock(OrientationLock lock);
+
+  /// Opens a presentation on the external display [displayId] so content can
+  /// be drawn there while the controls stay on the device (IMG-012 slideshow,
+  /// CAST-004; ADR-044). The app renders into the separate Flutter view or
+  /// surface named by the returned handle's [PresentationHandle.id].
+  ///
+  /// Null when the platform cannot present on that display (or the display is
+  /// gone). Only the app's own rendering is shown: callers must not send
+  /// DRM-protected or vault (sensitive, ADR-043) content without the user's
+  /// confirmation. The presentation closes by itself when the display
+  /// disconnects (see [changes]).
+  Future<PresentationHandle?> openPresentation(String displayId);
+
+  /// Closes a presentation from [openPresentation]; a no-op for a handle that
+  /// is already closed.
+  Future<void> closePresentation(PresentationHandle handle);
+}
+
+/// An open presentation on an external display (ADR-044).
+@immutable
+final class PresentationHandle {
+  const PresentationHandle({required this.id, required this.displayId});
+
+  /// Identifies the Flutter view or surface to render into.
+  final int id;
+
+  /// The [DisplayInfo.id] of the display it covers.
+  final String displayId;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PresentationHandle &&
+      other.id == id &&
+      other.displayId == displayId;
+
+  @override
+  int get hashCode => Object.hash(id, displayId);
+
+  @override
+  String toString() => 'PresentationHandle($id, $displayId)';
 }
 
 enum OrientationLock { auto, landscape, portrait, followVideo }

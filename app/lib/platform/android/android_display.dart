@@ -46,6 +46,13 @@ final class AndroidDisplay implements DisplayFacade {
   Future<void> setOrientationLock(OrientationLock lock) =>
       _api.setOrientationLock(OrientationLockMsg.values[lock.index]);
 
+  // Implementation pending, ADR-044: android.app.Presentation.
+  @override
+  Future<PresentationHandle?> openPresentation(String displayId) async => null;
+
+  @override
+  Future<void> closePresentation(PresentationHandle handle) async {}
+
   static DisplayInfo _info(DisplayInfoMsg d) => DisplayInfo(
     id: d.id,
     name: d.name,
