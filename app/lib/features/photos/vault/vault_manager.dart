@@ -132,6 +132,7 @@ final class VaultManager {
     required this.secure,
     int iterations = vaultKdfIterations,
     int minRounds = vaultKdfIterations,
+    this.kdf = derivePinToken,
     DateTime Function()? clock,
   }) : minRounds = minRounds,
        iterations = iterations.clamp(minRounds, maxRounds),
@@ -140,6 +141,10 @@ final class VaultManager {
   final Directory root;
   final VaultCryptoFacade crypto;
   final SecureStorageFacade secure;
+
+  /// Turns a PIN into its token; tests pass one that runs in place, so the
+  /// result does not depend on how long an isolate takes to start.
+  final PinKdf kdf;
 
   /// The rounds new PINs are stretched with, kept within [minRounds] and
   /// [maxRounds].
@@ -393,8 +398,7 @@ final class VaultManager {
       final order = [0, 1]..shuffle(Random.secure());
       final salts = [randomBytes(16), randomBytes(16)];
       final tokens = await Future.wait([
-        for (var i = 0; i < 2; i++)
-          derivePinToken(pins[i], salts[i], iterations),
+        for (var i = 0; i < 2; i++) kdf(pins[i], salts[i], iterations),
       ]);
       VaultContainer? real;
       VaultKeyHandle? realHandle;
@@ -743,8 +747,8 @@ final class VaultManager {
       for (final d in dirs) {
         final a = await _readSalt(d);
         final b = await _readSalt(d, next: true);
-        final ta = a == null ? null : derivePinToken(pin, a.salt, a.rounds);
-        final tb = b == null ? null : derivePinToken(pin, b.salt, b.rounds);
+        final ta = a == null ? null : kdf(pin, a.salt, a.rounds);
+        final tb = b == null ? null : kdf(pin, b.salt, b.rounds);
         cur.add(ta);
         nxt.add(tb);
         tokens
@@ -1053,8 +1057,8 @@ final class VaultManager {
       try {
         final a = await _readSalt(d);
         final b = await _readSalt(d, next: true);
-        final ta = a == null ? null : derivePinToken(newPin, a.salt, a.rounds);
-        final tb = b == null ? null : derivePinToken(newPin, b.salt, b.rounds);
+        final ta = a == null ? null : kdf(newPin, a.salt, a.rounds);
+        final tb = b == null ? null : kdf(newPin, b.salt, b.rounds);
         tokens
           ..addAll([?ta])
           ..addAll([?tb]);
@@ -1078,7 +1082,7 @@ final class VaultManager {
       }
     }
     final salt = randomBytes(16);
-    final token = await derivePinToken(newPin, salt, iterations);
+    final token = await kdf(newPin, salt, iterations);
     var swapped = false;
     try {
       final pinHandle = await crypto.openMasterKey(

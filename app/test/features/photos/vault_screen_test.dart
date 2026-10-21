@@ -100,6 +100,7 @@ void main() {
       secure: secure,
       iterations: 4,
       minRounds: 1,
+      kdf: inlinePinToken,
       clock: () => now,
     );
   });

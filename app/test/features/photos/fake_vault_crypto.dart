@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/platform/security.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
 
@@ -230,3 +232,11 @@ final class MemorySecureStorage implements SecureStorageFacade {
   Future<List<int>> unwrapKey(List<int> wrapped, {required String reason}) =>
       throw UnimplementedError();
 }
+
+/// The PIN token worked out in place: tests do not wait for an isolate to
+/// start, so how busy the machine is does not change the outcome.
+Future<Uint8List> inlinePinToken(
+  String pin,
+  Uint8List salt,
+  int iterations,
+) async => pbkdf2Sha256(utf8.encode(pin), salt, iterations);

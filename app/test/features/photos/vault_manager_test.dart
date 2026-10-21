@@ -25,6 +25,7 @@ void main() {
     secure: secure,
     iterations: 4,
     minRounds: 1,
+    kdf: inlinePinToken,
     clock: () => now,
   );
 
@@ -354,6 +355,7 @@ void main() {
         secure: secure,
         iterations: 4,
         minRounds: 1,
+        kdf: inlinePinToken,
       );
       expect(
         (await empty.openWithPin('123456')).outcome,
@@ -473,6 +475,7 @@ void main() {
         secure: MemorySecureStorage(),
         iterations: 4,
         minRounds: 1,
+        kdf: inlinePinToken,
       );
       final r = await m.setUp(pin: '112233', fingerprint: true);
       await r.vault!.close();
@@ -1007,6 +1010,7 @@ void main() {
           secure: secure,
           iterations: 1,
           minRounds: 4,
+          kdf: inlinePinToken,
         );
         expect(low.iterations, 4);
         final high = VaultManager(
@@ -1015,6 +1019,7 @@ void main() {
           secure: secure,
           iterations: 999999999,
           minRounds: 4,
+          kdf: inlinePinToken,
         );
         expect(high.iterations, VaultManager.maxRounds);
       },
@@ -1242,6 +1247,7 @@ void main() {
           secure: secure,
           iterations: 4,
           minRounds: 4,
+          kdf: inlinePinToken,
           clock: () => now,
         );
         final r = await strict.setUp(pin: '246810', decoyPin: '135790');
