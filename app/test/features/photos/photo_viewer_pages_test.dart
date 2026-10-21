@@ -13,6 +13,7 @@ import 'package:mediahro/features/photos/viewer/viewer_surface.dart';
 import 'package:mediahro/features/photos/viewer/zoom_math.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/images/image_pipeline.dart';
+import 'package:mediahro/images/metadata/pano_meta.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 import '../../helpers.dart';
@@ -213,6 +214,60 @@ void main() {
         },
       );
       expect(shown(tester), FitMode.fit);
+    });
+
+    ViewerImage sphere(
+      PhotosHarness h, {
+      String? projection,
+      int? fw,
+      int? fh,
+    }) {
+      final p = h.take();
+      return ViewerImage(
+        base: p.base,
+        fullSize: const ui.Size(8000, 4000),
+        info: ImageInfo(
+          width: 8000,
+          height: 4000,
+          format: 'jpeg',
+          isPanorama: true,
+          panorama: PanoramaMeta(
+            projection: projection,
+            fullWidth: fw,
+            fullHeight: fh,
+          ),
+        ),
+      );
+    }
+
+    testWidgets('IMG-001 a 360 degree photo offers the look-around', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        first: (h) => sphere(h, projection: 'equirectangular'),
+      );
+      expect(find.byTooltip('Look around in 360°'), findsOneWidget);
+    });
+
+    testWidgets(
+      'IMG-001 a sphere without a stated projection counts at 2 to 1',
+      (tester) async {
+        await open(tester, first: (h) => sphere(h, fw: 8000, fh: 4000));
+        expect(find.byTooltip('Look around in 360°'), findsOneWidget);
+      },
+    );
+
+    testWidgets('IMG-001 another projection is not offered the look-around', (
+      tester,
+    ) async {
+      await open(tester, first: (h) => sphere(h, projection: 'cylindrical'));
+      expect(find.byTooltip('Look around in 360°'), findsNothing);
+    });
+
+    testWidgets('IMG-001 an ordinary photo has no look-around', (tester) async {
+      await open(tester, first: (h) => h.take());
+      expect(find.byTooltip('Look around in 360°'), findsNothing);
     });
 
     testWidgets('IMG-001 the next photo is back to fit', (tester) async {
