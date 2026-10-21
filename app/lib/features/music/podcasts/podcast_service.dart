@@ -216,32 +216,45 @@ final class PodcastService {
         },
       );
       if (res.status == 304) {
-        await store.save(show.copyWith(lastFetched: _clock().toUtc()));
+        // The listener may have unsubscribed while the request was out.
+        final now = await store.show(showId);
+        if (now == null) return RefreshResult(showId);
+        await store.save(now.copyWith(lastFetched: _clock().toUtc()));
         return RefreshResult(showId);
       }
       if (res.status != 200) {
         return RefreshResult(showId, failure: PodcastFailure.unreachable);
       }
       final feed = await _parse(res.body, res.uri);
-      final before = {for (final e in show.episodes) e.guid};
+      final image = feed.imageUrl ?? show.imageUrl;
+      final art = image != show.imageUrl || show.artPath == null
+          ? await _cacheArt(show, image)
+          : null;
+      // Everything above took time, and the listener may have unsubscribed
+      // or changed the show's settings meanwhile: merge into the show as it
+      // is now, and drop the result when it is gone.
+      final current = await store.show(showId);
+      if (current == null) {
+        await _dropArt(art);
+        return RefreshResult(showId);
+      }
+      final before = {for (final e in current.episodes) e.guid};
       final progress = await store.progress(showId);
-      var updated = show.copyWith(
-        title: feed.title.isEmpty ? show.title : feed.title,
-        author: feed.author ?? show.author,
-        description: feed.description ?? show.description,
-        link: feed.link ?? show.link,
-        imageUrl: feed.imageUrl ?? show.imageUrl,
+      final updated = current.copyWith(
+        title: feed.title.isEmpty ? current.title : feed.title,
+        author: feed.author ?? current.author,
+        description: feed.description ?? current.description,
+        link: feed.link ?? current.link,
+        imageUrl: feed.imageUrl ?? current.imageUrl,
+        artPath: art ?? current.artPath,
         lastFetched: _clock().toUtc(),
         etag: res.headers['etag'],
         lastModified: res.headers['last-modified'],
         episodes: _kept(feed.episodes, {
           ...progress.keys,
-          ...await _downloadedGuids(show.episodes),
-        }, previous: show.episodes),
+          ...await _downloadedGuids(current.episodes),
+        }, previous: current.episodes),
       );
-      if (updated.imageUrl != show.imageUrl || updated.artPath == null) {
-        updated = updated.copyWith(artPath: await _cacheArt(updated));
-      }
       await store.save(updated);
       if (updated.title != show.title) await _recordHost(updated);
       final added = [
@@ -393,15 +406,10 @@ final class PodcastService {
     return d != null && d.done ? d.file : null;
   }
 
-  /// Keeps an offline copy of [episode]. Podcast links hop through other
-  /// hosts, so the redirect chain is allowed first.
+  /// Keeps an offline copy of [episode]. The download follows the redirect
+  /// chain itself, one request at a time (see `HttpUrlFileSystem`).
   Future<void> download(PodcastShow show, ParsedEpisode episode) async {
     final url = Uri.parse(episode.url);
-    try {
-      await http.allowChain(url);
-    } on Object {
-      // The download itself reports a failure the listener can retry.
-    }
     await downloads.enqueue(url, title: episode.title, size: episode.size);
     _changes.add(null);
   }
@@ -457,9 +465,19 @@ final class PodcastService {
     int maxBytes = maxFeedBytes,
   }) async {
     try {
-      return await http.fetch(uri, headers: headers, maxBytes: maxBytes);
-    } on PodcastHttpException {
-      throw const PodcastException(PodcastFailure.tooLarge);
+      return await http.fetch(
+        uri,
+        headers: headers,
+        maxBytes: maxBytes,
+        // The listener gave this address, so it may be on their own network.
+        trusted: {uri.host.toLowerCase()},
+      );
+    } on PodcastHttpException catch (e) {
+      throw PodcastException(
+        e.reason == 'private address'
+            ? PodcastFailure.blocked
+            : PodcastFailure.tooLarge,
+      );
     } on NetworkBlocked {
       throw const PodcastException(PodcastFailure.blocked);
     } on Exception {
@@ -521,12 +539,17 @@ final class PodcastService {
       if (await downloads.status(Uri.parse(e.url)) != null) e.guid,
   };
 
-  Future<String?> _cacheArt(PodcastShow show) async {
+  Future<String?> _cacheArt(PodcastShow show, [String? imageUrl]) async {
     final dir = artDir;
-    final url = show.imageUrl;
+    final url = imageUrl ?? show.imageUrl;
     if (dir == null || url == null) return show.artPath;
     try {
-      final res = await http.fetch(Uri.parse(url));
+      final res = await http.fetch(
+        Uri.parse(url),
+        // Artwork may sit on the feed's own host, even on the listener's
+        // network; any other private address is refused.
+        trusted: {Uri.parse(show.url).host.toLowerCase()},
+      );
       if (res.status != 200 || res.body.isEmpty) return show.artPath;
       final type = res.headers['content-type']?.toLowerCase() ?? '';
       final ext = type.contains('png')
@@ -559,9 +582,18 @@ final class PodcastService {
         .where((e) => !(progress[e.guid]?.played ?? false))
         .take(n);
     for (final e in wanted) {
+      // Unsubscribing stops what is still to come.
+      if (await store.show(show.id) == null) return;
       if (await downloads.status(Uri.parse(e.url)) == null) {
         await download(show, e);
       }
     }
+  }
+
+  /// Deletes artwork fetched for a show that is gone.
+  Future<void> _dropArt(String? path) async {
+    if (path == null) return;
+    final f = File(path);
+    if (f.existsSync()) await f.delete();
   }
 }

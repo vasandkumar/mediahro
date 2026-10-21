@@ -142,6 +142,9 @@ final class PersistentNetworkPolicy
   final List<FeedHostEntry> _feedHosts = [];
   final Map<String, FeedOwnerRemover> _ownerRemovers = {};
 
+  /// Hosts allowed until their [AllowScope] closes.
+  final List<Set<String>> _scopes = [];
+
   /// Cloud drives with a connected account (or signing in now).
   final Set<CloudProvider> _providers = {};
   final Set<CloudProvider> _sessionProviders = {};
@@ -216,6 +219,7 @@ final class PersistentNetworkPolicy
     final h = host.toLowerCase();
     if (_userHosts.contains(h) || _sessionHosts.contains(h)) return true;
     if (_feedHosts.any((e) => e.host == h)) return true;
+    if (_scopes.any((s) => s.contains(h))) return true;
     if (_providers.any((p) => cloudHostMatches(p, h))) return true;
     return _lan && isLocalNetworkHost(h);
   }
@@ -329,6 +333,19 @@ final class PersistentNetworkPolicy
     _sessionHosts.add(host.toLowerCase());
   }
 
+  /// Starts an allowance for one request chain (a feed, its redirects, the
+  /// artwork or episode it points to): the hosts passed to [AllowScope.allow]
+  /// are allowed until [AllowScope.close], and not after. Nothing is added
+  /// to the session or to the dashboard.
+  AllowScope beginAllowScope() {
+    final hosts = <String>{};
+    _scopes.add(hosts);
+    return AllowScope._(
+      (host) => hosts.add(host.toLowerCase()),
+      () => _scopes.remove(hosts),
+    );
+  }
+
   /// Allows a cloud provider's hosts while the user signs in (NET-007).
   void allowProviderForSession(CloudProvider provider) {
     _sessionProviders.add(provider);
@@ -393,6 +410,18 @@ final class PersistentNetworkPolicy
     final h = Uri.tryParse(uri)?.host;
     return h == null || h.isEmpty ? null : h.toLowerCase();
   }
+}
+
+/// The hosts one request chain may reach, until [close].
+final class AllowScope {
+  AllowScope._(this._allow, this._close);
+
+  final void Function(String host) _allow;
+  final void Function() _close;
+
+  void allow(String host) => _allow(host);
+
+  void close() => _close();
 }
 
 /// `host` option of a source (e.g. the OAuth API host of a cloud drive).

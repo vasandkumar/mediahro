@@ -73,7 +73,7 @@ void main() {
       store: store,
       http: PodcastHttp(
         send: (r, {maxRedirects = 5}) => throw StateError('no network'),
-        allowHost: (_) {},
+        beginChain: () => ChainAllowance(allow: (_) {}, close: () {}),
       ),
       downloads: downloads,
       clock: () => now,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:mediahro/core/db/library_database.dart';
@@ -77,11 +78,27 @@ const podcastAtom = '''
 </feed>''';
 
 /// A pretend internet: what each address answers, with redirects, and the
-/// hosts the code allowed.
+/// hosts the code allowed. Like the real gateway it refuses a request to a
+/// host nobody has allowed for the chain that is running.
 final class FakeNet {
   final _answers = <String, _Answer>{};
+
+  /// Every host a chain allowed, in order.
   final allowed = <String>[];
+  final _open = <Set<String>>[];
   final requests = <HttpRequestData>[];
+
+  /// Holds the answer for an address until the gate completes.
+  final gates = <String, Completer<void>>{};
+
+  /// Private-network hosts of subscriptions (what the store would say).
+  final localHosts = <String>{};
+
+  /// Whether some request chain still running allows [host].
+  bool allowedNow(String host) => _open.any((s) => s.contains(host));
+
+  /// Chains started and not yet closed.
+  int get openChains => _open.length;
 
   void serve(
     String url,
@@ -104,9 +121,24 @@ final class FakeNet {
       _answers[from] = _Answer(302, const [], {'location': to});
 
   late final http = PodcastHttp(
-    allowHost: allowed.add,
+    beginChain: () {
+      final hosts = <String>{};
+      _open.add(hosts);
+      return ChainAllowance(
+        allow: (h) {
+          allowed.add(h);
+          hosts.add(h);
+        },
+        close: () => _open.remove(hosts),
+      );
+    },
+    localAllowed: (h) async => localHosts.contains(h),
     send: (request, {maxRedirects = 5}) async {
       requests.add(request);
+      if (!allowedNow(request.uri.host)) {
+        throw NetworkBlocked(request.uri.host, 'not allowed');
+      }
+      await gates[request.uri.toString()]?.future;
       final a = _answers[request.uri.toString()];
       if (a == null) {
         return HttpStreamResponse(404, const {}, Stream.value(const []));
