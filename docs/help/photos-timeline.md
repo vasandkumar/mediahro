@@ -23,4 +23,4 @@ Photos shows every picture and video from your sources, newest first, grouped by
 
 Mediahro makes small preview pictures of your photos in the background, starting with the ones you can see and then the ones near them. They are kept on the device so the next visit is instant. If previews ever take too much space, clear them in Settings; they are made again as you scroll.
 
-Pictures from a network share or cloud drive are read only when needed. Nothing in your photos is uploaded anywhere.
+Pictures from a network share are read only when needed. Nothing in your photos is uploaded anywhere.

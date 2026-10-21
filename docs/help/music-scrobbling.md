@@ -3,18 +3,15 @@ ids: [MUS-009]
 ---
 # Scrobbling
 
-Scrobbling shares the songs you listen to with a service such as ListenBrainz, Last.fm or Libre.fm, so you can keep a listening history and get recommendations there. It is off until you connect a service.
+Scrobbling shares the songs you listen to with ListenBrainz, so you can keep a listening history and get recommendations there. It is off until you connect a service.
 
 Open **Music → More (⋮) → Scrobbling**.
 
 ## Connecting a service
 
-- **ListenBrainz:** copy your user token from the settings page of your ListenBrainz account and paste it in.
-- **Last.fm and Libre.fm:** sign in with your user name and password. The password is sent once to the service to sign in and is never stored; only the session key is kept, in your device's secure storage.
+- **ListenBrainz:** copy your user token from the settings page of your ListenBrainz account and paste it in. The token is kept in your device's secure storage.
 
-Before connecting, Mediahro tells you what is sent: the title, artist, album and time of each song you play. Connecting turns on that service in **Settings → Privacy**; disconnecting turns it off again.
-
-Last.fm appears only in builds that include a Last.fm client key.
+Before connecting, Mediahro tells you what is sent: the title, artist, album and time of each song you play. Connecting turns on ListenBrainz in **Settings → Privacy**; disconnecting turns it off again.
 
 ## When a song counts
 

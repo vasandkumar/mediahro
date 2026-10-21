@@ -17,8 +17,8 @@ AUD-046, MUS-001…014, POD-001…003. MUS-015 is 1.1: leave it ☐ and don't bu
 3. **Lyrics (MUS-005):** LRC with sync, embedded and sidecar files, opt-in online lookup.
 4. **Now Playing (MUS-006)** on B3's components, with the AUD-046 visualiser fed from engine PCM taps. If you need a tap, file an ADR request to B1.
 5. **Queues (MUS-007)** and smart playlists (MUS-008), on B2's queue model and rule engine.
-6. **Scrobbling (MUS-009):** ListenBrainz and Last.fm, opt-in with an offline queue. API keys are an owner task, so record them in STATUS §4.
-7. **Fingerprinting (MUS-010):** chromaprint (B2's binding) plus AcoustID lookup, opt-in.
+6. **Scrobbling (MUS-009):** ListenBrainz only (the user supplies their own token), opt-in with an offline queue. ADR-048 removed Last.fm and Libre.fm.
+7. **Fingerprinting (MUS-010):** removed from 1.0 (ADR-047).
 8. **Sleep timer and alarms (MUS-011)** over `AlarmFacade`.
 9. **Widgets and quick controls (MUS-012)** over `HomeWidgetsFacade`.
 10. **Car (MUS-013):** implement `MediaBrowseProvider` (queues, playlists, albums, artists, folders, podcasts, voice search) over `MediaBrowseFacade`.

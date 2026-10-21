@@ -4,7 +4,7 @@ The single progress view for the owner. Every PR updates the rows it touches. Ge
 
 **Legend:** ☐ to do · ☑ done (AC verified on that platform through the CI matrix) · ⛔ blocked (see Blockers) · — not applicable on that platform (doc 04) · 1.1/1.2 later release per doc 04 · Platforms: A Android · I iOS/iPadOS · M macOS · W Windows.
 
-_Last updated: 2026-10-21 by the orchestrator._
+_Last updated: 2026-10-22 by the orchestrator._
 
 ## 1. Phase and milestone gates
 
@@ -99,9 +99,9 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ | B2: manual + smart playlists (rule builder, AND/OR, limit, sort), M3U/M3U8/PLS/XSPF/CUE parse (isolate, limits) and export. File import/export pickers → C4. |
 | LIB-008 | Multiple queues | B2 | ☑ | ☑ | ☑ | ☑ | B2: named audio queues + one video queue, persisted, repeat/shuffle; queues screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-009 | Tags and labels | B2 | ☑ | ☑ | ☑ | ☑ | B2: tags, colour labels, bulk apply; tag editor sheet. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
-| LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ | B2: per-item progress/watched; `ProgressSyncTarget` seam for Jellyfin/Emby/Plex (C4 servers) and Trakt (needs owner client ID). |
-| LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ | B2: filename parser, TMDB/TVDB clients through NetworkGateway, NFO, artwork cache, manual match. Live tests need owner API keys (§4). |
-| LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ | B2: series/season, albums/artists/genres/years/composers, TMDB collections; photo people/places come from C3. |
+| LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ | B2: per-item progress/watched; `ProgressSyncTarget` seam for Jellyfin/Emby/Plex (C4 servers). **Narrowed (ADR-048, 2026-10-22):** Trakt removed (needs a publisher client ID); Jellyfin/Emby/Plex stay. |
+| LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ | B2: filename parser, NFO, artwork cache, manual match. **Narrowed (ADR-048, 2026-10-22):** TMDB/TVDB online scraping removed (publisher API key); the filename parser, NFO, local artwork sidecars, server-provided metadata and manual match stay. Live tests need no keys. |
+| LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ | B2: series/season, albums/artists/genres/years/composers; photo people/places come from C3. **Narrowed (ADR-048, 2026-10-22):** TMDB collections removed; series/season, music and photo groupings stay. |
 | LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ | B2: PBKDF2 PIN (isolate), lockout, biometrics, locked sources/folders, hidden items excluded. Needs C4 SecureStorage/Biometrics facades on device. |
 | LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ | B2: exact hash, pHash (images), duration+size (video), chromaprint (audio) review UI; never deletes. ⛔ chromaprint native lib (B4). |
 | LIB-015 | Statistics | B2 | ☑ | ☑ | ☑ | ☑ | B2: play counts, time played, top items, storage by type/source; statistics screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
@@ -164,7 +164,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | VID-070 | Orientation and display | C1 | ☐ | ☐ | — | — |  |
 | VID-071 | Second screen / external display | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | VID-072 | Info overlay | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
-| VID-073 | Skip intro/credits | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-073 | Skip intro/credits | C1 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** kept: IntroDB reads are anonymous and keyless (introdb.app); lookups use IMDb IDs from NFO or server metadata, not TMDB. |
 | VID-074 | Remote control | C1 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 5. SUB — Subtitles
@@ -178,7 +178,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
 | SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
 | SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
-| SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** OpenSubtitles.com and Subdl removed (publisher API key); Podnapisi stays (keyless status for the owner to confirm). |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_text_test 2/2 (offline voices, short utterance), c1_video_player_test 33/33, engine_test ADR-031 5/5. |
 | SUB-050 | Auto-sync (audio-based) | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 3 (Samsung SM-M176B, main 311b583): engine_test ADR-032 5/5 (decodeAudio on Android 16), with c1_video_player_test 33/33 (sync UI) from batch 2; C1 side merged (#49: VAD + FFT cross-correlation, ±60 s, 8 frame-rate ratios, preview with Undo). |
@@ -216,7 +216,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | MUS-006 | Now Playing | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_now_playing_test 2/2. |
 | MUS-007 | Queues | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-008 | Smart playlists | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c2_playlists_car_test 2/2 (smart playlist rules on the platform SQLite). |
-| MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** Last.fm and Libre.fm removed (app key); ListenBrainz (user token) stays. |
 | MUS-010 | Fingerprinting | C2 | — | — | — | — | Removed from 1.0 by owner decision (ADR-047, 2026-10-22). |
 | MUS-011 | Sleep timer and alarms | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_car_alarm_test 4/4 (alarm fires into the running app; opening from an alarm delivers its id) and c2_now_playing_test (sleep timer, batch 1). |
 | MUS-012 | Widgets and quick controls | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_home_widgets_test 3/3 (widget shows the track, clears on stop, buttons reach the player). |
@@ -251,7 +251,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | IMG-013 | Duplicates | C3 | ☐ | ☐ | ☐ | ☐ |  |
 | IMG-014 | Trash | C3 | ☐ | ☐ | ☐ | ☐ |  |
 | IMG-015 | Sharing and output | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-016 | Sources | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-016 | Sources | C3 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** cloud drives (Google Drive, OneDrive, Dropbox) removed (publisher OAuth client IDs); the other sources stay. |
 | IMG-017 | Archives | C3 | ☐ | ☐ | ☐ | ☐ |  |
 | IMG-018 | Screensaver / ambient | C3 | 1.1 | — | ☐ | ☐ |  |
 
@@ -265,7 +265,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | NET-004 | FTP/FTPS/SFTP | B2 | ☑ | ☐ | ☐ | ☐ | B2 (ADR-017): plain FTP in Dart on every platform; FTPS (explicit via connectPlain+upgrade, implicit, data channels resuming the control session) in Dart over TlsSocketFacade with SHA-256 pinning; SFTP VFS over SftpFacade (list/read/mkdir/upload/rename/delete) with host-key TOFU, secrets by SecureStorage reference; libssh2+WinCNG bindings for the Windows facade. Tested against a local FTP/FTPS server, vsftpd (network env) and facade fakes. Waits for C4 facades (sequencing). A ☑ device batch 4 (Samsung SM-M176B, main 7facf62): c4a_android_tls_test 6/6 (NET-004 TLS facades 5/5, NET-017 mutual TLS: paired peers connect, unpaired ones are refused) and c4a_android_sftp_test 7/7 (SFTP facade). |
 | NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ | B2: SSDP + ContentDirectory browse, opt-in renderer (DMR). iOS needs the multicast entitlement (owner) and C4 multicast lock on Android. |
 | NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL open, headers/UA, HTTP range reader; playback of HLS/DASH/RTSP/RTMP is B1 engine. |
-| NET-007 | Cloud drives | B2 | ☐ | ☐ | ☐ | ☐ | B2: OAuth PKCE + REST for Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex. ⛔ MEGA, Proton Drive (§3). Needs owner OAuth client IDs; AuthBrowser from C4. |
+| NET-007 | Cloud drives | B2 | — | — | — | — | Removed from 1.0 by owner decision (ADR-048, 2026-10-22). B2 removes the cloud/OAuth code (cloud_providers.dart, cloud_file_system.dart, oauth.dart) and the Cloud drive add-source entry. |
 | NET-010 | Jellyfin | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-011 | Emby | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-012 | Plex | C4 | ☐ | ☐ | ☐ | ☐ |  |
@@ -359,7 +359,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | 2026-10-19 | Orchestrator (M0) | Local Android | Android SDK licences are not all accepted on this machine (`flutter doctor --android-licenses`) | Owner: accept them (agents do not accept terms) | Debug and release builds still succeed with the installed components |
 | 2026-10-19 | B2 | NET-001, NET-002, FILE-004, LIB-014 (chromaprint) — all platforms | Native libraries (libsmb2, libnfs, libarchive, libebur128, chromaprint, uchardet; libssh2 for Windows) are not yet published for every platform (Android pinned) as `mediahro-deps` archives; the ffigen bindings and contract tests skip without them | B4: publish and pin the archives; orchestrator: add the `network-env` CI job (PR #1 "Orchestrator changes needed") | Bindings, VFS clients and contract tests written; `packages/mediahro_ffi/test/network` docker-compose env + build_native.sh build them on Linux CI |
 | 2026-10-19 | B2 | LIB-002, FILE-002 (trash/share), CORE-014 (file save), LIB-007 (import/export pickers), LIB-013 (secure storage/biometrics), FILE-005 (Files/USB) — A/I (and M/W pickers) | Native storage, pickers, secure storage, biometrics and auth browser are lane C4's facades | C4: StorageFacade, SecureStorageFacade, BiometricsFacade, AuthBrowser, NetworkStatus, multicast lock | B2 codes against the facades with fakes; `_optional` degrades to "Not available on this device" |
-| 2026-10-19 | B2 | NET-007 MEGA, Proton Drive — all platforms | MEGA uses a proprietary client-side-encrypted protocol with no REST API usable without its SDK; Proton Drive has no public API (doc 04: "where API exists") | Upstream: a documented public API | Not offered in the Add cloud list; the other six providers ship |
+| 2026-10-19 | B2 | NET-007 MEGA, Proton Drive — all platforms | MEGA uses a proprietary client-side-encrypted protocol with no REST API usable without its SDK; Proton Drive has no public API (doc 04: "where API exists") | Upstream: a documented public API | Not offered in the Add cloud list; the other six providers ship **Moot: NET-007 removed from 1.0 (ADR-048, 2026-10-22).** |
 | 2026-10-19 | B4a | NET-004 (A): SFTP and FTPS | ~~libssh2 needs a crypto backend and curl FTPS needs TLS on Android~~ — **resolved by ADR-017** (2026-10-20): SFTP via sshj over JCA behind `SftpFacade`, FTPS over `TlsSocketFacade`; libssh2 is Windows-only (WinCNG) and curl has no TLS backend on Android/Apple (mediahro-deps#2) | Implementation: C4 / B2 per ADR-017 | — |
 | 2026-10-19 | B4a | CAST-001 (FOSS flavour; Open Screen sender on A, M, W) | ~~Open Screen libcast needs GN + BoringSSL~~ — **resolved by ADR-017**: openscreen-libcast removed from mediahro-deps (mediahro-deps#2); a Dart CASTv2 sender over `TlsSocketFacade` replaces it | Implementation: C4 per ADR-017 | — |
 
@@ -375,7 +375,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Counsel: confirm export-compliance answers (App Store `ITSAppUsesNonExemptEncryption`, encryption inventory) given ADR-017 and the BoringSSL embedded in the Flutter engine for dart:io TLS | Before App Store submission | App Store submission | Open |
 | Source licensed Dolby Vision (P5, P7 MEL/FEL, P8.1/8.4) and HDR10+ test samples into Git LFS (test-media/), or approve a vendor | Before M3 gate | VID-032…035 on all platforms | Open |
 | Decide on a Steinberg ASIO SDK licence (GPLv3 or proprietary agreement) | Before M4 gate | AUD-042 ASIO path (WASAPI exclusive works without it) | Open |
-| Third-party API keys and terms acceptance: OpenSubtitles.com, TMDB, TVDB, AcoustID, Last.fm, ListenBrainz, Libre.fm, OSM tile provider, IntroDB, Google Cast receiver app ID | Before beta | SUB-020, LIB-011, MUS-009/010, IMG-007, VID-073, CAST-001 live tests | Open |
+| ~~Third-party API keys and terms acceptance: OpenSubtitles.com, TMDB, TVDB, AcoustID, Last.fm, ListenBrainz, Libre.fm, OSM tile provider, IntroDB, Google Cast receiver app ID~~ | n/a | SUB-020, LIB-011, MUS-009/010, IMG-007, VID-073, CAST-001 live tests | Cancelled — ADR-048 (no publisher keys; ListenBrainz needs only the user's own token; Cast uses the Default Media Receiver) |
 | MDM test tenant (Android Enterprise, Apple MDM, Intune) | M7 | B2B-001/002 manual verification | Open |
 | Google Play Console: create the in-app products (tips, Supporter subscription) and licence-tester accounts, put the product ids in the app configuration (none are in the repo), and declare purchase history handled by Google Play in the Data safety form | Before the first Play internal-test upload | SUP-002 on Android (nothing can be bought until the products exist) | Open |
 | Device lab per docs/11 §3 (HDR panels, DACs, receivers, car head units, foldables) | M8 | Manual release checklists | Open |
@@ -386,8 +386,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | Play closed test: recruit 12 testers for 14 continuous days | M7 | Play production access | Open |
 | Beta programme recruitment (≥ 500 users across platforms) | M8 | Release gate 5 | Open |
 | Final store submissions (agents prepare packs; owner presses submit) and human sign-off at each milestone gate | Each gate / M8 | Release gate 12 | Open |
-| OAuth client IDs (and app registrations) for Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk, and Trakt; redirect = loopback | Before beta | NET-007, LIB-010 (Trakt) live tests | Open |
-| TMDB and TVDB project API keys (users may still supply their own) | Before beta | LIB-011, LIB-012 live tests | Open |
+| ~~OAuth client IDs (and app registrations) for Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk, and Trakt; redirect = loopback~~ | n/a | NET-007, LIB-010 (Trakt) | Cancelled — ADR-048 |
+| ~~TMDB and TVDB project API keys (users may still supply their own)~~ | n/a | LIB-011, LIB-012 | Cancelled — ADR-048 |
 | Owner: verify AUD-043 native DSD (DoP) on a real DoP-capable USB DAC, including unplugging mid-playback; until then AUD-043 stays unticked | Before the AUD-043 tick | AUD-043 (A I M W) | Open |
 | ~~Owner: host tiles.mediahro.com serving OSM-derived raster tiles~~ | n/a | IMG-007 | Cancelled — ADR-041 (photo map view removed by the owner, 2026-10-21) |
 
@@ -430,6 +430,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-22 | Owner decision: "Except ListenBrainz, remove the rest which requires API key or any key" (ADR-048). Removed: NET-007 (cloud drives). Narrowed: LIB-010 (no Trakt), LIB-011 (no TMDB/TVDB scraping), LIB-012 (no TMDB collections), SUB-020 (Podnapisi only), MUS-009 (ListenBrainz only), IMG-016 (no cloud drives). Kept as keyless: LRCLIB, MusicBrainz and Cover Art Archive (MUS-004), IntroDB (VID-073), Plex PIN sign-in, the open CASTv2 sender. Owner tasks for these keys and client IDs cancelled (§4). Lanes remove the matching code, hosts and strings (orchestrator task list). |
 | 2026-10-22 | Owner removed MUS-010 (fingerprinting / Identify song) from 1.0 because it needs an external API key (ADR-047); PR #120 closed unmerged; status tooling now treats a `—` release in doc 04 as removed. |
 | 2026-10-21 | Merged C3 **#104** (merge 2e8ad5d, head 266d40d; PRIV-007 videos and music in the vault, played as sensitive sources per ADR-043). Reviewed clean earlier; the head is unchanged and only the merge of main is new. Verified at 266d40d merged on main d921c9f (auto-merged with #113 in vault_manager.dart and the vault tests; no `fillRange` left on a vault secret outside `wipe`): tools/check all stages passed, 584 + 311 + 731 app tests passed, 9 skipped, engine 140 passed, 116 skipped, packages 31, 2, 37, 244, analyze clean, no flakes. Device: `c3_vault_test` PRIV-007 case and the hand check "vault video plays and stops when backgrounded" are in batch 4; nothing ticked. |
 | 2026-10-21 | Merged C3 **#115** (merge d921c9f, head cb2c32c; IMG-008: `c3_compare_test` wraps the screen in `KStringsScope` with `KTestStrings`, as app.dart does; test-only, 6 lines). Verified at cb2c32c merged on main c22313a: tools/check all stages passed, 584 + 311 + 687 app tests passed, 9 skipped, engine 140 passed, 116 skipped, packages 31, 2, 37, 244, analyze clean. The device re-run is in batch 4; nothing ticked. |

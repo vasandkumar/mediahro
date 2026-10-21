@@ -19,7 +19,7 @@ Version 1.0 · 2026-10-19 · Synthesises `research/03`, `research/04`, `research
 | MIT/BSD/ISC/Apache/MPL/CDDL/curl/zlib/public domain | Allowed statically or dynamically with notices. LibRaw taken under CDDL; TagLib (if used) under MPL. |
 | Proprietary SDKs (Google Cast, platform ML) | Only in `store` flavours; excluded from `foss`. |
 | Fonts | OFL/Apache only (Noto, Roboto, Open Sans). Never redistribute SF, Segoe, or other OS fonts. |
-| Services/APIs | Each third-party service used under its published terms with an app key where required (OpenSubtitles.com API key, TMDB API terms incl. attribution "This product uses the TMDB API but is not endorsed or certified by TMDB", LRCLIB User-Agent rule, MusicBrainz/AcoustID rate limits and app key, ListenBrainz/Last.fm API keys, OSM tile usage policy → use a tile provider that permits app use or self-host tiles, IntroDB terms). All opt-in. |
+| Services/APIs | Each third-party service used under its published terms. Only keyless services (or services where the user supplies their own token) are used (ADR-048): LRCLIB User-Agent rule, MusicBrainz and Cover Art Archive User-Agent and rate limits, ListenBrainz (user token), Podnapisi, IntroDB terms. No service that needs a publisher API key, app key or OAuth client ID is used (OpenSubtitles.com, Subdl, TMDB/TVDB, Last.fm, Libre.fm, AcoustID, Trakt, cloud-drive OAuth were removed by ADR-047/048). All opt-in. |
 | Data sets | GeoNames `cities15000` (CC BY 4.0) is bundled as the offline gazetteer for place names (IMG-007); the in-app licences list shows "Contains data from GeoNames (geonames.org), CC BY 4.0" and notes the repacking. OpenStreetMap is no longer used: the photo map view and online map tiles were removed by owner decision (ADR-041), so no OSM attribution is needed. GeoNames stays. |
 
 **CI enforcement:** `tools/licence_scan` builds an SBOM (CycloneDX) from pub, Gradle, SPM and the `mediahro-deps` manifest, fails on any GPL/AGPL-incompatible or unknown licence, verifies FFmpeg/mpv were configured without `--enable-gpl`/`--enable-nonfree`/`-Dgpl=true`, and checks that LGPL libraries are not statically linked into the main executable.
@@ -80,5 +80,5 @@ Registration path (doc 03 §4): USPTO ITU classes 9 and 42 → EUIPO and UK with
 | Accessibility conformance report (EN 301 549) | 1.0 | QA | Specified |
 | EU DSA trader information | Before EU availability | Founder | Open |
 | Developer verification (Android) incl. F-Droid key | Before 2027 | Founder | Open |
-| Third-party API keys and terms acceptance (OpenSubtitles, TMDB, AcoustID, Last.fm, ListenBrainz) | Before beta | Founder | Open |
+| ~~Third-party API keys and terms acceptance (OpenSubtitles, TMDB, AcoustID, Last.fm, ListenBrainz)~~ | n/a | Founder | Cancelled: ADR-048 (ListenBrainz needs only the user's own token) |
 | Multicast entitlement (Apple), CarPlay entitlement | Milestone M1 | Founder | Open |

@@ -23,7 +23,7 @@ Never say "best", "#1", "fastest" in store metadata (featuring rules); say what 
 - **Name:** Mediahro
 - **Apple subtitle (30):** Video, music & photo player
 - **Google short description (80):** Free player for every video, song and photo. No ads, no account, no limits.
-- **Promotional/long description (structure):** 1) one-paragraph promise; 2) "Plays everything" list (containers, codecs, HDR, subtitles); 3) "Your sources" (local, SD/USB, SMB/NFS/WebDAV/FTP/SFTP/DLNA, cloud drives, Jellyfin/Emby/Plex/Navidrome/Immich/Nextcloud/Audiobookshelf — factual compatibility statements only); 4) Music (gapless, EQ, lyrics, bit-perfect, Auto/CarPlay); 5) Photos (RAW, HEIC, JXL, map, compare, vault, batch); 6) Casting; 7) Privacy and funding ("Free for everyone. Supported by people who choose to tip."); 8) Open source link; 9) Required disclosures (Windows: optional HEVC extension for hardware decoding).
+- **Promotional/long description (structure):** 1) one-paragraph promise; 2) "Plays everything" list (containers, codecs, HDR, subtitles); 3) "Your sources" (local, SD/USB, SMB/NFS/WebDAV/FTP/SFTP/DLNA, Jellyfin/Emby/Plex/Navidrome/Immich/Nextcloud/Audiobookshelf — factual compatibility statements only); 4) Music (gapless, EQ, lyrics, bit-perfect, Auto/CarPlay); 5) Photos (RAW, HEIC, JXL, places, compare, vault, batch); 6) Casting; 7) Privacy and funding ("Free for everyone. Supported by people who choose to tip."); 8) Open source link; 9) Required disclosures (Windows: optional HEVC extension for hardware decoding).
 - **Keywords (Apple, 100 chars):** video player,mkv,hevc,hdr,subtitles,music player,flac,gallery,photo viewer,raw,smb,nas,dlna,cast,jellyfin
 - **What's New:** specific per release (Apple rejects generic notes).
 

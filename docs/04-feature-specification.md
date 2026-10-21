@@ -45,9 +45,9 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | LIB-007 | Playlists | Manual and smart playlists (rule builder: any indexed field, AND/OR, limits, sort); import/export M3U/M3U8/PLS/XSPF; cross-source | All | 1.0 |
 | LIB-008 | Multiple queues | Named queues (Musicolet pattern) for audio; one active queue for video; queue persists | All | 1.0 |
 | LIB-009 | Tags and labels | User tags on any item; colour labels; bulk apply | All | 1.0 |
-| LIB-010 | Watched/unwatched state and progress sync | Per item; synced to Jellyfin/Emby/Plex/Trakt when connected (opt-in) | All | 1.0 |
-| LIB-011 | Metadata scraping (video) | TMDB/TVDB match by filename parser (title, year, SxxEyy, release group ignored); posters, backdrops, cast, ratings, episode names; per-folder opt-in; user API key optional; manual match/unmatch; works fully offline once cached | All | 1.0 |
-| LIB-012 | Collections | TMDB collections, series/season grouping, music albums/artists/genres/years/composers, photo albums/people/places | All | 1.0 |
+| LIB-010 | Watched/unwatched state and progress sync | Per item; synced to Jellyfin/Emby/Plex when connected (opt-in) (Trakt removed by ADR-048) | All | 1.0 |
+| LIB-011 | Metadata scraping (video) | Local-only metadata: filename parser (title, year, SxxEyy, release group ignored); NFO files and local artwork sidecars (poster, fanart, folder) supply posters, backdrops, cast, ratings, episode names; metadata served by the user's own Jellyfin/Emby/Plex; manual edit/match/unmatch; works fully offline (TMDB/TVDB online scraping removed by ADR-048) | All | 1.0 |
+| LIB-012 | Collections | Series/season grouping (TMDB collections removed by ADR-048), music albums/artists/genres/years/composers, photo albums/people/places | All | 1.0 |
 | LIB-013 | Parental PIN and hidden items | PIN/biometric gate for chosen folders/sources; hidden items excluded from search and rows | All | 1.0 |
 | LIB-014 | Duplicate finder | Exact (hash) and perceptual (pHash for images, chromaprint for audio, duration+size for video); user reviews and chooses; never auto-deletes | All | 1.0 |
 | LIB-015 | Statistics | Play counts, time listened/watched, top items, storage by type/source | All | 1.0 |
@@ -112,7 +112,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | VID-070 | Orientation and display | Auto/lock rotation; follows video aspect; notch/cutout-safe; edge-to-edge; keeps screen awake while playing | A I | 1.0 |
 | VID-071 | Second screen / external display | Full-screen video on external display with controls on device; HDR passthrough on external; AirPlay/Cast when available | All | 1.0 |
 | VID-072 | Info overlay | Toggle stats: codec, hwdec path, resolution, fps, dropped frames, bitrate, HDR type, audio format/output, subtitle renderer | All | 1.0 |
-| VID-073 | Skip intro/credits | IntroDB-style community markers (opt-in) and Jellyfin/Plex-provided markers; manual "skip 85 s" chapter heuristic | All | 1.0 |
+| VID-073 | Skip intro/credits | IntroDB community markers (opt-in; keyless anonymous reads, looked up by IMDb ID from NFO or server metadata) and Jellyfin/Plex-provided markers; manual "skip 85 s" chapter heuristic | All | 1.0 |
 | VID-074 | Remote control | Web remote (LAN web page) and companion control from another Mediahro instance; keyboard/media keys; MPRIS-like OS integrations | All | 1.0 |
 
 ## 5. SUB — Subtitles
@@ -126,7 +126,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | SUB-014 | Styling | Font, size, colour, outline, shadow, background box, position (vertical/horizontal), alignment; override ASS styles optionally; honours system caption preferences (MACaptionAppearance / Android CaptioningManager / Windows caption styles) | All | 1.0 |
 | SUB-015 | Timing | Delay ±60 s in 50 ms steps; speed/stretch (fps conversion 23.976↔25); keyboard and gesture shortcuts; per-file memory | All | 1.0 |
 | SUB-016 | Dual subtitles | Primary + secondary track with independent position/size/delay | All | 1.0 |
-| SUB-020 | Online download | OpenSubtitles.com (user account optional, app key bundled), Podnapisi, Subdl; hash + name search; one-tap best match; auto-download for preferred languages (opt-in); rate-limit aware | All | 1.0 |
+| SUB-020 | Online download | Podnapisi (OpenSubtitles.com and Subdl removed by ADR-048); hash + name search; one-tap best match; auto-download for preferred languages (opt-in); rate-limit aware | All | 1.0 |
 | SUB-030 | Subtitle editor | Shift, resync by two points, fix encoding, save as SRT/ASS | All | 1.0 |
 | SUB-040 | Text-to-speech | Read subtitles aloud via system TTS (accessibility) | All | 1.0 |
 | SUB-050 | Auto-sync (audio-based) | On-device alignment of a subtitle file to the audio track (VAD + cross-correlation, alass/ffsubsync approach); runs in background ≤ 2× real-time on phone; result previewed before save | All | 1.0 |
@@ -166,7 +166,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | MUS-006 | Now Playing | Art, progress, queue, lyrics, EQ quick access, output picker, sleep timer, rating, favourite, "go to album/artist"; swipe gestures; landscape and tablet layouts | All | 1.0 |
 | MUS-007 | Queues | Multiple named queues; play next/add to queue/add to another queue; reorder; save as playlist; history | All | 1.0 |
 | MUS-008 | Smart playlists | Rule builder over tags, play count, last played, rating, date added, length, path | All | 1.0 |
-| MUS-009 | Scrobbling | Native Last.fm, ListenBrainz (incl. offline queue), Libre.fm; per-source toggle | All | 1.0 |
+| MUS-009 | Scrobbling | Native ListenBrainz (incl. offline queue; the user supplies their own token); per-source toggle (Last.fm and Libre.fm removed by ADR-048) | All | 1.0 |
 | MUS-010 | Fingerprinting | Removed from 1.0 by owner decision 2026-10-22 (ADR-047): online identification needs an external API key | All | — |
 | MUS-011 | Sleep timer and alarms | Sleep by time/tracks with fade; wake alarm with playlist (A W M) | All | 1.0 |
 | MUS-012 | Widgets and quick controls | Home-screen widgets (A), Lock Screen/Home widgets (I), menu-bar extra (M), taskbar thumbnail toolbar and SMTC (W) | All | 1.0 |
@@ -201,7 +201,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | IMG-013 | Duplicates | Perceptual duplicate finder with side-by-side review; never deletes automatically | All | 1.0 |
 | IMG-014 | Trash | App recycle bin (30 days, size-capped) in addition to OS trash where available | All | 1.0 |
 | IMG-015 | Sharing and output | Share sheet with size/metadata options; set wallpaper/lock screen (A), set desktop (M W); print with layout; copy image; AirDrop/Nearby Share/Quick Share pass-through | All | 1.0 |
-| IMG-016 | Sources | Local folders, OS photo library (PhotoKit limited/full, MediaStore), SMB/NFS/WebDAV/FTP/SFTP, Immich, Nextcloud/ownCloud, PhotoPrism (read), cloud drives (Google Drive, OneDrive, Dropbox via REST OAuth) | All | 1.0 |
+| IMG-016 | Sources | Local folders, OS photo library (PhotoKit limited/full, MediaStore), SMB/NFS/WebDAV/FTP/SFTP, Immich, Nextcloud/ownCloud, PhotoPrism (read) (cloud drives removed by ADR-048) | All | 1.0 |
 | IMG-017 | Archives | Browse images inside ZIP/CBZ/RAR/CBR/7z with comic reading mode (RTL, two-page, fit modes) | All | 1.0 |
 | IMG-018 | Screensaver / ambient | Desktop screensaver module (M W) and ambient mode (A TV) from chosen albums | M W (A TV 1.1) | 1.0 |
 
@@ -215,7 +215,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | NET-004 | FTP/FTPS/SFTP | libcurl/libssh2; key auth for SFTP; resume | All | 1.0 |
 | NET-005 | DLNA/UPnP | Browse media servers (SSDP + ContentDirectory); play; our own renderer exposure (opt-in) so TVs/phones can push to Mediahro | All | 1.0 |
 | NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | Direct URL playback incl. live streams; custom headers/user-agent; no bundled lists, no EPG | All | 1.0 |
-| NET-007 | Cloud drives | Google Drive, OneDrive, Dropbox, Box, pCloud, MEGA, Yandex, Proton Drive (where API exists) via OAuth + REST (no vendor SDKs); stream and cache | All | 1.0 |
+| NET-007 | Cloud drives | Removed from 1.0 by owner decision 2026-10-22 (ADR-048): needs a publisher API key | All | — |
 | NET-010 | Jellyfin | Full client: auth (incl. Quick Connect), libraries, continue watching, next up, metadata, trickplay, subtitles, direct play preferred, transcode fallback, progress and watched sync, offline downloads, multiple servers/users | All | 1.0 |
 | NET-011 | Emby | Same as Jellyfin via Emby API | All | 1.0 |
 | NET-012 | Plex | Sign-in (PIN), direct play of local/remote libraries the user owns, progress sync; no Plex-hosted content surfaces | All | 1.0 |
