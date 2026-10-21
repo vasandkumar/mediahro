@@ -40,7 +40,7 @@ void main() {
     tearDown(() => svc.dispose());
 
     test('PRIV-004 subscribing records the feed host under the '
-        'subscription, with the show\'s name', () async {
+        "subscription, with the show's name", () async {
       final show = await svc.subscribe('https://show.example/rss');
       expect(hosts.entries, [
         ('https://show.example/rss', 'podcast:${show.id}', 'The Show & Co'),
@@ -59,10 +59,10 @@ void main() {
     test('PRIV-004 importing an OPML file records the hosts of the feeds '
         'that were subscribed to, not the ones that failed', () async {
       await svc.importOpml(
-        '<opml version="2.0"><body>'
-        '<outline xmlUrl="https://show.example/rss"/>'
-        '<outline xmlUrl="https://b.example/f"/>'
-        '<outline xmlUrl="https://gone.example/f"/>'
+        '<opml version="2.0"><body> '
+        '<outline xmlUrl="https://show.example/rss"/> '
+        '<outline xmlUrl="https://b.example/f"/> '
+        '<outline xmlUrl="https://gone.example/f"/> '
         '</body></opml>',
       );
       expect(hosts.entries.map((e) => e.$1), [

@@ -187,7 +187,9 @@ final class RadioStations {
 
   /// Records the hosts of the stations the user added before hosts were
   /// recorded (they were added by the user, so this is their choice).
-  Future<void> syncHosts() async => _recordHosts(await all());
+  Future<void> syncHosts() async {
+    await _recordHosts(await all());
+  }
 
   Future<void> dispose() => _changes.close();
 }
