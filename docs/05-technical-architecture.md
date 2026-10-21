@@ -20,7 +20,7 @@ Version 1.0 · 2026-10-19 · Synthesises `research/04` and `research/03`. This d
 ├─────────────────┬────────────────────────┬────────────────────────────────────┤
 │ Playback engine │ Image engine           │ Platform services (native)          │
 │ libmpv (LGPL)   │ libvips + libjxl +     │ Kotlin: Media3 session, SAF,        │
-│ via dart:ffi,   │ libavif + LibRaw +     │   MediaStore, Cast SDK, bit-perfect │
+│ via dart:ffi,   │ libavif + LibRaw +     │   MediaStore, bit-perfect           │
 │ mpv_render_ctx  │ libheif(platform-first)│ Swift: AVAudioSession, NowPlaying,  │
 │ → Flutter       │ via dart:ffi; OS       │   PiP, PhotoKit, AirPlay, CarPlay   │
 │ Texture         │ decoders first         │ C++/WinRT: SMTC, WASAPI, WIC, MSIX  │
@@ -142,7 +142,7 @@ Music playback uses the same `MpvEngine` instance pool (one for video, one for m
 
 ### 4.5 Casting pipeline
 
-Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` chooses passthrough (MP4/H.264/AAC), remux (MKV→fMP4 via FFmpeg libavformat) or transcode (FFmpeg + hardware encoder via MediaCodec/VideoToolbox/D3D12 where available) based on receiver capabilities. Subtitles converted to WebVTT. Cast senders: Cast SDK (A I, Play/App Store flavours), Open Screen `libcast` (M W, FOSS flavour), AirPlay (I M) via `AVPlayer` on an HLS URL from the same server, DLNA via AVTransport.
+Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` chooses passthrough (MP4/H.264/AAC), remux (MKV→fMP4 via FFmpeg libavformat) or transcode (FFmpeg + hardware encoder via MediaCodec/VideoToolbox/D3D12 where available) based on receiver capabilities. Subtitles converted to WebVTT. Cast senders: open CASTv2 sender in Dart on every platform and flavour (no Google Cast SDK, ADR-035), AirPlay (I M) via `AVPlayer` on an HLS URL from the same server, DLNA via AVTransport.
 
 ## 5. Image pipeline
 
@@ -181,7 +181,7 @@ Local HTTP server (Dart, `shelf`) exposes the current item; `CastTranscoder` cho
 | Android (Kotlin) | `MediaSessionModule` | Media3 `MediaSessionService`, notification, Android Auto `MediaLibraryService`, Assistant |
 | | `StorageModule` | SAF trees, MediaStore queries/observers, Photo Picker, `READ_MEDIA_VISUAL_USER_SELECTED`, trash via `MediaStore.createTrashRequest` |
 | | `AudioModule` | `setPreferredMixerAttributes` bit-perfect, AAudio device enumeration, AVRCP, audio focus |
-| | `CastModule` | Cast SDK (Play flavour only) |
+| | `CastModule` | Removed (ADR-035): CAST-001 is the open CASTv2 sender in Dart (C4d) on every flavour, so there is no Android cast code |
 | | `PipModule`, `DisplayModule` (frame-rate switching `Surface.setFrameRate`/`preferredDisplayModeId`), `KioskModule` (lock task), `ManagedConfigModule` |
 | iOS/macOS (Swift) | `AudioSessionModule` | `AVAudioSession`, Now Playing, remote commands, AirPlay route picker, CarPlay templates |
 | | `PipModule` | `AVPictureInPictureController` with `AVSampleBufferDisplayLayer` fed by engine frames |
@@ -230,8 +230,7 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 | whisper.cpp | current | MIT | any | model downloaded on demand |
 | uchardet | 0.0.8 | MPL-1.1 | any | |
 | SQLite | 3.4x bundled (A, W); system on I, M (≥ 3.30, §6) | public domain | any | FTS5 and JSON required, never stripped |
-| Open Screen libcast | current | BSD-3 | any | desktop/FOSS Cast sender |
-| Google Cast SDK | current | proprietary | Play/App Store flavours only | excluded from FOSS |
+| Open CASTv2 sender (Dart, ADR-035) | current | project code | any | CAST-001 on every flavour; replaces Open Screen libcast and the Google Cast SDK; no Google Cast SDK in any build |
 | Sentry Flutter, Aptabase Flutter | current | MIT | any | opt-in, FOSS flavour excludes Sentry if non-FOSS deps |
 
 All `.so` built with NDK r28+ (16 KB page alignment), all Apple binaries as dynamic `.xcframework`s signed by us, Windows as `.dll`s next to the executable. A CI licence scan fails the build if any artefact's configure flags or linked symbols indicate GPL code.
@@ -240,9 +239,9 @@ All `.so` built with NDK r28+ (16 KB page alignment), all Apple binaries as dyna
 
 | Flavour | Stores | Differences |
 |---|---|---|
-| `store` | App Store, Mac App Store, Google Play, Microsoft Store | IAP rails; Cast SDK (A I); platform ML; sandbox (MAS) |
+| `store` | App Store, Mac App Store, Google Play, Microsoft Store | IAP rails; platform ML; sandbox (MAS); open CASTv2 sender on all flavours (ADR-035) |
 | `direct` | Direct macOS DMG (notarised), Windows installer + winget | Web supporter links; Sparkle/own updater; no sandbox (M) |
-| `foss` | F-Droid, GitHub releases | No proprietary SDKs (no Cast SDK → Open Screen; no ML Kit; no Sentry if required); donation links; reproducible |
+| `foss` | F-Droid, GitHub releases | No proprietary SDKs (no Google Cast SDK, ADR-035; no ML Kit; no Sentry if required); donation links; reproducible |
 | `enterprise` | MDM/custom app distribution | Managed config defaults; branding hooks; commercial licence |
 
 Flavour differences are compile-time (`--dart-define=MEDIAHRO_FLAVOR=`) and Gradle/Xcode configurations; feature code checks `Flavor` only through a `Capabilities` service.

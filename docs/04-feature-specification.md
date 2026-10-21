@@ -220,7 +220,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | NET-011 | Emby | Same as Jellyfin via Emby API | All | 1.0 |
 | NET-012 | Plex | Sign-in (PIN), direct play of local/remote libraries the user owns, progress sync; no Plex-hosted content surfaces | All | 1.0 |
 | NET-013 | Subsonic/OpenSubsonic/Navidrome/Airsonic/Gonic | Music client with offline cache, playlists sync, scrobble pass-through, transcoding option | All | 1.0 |
-| NET-014 | Immich | Photo/video client: timeline, albums, people, map, search, local-only browsing, backup of chosen folders (opt-in) | All | 1.0 |
+| NET-014 | Immich | Photo/video client: timeline, albums, people, search, local-only browsing, backup of chosen folders (opt-in) (map view removed, ADR-041) | All | 1.0 |
 | NET-015 | Nextcloud | Files/Photos/Music via WebDAV + Nextcloud APIs; share links | All | 1.0 |
 | NET-016 | Audiobookshelf | See POD-003 | All | 1.0 |
 | NET-017 | Mediahro-to-Mediahro | Browse and play another Mediahro instance's shared library on the LAN (opt-in, paired by QR, mutual TLS) | All | 1.0 |
@@ -231,7 +231,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 
 | ID | Feature | Acceptance criteria | Platforms | Rel. |
 |---|---|---|---|---|
-| CAST-001 | Google Cast | Official Cast SDK (A I); Open Screen/CASTv2 implementation (M W); local files served to the receiver via embedded HTTP server with on-the-fly remux (and transcode fallback for unsupported codecs); subtitles sent as WebVTT; queue; volume; FOSS flavour omits the proprietary SDK and uses the open implementation | All | 1.0 |
+| CAST-001 | Google Cast | Open CASTv2 sender in Dart on every platform and flavour, with no Google Cast SDK (ADR-035): mDNS `_googlecast._tcp` discovery, TLS channel and protobuf framing in Dart; local files served to the receiver via embedded HTTP server with on-the-fly remux (and transcode fallback for unsupported codecs); subtitles sent as WebVTT; queue; volume | All | 1.0 |
 | CAST-002 | AirPlay | Sender via AVRoutePicker for compatible formats (MP4/HLS); for others, local remux/transcode to HLS served to the AirPlay target; AirPlay audio for music | I M | 1.0 |
 | CAST-003 | DLNA renderer push | Push to any DLNA/UPnP renderer (TVs, speakers) with control | All | 1.0 |
 | CAST-004 | External display | See VID-071 | All | 1.0 |
@@ -295,7 +295,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | Video engine, HDR, shaders, subtitles | Full | Full | Full | Full | libmpv everywhere |
 | Audio passthrough | Full | Limited (OS) | Full | Full | iOS has no bitstream API; decode to PCM/spatial |
 | Bit-perfect | USB DAC (API 34+) | Best effort | Hog mode | WASAPI/ASIO | Indicator shows truth |
-| Casting | Cast SDK + DLNA | Cast SDK + AirPlay + DLNA | Open Cast + AirPlay + DLNA | Open Cast + DLNA | AirPlay sender is Apple-only |
+| Casting | Open CASTv2 + DLNA | Open CASTv2 + AirPlay + DLNA | Open CASTv2 + AirPlay + DLNA | Open CASTv2 + DLNA | AirPlay sender is Apple-only |
 | Photo library access | MediaStore/SAF/Picker | PhotoKit/PHPicker/Files | Folders + Photos (read) | Folders + Pictures | Store policies in doc 07 |
 | Vault | Full | Full | Full | Full | |
 | Car | Android Auto | CarPlay | — | — | |
