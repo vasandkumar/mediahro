@@ -59,23 +59,42 @@ void main() {
   });
 
   group('playExternalAudio', () {
-    test('SYS-004 a file or a link plays as its own item: titled by its '
-        'name, not in the library, at normal speed', () async {
+    test('SYS-004 a file plays as its own item: titled by its name, not in '
+        'the library, at normal speed', () async {
       await engine.setRate(1.5);
       final ok = await incoming.playExternalAudio(
-        Uri.parse('https://example.org/dir/My%20Song.mp3'),
+        Uri.parse('file:///music/dir/My%20Song.mp3'),
       );
       expect(ok, isTrue);
       expect(engine.opened.last, isA<UriSource>());
-      expect(
-        uriOf(engine.opened.last),
-        'https://example.org/dir/My%20Song.mp3',
-      );
+      expect(uriOf(engine.opened.last), 'file:///music/dir/My%20Song.mp3');
       expect(player.state.episode?.title, 'My Song');
       expect(player.state.spoken, isTrue);
       expect(engine.rates.last, 1);
       expect(player.state.queue, isEmpty);
     });
+
+    test(
+      'SYS-004 a web link is left to the video player, which checks it '
+      'like any link, and never handed to the engine as an address',
+      () async {
+        // Nothing the listener added serves it.
+        refuse = true;
+        expect(
+          await incoming.playExternalAudio(
+            Uri.parse('https://example.org/a.mp3'),
+          ),
+          isFalse,
+        );
+        expect(
+          await incoming.playExternalAudio(
+            Uri.parse('http://example.org/a.mp3'),
+          ),
+          isFalse,
+        );
+        expect(engine.opened, isEmpty);
+      },
+    );
 
     test('CORE-003 a content address plays through the file that serves it, '
         'and the file is let go when the next one starts', () async {
@@ -128,20 +147,25 @@ void main() {
   });
 
   group('playPlaylistByName', () {
-    test('SYS-003 starts the playlist, any case, exact name first', () async {
-      final songs = await MusicLibrary(db).songs();
-      final mix = await playlists.createManual('Morning Mix');
-      await playlists.add(mix, songs.reversed.toList());
-      final other = await playlists.createManual('Morning');
-      await playlists.add(other, [songs.first]);
-      expect(await incoming.playPlaylistByName('  morning MIX '), isTrue);
-      expect(player.state.queue.map((t) => t.title), ['Two', 'One']);
-      expect(await incoming.playPlaylistByName('MORNING'), isTrue);
-      expect(player.state.queue.map((t) => t.title), ['One']);
-      // A part of the name finds it when nothing is called that.
-      expect(await incoming.playPlaylistByName('mix'), isTrue);
-      expect(player.state.queue, hasLength(2));
-    });
+    test(
+      'SYS-003 starts the playlist called exactly that, in any case',
+      () async {
+        final songs = await MusicLibrary(db).songs();
+        final mix = await playlists.createManual('Morning Mix');
+        await playlists.add(mix, songs.reversed.toList());
+        final other = await playlists.createManual('Morning');
+        await playlists.add(other, [songs.first]);
+        expect(await incoming.playPlaylistByName('  morning MIX '), isTrue);
+        expect(player.state.queue.map((t) => t.title), ['Two', 'One']);
+        expect(await incoming.playPlaylistByName('MORNING'), isTrue);
+        expect(player.state.queue.map((t) => t.title), ['One']);
+        // A part of a name is not the name.
+        engine.opened.clear();
+        expect(await incoming.playPlaylistByName('mix'), isFalse);
+        expect(await incoming.playPlaylistByName('Morn'), isFalse);
+        expect(engine.opened, isEmpty);
+      },
+    );
 
     test('SYS-003 no such playlist, an empty one or no name: false, nothing '
         'played', () async {
@@ -149,6 +173,23 @@ void main() {
       expect(await incoming.playPlaylistByName('nope'), isFalse);
       expect(await incoming.playPlaylistByName('Empty'), isFalse);
       expect(await incoming.playPlaylistByName('  '), isFalse);
+      expect(engine.opened, isEmpty);
+    });
+
+    test('LIB-013 hidden songs never play from a request, and a playlist of '
+        'only hidden songs is not started', () async {
+      final songs = await MusicLibrary(db).songs();
+      final mix = await playlists.createManual('Mix');
+      await playlists.add(mix, songs);
+      final secret = await playlists.createManual('Secret');
+      await playlists.add(secret, [songs.last]);
+      await db.customStatement(
+        "UPDATE item SET hidden = 1 WHERE rel_path = 'a/2.flac'",
+      );
+      expect(await incoming.playPlaylistByName('mix'), isTrue);
+      expect(player.state.queue.map((t) => t.title), ['One']);
+      engine.opened.clear();
+      expect(await incoming.playPlaylistByName('secret'), isFalse);
       expect(engine.opened, isEmpty);
     });
   });

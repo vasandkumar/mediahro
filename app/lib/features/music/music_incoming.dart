@@ -29,8 +29,9 @@ final class MusicIncoming {
   /// serves it.
   final Future<VirtualFile> Function(Uri uri) open;
 
-  /// Addresses mpv reads itself.
-  static const _direct = {'http', 'https', 'file'};
+  /// Addresses mpv reads itself. Web links are not among them: they are the
+  /// video player's, which checks them like any link the listener opens.
+  static const _direct = {'file'};
 
   VirtualFile? _held;
 
@@ -67,15 +68,15 @@ final class MusicIncoming {
     return true;
   }
 
-  /// Starts the playlist called [name] (any case); false when there is none
-  /// or it has no songs.
+  /// Starts the playlist called exactly [name] (any case); false when there
+  /// is none or it has no songs the listener may see (hidden and locked ones
+  /// never play from a spoken or shortcut request).
   Future<bool> playPlaylistByName(String name) async {
     final wanted = name.trim().toLowerCase();
     if (wanted.isEmpty) return false;
-    final all = await playlists.all();
-    final match =
-        all.where((p) => p.name.toLowerCase() == wanted).firstOrNull ??
-        all.where((p) => p.name.toLowerCase().contains(wanted)).firstOrNull;
+    final match = (await playlists.all())
+        .where((p) => p.name.toLowerCase() == wanted)
+        .firstOrNull;
     if (match == null) return false;
     final tracks = await playlists.tracks(match.id);
     if (tracks.isEmpty) return false;
