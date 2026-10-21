@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart' show loudnessGainDb;
@@ -417,7 +418,7 @@ void audioSuite() {
           },
         );
         addTearDown(e.dispose);
-        await e.setAudioOutput(const AudioOutputConfig(nativeDsd: true));
+        await e.setAudioOutput(_dopOutput);
         // Gain, speed and a DSP chain would corrupt DoP; the engine ignores
         // them for the item.
         await e.setVolume(0.5);
@@ -482,6 +483,128 @@ void audioSuite() {
       },
       skip: skip,
     );
+
+    // DoP to a device that does not decode it is noise, so each condition
+    // of the guard is tested on its own: the engine plays PCM instead.
+    Future<PlaybackState> dsdWith({
+      required AudioOutputConfig config,
+      Map<String, String> options = const {},
+    }) async {
+      final dir = await Directory.systemTemp.createTemp('mh-dopg');
+      addTearDown(() => dir.delete(recursive: true));
+      final e = headlessEngine(
+        role: EngineRole.music,
+        nullAudio: false,
+        extraOptions: {
+          'ao': 'pcm',
+          'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+          'ao-pcm-waveheader': 'no',
+          'audio-format': 's32',
+          ...options,
+        },
+      );
+      addTearDown(e.dispose);
+      await e.setAudioOutput(config);
+      await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+      final playing = await waitPlaying(e);
+      return playing;
+    }
+
+    test('AUD-043 DoP needs an exclusive output', () async {
+      final s = await dsdWith(
+        config: const AudioOutputConfig(
+          nativeDsd: true,
+          passthroughCodecs: ['dop'],
+        ),
+      );
+      expect(s.error, isNull);
+      expect(s.audio.path, isNot(AudioOutputPath.dop));
+    }, skip: skip);
+
+    test('AUD-043 DoP needs the device to be listed as taking it', () async {
+      final s = await dsdWith(
+        config: const AudioOutputConfig(nativeDsd: true, exclusive: true),
+      );
+      expect(s.error, isNull);
+      expect(s.audio.path, isNot(AudioOutputPath.dop));
+    }, skip: skip);
+
+    test(
+      'AUD-043 DoP is dropped when the opened output is not 24-bit',
+      () async {
+        // A 16-bit output would truncate the markers: PCM conversion instead.
+        final s = await dsdWith(
+          config: _dopOutput,
+          options: {'audio-format': 's16'},
+        );
+        expect(s.error, isNull);
+        expect(s.audio.path, isNot(AudioOutputPath.dop));
+      },
+      skip: skip,
+    );
+
+    test(
+      'AUD-043 a DSD item is not joined gaplessly to the one before',
+      () async {
+        final e = headlessEngine(role: EngineRole.music);
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(UriSource(Uri.file(corpusPath('gapless_flac_1.flac'))));
+        await waitPlaying(e);
+        await e.setNext(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        expect(
+          e.current.nextPrepared,
+          isFalse,
+          reason: 'opened by the app later',
+        );
+        await e.setNext(UriSource(Uri.file(corpusPath('gapless_flac_2.flac'))));
+        expect(e.current.nextPrepared, isTrue);
+      },
+      skip: skip,
+    );
+
+    for (final (granted, expectDop) in [(false, false), (true, true)]) {
+      test('AUD-043 on a phone the OS must grant the bit-perfect path '
+          '(granted: $granted)', () async {
+        // The OS answers the bit-perfect request through a fake messenger
+        // (no Flutter test binding, which would break the HTTP tests).
+        final channel = MethodChannel(
+          'mh/test/audio',
+          const StandardMethodCodec(),
+          _FakeMessenger({
+            'prefer': {
+              'applied': granted,
+              'bitPerfect': granted,
+              'sampleRate': granted ? 176400 : null,
+              'device': 'USB DAC',
+            },
+          }),
+        );
+        final dir = await Directory.systemTemp.createTemp('mh-dopm');
+        addTearDown(() => dir.delete(recursive: true));
+        final e = MpvEngine(
+          EngineRole.music,
+          config: MpvEngineConfig(
+            platform: EnginePlatform.android,
+            video: VideoOutputMode.none,
+            libmpvPath: env.libmpvPath,
+            audioBridge: AudioBridge(channel: channel),
+            extraOptions: {
+              'ao': 'pcm',
+              'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
+              'ao-pcm-waveheader': 'no',
+              'audio-format': 's32',
+            },
+          ),
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(_dopOutput);
+        await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        final s = await waitPlaying(e);
+        expect(s.error, isNull);
+        expect(s.audio.path == AudioOutputPath.dop, expectDop);
+      }, skip: skip);
+    }
 
     test(
       'AUD-044 latency offset shifts audio for Bluetooth A/V sync',
@@ -570,4 +693,35 @@ Future<_Pcm> _capture(Future<void> Function(MpvEngine e) body) async {
   final bytes = await File(file).readAsBytes();
   await dir.delete(recursive: true);
   return _Pcm(Int16List.sublistView(Uint8List.fromList(bytes)), 2);
+}
+
+/// An exclusive output whose device is listed as taking DoP.
+const _dopOutput = AudioOutputConfig(
+  nativeDsd: true,
+  exclusive: true,
+  passthroughCodecs: ['dop'],
+);
+
+/// Answers every method call of a [MethodChannel] with a fixed result.
+final class _FakeMessenger implements BinaryMessenger {
+  _FakeMessenger(this.results);
+
+  final Map<String, Object?> results;
+
+  @override
+  Future<ByteData?> send(String channel, ByteData? message) async {
+    const codec = StandardMethodCodec();
+    final call = codec.decodeMethodCall(message);
+    return codec.encodeSuccessEnvelope(results[call.method]);
+  }
+
+  @override
+  Future<void> handlePlatformMessage(
+    String channel,
+    ByteData? data,
+    PlatformMessageResponseCallback? callback,
+  ) async {}
+
+  @override
+  void setMessageHandler(String channel, MessageHandler? handler) {}
 }
