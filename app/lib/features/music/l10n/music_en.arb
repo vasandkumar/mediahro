@@ -746,5 +746,14 @@
         "type": "String"
       }
     }
+  },
+  "musicBookNumber": "{n}",
+  "@musicBookNumber": {
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
   }
 }

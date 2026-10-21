@@ -63,7 +63,7 @@ class _BookPlayerScreenState extends ConsumerState<BookPlayerScreen> {
             tooltip: l10n.musicBookBookmarks,
             icon: Badge(
               isLabelVisible: s.bookmarks.isNotEmpty,
-              label: Text('${s.bookmarks.length}'),
+              label: Text(l10n.musicBookNumber(s.bookmarks.length)),
               child: const Icon(Icons.bookmarks_outlined),
             ),
             onPressed: () => showBookmarksSheet(context),
@@ -364,7 +364,7 @@ class _ChaptersList extends ConsumerWidget {
               final c = s.chapters[i];
               return ListTile(
                 selected: i == s.chapterIndex,
-                leading: Text('${i + 1}'),
+                leading: Text(l10n.musicBookNumber(i + 1)),
                 title: Text(bookChapterTitle(l10n, c, i)),
                 trailing: Text(formatDuration(c.start)),
                 onTap: () {
