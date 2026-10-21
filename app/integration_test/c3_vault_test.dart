@@ -1,8 +1,7 @@
 // Lane C3 device batch, the vault (IMG-011, PRIV-007): the real OS crypto and
-// Keystore behind the vault on the Samsung. Needs the Android
-// VaultCryptoFacade (C4a, PR #88); until it is registered the tests skip
-// themselves. The fingerprint prompt and the screen capture block are manual
-// checks (listed in the PR).
+// Keystore behind the vault on the Samsung (C4a's AndroidVaultCrypto). The
+// fingerprint prompt and the screen capture block are manual checks (listed
+// in the PR).
 //
 //   flutter test integration_test/c3_vault_test.dart -d <serial> --no-dds \
 //     -P kotlin.incremental=false
@@ -23,24 +22,21 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   late Directory dir;
   late ProviderContainer c;
-  VaultManager? manager;
+  late VaultManager manager;
 
   setUp(() {
     dir = Directory.systemTemp.createTempSync('c3-vault');
     c = ProviderContainer(overrides: platformOverrides());
-    try {
-      manager = VaultManager(
-        root: Directory('${dir.path}/vault'),
-        crypto: c.read(vaultCryptoProvider),
-        secure: c.read(secureStorageProvider),
-      );
-    } on Object {
-      manager = null;
-    }
+    if (!Platform.isAndroid) return;
+    manager = VaultManager(
+      root: Directory('${dir.path}/vault'),
+      crypto: c.read(vaultCryptoProvider),
+      secure: c.read(secureStorageProvider),
+    );
   });
 
   tearDown(() async {
-    await manager?.reset();
+    if (Platform.isAndroid) await manager.reset();
     c.dispose();
     dir.deleteSync(recursive: true);
   });
@@ -52,10 +48,6 @@ void main() {
     tester,
   ) async {
     final m = manager;
-    if (m == null) {
-      markTestSkipped('blocked: Android VaultCryptoFacade (C4a, PR #88)');
-      return;
-    }
     final kdf = Stopwatch()..start();
     final made = await m.setUp(pin: '246810', decoyPin: '135790');
     kdf.stop();
@@ -85,16 +77,12 @@ void main() {
     await other.vault!.close();
 
     expect((await m.openWithPin('000000')).outcome, VaultOutcome.wrongPin);
-  });
+  }, skip: !Platform.isAndroid);
 
   testWidgets('IMG-011 nothing readable is on disk and the folder is private', (
     tester,
   ) async {
     final m = manager;
-    if (m == null) {
-      markTestSkipped('blocked: Android VaultCryptoFacade (C4a, PR #88)');
-      return;
-    }
     final r = await m.setUp(pin: '246810');
     final secret = bytes(200000, 3);
     await r.vault!.container.add(
@@ -114,16 +102,12 @@ void main() {
         isNot(contains(String.fromCharCodes(secret.sublist(500, 540)))),
       );
     }
-  });
+  }, skip: !Platform.isAndroid);
 
   testWidgets(
     'IMG-011 locking releases the keystore handle and a tampered file fails',
     (tester) async {
       final m = manager;
-      if (m == null) {
-        markTestSkipped('blocked: Android VaultCryptoFacade (C4a, PR #88)');
-        return;
-      }
       final r = await m.setUp(pin: '246810');
       final data = bytes(500000, 5);
       final item = await r.vault!.container.add(
@@ -143,5 +127,30 @@ void main() {
       );
       await again.vault!.close();
     },
+    skip: !Platform.isAndroid,
+  );
+
+  testWidgets(
+    'IMG-011 reset deletes the Keystore key and a new vault can be made',
+    (tester) async {
+      final m = manager;
+      final first = await m.setUp(pin: '246810');
+      expect(first.isOpen, isTrue, reason: '${first.outcome}');
+      final item = await first.vault!.container.add(
+        name: 'a.jpg',
+        kind: 'image',
+        content: Stream.value(bytes(1000, 1)),
+        size: 1000,
+      );
+      await first.vault!.close();
+      await m.reset();
+      expect(m.exists, isFalse);
+      final second = await m.setUp(pin: '135790');
+      expect(second.isOpen, isTrue, reason: '${second.outcome}');
+      expect(second.vault!.container.list(), isEmpty);
+      expect(second.vault!.container.byId(item.id), isNull);
+      await second.vault!.close();
+    },
+    skip: !Platform.isAndroid,
   );
 }
