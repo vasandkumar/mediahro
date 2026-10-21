@@ -30,6 +30,8 @@ import 'package:mediahro/images/pipeline/image_worker.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 import 'package:mediahro/images/pipeline/thumbnail_cache.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
+import 'package:mediahro_design/mediahro_design.dart' show KStringsScope;
+import 'package:mediahro_design/testing.dart' show KTestStrings;
 import 'package:mediahro_ffi/mediahro_ffi.dart' show LocalFileSystem;
 
 import '../test/core/seed.dart';
@@ -173,6 +175,10 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
+          // The app wraps its screens in the strings scope (app.dart); a bare
+          // MaterialApp needs it for the design system's compare view.
+          builder: (context, child) =>
+              KStringsScope(strings: const KTestStrings(), child: child!),
           home: CompareScreen(photos: photos),
         ),
       ),
