@@ -26,8 +26,9 @@ import 'package:pigeon/pigeon.dart';
 @HostApi()
 abstract class VaultCryptoHostApi {
   /// Opens (creating on first use) the master key; returns a handle id.
+  /// [secret], when given, is mixed into the wrapping key with HKDF-SHA-256.
   @async
-  int openMasterKey(bool requireBiometry);
+  int openMasterKey(bool requireBiometry, Uint8List? secret);
 
   /// A fresh per-file key, wrapped under the master key.
   @async

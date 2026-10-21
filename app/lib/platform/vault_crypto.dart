@@ -34,11 +34,30 @@ abstract interface class VaultCryptoFacade {
   /// returns an opaque handle. With [requireBiometry] the key needs a fresh
   /// biometric or device-credential authentication to use.
   ///
+  /// With [secret] (a PIN-derived key, ADR-040) the handle's wrapping key is
+  /// derived from the OS master key **and** the secret with HKDF-SHA-256
+  /// (RFC 5869, no salt, info `mediahro-vault-v1`), so file keys wrapped under
+  /// that handle cannot be opened without the same secret, nor by a handle
+  /// opened with another secret or none (those fail with
+  /// [VaultCryptoError.keyLost]). The native side zeroes its copy after use;
+  /// the caller zeroes its own. Without a secret nothing changes. A [secret]
+  /// must be exactly 32 bytes (a PIN-derived key); any other length fails with
+  /// [VaultCryptoError.unavailable]. On Android the derivation also needs one
+  /// operation of a device-bound OS key per open, so a guessed secret cannot
+  /// be tested offline.
+  ///
+  /// On a handle opened with a secret, a [VaultCryptoError.keyLost] from
+  /// [adoptFileKey] can also mean the secret is wrong, not only that the key
+  /// is gone: the UI should offer "try again" before a reset.
+  ///
   /// Throws [VaultCryptoException] with [VaultCryptoError.cancelled],
   /// [VaultCryptoError.notEnrolled], [VaultCryptoError.keyInvalidated],
   /// [VaultCryptoError.keyLost], [VaultCryptoError.lockedOut],
   /// [VaultCryptoError.authFailed] or [VaultCryptoError.unavailable].
-  Future<VaultKeyHandle> openMasterKey({required bool requireBiometry});
+  Future<VaultKeyHandle> openMasterKey({
+    required bool requireBiometry,
+    Uint8List? secret,
+  });
 
   /// Generates a fresh random 256-bit per-file data key and returns it wrapped
   /// under the master key behind [master]. The caller stores [WrappedKey.bytes]
