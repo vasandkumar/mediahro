@@ -19,9 +19,14 @@ Uint8List bytesOf(int n, [int seed = 1]) =>
 
 /// Waits for real work the screen started (isolates, files): alternate the
 /// real event loop with the fake-async microtasks.
-Future<void> settleReal(WidgetTester tester, {int quietPumps = 20}) async {
+Future<void> settleReal(
+  WidgetTester tester, {
+  int quietPumps = 20,
+  Finder? until,
+}) async {
   var quiet = 0;
-  for (var i = 0; i < 800 && quiet < quietPumps; i++) {
+  for (var i = 0; i < 3000 && quiet < quietPumps; i++) {
+    if (until != null && until.evaluate().isNotEmpty) break;
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
@@ -29,7 +34,9 @@ Future<void> settleReal(WidgetTester tester, {int quietPumps = 20}) async {
     final busy =
         find.byType(CircularProgressIndicator).evaluate().isNotEmpty ||
         find.byType(LinearProgressIndicator).evaluate().isNotEmpty;
-    quiet = busy ? 0 : quiet + 1;
+    // With a finder the wait is for that, however long the machine takes (the
+    // quiet count is only a guess), up to a bound.
+    quiet = busy || until != null ? 0 : quiet + 1;
   }
   await tester.pumpAndSettle();
 }
@@ -535,7 +542,10 @@ void main() {
         await tester.longPress(find.bySemanticsLabel('one.mp4'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Take out'));
-        await settleReal(tester, quietPumps: 60);
+        await settleReal(
+          tester,
+          until: find.text('1 photo taken out of the vault.'),
+        );
         expect(storage.saved, ['one.mp4']);
         expect(find.text('1 photo taken out of the vault.'), findsOneWidget);
         expect(find.bySemanticsLabel('one.mp4'), findsNothing);
@@ -581,7 +591,7 @@ void main() {
         await tester.enterText(fields.at(0), '999999');
         await tester.enterText(fields.at(1), '999999');
         await tester.tap(find.widgetWithText(FilledButton, 'Change PIN'));
-        await settleReal(tester, quietPumps: 100);
+        await settleReal(tester, until: find.byType(SnackBar));
         expect(find.textContaining('PIN changed'), findsOneWidget);
         await tester.tap(find.byTooltip('Lock'));
         await settleReal(tester);
@@ -593,6 +603,7 @@ void main() {
     );
 
     Future<void> changePinTo(WidgetTester tester, String pin) async {
+      // Every outcome of a Change PIN ends in one message on a snackbar.
       await tester.tap(find.byTooltip('More'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Change PIN'));
@@ -604,7 +615,7 @@ void main() {
       await tester.enterText(fields.at(0), pin);
       await tester.enterText(fields.at(1), pin);
       await tester.tap(find.widgetWithText(FilledButton, 'Change PIN'));
-      await settleReal(tester, quietPumps: 100);
+      await settleReal(tester, until: find.byType(SnackBar));
     }
 
     testWidgets('IMG-011 the other vault PIN is refused as a new PIN', (
