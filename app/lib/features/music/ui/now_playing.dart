@@ -14,6 +14,7 @@ import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/lyrics_view.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
+import 'package:mediahro/features/music/ui/podcast_player_screen.dart';
 import 'package:mediahro/features/music/ui/visualizer_view.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
@@ -45,6 +46,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   Widget build(BuildContext context) {
     final book = ref.watch(bookPlayerStateProvider).value;
     if (book != null && book.active) return BookPlayerScreen(state: book);
+    final pod = ref.watch(podcastPlayerStateProvider).value;
+    if (pod != null && pod.active) return PodcastPlayerScreen(state: pod);
     final l10n = AppLocalizations.of(context);
     final s = ref.watch(musicPlayerStateProvider).value;
     final player = ref.read(musicPlayerProvider);
@@ -790,6 +793,24 @@ class MusicMiniPlayer extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final player = ref.read(musicPlayerProvider);
     final station = s?.station;
+    final episode = s?.episode;
+    if (s != null && episode != null) {
+      final d = s.duration;
+      return KMiniPlayer(
+        title: episode.title,
+        subtitle: episode.show,
+        artwork: ShowArt(path: episode.artPath, size: 40),
+        playing: s.playing,
+        onPlayPause: () => unawaited(player.togglePlayPause()),
+        playLabel: l10n.musicPlayLabel,
+        pauseLabel: l10n.musicPauseLabel,
+        onOpen: () => openNowPlaying(context),
+        openLabel: l10n.musicOpenNowPlaying,
+        progress: d == null || d == Duration.zero
+            ? null
+            : (s.position.inMilliseconds / d.inMilliseconds).clamp(0, 1),
+      );
+    }
     if (s != null && station != null) {
       return KMiniPlayer(
         title: station.name,

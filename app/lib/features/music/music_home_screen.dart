@@ -11,6 +11,7 @@ import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
 import 'package:mediahro/features/music/ui/playlists.dart';
+import 'package:mediahro/features/music/ui/podcasts_tab.dart';
 import 'package:mediahro/features/music/ui/radio_tab.dart';
 import 'package:mediahro/features/music/ui/scrobble_settings.dart';
 import 'package:mediahro/ui/pending_screen.dart';
@@ -96,6 +97,7 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       (l10n.musicTabComposers, const GroupsTab(field: GroupField.composer)),
       (l10n.musicTabYears, const GroupsTab(field: GroupField.year)),
       (l10n.musicTabFolders, const FoldersTab()),
+      (l10n.musicTabPodcasts, const PodcastsTab()),
       (l10n.musicTabBooks, const BooksTab()),
       (l10n.musicTabRadio, const RadioTab()),
     ];

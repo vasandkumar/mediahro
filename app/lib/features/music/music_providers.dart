@@ -350,11 +350,13 @@ final podcastStoreProvider = Provider<PodcastStore>(
 /// The way podcasts reach the network: through the gateway, one allowed hop
 /// at a time.
 final podcastHttpProvider = Provider<PodcastHttp>((ref) {
-  final gateway = ref.watch(networkGatewayProvider);
-  final policy = ref.watch(networkPolicyProvider);
+  // Looked up when a request is made, so a podcast screen costs nothing
+  // until the network is used.
   return PodcastHttp(
-    send: gateway.sendStreamed,
-    allowHost: policy.allowForSession,
+    send: (r, {maxRedirects = 5}) => ref
+        .read(networkGatewayProvider)
+        .sendStreamed(r, maxRedirects: maxRedirects),
+    allowHost: (host) => ref.read(networkPolicyProvider).allowForSession(host),
   );
 });
 
@@ -363,11 +365,11 @@ final episodeDownloadsProvider = Provider<ManagerEpisodeDownloads>((ref) {
     manager: ref.watch(downloadManagerProvider),
     mounts: ref.watch(mountsProvider),
     fileSystem: HttpUrlFileSystem(
-      HttpSession(ref.watch(networkGatewayProvider)),
+      () => HttpSession(ref.read(networkGatewayProvider)),
       ref.watch(podcastHttpProvider),
     ),
   );
-  unawaited(d.resumePending());
+  unawaited(d.resumePending().catchError((Object _) {}));
   return d;
 });
 
@@ -401,10 +403,13 @@ final podcastServiceProvider = Provider<PodcastService>((ref) {
 /// that waits for a background task facade (ADR request).
 final podcastBootProvider = Provider<void>((ref) {
   final s = ref.watch(podcastServiceProvider);
-  unawaited(Future(() => s.refreshAll(minAge: const Duration(hours: 2))));
+  Future<void> check() => s
+      .refreshAll(minAge: const Duration(hours: 2))
+      .then((_) {}, onError: (Object _) {});
+  unawaited(Future(check));
   final timer = Timer.periodic(
     const Duration(hours: 1),
-    (_) => unawaited(s.refreshAll(minAge: const Duration(hours: 2))),
+    (_) => unawaited(check()),
   );
   ref.onDispose(timer.cancel);
 });
@@ -446,6 +451,15 @@ final podcastShowsProvider = StreamProvider<List<(PodcastShow, int)>>((
     yield await load();
   }
 });
+
+/// One show; reloads on any change.
+final FutureProviderFamily<PodcastShow?, String> podcastShowProvider =
+    FutureProvider.family<PodcastShow?, String>((ref, showId) {
+      final s = ref.watch(podcastServiceProvider);
+      final sub = s.changes.listen((_) => ref.invalidateSelf());
+      ref.onDispose(sub.cancel);
+      return s.store.show(showId);
+    });
 
 /// The episodes of one show; reloads on any change.
 final FutureProviderFamily<List<EpisodeEntry>, String> podcastEpisodesProvider =

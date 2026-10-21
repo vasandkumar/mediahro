@@ -14,9 +14,9 @@ import 'package:mediahro_ffi/mediahro_ffi.dart';
 /// network gateway. Only `open` is supported: an episode is a single file,
 /// not a folder.
 final class HttpUrlFileSystem implements VirtualFileSystem {
-  HttpUrlFileSystem(this.session, this.http);
+  HttpUrlFileSystem(this._session, this.http);
 
-  final HttpSession session;
+  final HttpSession Function() _session;
 
   /// Allows the redirect chain of an address before it is opened, so a
   /// download that resumes in a later session still gets through.
@@ -35,7 +35,7 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
     } on Object {
       // The open below reports what is wrong.
     }
-    return await HttpVirtualFile.open(uri, session);
+    return await HttpVirtualFile.open(uri, _session());
   }
 
   @override
