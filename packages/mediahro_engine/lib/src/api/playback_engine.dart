@@ -143,6 +143,15 @@ abstract interface class PlaybackEngine {
   /// user's volume; [PlaybackState.ducked] reports the state.
   Future<void> setDucking(double gain);
 
+  /// The OS audio route changed: an output device was added or removed, or
+  /// the output became noisy (ADR-045). The platform layer calls this, after
+  /// debouncing bursts of events. An engine playing a DSD item over DoP
+  /// (AUD-043) re-checks the route at once: it re-requests bit-perfect
+  /// output where the platform has it, then verifies the stream still
+  /// reaches a DoP-capable device and reopens the item as PCM when not. For
+  /// any other item it does nothing. Never throws for a route problem.
+  Future<void> audioRouteChanged();
+
   /// Output devices for [AudioOutputConfig.deviceId] (AUD-040…042, VID-004).
   Future<List<EngineAudioDevice>> audioDevices();
 

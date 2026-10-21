@@ -213,6 +213,9 @@ final class RecordingEngine implements PlaybackEngine {
   Future<void> setDucking(double gain) => fake.setDucking(gain);
 
   @override
+  Future<void> audioRouteChanged() => fake.audioRouteChanged();
+
+  @override
   Future<List<EngineAudioDevice>> audioDevices() => fake.audioDevices();
 
   @override
