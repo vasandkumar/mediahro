@@ -11,6 +11,8 @@ import 'package:mediahro/features/photos/slideshow/slideshow_screen.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
+import 'package:mediahro/platform/display.dart';
+import 'package:mediahro/platform/platform_facades.dart' show displayProvider;
 
 import '../../helpers.dart';
 import 'photos_harness.dart';
@@ -39,8 +41,19 @@ final class _Music implements SlideshowMusic {
   Future<void> stop() async => stops++;
 }
 
+final class _Display implements DisplayFacade {
+  final List<bool> awake = [];
+
+  @override
+  Future<void> keepScreenOn({required bool on}) async => awake.add(on);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   late PhotosHarness h;
+  late _Display display;
   late SettingsStore store;
   late _Music music;
   late List<PhotoEntry> photos;
@@ -57,6 +70,7 @@ void main() {
     Set<int> failures = const {},
   }) async {
     h = await PhotosHarness.create(tester);
+    display = _Display();
     music = withMusic ?? _Music();
     photos = fakeEntries(days: 1, perDay: count, firstId: 1);
     failing = failures;
@@ -74,6 +88,7 @@ void main() {
         overrides: [
           settingsStoreProvider.overrideWithValue(store),
           slideshowMusicProvider.overrideWithValue(music),
+          displayProvider.overrideWithValue(display),
           viewerImageLoaderProvider.overrideWithValue((entry) async {
             loaded.add(entry.id);
             if (failing.contains(entry.id)) throw StateError('unreadable');
@@ -391,6 +406,98 @@ void main() {
     await tester.tap(find.byTooltip('Close slideshow'));
     await tester.pumpAndSettle();
     expect(find.byType(SlideshowScreen), findsNothing);
+  });
+
+  /// The widest sideways shift of any picture layer on screen.
+  double sideways(WidgetTester tester) {
+    var widest = 0.0;
+    for (final t in tester.widgetList<Transform>(find.byType(Transform))) {
+      final x = t.transform.getTranslation().x.abs();
+      if (x > widest) widest = x;
+    }
+    return widest;
+  }
+
+  testWidgets('IMG-012 the slide transition slides the picture in', (
+    tester,
+  ) async {
+    tester0 = tester;
+    await open(
+      tester,
+      settings: {
+        'photos.slideshow.transition': 'slide',
+        'photos.slideshow.kenBurns': false,
+      },
+    );
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(sideways(tester) > 50, isTrue);
+    await tester.pump(const Duration(seconds: 1));
+  });
+
+  for (final kind in ['slide', 'zoom']) {
+    testWidgets(
+      'IMG-012 with reduced motion the $kind transition is a short fade',
+      (tester) async {
+        tester0 = tester;
+        tester.platformDispatcher.accessibilityFeaturesTestValue =
+            const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+        );
+        await open(
+          tester,
+          settings: {
+            'photos.slideshow.transition': kind,
+            'photos.slideshow.kenBurns': true,
+          },
+        );
+        for (var i = 0; i < 450; i++) {
+          await tester.pump(const Duration(milliseconds: 20));
+          expect(sideways(tester), 0, reason: 'nothing slides');
+          for (final t in tester.widgetList<Transform>(
+            find.byType(Transform),
+          )) {
+            // Nothing is scaled either (no zoom transition, no Ken Burns).
+            expect(t.transform.getMaxScaleOnAxis(), closeTo(1, 1e-6));
+          }
+        }
+        expect(position(), isNot('1 of 4'));
+      },
+    );
+  }
+
+  testWidgets('IMG-012 the screen is held awake only while the show plays', (
+    tester,
+  ) async {
+    tester0 = tester;
+    await open(tester);
+    await tester.pump();
+    expect(display.awake, [true]);
+    await tester.tap(find.byTooltip('Pause'));
+    await tester.pump();
+    expect(display.awake, [true, false]);
+    await tester.tap(find.byTooltip('Play'));
+    await tester.pump();
+    expect(display.awake, [true, false, true]);
+    await tester.pumpWidget(const SizedBox());
+    expect(display.awake.last, isFalse);
+  });
+
+  testWidgets('IMG-012 the screen is released when the show ends', (
+    tester,
+  ) async {
+    tester0 = tester;
+    await open(tester, count: 2, settings: {'photos.slideshow.loop': false});
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('End of the slideshow'), findsOneWidget);
+    expect(display.awake.last, isFalse);
+    await tester.tap(find.text('Play again'));
+    await tester.pump();
+    expect(display.awake.last, isTrue);
   });
 }
 

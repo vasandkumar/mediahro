@@ -107,6 +107,13 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     super.initState();
     _o = SlideshowSettings.read(ref.read(settingsStoreProvider));
     _music = ref.read(slideshowMusicProvider);
+    // Kept: the provider cannot be read once the screen is disposed, and the
+    // screen must be let go then.
+    try {
+      _display = ref.read(displayProvider);
+    } on Object {
+      _display = null;
+    }
     _order = _newOrder(widget.start);
     unawaited(_enter());
     unawaited(_show(_order.current, first: true));
@@ -122,15 +129,12 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
   );
 
   Future<void> _enter() async {
+    // Independent of the system bars: neither waits for the other.
+    unawaited(_syncAwake());
     try {
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     } on Object {
       // A platform without it.
-    }
-    try {
-      await ref.read(displayProvider).keepScreenOn(on: true);
-    } on Object {
-      // No display facade here: the screen may time out.
     }
   }
 
@@ -166,10 +170,13 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     _preload.clear();
     unawaited(_music.stop());
     unawaited(_leave());
-    try {
-      unawaited(ref.read(displayProvider).keepScreenOn(on: false));
-    } on Object {
-      // See _enter.
+    if (_awake) {
+      _awake = false;
+      try {
+        unawaited(_display?.keepScreenOn(on: false) ?? Future<void>.value());
+      } on Object {
+        // See _syncAwake.
+      }
     }
     super.dispose();
   }
@@ -257,6 +264,7 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
         _chrome = true;
       });
     }
+    unawaited(_syncAwake());
   }
 
   Future<void> _previous() async {
@@ -272,6 +280,7 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
   void _restart() {
     _order = _newOrder(_o.random ? _order.current : 0);
     setState(() => _ended = false);
+    unawaited(_syncAwake());
     unawaited(_show(_order.current));
   }
 
@@ -286,6 +295,23 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
       _clock.stop();
       _hide?.cancel();
       setState(() => _chrome = true);
+    }
+    unawaited(_syncAwake());
+  }
+
+  DisplayFacade? _display;
+  bool _awake = false;
+
+  /// The screen stays on while the show plays and may sleep while it is
+  /// paused or has ended.
+  Future<void> _syncAwake() async {
+    final want = _playing && !_ended && !_disposed;
+    if (want == _awake) return;
+    _awake = want;
+    try {
+      await _display?.keepScreenOn(on: want);
+    } on Object {
+      // No display facade here: the screen may time out.
     }
   }
 
@@ -379,7 +405,11 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
         final done = _outgoing == null;
         final width = MediaQuery.sizeOf(context).width;
         if (done) return child;
-        switch (_o.transition) {
+        // With reduced motion nothing slides or zooms: at most a short fade.
+        final change = reduce && _o.transition != SlideChange.none
+            ? SlideChange.fade
+            : _o.transition;
+        switch (change) {
           case SlideChange.none:
             return child;
           case SlideChange.fade:

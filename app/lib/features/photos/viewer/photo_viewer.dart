@@ -16,6 +16,7 @@ import 'package:mediahro/features/photos/info/info_sheet.dart';
 import 'package:mediahro/features/photos/output/output_actions.dart';
 import 'package:mediahro/features/photos/pano/pano_screen.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/slideshow/slideshow_screen.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
@@ -605,6 +606,18 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                       onPressed: () =>
                                           setState(() => _clip = !_clip),
                                     ),
+                                  IconButton(
+                                    tooltip: l10n.photosSlideshow,
+                                    color: Colors.white,
+                                    icon: const Icon(Icons.slideshow),
+                                    onPressed: () => unawaited(
+                                      openSlideshow(
+                                        context,
+                                        _entries,
+                                        start: _index,
+                                      ),
+                                    ),
+                                  ),
                                   if (_sphere)
                                     IconButton(
                                       tooltip: l10n.photosPanoLookAround,
