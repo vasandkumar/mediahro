@@ -31,6 +31,22 @@
   "photosBack": "Back",
   "photosInfo": "Details",
   "photosFit": "Fit to screen",
+  "photosPlayLive": "Play Live Photo",
+  "photosPlayMotion": "Play Motion Photo",
+  "photosStopClip": "Stop playing",
+  "photosPageOf": "Page {page} of {total}",
+  "@photosPageOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPagePrevious": "Previous page",
+  "photosPageNext": "Next page",
   "photosFill": "Fill screen",
   "photosRotate": "Rotate",
   "photosPlayAnimation": "Play animation",
