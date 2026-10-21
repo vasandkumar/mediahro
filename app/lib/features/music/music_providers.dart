@@ -10,6 +10,9 @@ import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/car/music_browse_tree.dart';
+import 'package:mediahro/features/music/fingerprint/acoustid_client.dart';
+import 'package:mediahro/features/music/fingerprint/fingerprint_service.dart';
+import 'package:mediahro/features/music/fingerprint/track_identifier.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
 import 'package:mediahro/features/music/library/music_indexer.dart';
@@ -307,6 +310,21 @@ final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
     FutureProvider.family<Lyrics?, MusicTrack>(
       (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
     );
+
+/// Song identification (MUS-010): on-device fingerprint, opt-in AcoustID
+/// lookup, then the safe tag write.
+final trackIdentifierProvider = Provider<TrackIdentifier>(
+  (ref) => TrackIdentifier(
+    fingerprinter: TrackFingerprinter(
+      engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+      files: ref.watch(musicFilesProvider),
+    ),
+    client: AcoustIdClient(
+      transport: _LazyTransport(() => ref.read(networkGatewayProvider)),
+    ),
+    editor: ref.watch(tagEditorProvider),
+  ),
+);
 
 /// Safe tag editing (MUS-003).
 final tagEditorProvider = Provider<TagEditor>(

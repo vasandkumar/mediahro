@@ -462,6 +462,45 @@
   "musicVisualizerUnavailable": "The visualiser needs live audio analysis from the playback engine, which this build doesn't include yet.",
   "musicVisualizerSemantics": "Music visualiser",
   "musicEditTags": "Edit tags",
+  "musicIdentify": "Identify song",
+  "musicIdentifyConsent": "Identifying a song sends a short acoustic fingerprint and the song's length to acoustid.org, a free community service. The audio and the tags stay on this device. It is off until you allow it.",
+  "musicIdentifyAllow": "Allow and identify",
+  "musicIdentifyUnavailable": "Song identification isn't available in this build.",
+  "musicIdentifyListening": "Listening to the song…",
+  "musicIdentifyLookingUp": "Looking it up…",
+  "musicIdentifyWriting": "Writing the tags…",
+  "musicIdentifyNone": "No match found for this song.",
+  "musicIdentifyError": "Couldn't identify this song. Check your connection and try again.",
+  "musicIdentifyRetry": "Try again",
+  "musicIdentifyPick": "Pick the right match to replace the tags of \"{title}\".",
+  "@musicIdentifyPick": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicIdentifyAlbumYear": "{album} ({year})",
+  "@musicIdentifyAlbumYear": {
+    "placeholders": {
+      "album": {
+        "type": "String"
+      },
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "musicIdentifyScore": "{percent}% match",
+  "@musicIdentifyScore": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "musicIdentifyApplied": "Tags updated",
+  "musicIdentifyNotWritten": "This file's tags couldn't be changed.",
   "musicEditTagsCount": "{count, plural, =1{Edit tags of 1 song} other{Edit tags of {count} songs}}",
   "@musicEditTagsCount": {
     "placeholders": {

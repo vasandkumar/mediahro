@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/index/index_writer.dart';
@@ -225,6 +226,28 @@ final class ScriptedMusicEngine implements PlaybackEngine {
 
   @override
   Future<void> audioRouteChanged() async {}
+
+  /// What [decodeAudio] yields (MUS-010), how many chunks were read before
+  /// the listener stopped, and the end it asked for.
+  List<Float32List> decoded = const [];
+  int decodedRead = 0;
+  Duration? decodeEnd;
+
+  @override
+  Stream<Float32List> decodeAudio(
+    MediaSource source, {
+    int? trackId,
+    int sampleRate = 16000,
+    bool mono = true,
+    Duration? start,
+    Duration? end,
+  }) async* {
+    decodeEnd = end;
+    for (final c in decoded) {
+      decodedRead++;
+      yield c;
+    }
+  }
 
   @override
   Future<void> setAudioDsp(AudioDspChain chain) async => dsp = chain;
