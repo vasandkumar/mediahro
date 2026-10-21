@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:mediahro/core/net/local_hosts.dart' show normalizeHost;
 import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:meta/meta.dart';
@@ -205,6 +206,19 @@ final class PodcastStore {
     for (final v in await prefs.readList(_index) ?? const [])
       if (v is String) v,
   ];
+
+  /// The host of the feed that lists [episodeUrl] (normalised), or none:
+  /// the one private-network host that episode's file may reach.
+  Future<Set<String>> feedHostFor(Uri episodeUrl) async {
+    final wanted = episodeUrl.toString();
+    for (final s in await shows()) {
+      if (s.episodes.any((e) => e.url == wanted)) {
+        final host = Uri.tryParse(s.url)?.host;
+        return host == null || host.isEmpty ? const {} : {normalizeHost(host)};
+      }
+    }
+    return const {};
+  }
 
   Future<List<PodcastShow>> shows() async {
     final out = <PodcastShow>[];

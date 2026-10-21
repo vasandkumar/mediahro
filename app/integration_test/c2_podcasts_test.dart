@@ -9,7 +9,6 @@ import 'package:mediahro/core/files/file_systems.dart';
 import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/sources/downloads.dart';
-import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
@@ -140,10 +139,8 @@ void main() {
       final gateway = NetworkGateway(_AllowAll());
       final http = PodcastHttp(
         send: gateway.sendStreamed,
-        beginChain: () => ChainAllowance(allow: (_) {}, close: () {}),
-        // The feed is on the loopback server the test started: a subscription
-        // host, so its enclosure there is allowed.
-        localAllowed: (host) async => host == InternetAddress.loopbackIPv4.host,
+        beginChain: () =>
+            ChainAllowance(allow: (_) {}, close: () {}, run: <T>(b) => b()),
       );
       final mounts = MountedFileSystems();
       final manager = DownloadManager(
@@ -154,7 +151,12 @@ void main() {
       final downloads = ManagerEpisodeDownloads(
         manager: manager,
         mounts: mounts,
-        fileSystem: HttpUrlFileSystem(() => HttpSession(gateway), http),
+        // The feed is on the loopback server the test started, so its
+        // enclosure there is its own host.
+        fileSystem: HttpUrlFileSystem(
+          http,
+          trustedFor: (_) async => {InternetAddress.loopbackIPv4.host},
+        ),
       );
       final store = PodcastStore(MusicPrefs(db));
       final service = PodcastService(

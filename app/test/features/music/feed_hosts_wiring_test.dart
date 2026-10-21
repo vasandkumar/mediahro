@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart';
@@ -84,6 +86,33 @@ void main() {
       expect(hosts.removed, ['podcast:${show.id}']);
     });
 
+    test('PRIV-004 unsubscribing while a refresh is recording a new title '
+        'waits for it: the host does not come back', () async {
+      final show = await svc.subscribe('https://show.example/rss');
+      net.serve(
+        'https://show.example/rss',
+        podcastRss.replaceFirst('The Show &amp; Co', 'Renamed'),
+      );
+      hosts
+        ..log.clear()
+        ..addEntered = Completer<void>()
+        ..addGate = Completer<void>();
+      final refreshing = svc.refresh(show.id);
+      await hosts.addEntered.future;
+      final unsubscribing = svc.unsubscribe(show.id);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final gate = hosts.addGate!;
+      hosts.addGate = null;
+      gate.complete();
+      await refreshing;
+      await unsubscribing;
+      expect(hosts.log, [
+        'add:podcast:${show.id}',
+        'remove:podcast:${show.id}',
+      ]);
+      expect(await svc.shows(), isEmpty);
+    });
+
     test('PRIV-004 subscriptions from before hosts were recorded are '
         'recorded once at start', () async {
       final show = await svc.subscribe('https://show.example/rss');
@@ -148,15 +177,30 @@ final class _Hosts implements FeedHostRegistry {
   final entries = <(String, String, String)>[];
   final removed = <String>[];
 
+  /// Every call in order, as `add:<owner>` / `remove:<owner>`.
+  final log = <String>[];
+
+  /// Holds [addFeedHost] until it completes.
+  Completer<void>? addGate;
+  Completer<void> addEntered = Completer<void>();
+
   @override
   Future<void> addFeedHost(
     Uri url, {
     required String owner,
     required String label,
-  }) async => entries.add((url.toString(), owner, label));
+  }) async {
+    log.add('add:$owner');
+    if (!addEntered.isCompleted) addEntered.complete();
+    await addGate?.future;
+    entries.add((url.toString(), owner, label));
+  }
 
   @override
-  Future<void> removeFeedOwner(String owner) async => removed.add(owner);
+  Future<void> removeFeedOwner(String owner) async {
+    log.add('remove:$owner');
+    removed.add(owner);
+  }
 
   final pruned = <(String, Set<String>)>[];
 
