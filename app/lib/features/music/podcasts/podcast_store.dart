@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:mediahro/core/net/local_hosts.dart' show normalizeHost;
+import 'package:mediahro/core/net/local_hosts.dart' show trustedFeedHosts;
 import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:meta/meta.dart';
@@ -207,14 +207,15 @@ final class PodcastStore {
       if (v is String) v,
   ];
 
-  /// The host of the feed that lists [episodeUrl] (normalised), or none:
-  /// the one private-network host that episode's file may reach.
+  /// The private-network host that the file of [episodeUrl] may reach: its
+  /// feed's own host when that is on the listener's own network (see
+  /// [trustedFeedHosts]), else none.
   Future<Set<String>> feedHostFor(Uri episodeUrl) async {
     final wanted = episodeUrl.toString();
     for (final s in await shows()) {
       if (s.episodes.any((e) => e.url == wanted)) {
         final host = Uri.tryParse(s.url)?.host;
-        return host == null || host.isEmpty ? const {} : {normalizeHost(host)};
+        return host == null || host.isEmpty ? const {} : trustedFeedHosts(host);
       }
     }
     return const {};
