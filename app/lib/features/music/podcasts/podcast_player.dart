@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show File;
 
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
@@ -7,6 +8,7 @@ import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:mediahro/features/music/podcasts/podcast_service.dart';
 import 'package:mediahro/features/music/podcasts/podcast_store.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show VirtualFile;
 import 'package:meta/meta.dart';
 
 /// What the episode player shows (POD-002).
@@ -112,6 +114,10 @@ final class PodcastPlayer {
   DateTime? _lastSave;
   bool _disposed = false;
 
+  /// The episode being streamed, opened through the network checks; closed
+  /// when the player moves on.
+  VirtualFile? _stream;
+
   PodcastPlayerState get state => _state;
 
   Stream<PodcastPlayerState> get states => Stream.multi((l) {
@@ -134,9 +140,7 @@ final class PodcastPlayer {
         : Duration.zero;
     final speed = show.speed ?? await _store.lastSpeed();
     final local = await service.localFile(episode);
-    final source = local != null
-        ? UriSource(local.uri, title: episode.title)
-        : UriSource(Uri.parse(episode.url), title: episode.title);
+    final (source, stream) = await _sourceFor(episode, local);
     _mode.claim(this);
     _opening = true;
     _playedMarked = false;
@@ -165,7 +169,11 @@ final class PodcastPlayer {
         start: resume > minPlace ? resume : null,
         autoplay: autoplay,
       );
+      await _holdStream(stream);
       await engine.setRate(speed);
+    } on Object {
+      await stream?.close();
+      rethrow;
     } finally {
       _opening = false;
     }
@@ -234,10 +242,34 @@ final class PodcastPlayer {
     _disposed = true;
     await _sub?.cancel();
     if (_state.active) await _save(force: true);
+    await _holdStream(null);
     await _states.close();
   }
 
   // ------------------------------------------------------------ internals --
+
+  /// What the engine opens for [episode]: the downloaded copy, or the
+  /// episode read through the network checks (every hop and every read is
+  /// allowed for that file only: an address a feed names never goes to the
+  /// engine, which would fetch it with no checks). The stream is held until
+  /// [_holdStream] takes it over. Throws [PodcastException].
+  Future<(MediaSource, VirtualFile?)> _sourceFor(
+    ParsedEpisode episode,
+    File? local,
+  ) async {
+    if (local != null) {
+      return (UriSource(local.uri, title: episode.title), null);
+    }
+    final file = await service.openStream(episode);
+    return (VirtualFileSource(file, title: episode.title), file);
+  }
+
+  /// Keeps [next] as the open stream and closes the one before it.
+  Future<void> _holdStream(VirtualFile? next) async {
+    final old = _stream;
+    _stream = next;
+    if (old != null && !identical(old, next)) await old.close();
+  }
 
   void _onPlayer(MusicPlayerState s) {
     final show = _state.show;
@@ -297,15 +329,18 @@ final class PodcastPlayer {
     if (next == null) return;
     final fresh = await _store.show(show.id) ?? show;
     _ops = Future.value();
-    await _openNext(fresh, next.episode);
+    try {
+      await _openNext(fresh, next.episode);
+    } on PodcastException {
+      // The next episode is not one that may be played (an address a feed
+      // sent to the listener's own network): stay at the end of this one.
+    }
   }
 
   Future<void> _openNext(PodcastShow show, ParsedEpisode episode) async {
     final speed = show.speed ?? _state.speed;
     final local = await service.localFile(episode);
-    final source = local != null
-        ? UriSource(local.uri, title: episode.title)
-        : UriSource(Uri.parse(episode.url), title: episode.title);
+    final (source, stream) = await _sourceFor(episode, local);
     _mode.claim(this);
     _opening = true;
     _playedMarked = false;
@@ -331,7 +366,11 @@ final class PodcastPlayer {
         ),
         source,
       );
+      await _holdStream(stream);
       await engine.setRate(speed);
+    } on Object {
+      await stream?.close();
+      rethrow;
     } finally {
       _opening = false;
     }

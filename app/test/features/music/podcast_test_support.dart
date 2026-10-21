@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show InternetAddress;
+import 'dart:typed_data';
 
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/net/local_hosts.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
 import 'package:mediahro/features/music/podcasts/podcast_service.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show VirtualFile;
 import 'package:mediahro_servers/mediahro_servers.dart';
 
 /// Shared fakes for the podcast tests (POD-002).
@@ -91,14 +95,26 @@ final class FakeNet {
   /// Holds the answer for an address until the gate completes.
   final gates = <String, Completer<void>>{};
 
-  /// Private-network hosts of subscriptions (what the store would say).
-  final localHosts = <String>{};
+  /// What a name resolves to (everything else is a public address).
+  final dns = <String, List<InternetAddress>>{};
 
-  /// Whether some request chain still running allows [host].
-  bool allowedNow(String host) => _open.any((s) => s.contains(host));
+  /// Answers by code for an address, called for every request to it.
+  final handlers =
+      <String, FutureOr<HttpStreamResponse> Function(HttpRequestData)>{};
+
+  static const _zoneKey = #fakeNetChain;
+
+  /// The hosts every chain still open allows.
+  Set<String> get openHosts => {for (final s in _open) ...s};
 
   /// Chains started and not yet closed.
   int get openChains => _open.length;
+
+  static HttpStreamResponse response(
+    int status,
+    List<int> body, [
+    Map<String, String> headers = const {},
+  ]) => HttpStreamResponse(status, headers, Stream.value(body));
 
   void serve(
     String url,
@@ -121,6 +137,10 @@ final class FakeNet {
       _answers[from] = _Answer(302, const [], {'location': to});
 
   late final http = PodcastHttp(
+    nonPublic: (host) => resolvesToNonPublic(
+      host,
+      lookup: (n) async => dns[n] ?? [InternetAddress('93.184.216.34')],
+    ),
     beginChain: () {
       final hosts = <String>{};
       _open.add(hosts);
@@ -129,16 +149,27 @@ final class FakeNet {
           allowed.add(h);
           hosts.add(h);
         },
-        close: () => _open.remove(hosts),
+        close: () {
+          hosts.clear();
+          _open.remove(hosts);
+        },
+        run: <T>(body) => runZoned(body, zoneValues: {_zoneKey: hosts}),
       );
     },
-    localAllowed: (h) async => localHosts.contains(h),
     send: (request, {maxRedirects = 5}) async {
       requests.add(request);
-      if (!allowedNow(request.uri.host)) {
+      // Like the gateway: only a request made inside an allowance that
+      // names its host goes out, and the gateway is asked to follow nothing.
+      final chain = Zone.current[_zoneKey];
+      if (chain is! Set<String> || !chain.contains(request.uri.host)) {
         throw NetworkBlocked(request.uri.host, 'not allowed');
       }
+      if (maxRedirects != 0) {
+        throw StateError('the gateway must not follow redirects here');
+      }
       await gates[request.uri.toString()]?.future;
+      final handler = handlers[request.uri.toString()];
+      if (handler != null) return await handler(request);
       final a = _answers[request.uri.toString()];
       if (a == null) {
         return HttpStreamResponse(404, const {}, Stream.value(const []));
@@ -185,8 +216,13 @@ final class FakeDownloads implements EpisodeDownloads {
   }
 
   @override
-  Future<EpisodeDownload?> status(Uri url) async =>
-      have.contains(url.toString())
+  Future<EpisodeDownload?> status(Uri url) async {
+    if (!statusAsked.isCompleted) statusAsked.complete();
+    await statusGate?.future;
+    return _status(url);
+  }
+
+  EpisodeDownload? _status(Uri url) => have.contains(url.toString())
       ? const EpisodeDownload(DownloadState.queued)
       : null;
 
@@ -195,4 +231,44 @@ final class FakeDownloads implements EpisodeDownloads {
     removed.add(url);
     have.remove(url.toString());
   }
+
+  /// Addresses opened to be streamed, and what they opened to.
+  final streamed = <StubFile>[];
+
+  /// Set to refuse a stream.
+  Exception? streamError;
+
+  /// Holds [status] until it completes (a window for a test to step in).
+  Completer<void>? statusGate;
+  Completer<void> statusAsked = Completer<void>();
+
+  @override
+  Future<VirtualFile> openStream(Uri url) async {
+    final e = streamError;
+    if (e != null) throw e;
+    final f = StubFile(url);
+    streamed.add(f);
+    return f;
+  }
+}
+
+/// A file that reads nothing and knows whether it was closed.
+final class StubFile implements VirtualFile {
+  StubFile(this.uri);
+
+  @override
+  final Uri uri;
+  bool closed = false;
+
+  @override
+  bool get isSeekable => true;
+
+  @override
+  Future<int?> length() async => 5;
+
+  @override
+  Future<Uint8List> read(int offset, int length) async => Uint8List(0);
+
+  @override
+  Future<void> close() async => closed = true;
 }

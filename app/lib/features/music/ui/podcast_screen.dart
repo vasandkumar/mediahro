@@ -134,7 +134,17 @@ Future<void> playEpisode(
   PodcastShow show,
   ParsedEpisode episode,
 ) async {
-  await ref.read(podcastPlayerProvider).play(show, episode);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final l10n = AppLocalizations.of(context);
+  try {
+    await ref.read(podcastPlayerProvider).play(show, episode);
+  } on PodcastException catch (e) {
+    // The episode's address is not one that may be played.
+    messenger?.showSnackBar(
+      SnackBar(content: Text(podcastFailureText(l10n, e.reason))),
+    );
+    return;
+  }
   if (context.mounted) openNowPlaying(context);
 }
 

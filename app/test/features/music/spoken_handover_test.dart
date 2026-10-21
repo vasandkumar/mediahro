@@ -17,8 +17,10 @@ import 'package:mediahro/features/music/podcasts/podcast_service.dart';
 import 'package:mediahro/features/music/podcasts/podcast_store.dart';
 import 'package:mediahro/features/music/radio/radio_stations.dart';
 import 'package:mediahro/features/music/tags/tag_reader.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show VirtualFile;
 
 import 'music_test_support.dart';
+import 'podcast_test_support.dart' show StubFile;
 
 /// Audiobooks and podcasts share one music engine and one speed setting. A
 /// player that gives way to another must not undo what the other set, and a
@@ -85,7 +87,8 @@ void main() {
       store: podStore,
       http: PodcastHttp(
         send: (r, {maxRedirects = 5}) => throw StateError('no network'),
-        beginChain: () => ChainAllowance(allow: (_) {}, close: () {}),
+        beginChain: () =>
+            ChainAllowance(allow: (_) {}, close: () {}, run: <T>(b) => b()),
       ),
       downloads: _NoDownloads(),
     );
@@ -194,4 +197,7 @@ final class _NoDownloads implements EpisodeDownloads {
 
   @override
   Future<void> remove(Uri url) async {}
+
+  @override
+  Future<VirtualFile> openStream(Uri url) async => StubFile(url);
 }

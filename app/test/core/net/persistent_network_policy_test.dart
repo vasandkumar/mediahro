@@ -60,27 +60,45 @@ void main() {
     await p.dispose();
   });
 
-  test('PRIV-004 an allow scope lasts until it is closed and adds nothing '
-      'to the session or the dashboard', () async {
-    final p = await PersistentNetworkPolicy.load(db);
-    await p.setLanDiscovery(enabled: false);
-    final a = p.beginAllowScope();
-    final b = p.beginAllowScope();
-    a.allow('CDN.Example.com');
-    b.allow('cdn.example.com');
-    expect(p.isUserConfiguredHost('cdn.example.com'), isTrue);
-    expect(p.userConfiguredHosts(), isEmpty);
-    a.close();
-    // Another chain still needs it.
-    expect(p.isUserConfiguredHost('cdn.example.com'), isTrue);
-    b.close();
-    expect(p.isUserConfiguredHost('cdn.example.com'), isFalse);
-    // Closing twice is harmless; the LAN switch is not bypassed by a scope
-    // that never allowed the host.
-    b.close();
-    expect(p.isUserConfiguredHost('192.168.1.20'), isFalse);
-    await p.dispose();
-  });
+  test(
+    'PRIV-004 an allow scope is for the code running inside it, until '
+    'it is closed; it adds nothing to the session or the dashboard',
+    () async {
+      final p = await PersistentNetworkPolicy.load(db);
+      await p.setLanDiscovery(enabled: false);
+      final a = p.beginAllowScope();
+      final b = p.beginAllowScope();
+      a.allow('CDN.Example.com');
+      b.allow('other.example.com');
+      // Nothing outside the scope, whatever else is going on, can use it.
+      expect(p.isUserConfiguredHost('cdn.example.com'), isFalse);
+      expect(p.userConfiguredHosts(), isEmpty);
+      expect(a.run(() => p.isUserConfiguredHost('cdn.example.com')), isTrue);
+      // Not another scope's hosts either.
+      expect(a.run(() => p.isUserConfiguredHost('other.example.com')), isFalse);
+      expect(b.run(() => p.isUserConfiguredHost('cdn.example.com')), isFalse);
+      // It follows the work started inside it, across awaits.
+      final later = await a.run(() async {
+        await Future<void>.delayed(Duration.zero);
+        return p.isUserConfiguredHost('cdn.example.com');
+      });
+      expect(later, isTrue);
+      // A scope left open does not leak to code that was not started in it.
+      final outside = Future<bool>(
+        () => p.isUserConfiguredHost('cdn.example.com'),
+      );
+      expect(await outside, isFalse);
+      a.close();
+      expect(a.run(() => p.isUserConfiguredHost('cdn.example.com')), isFalse);
+      expect(b.run(() => p.isUserConfiguredHost('other.example.com')), isTrue);
+      b
+        ..close()
+        // Closing twice is harmless; the LAN switch is not bypassed.
+        ..close();
+      expect(b.run(() => p.isUserConfiguredHost('192.168.1.20')), isFalse);
+      await p.dispose();
+    },
+  );
 
   test('CORE-015 dashboard API: injected toggles, last use per endpoint and per user host, change signal', () async {
     await db
