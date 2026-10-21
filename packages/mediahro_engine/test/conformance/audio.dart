@@ -38,7 +38,10 @@ void audioSuite() {
             );
           }
         },
-        skip: const {'replaygain.flac', 'tracker.mod'}.contains(item.file)
+        skip: item.file == 'midi_scale.mid'
+            ? 'blocked: STATUS §3 — no MIDI synthesiser in mediahro-deps '
+                  '(soundfont playback, B4a)'
+            : const {'replaygain.flac', 'tracker.mod'}.contains(item.file)
             ? blockedOn(appleBootstrap, appleBootstrapBlocker)
             : skip,
       );

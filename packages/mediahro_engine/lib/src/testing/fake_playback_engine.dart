@@ -6,6 +6,7 @@ import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// Deterministic in-memory [PlaybackEngine] for widget and integration tests
@@ -430,6 +431,32 @@ final class FakePlaybackEngine implements PlaybackEngine {
   /// The PCM [decodeAudio] returns, in the rate and layout the test
   /// will request; `start` and `end` cut it (ADR-032).
   Float32List decodedAudio = Float32List(0);
+
+  /// What [extractSubtitleImages] streams (ADR-031 part 2).
+  List<SubtitleImage> extractedSubtitleImages = [];
+
+  @override
+  Stream<SubtitleImage> extractSubtitleImages(int trackId) async* {
+    _check('extractSubtitleImages');
+    final track = _state.tracks
+        .where((t) => t.type == TrackType.subtitle && t.id == trackId)
+        .firstOrNull;
+    if (openedSource == null || track == null) {
+      throw const EngineException(
+        EngineError(code: EngineErrorCode.invalidArgument),
+      );
+    }
+    if (!const {
+      'hdmv_pgs_subtitle',
+      'dvd_subtitle',
+      'dvb_subtitle',
+    }.contains(track.codec)) {
+      throw const EngineException(
+        EngineError(code: EngineErrorCode.notSupported),
+      );
+    }
+    yield* Stream.fromIterable(extractedSubtitleImages);
+  }
 
   /// What [extractSubtitles] writes (ADR-031); tests set the file content.
   String extractedSubtitles = '1\n00:00:01,000 --> 00:00:02,000\nHello\n';

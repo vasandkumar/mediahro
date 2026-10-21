@@ -224,6 +224,10 @@ final class RecordingEngine implements PlaybackEngine {
       fake.extractSubtitles(trackId, out);
 
   @override
+  Stream<SubtitleImage> extractSubtitleImages(int trackId) =>
+      fake.extractSubtitleImages(trackId);
+
+  @override
   Stream<Float32List> decodeAudio(
     MediaSource source, {
     int? trackId,
