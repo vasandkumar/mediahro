@@ -246,6 +246,7 @@ final class VaultContainer {
   }) async {
     final file = File('${directory.path}${Platform.pathSeparator}$indexName');
     if (!file.existsSync()) throw const VaultCorrupt('no index');
+    sweepStaleParts(directory);
     final reader = await VaultReader.open(
       crypto: crypto,
       source: MemoryVaultSource(await file.readAsBytes()),
@@ -265,6 +266,19 @@ final class VaultContainer {
           if (VaultItem.fromJson(j) case final VaultItem v) v,
     ];
     return VaultContainer._(directory, crypto, master, items);
+  }
+
+  /// Removes the half-written files a stop in the middle of a write left
+  /// (best effort). Dart has no way to sync a directory; the files are
+  /// forced to disk before they are renamed.
+  static void sweepStaleParts(Directory directory) {
+    try {
+      for (final e in directory.listSync(followLinks: false)) {
+        if (e is File && e.path.endsWith('.part')) e.deleteSync();
+      }
+    } on FileSystemException {
+      // Left for the next open.
+    }
   }
 
   void _live() {
@@ -507,7 +521,9 @@ final class VaultContainer {
   void close() {
     if (_closed) return;
     _closed = true;
-    _items = const [];
+    // The list stays until the work under way is over: an add that is half
+    // done must save the index with every item, not only its own.
+    unawaited(_tail.whenComplete(() => _items = const []));
   }
 
   bool get isClosed => _closed;

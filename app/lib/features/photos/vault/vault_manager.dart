@@ -253,6 +253,7 @@ final class VaultManager {
     final made = <Directory>[];
     final handles = <VaultKeyHandle>[];
     final secrets = <Uint8List>[];
+    final containers = <VaultContainer>[];
     try {
       final pins = [pin, decoy];
       final order = [0, 1]..shuffle(Random.secure());
@@ -299,6 +300,7 @@ final class VaultManager {
             crypto: crypto,
             master: master,
           );
+          containers.add(c);
           if (i == 0) {
             real = c;
             realHandle = master;
@@ -328,6 +330,9 @@ final class VaultManager {
       }
       return VaultOpenResult(VaultOutcome.opened, vault: vault);
     } on Object catch (e) {
+      for (final c in containers) {
+        c.close();
+      }
       for (final d in made) {
         if (d.existsSync()) d.deleteSync(recursive: true);
       }
@@ -351,20 +356,20 @@ final class VaultManager {
   // ---- wrong PINs ------------------------------------------------------
 
   Future<_Misses> _loadMisses() async {
-    final now = _clock().millisecondsSinceEpoch;
+    final clock = _clock().millisecondsSinceEpoch;
     final raw = await secure.read(_attemptsKey);
     final parts = raw?.split(':');
     if (parts == null || parts.length != 4 || parts[0] != 'v2') {
-      return _Misses(0, now, 0);
+      return _Misses(0, clock, 0);
     }
     var count = double.tryParse(parts[1]) ?? 0;
-    final stamp = int.tryParse(parts[2]) ?? now;
+    final stored = int.tryParse(parts[2]) ?? clock;
     var until = int.tryParse(parts[3]) ?? 0;
-    // A clock set back earns no forgiveness and cannot stretch a wait past
-    // the longest one.
-    final hours = now > stamp
-        ? (now - stamp) / Duration.millisecondsPerHour
-        : 0;
+    // The stored time never goes backwards: a clock set back changes nothing
+    // (no forgiveness, no longer wait). A clock set forward is not guarded
+    // against; it counts as time passed.
+    final now = max(clock, stored);
+    final hours = (now - stored) / Duration.millisecondsPerHour;
     count = max<double>(0, count - hours * missesForgivenPerHour);
     final cap = now + longestWait.inMilliseconds;
     if (until > cap) until = cap;
@@ -388,7 +393,9 @@ final class VaultManager {
   /// otherwise the wait still to run. Misses are not cleared by success
   /// (whoever holds one PIN cannot reset the count for the other); they fade
   /// by [missesForgivenPerHour].
-  Future<Duration?> _countAttempt() async {
+  Future<Duration?> _countAttempt() => _oneAtATime(_countAttemptNow);
+
+  Future<Duration?> _countAttemptNow() async {
     final m = await _loadMisses();
     final left = Duration(milliseconds: m.until - m.stamp);
     if (left > Duration.zero) return left;
@@ -406,13 +413,25 @@ final class VaultManager {
 
   /// Gives back the attempt that [_countAttempt] counted (a PIN that opened
   /// the vault it was for); earlier misses stay.
-  Future<void> _refundAttempt() async {
+  Future<void> _refundAttempt() => _oneAtATime(() async {
     final m = await _loadMisses();
     final count = max<double>(0, m.count - 1);
     await _saveMisses(_Misses(count, m.stamp, 0));
+  });
+
+  Future<void> _attemptsTail = Future<void>.value();
+
+  /// Runs [op] after the earlier ones: two tries at once must not both read
+  /// the same count.
+  Future<T> _oneAtATime<T>(Future<T> Function() op) {
+    final result = _attemptsTail.then((_) => op());
+    _attemptsTail = result.then((_) {}, onError: (_) {});
+    return result;
   }
 
   /// The wait now running, if any.
+  Future<Duration?> get waitLeft => _waitLeft();
+
   Future<Duration?> _waitLeft() async {
     final m = await _loadMisses();
     final left = Duration(milliseconds: m.until - m.stamp);
@@ -529,6 +548,26 @@ final class VaultManager {
     }
   }
 
+  /// After an open that did not say which pair of files the PIN fits (the
+  /// fingerprint): a Change PIN that was cut short is finished if the new
+  /// salt is there (the secret is the same in both pairs, the new salt is the
+  /// one that opens the new secret file), and dropped if only the new secret
+  /// file was written.
+  Future<void> _finishChange(Directory d) async {
+    try {
+      if (_saltNextFile(d).existsSync()) {
+        if (_secretNextFile(d).existsSync()) {
+          await _secretNextFile(d).rename(_secretFile(d).path);
+        }
+        await _saltNextFile(d).rename(_saltFile(d).path);
+      } else if (_secretNextFile(d).existsSync()) {
+        _secretNextFile(d).deleteSync();
+      }
+    } on FileSystemException {
+      // The next open tries again.
+    }
+  }
+
   /// Opens the vault [pin] belongs to. Both vaults are tried every time, so
   /// a right PIN of either costs the same as a wrong one, and the attempt is
   /// counted before the work starts. A PIN that fits no vault is a wrong PIN
@@ -542,6 +581,7 @@ final class VaultManager {
     if (wait != null) {
       return VaultOpenResult(VaultOutcome.waitToRetry, wait: wait);
     }
+    dirs.forEach(VaultContainer.sweepStaleParts);
     OpenVault? found;
     var lost = false;
     try {
@@ -599,8 +639,9 @@ final class VaultManager {
   Future<OpenVault?> _openWith(
     Directory d,
     Uint8List secret,
-    _Unsealed u,
-  ) async {
+    _Unsealed u, {
+    bool viaPin = true,
+  }) async {
     VaultKeyHandle? master;
     try {
       master = await crypto.openMasterKey(
@@ -612,7 +653,11 @@ final class VaultManager {
         crypto: crypto,
         master: master,
       );
-      await _settle(d, saltNext: u.saltNext, secretNext: u.secretNext);
+      if (viaPin) {
+        await _settle(d, saltNext: u.saltNext, secretNext: u.secretNext);
+      } else {
+        await _finishChange(d);
+      }
       return OpenVault._(c, this, master, secret);
     } on VaultCorrupt {
       secret.fillRange(0, secret.length, 0);
@@ -660,7 +705,12 @@ final class VaultManager {
       );
       await crypto.close(bio);
       bio = null;
-      final vault = await _openWith(dir, secret, const _Unsealed());
+      final vault = await _openWith(
+        dir,
+        secret,
+        const _Unsealed(),
+        viaPin: false,
+      );
       secret = null;
       if (vault == null) {
         await secure.delete(_bioKey);
@@ -749,6 +799,7 @@ final class VaultManager {
   /// [VaultOutcome.pinTooShort] for one under [minPinLength] digits.
   Future<VaultOutcome> changePin(OpenVault vault, String newPin) async {
     if (newPin.length < minPinLength) return VaultOutcome.pinTooShort;
+    if (vault.isClosed) throw const VaultLocked();
     final here = vault.container.directory;
     final wait = await _countAttempt();
     if (wait != null) return VaultOutcome.waitToRetry;
@@ -757,11 +808,17 @@ final class VaultManager {
       if (d.path == here.path) continue;
       final a = await _readSalt(d);
       final b = await _readSalt(d, next: true);
-      final other = await _unseal(
-        d,
-        a == null ? null : derivePinToken(newPin, a.salt, a.rounds),
-        b == null ? null : derivePinToken(newPin, b.salt, b.rounds),
-      );
+      _Unsealed other;
+      try {
+        other = await _unseal(
+          d,
+          a == null ? null : derivePinToken(newPin, a.salt, a.rounds),
+          b == null ? null : derivePinToken(newPin, b.salt, b.rounds),
+        );
+      } on Object {
+        // A damaged other vault cannot be opened by this PIN either.
+        continue;
+      }
       final s = other.secret;
       if (s != null) {
         s.fillRange(0, s.length, 0);

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
@@ -279,6 +280,37 @@ void main() {
       final r = await manager.openWithPin('246810');
       expect(r.outcome, VaultOutcome.waitToRetry);
       expect(r.wait! <= const Duration(days: 1), isTrue);
+    });
+
+    test(
+      'PRIV-007 a clock set back and then forward again forgives nothing',
+      () async {
+        final start = now;
+        for (var i = 0; i < 4; i++) {
+          await manager.openWithPin('000001');
+        }
+        now = start.subtract(const Duration(days: 10));
+        expect(
+          (await manager.openWithPin('000001')).outcome,
+          VaultOutcome.waitToRetry,
+        );
+        now = start.add(const Duration(hours: 1));
+        // About four misses are still on record: the next wrong try waits.
+        expect(
+          (await manager.openWithPin('000001')).outcome,
+          VaultOutcome.waitToRetry,
+        );
+      },
+    );
+
+    test('PRIV-007 tries made at the same moment are all counted', () async {
+      await Future.wait([
+        for (var i = 0; i < 5; i++) manager.openWithPin('000001'),
+      ]);
+      expect(
+        (await manager.openWithPin('000001')).outcome,
+        VaultOutcome.waitToRetry,
+      );
     });
 
     test('PRIV-007 the wait never exceeds a day', () async {
@@ -605,6 +637,7 @@ void main() {
     setUp(() async {
       final r = await manager.setUp(pin: '246810', decoyPin: '135790');
       await addTo(r.vault!, 'real.jpg');
+      await manager.setFingerprint(r.vault!, enabled: true);
       dir = r.vault!.container.directory;
       oldSalt = File('${dir.path}/salt').readAsBytesSync();
       oldSecret = File('${dir.path}/secret.mv').readAsBytesSync();
@@ -697,6 +730,61 @@ void main() {
       expect(File('${dir.path}/salt.next').existsSync(), isFalse);
       expect(File('${dir.path}/salt').readAsBytesSync(), newSalt);
     });
+
+    test('PRIV-007 the fingerprint opens a half-made change and drops the new secret file', () async {
+      state(secretNext: true, saltNext: false);
+      final r = await manager.openWithFingerprint();
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      await r.vault!.close();
+      expect(File('${dir.path}/secret.mv.next').existsSync(), isFalse);
+      expect((await manager.openWithPin('246810')).isOpen, isTrue);
+    });
+
+    test('PRIV-007 the fingerprint finishes a change whose secret file was swapped', () async {
+      state(secretNext: false, saltNext: true, swapped: true);
+      final r = await manager.openWithFingerprint();
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      await r.vault!.close();
+      // Not left half done: the new PIN opens, the old does not.
+      expect(File('${dir.path}/salt.next').existsSync(), isFalse);
+      expect((await manager.openWithPin('555555')).isOpen, isTrue);
+      expect((await manager.openWithPin('246810')).isOpen, isFalse);
+    });
+
+    test('PRIV-007 half-written files are swept at the next open', () async {
+      File('${dir.path}/abc.tm.part').writeAsBytesSync([1, 2, 3]);
+      File('${dir.path}/salt.part').writeAsBytesSync([1, 2, 3]);
+      final r = await manager.openWithPin('555555');
+      await r.vault!.close();
+      expect(File('${dir.path}/abc.tm.part').existsSync(), isFalse);
+    });
+  });
+
+  group('PRIV-007 Change PIN with a damaged or closed vault', () {
+    test('PRIV-007 a damaged other vault does not block Change PIN', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      final other = root.listSync().whereType<Directory>().firstWhere(
+        (d) => d.path != r.vault!.container.directory.path,
+      );
+      File('${other.path}/secret.mv').writeAsBytesSync(bytesOf(100));
+      expect(await manager.changePin(r.vault!, '555555'), VaultOutcome.opened);
+      await r.vault!.close();
+    });
+
+    test(
+      'PRIV-007 a closed vault refuses Change PIN and counts no try',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        for (var i = 0; i < 6; i++) {
+          await expectLater(
+            manager.changePin(r.vault!, '555555'),
+            throwsA(isA<VaultLocked>()),
+          );
+        }
+        expect((await manager.openWithPin('246810')).isOpen, isTrue);
+      },
+    );
   });
 
   group('PRIV-007 one damaged vault does not shut out the other', () {

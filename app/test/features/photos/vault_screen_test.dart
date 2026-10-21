@@ -535,7 +535,7 @@ void main() {
         await tester.longPress(find.bySemanticsLabel('one.mp4'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Take out'));
-        await settleReal(tester);
+        await settleReal(tester, quietPumps: 60);
         expect(storage.saved, ['one.mp4']);
         expect(find.text('1 photo taken out of the vault.'), findsOneWidget);
         expect(find.bySemanticsLabel('one.mp4'), findsNothing);

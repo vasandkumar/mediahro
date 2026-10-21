@@ -442,7 +442,11 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     }
     if (!mounted) return;
     if (outcome != VaultOutcome.opened) {
-      _toast(vaultOutcomeText(l10n, VaultOpenResult(outcome)));
+      final wait = outcome == VaultOutcome.waitToRetry
+          ? await manager.waitLeft
+          : null;
+      if (!mounted) return;
+      _toast(vaultOutcomeText(l10n, VaultOpenResult(outcome, wait: wait)));
       return;
     }
     _toast(l10n.photosVaultChangePinDone);

@@ -24,7 +24,7 @@ The vault keeps private photos **encrypted** behind a PIN, and behind your finge
 
 ## Wrong PINs
 
-Three wrong PINs are free; after that you wait 30 seconds, then 1 minute, 2 minutes and so on, up to a day. A try counts as soon as you make it, and a right PIN does not wipe the count, so a wrong guess can't be undone by entering the other vault's PIN in between. The count fades slowly: one miss is forgiven every four hours. The wait is remembered when you close the app, and setting the clock back does not shorten it. Trying a new PIN in **Change PIN** counts as a try too.
+Three wrong PINs are free; after that you wait 30 seconds, then 1 minute, 2 minutes and so on, up to a day. A try counts as soon as you make it, and a right PIN does not wipe the count, so a wrong guess can't be undone by entering the other vault's PIN in between. The count fades slowly: one miss is forgiven every four hours. The wait is remembered when you close the app. The count and the clock are kept on the phone, so someone who can change the phone's clock can shorten a wait; that is one reason to choose a longer PIN. Trying a new PIN in **Change PIN** counts as a try too.
 
 ## The second vault
 
