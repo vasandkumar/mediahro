@@ -264,4 +264,49 @@ void adr031Suite() {
       timeout: const Timeout(Duration(minutes: 1)),
     );
   });
+
+  group('PRIV-007 protected media', () {
+    test(
+      'PRIV-007 a sensitive source is never extracted, exported or captured',
+      () async {
+        final e = headlessEngine();
+        addTearDown(e.dispose);
+        final dir = await Directory.systemTemp.createTemp('mh-priv');
+        addTearDown(() => dir.delete(recursive: true));
+        await e.open(
+          UriSource(
+            Uri.file(corpusPath('mkv_multitrack.mkv')),
+            sensitive: true,
+          ),
+        );
+        await waitFor(e, (s) => s.tracks.isNotEmpty, reason: 'tracks');
+        Matcher refused() => throwsA(
+          isA<EngineException>().having(
+            (x) => x.error.code,
+            'code',
+            EngineErrorCode.notSupported,
+          ),
+        );
+        final out = Uri.file('${dir.path}${Platform.pathSeparator}x.srt');
+        await expectLater(e.extractSubtitles(1, out), refused());
+        await expectLater(e.extractSubtitleImages(1).toList(), refused());
+        await expectLater(e.screenshot(), refused());
+        await expectLater(
+          e.export(
+            Duration.zero,
+            const Duration(seconds: 1),
+            ExportFormat.clipCopy,
+            Uri.file('${dir.path}${Platform.pathSeparator}c.mkv'),
+          ),
+          refused(),
+        );
+        expect(dir.listSync(), isEmpty, reason: 'nothing was written');
+        // Playback itself is unaffected.
+        await e.play();
+        await waitPlaying(e);
+      },
+      skip: skip,
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
+  });
 }

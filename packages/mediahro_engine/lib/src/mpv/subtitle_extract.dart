@@ -8,6 +8,7 @@ import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_image/subtitle_images.dart';
@@ -116,7 +117,7 @@ Stream<SubtitleImage> extractSubtitleImageTrack({
       ),
     );
   }
-  final dir = await Directory.systemTemp.createTemp('mediahro-subimg');
+  final dir = await createScratch('subimg');
   try {
     File? dumped;
     double? firstAt;
@@ -146,7 +147,7 @@ Stream<SubtitleImage> extractSubtitleImageTrack({
       firstAt: firstAt == null ? null : Duration(microseconds: _us(firstAt!)),
     );
   } finally {
-    await dir.delete(recursive: true).catchError((Object _) => dir);
+    await deleteScratch(dir);
   }
 }
 
@@ -166,7 +167,7 @@ Future<void> _withDump({
   String? libmpvPath,
   Duration timeout = const Duration(minutes: 5),
 }) async {
-  final dir = await Directory.systemTemp.createTemp('mediahro-subx');
+  final dir = await createScratch('subx');
   final silence = File('${dir.path}${Platform.pathSeparator}silence.wav')
     ..writeAsBytesSync(_silentWav());
   final dump = File('${dir.path}${Platform.pathSeparator}$dumpName');
@@ -271,7 +272,7 @@ Future<void> _withDump({
     protocol?.shutdown();
     await client.destroy();
     await protocol?.dispose();
-    await dir.delete(recursive: true).catchError((Object _) => dir);
+    await deleteScratch(dir);
   }
 }
 

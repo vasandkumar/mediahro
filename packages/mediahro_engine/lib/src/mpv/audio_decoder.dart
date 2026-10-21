@@ -9,6 +9,7 @@ import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/pcm_storage.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
@@ -103,7 +104,10 @@ final class AudioDecoder {
     (Object, StackTrace)? failure;
     active++;
     try {
-      storage = await PcmStorage.create(slice: false);
+      storage = await PcmStorage.create(
+        slice: false,
+        memoryOnly: isSensitiveSource(source),
+      );
       client = await MpvClient.create(
         options: {
           'config': 'no',
@@ -177,6 +181,12 @@ final class AudioDecoder {
       var total = 0;
       var idle = 0;
       while (!_cancelled && !ended.isCompleted) {
+        // One writer keeps one file open for the whole decode, so once it
+        // has written, the file's name can go: nothing is left on disk if
+        // the app dies mid-decode.
+        if (!storage.unlinked && storage.pcmLength > 0) {
+          storage.unlinkWhileOpen(raf);
+        }
         final backlog = storage.pcmLength - read;
         if (backlog > peakBacklogBytes) peakBacklogBytes = backlog;
         if (!_out.isPaused && backlog >= _chunkBytes) {

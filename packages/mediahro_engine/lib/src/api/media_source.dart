@@ -9,10 +9,17 @@ import 'package:meta/meta.dart';
 /// (docs/05 §9).
 @immutable
 sealed class MediaSource {
-  const MediaSource({this.title});
+  const MediaSource({this.title, this.sensitive = false});
 
   /// Display title for media sessions; the engine falls back to metadata.
   final String? title;
+
+  /// Whether the bytes are protected media, such as decrypted vault content
+  /// (PRIV-007, ADR-043). The engine never writes anything decoded from
+  /// such a source to disk: audio analysis (`decodeAudio`, `audioTap`) uses
+  /// RAM-backed storage or refuses with `notSupported`, and subtitle
+  /// extraction, screenshots, exports and casting refuse.
+  final bool sensitive;
 }
 
 /// A URI opened directly by the engine (CORE-005, NET-006).
@@ -22,6 +29,7 @@ final class UriSource extends MediaSource {
     this.headers = const {},
     this.userAgent,
     super.title,
+    super.sensitive,
   });
 
   final Uri uri;
@@ -35,12 +43,14 @@ final class UriSource extends MediaSource {
       other is UriSource &&
       other.uri == uri &&
       other.userAgent == userAgent &&
+      other.sensitive == sensitive &&
       _mapEq(other.headers, headers);
 
   @override
   int get hashCode => Object.hash(
     uri,
     userAgent,
+    sensitive,
     Object.hashAllUnordered(headers.entries.map((e) => '${e.key}=${e.value}')),
   );
 }
@@ -48,16 +58,18 @@ final class UriSource extends MediaSource {
 /// A file read through [VirtualFile] (local SAF/bookmark files, network shares,
 /// archive entries, server downloads).
 final class VirtualFileSource extends MediaSource {
-  const VirtualFileSource(this.file, {super.title});
+  const VirtualFileSource(this.file, {super.title, super.sensitive});
 
   final VirtualFile file;
 
   @override
   bool operator ==(Object other) =>
-      other is VirtualFileSource && identical(other.file, file);
+      other is VirtualFileSource &&
+      identical(other.file, file) &&
+      other.sensitive == sensitive;
 
   @override
-  int get hashCode => identityHashCode(file);
+  int get hashCode => Object.hash(identityHashCode(file), sensitive);
 }
 
 bool _mapEq(Map<String, String> a, Map<String, String> b) =>
