@@ -37,6 +37,7 @@ class _PanoramaScreenState extends ConsumerState<PanoramaScreen>
   bool _disposed = false;
   bool _started = false;
   bool _reduceMotion = false;
+  bool _motionAvailable = false;
   StreamSubscription<PanoAttitude>? _motion;
 
   @override
@@ -60,8 +61,22 @@ class _PanoramaScreenState extends ConsumerState<PanoramaScreen>
         pano.dispose();
         return;
       }
+      var sensor = false;
+      final source = _source;
+      if (source != null) {
+        try {
+          sensor = await source.available;
+        } on Object {
+          sensor = false;
+        }
+      }
+      if (_disposed) {
+        pano.dispose();
+        return;
+      }
       setState(() {
         _pano = pano;
+        _motionAvailable = sensor;
         _controller = PanoController(meta: pano.meta);
       });
       _maybeStartMotion();
@@ -77,7 +92,7 @@ class _PanoramaScreenState extends ConsumerState<PanoramaScreen>
   void _maybeStartMotion() {
     if (_started) return;
     _started = true;
-    if (_source != null && !_reduceMotion) _startMotion();
+    if (_motionAvailable && !_reduceMotion) _startMotion();
   }
 
   void _startMotion() {
@@ -181,7 +196,7 @@ class _PanoramaScreenState extends ConsumerState<PanoramaScreen>
               child: SafeArea(
                 child: _Controls(
                   controller: c,
-                  motionAvailable: _source != null,
+                  motionAvailable: _motionAvailable,
                   motionOn: _motion != null,
                   onMotion: () =>
                       _motion == null ? _startMotion() : _stopMotion(),
