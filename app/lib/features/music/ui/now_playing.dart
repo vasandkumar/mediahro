@@ -9,6 +9,7 @@ import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/ui/abs_screens.dart';
 import 'package:mediahro/features/music/ui/book_player_screen.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
@@ -48,6 +49,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     if (book != null && book.active) return BookPlayerScreen(state: book);
     final pod = ref.watch(podcastPlayerStateProvider).value;
     if (pod != null && pod.active) return PodcastPlayerScreen(state: pod);
+    final abs = ref.watch(absPlayerStateProvider).value;
+    if (abs != null && abs.active) return AbsPlayerScreen(state: abs);
     final l10n = AppLocalizations.of(context);
     final s = ref.watch(musicPlayerStateProvider).value;
     final player = ref.read(musicPlayerProvider);

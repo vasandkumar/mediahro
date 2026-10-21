@@ -890,9 +890,64 @@
   },
   "musicPodDownloadFailed": "Download failed",
   "musicPodNowPlaying": "Podcast",
-  "musicPodBack10": "Back 10 seconds",
-  "musicPodForward30": "Forward 30 seconds",
   "musicPodSpeedRemembered": "Each show remembers its own speed.",
   "musicPodOffline": "Playing the downloaded copy",
-  "musicPodExplicit": "Explicit"
+  "musicPodExplicit": "Explicit",
+  "musicSpokenBack": "Back {seconds, plural, =1{1 second} other{{seconds} seconds}}",
+  "@musicSpokenBack": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "musicSpokenForward": "Forward {seconds, plural, =1{1 second} other{{seconds} seconds}}",
+  "@musicSpokenForward": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "musicTabAbs": "Audiobookshelf",
+  "musicAbsNone": "No Audiobookshelf server is connected. Add one under Sources, Media server.",
+  "musicAbsContinue": "Continue listening",
+  "musicAbsUnreachable": "Couldn't reach {server}.",
+  "@musicAbsUnreachable": {
+    "placeholders": {
+      "server": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodRetry": "Try again",
+  "musicAbsSearch": "Search this server",
+  "musicAbsNoResults": "Nothing here.",
+  "musicAbsBy": "By {author}",
+  "@musicAbsBy": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAbsNarratedBy": "Narrated by {name}",
+  "@musicAbsNarratedBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAbsResumeAt": "Resume at {time}",
+  "@musicAbsResumeAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "musicAbsMarkFinished": "Mark as finished",
+  "musicAbsMarkNotFinished": "Mark as not finished",
+  "musicAbsSpeedRemembered": "Each item remembers its own speed."
 }
