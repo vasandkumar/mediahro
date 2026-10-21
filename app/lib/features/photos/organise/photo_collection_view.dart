@@ -15,6 +15,7 @@ import 'package:mediahro/features/photos/organise/photo_selection.dart';
 import 'package:mediahro/features/photos/organise/write_back.dart';
 import 'package:mediahro/features/photos/output/output_actions.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/slideshow/slideshow_screen.dart';
 import 'package:mediahro/features/photos/timeline/photo_grid.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/trash_screen.dart';
@@ -214,6 +215,8 @@ class SelectionBar extends ConsumerWidget {
                           context.mounted) {
                         selection.clear();
                       }
+                    case 'slideshow':
+                      await openSlideshow(context, chosen);
                     case 'share':
                       await showShareSheet(context, ref, chosen);
                     case 'print':
@@ -270,6 +273,10 @@ class SelectionBar extends ConsumerWidget {
                       value: 'applyLook',
                       child: Text(l10n.photosApplyLook),
                     ),
+                  PopupMenuItem(
+                    value: 'slideshow',
+                    child: Text(l10n.photosSlideshow),
+                  ),
                   PopupMenuItem(value: 'share', child: Text(l10n.photosShare)),
                   PopupMenuItem(
                     value: 'delete',

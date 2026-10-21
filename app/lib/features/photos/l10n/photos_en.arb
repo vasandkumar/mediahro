@@ -833,5 +833,59 @@
         "type": "int"
       }
     }
-  }
+  },
+  "photosSlideshow": "Slideshow",
+  "photosSlideshowFailed": "None of these photos could be opened.",
+  "photosSlideshowEnded": "End of the slideshow",
+  "photosSlideshowAgain": "Play again",
+  "photosSlideshowClose": "Close slideshow",
+  "photosSlideshowPosition": "{place} of {total}",
+  "@photosSlideshowPosition": {
+    "placeholders": {
+      "place": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosSlideshowMusicOn": "Music is playing",
+  "photosSlideshowOptions": "Slideshow options",
+  "photosSlideshowSlower": "Slower",
+  "photosSlideshowFaster": "Faster",
+  "photosSlideshowPrevious": "Previous photo",
+  "photosSlideshowNext": "Next photo",
+  "photosSlideshowPause": "Pause",
+  "photosSlideshowPlay": "Play",
+  "photosSlideshowSpeed": "Speed {speed}×",
+  "@photosSlideshowSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "photosSlideshowInterval": "{seconds, plural, =1{1 second per photo} other{{seconds} seconds per photo}}",
+  "@photosSlideshowInterval": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "photosSlideshowTransition": "Transition",
+  "photosSlideshowTransitionNone": "None",
+  "photosSlideshowTransitionFade": "Fade",
+  "photosSlideshowTransitionSlide": "Slide",
+  "photosSlideshowTransitionZoom": "Zoom",
+  "photosSlideshowKenBurns": "Slow zoom (Ken Burns)",
+  "photosSlideshowKenBurnsHint": "Each photo drifts and zooms gently. Off when your phone asks for reduced motion.",
+  "photosSlideshowRandom": "Random order",
+  "photosSlideshowLoop": "Loop",
+  "photosSlideshowMusic": "Music",
+  "photosSlideshowMusicNone": "None",
+  "photosSlideshowMusicLibrary": "Music library",
+  "photosSlideshowMusicPlaylist": "Playlist",
+  "photosSlideshowDone": "Done"
 }

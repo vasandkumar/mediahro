@@ -13,6 +13,7 @@ import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_collection_view.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/slideshow/slideshow_screen.dart';
 import 'package:mediahro/features/photos/timeline/photo_layout.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -259,6 +260,12 @@ class AlbumScreen extends ConsumerWidget {
                   : l10n.photosFavourites),
         ),
         actions: [
+          if (entries.any((e) => !e.isVideo))
+            IconButton(
+              tooltip: l10n.photosSlideshow,
+              icon: const Icon(Icons.slideshow),
+              onPressed: () => unawaited(openSlideshow(context, entries)),
+            ),
           const PhotoLayoutActions(),
           if (a != null)
             PopupMenuButton<String>(

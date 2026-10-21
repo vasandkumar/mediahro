@@ -485,8 +485,11 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              // A wrap: the tools wrap onto a second line on a
+                              // narrow phone instead of running off the edge.
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   if (!_atFit && _percent > 0)
                                     Semantics(
