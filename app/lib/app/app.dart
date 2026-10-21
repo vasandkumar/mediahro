@@ -15,6 +15,7 @@ import 'package:mediahro/features/onboarding/first_run_actions.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/settings/settings_store.dart';
+import 'package:mediahro/platform/android/audio_route_wiring.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// App root: theme and language from settings (CORE-007, CORE-008), design
@@ -35,6 +36,13 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
   GoRouter? _router;
   AppLifecycleListener? _lifecycle;
   String? _lastMode;
+
+  @override
+  void initState() {
+    super.initState();
+    // AUD-043: re-check every engine when the Android audio route changes.
+    ref.read(audioRouteWiringProvider);
+  }
 
   GoRouter _routerFor(SettingsStore store) {
     if (_router != null) return _router!;
