@@ -8,6 +8,7 @@ import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/viewer/clip_overlay.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/photos/viewer/viewer_surface.dart';
 import 'package:mediahro/features/photos/viewer/zoom_math.dart';
@@ -31,6 +32,9 @@ class PhotoPage extends ConsumerStatefulWidget {
     this.onLoaded,
     this.onPlayVideo,
     this.animationPlaying = false,
+    this.page = 0,
+    this.clipPlaying = false,
+    this.onClipDone,
     super.key,
   });
 
@@ -54,6 +58,13 @@ class PhotoPage extends ConsumerStatefulWidget {
 
   /// Whether an animated image advances (the viewer's play/pause).
   final bool animationPlaying;
+
+  /// The page of a multi-page file (a TIFF) shown, counting from 0.
+  final int page;
+
+  /// The Live or Motion Photo clip plays over the picture.
+  final bool clipPlaying;
+  final VoidCallback? onClipDone;
 
   @override
   ConsumerState<PhotoPage> createState() => _PhotoPageState();
@@ -99,7 +110,9 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
       _error = null;
     });
     try {
-      final image = await ref.read(viewerImageLoaderProvider)(widget.entry);
+      final image = widget.page == 0
+          ? await ref.read(viewerImageLoaderProvider)(widget.entry)
+          : await ref.read(viewerPageLoaderProvider)(widget.entry, widget.page);
       if (!mounted || gen != _generation) {
         image.dispose();
         return;
@@ -148,7 +161,8 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
     if (a != null && widget.animationPlaying && !old.animationPlaying) {
       unawaited(_play(_generation, a));
     }
-    if (old.entry.id != widget.entry.id && !widget.entry.isVideo) {
+    if ((old.entry.id != widget.entry.id || old.page != widget.page) &&
+        !widget.entry.isVideo) {
       _release();
       unawaited(_load());
     }
@@ -181,7 +195,7 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
         fit: StackFit.expand,
         children: [
           ViewerSurface(
-            key: ValueKey(widget.entry.id),
+            key: ValueKey((widget.entry.id, widget.page)),
             base: _frame ?? image.base,
             fullSize: image.fullSize,
             tileLoader: image.tileLoader,
@@ -192,6 +206,14 @@ class _PhotoPageState extends ConsumerState<PhotoPage> {
             onAtFitChanged: widget.active ? widget.onAtFitChanged : (_) {},
             onTap: widget.onTap,
           ),
+          if (widget.clipPlaying)
+            Positioned.fill(
+              child: ClipOverlay(
+                key: ValueKey(('clip', widget.entry.id)),
+                entry: widget.entry,
+                onDone: widget.onClipDone ?? () {},
+              ),
+            ),
           if (image.previewOnly)
             PositionedDirectional(
               top: 72,

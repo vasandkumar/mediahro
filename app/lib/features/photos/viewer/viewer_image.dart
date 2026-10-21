@@ -84,12 +84,13 @@ Future<ui.Image> uiImageFrom(DecodedImage d) {
   return c.future;
 }
 
-/// Opens [src] for the viewer: size from the header, a base picture at the
+/// Opens [src] for the viewer ([page] of a multi-page TIFF): size from the header, a base picture at the
 /// plan's scale, and a tile loader above 12 MP. A RAW shows its largest
 /// embedded preview.
 Future<ViewerImage> loadViewerImage(
   MediahroImagePipeline pipeline,
   ImageSource src, {
+  int page = 0,
   Future<void> Function()? onDispose,
 }) async {
   final info = await pipeline.info(src);
@@ -123,7 +124,7 @@ Future<ViewerImage> loadViewerImage(
     if (animated != null) return animated;
   }
   final plan = ViewerPlan.forSize(info.width, info.height);
-  final base = await pipeline.decode(src, scale: plan.baseScale);
+  final base = await pipeline.decode(src, scale: plan.baseScale, frame: page);
   final image = await uiImageFrom(base);
   // The header's size is authoritative for tiles; if a decoder returned a
   // different orientation the base wins so nothing is drawn off-grid.
@@ -150,6 +151,7 @@ Future<ViewerImage> loadViewerImage(
             r.height.round(),
           ),
           scale: scale,
+          frame: page,
         );
         return await uiImageFrom(d);
       } on Object {

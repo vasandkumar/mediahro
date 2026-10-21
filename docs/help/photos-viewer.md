@@ -17,6 +17,16 @@ Tap a photo to open it full screen.
 
 Pictures of 100 megapixels and more open quickly: Mediahro shows a smaller version first and loads sharp detail for the part you are looking at as you zoom in.
 
+## Live Photos and Motion Photos
+
+A Live Photo (an iPhone photo with a short **.MOV** beside it) or a Motion Photo (a short video stored inside the JPEG) shows **Live** or **Motion** on its thumbnail. In the viewer press the play button at the bottom to watch the clip once over the picture, with its sound at the player's volume. It stops by itself, when you press the button again, or when you swipe to another photo. Nothing is copied: the clip is played straight out of the photo's file (or the .MOV next to it).
+
+## Panoramas and multi-page files
+
+A **panorama** (a photo marked as one, at least about twice as wide as it is tall) opens filling the screen's height so you can drag it sideways along its length; the fit button shows the whole picture.
+
+A **multi-page TIFF** (a scan, a fax) shows **Page 1 of 5** at the bottom with previous and next buttons.
+
 ## Camera RAW photos
 
 A RAW photo is shown from the full-size preview your camera stored in the file. A note on screen says so.
