@@ -72,8 +72,13 @@ final class MpvStreamProtocol {
   }
 
   /// Forgets [file] after the engine moved on (the caller owns closing it).
-  void forget(VirtualFile file) =>
-      _files.removeWhere((_, f) => identical(f, file));
+  void forget(VirtualFile file) {
+    _files.removeWhere((_, f) => identical(f, file));
+    _sizes.remove(file);
+  }
+
+  /// Files the core can still open by URL (finished items drop out).
+  int get registeredCount => _files.length;
 
   void _onRequest(Pointer<MhRequest> req) {
     unawaited(_serve(req));

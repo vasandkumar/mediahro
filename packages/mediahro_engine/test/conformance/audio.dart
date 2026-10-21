@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart' show loudnessGainDb;
+import 'package:mediahro_engine/src/mpv/mp4_gapless.dart' show LocalVirtualFile;
 
 import 'support.dart';
 
@@ -47,6 +48,42 @@ void audioSuite() {
             : skip,
       );
     }
+  });
+
+  group('VID-006 stream protocol', () {
+    test(
+      'VID-006 played files are not kept by the stream protocol',
+      () async {
+        final e = headlessEngine(role: EngineRole.music);
+        addTearDown(e.dispose);
+        Future<VirtualFileSource> source(String name) async =>
+            VirtualFileSource(LocalVirtualFile(File(corpusPath(name))));
+
+        await e.open(await source('gapless_flac_1.flac'));
+        await waitPlaying(e);
+        expect(e.servedFileCount, 1);
+        // Another item replaces it; the first is forgotten.
+        await e.open(await source('gapless_flac_2.flac'));
+        await waitPlaying(e);
+        expect(e.servedFileCount, 1, reason: 'only the item in play');
+        // A queued item is registered, a replaced queue entry is forgotten.
+        await e.setNext(await source('gapless_mp3_1.mp3'));
+        expect(e.servedFileCount, 2);
+        await e.setNext(await source('gapless_mp3_2.mp3'));
+        expect(e.servedFileCount, 2, reason: 'the replaced entry is gone');
+        await e.setNext(null);
+        expect(e.servedFileCount, 1);
+        // Advancing makes the queued item the one in play.
+        await e.setNext(await source('gapless_flac_1.flac'));
+        await e.skipToNext();
+        await waitFor(e, (s) => s.item >= 3, reason: 'advanced');
+        expect(e.servedFileCount, 1);
+        await e.stop();
+        expect(e.servedFileCount, 0, reason: 'nothing kept after stop');
+      },
+      skip: skip,
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
   });
 
   group('AUD-002 gapless', () {
