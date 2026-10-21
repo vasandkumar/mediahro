@@ -175,7 +175,11 @@ void main() {
       await again.start();
       expect(again.alarms.single.playlistId, pid);
       facade.fire(alarm.id);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      // The ramp ends at full volume; wait for that, however slow the
+      // machine, instead of a fixed time.
+      for (var i = 0; i < 500 && engine.volumes.lastOrNull != 1; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
       expect(player.state.current!.title, 'T4');
       expect(engine.volumes.first, 0);
       expect(engine.volumes.last, 1);
