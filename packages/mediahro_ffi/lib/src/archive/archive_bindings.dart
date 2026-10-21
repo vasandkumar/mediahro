@@ -21,6 +21,17 @@ class ArchiveBindings {
     ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup,
   ) : _lookup = lookup;
 
+  int archive_entry_filetype(ffi.Pointer<archive_entry> arg0) {
+    return _archive_entry_filetype(arg0);
+  }
+
+  late final _archive_entry_filetypePtr =
+      _lookup<
+        ffi.NativeFunction<ffi.UnsignedInt Function(ffi.Pointer<archive_entry>)>
+      >('archive_entry_filetype');
+  late final _archive_entry_filetype = _archive_entry_filetypePtr
+      .asFunction<int Function(ffi.Pointer<archive_entry>)>();
+
   ffi.Pointer<ffi.Char> archive_entry_hardlink(
     ffi.Pointer<archive_entry> arg0,
   ) {
@@ -35,17 +46,6 @@ class ArchiveBindings {
       >('archive_entry_hardlink');
   late final _archive_entry_hardlink = _archive_entry_hardlinkPtr
       .asFunction<ffi.Pointer<ffi.Char> Function(ffi.Pointer<archive_entry>)>();
-
-  int archive_entry_filetype(ffi.Pointer<archive_entry> arg0) {
-    return _archive_entry_filetype(arg0);
-  }
-
-  late final _archive_entry_filetypePtr =
-      _lookup<
-        ffi.NativeFunction<ffi.UnsignedInt Function(ffi.Pointer<archive_entry>)>
-      >('archive_entry_filetype');
-  late final _archive_entry_filetype = _archive_entry_filetypePtr
-      .asFunction<int Function(ffi.Pointer<archive_entry>)>();
 
   int archive_entry_is_encrypted(ffi.Pointer<archive_entry> arg0) {
     return _archive_entry_is_encrypted(arg0);
