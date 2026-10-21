@@ -72,6 +72,14 @@ abstract interface class VaultCryptoFacade {
     Uint8List sealed,
   );
 
+  /// Deletes the vault's OS key and everything stored beside it, after the
+  /// user explicitly confirmed. Wrapped file keys made under the old master
+  /// key can never be opened again. Nothing re-creates a master key
+  /// silently: after [VaultCryptoError.keyLost] or
+  /// [VaultCryptoError.keyInvalidated] the UI must offer this reset
+  /// (ADR-039 amendment 1). Open handles are closed.
+  Future<void> reset();
+
   /// Releases [handle] and any native key material behind it. Safe to call
   /// more than once.
   Future<void> close(VaultKeyHandle handle);
