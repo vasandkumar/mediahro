@@ -19,6 +19,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   final AesGcm _aes = AesGcm.with256bits();
   final Map<bool, Uint8List> _masters = {};
   final Map<int, bool> _open = {};
+  final Map<int, Uint8List> _secrets = {};
   var _next = 1;
 
   /// Calls and handles, for assertions.
@@ -48,12 +49,16 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   }
 
   @override
-  Future<VaultKeyHandle> openMasterKey({required bool requireBiometry}) async {
+  Future<VaultKeyHandle> openMasterKey({
+    required bool requireBiometry,
+    Uint8List? secret,
+  }) async {
     calls.add('openMaster:$requireBiometry');
     final fail = requireBiometry ? failBiometricOpen : failPlainOpen;
     if (fail != null) throw VaultCryptoException(fail);
     final id = _next++;
     _open[id] = requireBiometry;
+    if (secret != null) _secrets[id] = Uint8List.fromList(secret);
     return VaultKeyHandle(id);
   }
 
@@ -62,7 +67,12 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     if (bio == null) {
       throw const VaultCryptoException(VaultCryptoError.unavailable, 'closed');
     }
-    return _masters[bio]!;
+    final master = _masters[bio]!;
+    final s = _secrets[h.id];
+    if (s == null) return master;
+    return Uint8List.fromList([
+      for (var i = 0; i < master.length; i++) master[i] ^ s[i % s.length],
+    ]);
   }
 
   // Wrapped key = nonce | AES-GCM(master, fileKey) | tag.
@@ -76,7 +86,8 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     return Uint8List.fromList([...nonce, ...box.cipherText, ...box.mac.bytes]);
   }
 
-  Future<Uint8List> _unwrap(Uint8List master, Uint8List wrapped) async {
+  Future<Uint8List> _unwrap(VaultKeyHandle h, Uint8List wrapped) async {
+    final master = _masterOf(h);
     try {
       final box = SecretBox(
         wrapped.sublist(12, wrapped.length - 16),
@@ -87,7 +98,12 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
         await _aes.decrypt(box, secretKey: SecretKey(master)),
       );
     } on SecretBoxAuthenticationError {
-      throw const VaultCryptoException(VaultCryptoError.keyInvalidated);
+      // A wrong secret looks like a lost key, as on the real facade.
+      throw VaultCryptoException(
+        _secrets.containsKey(h.id)
+            ? VaultCryptoError.keyLost
+            : VaultCryptoError.keyInvalidated,
+      );
     }
   }
 
@@ -106,7 +122,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     Uint8List wrapped,
   ) async {
     calls.add('adoptFileKey');
-    await _unwrap(_masterOf(master), wrapped);
+    await _unwrap(master, wrapped);
     return WrappedKey(master: master, bytes: Uint8List.fromList(wrapped));
   }
 
@@ -119,7 +135,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   ) async {
     sealCalls++;
     if (failChunks != null) throw VaultCryptoException(failChunks!);
-    final fileKey = await _unwrap(_masterOf(key.master), key.bytes);
+    final fileKey = await _unwrap(key.master, key.bytes);
     final box = await _aes.encrypt(
       plaintext,
       secretKey: SecretKey(fileKey),
@@ -138,7 +154,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   ) async {
     openCalls++;
     if (failChunks != null) throw VaultCryptoException(failChunks!);
-    final fileKey = await _unwrap(_masterOf(key.master), key.bytes);
+    final fileKey = await _unwrap(key.master, key.bytes);
     try {
       final box = SecretBox(
         sealed.sublist(0, sealed.length - 16),
@@ -171,6 +187,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   Future<void> close(VaultKeyHandle handle) async {
     calls.add('close');
     _open.remove(handle.id);
+    _secrets.remove(handle.id);
   }
 }
 
