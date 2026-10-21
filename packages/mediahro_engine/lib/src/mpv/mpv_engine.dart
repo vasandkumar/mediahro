@@ -147,6 +147,36 @@ final class MpvEngine implements PlaybackEngine {
   // Local files the engine opened as VirtualFiles; closed on the next open.
   final _ownedFiles = <VirtualFile>[];
 
+  // Files registered with the stream protocol for the item in play and for
+  // the queued one; dropped from it once the item is gone, so a played file
+  // (a closed vault file included) is not kept alive by the engine.
+  final _servedNow = <VirtualFile>[];
+  final _servedNext = <VirtualFile>[];
+
+  void _forgetServed(
+    Iterable<VirtualFile> files, {
+    Iterable<VirtualFile> keep = const [],
+  }) {
+    final protocol = _protocol;
+    if (protocol == null) return;
+    for (final f in files.toList()) {
+      if (!keep.any((k) => identical(k, f))) protocol.forget(f);
+    }
+  }
+
+  // The queued item became the item in play.
+  void _servedAdvance() {
+    _forgetServed(_servedNow, keep: _servedNext);
+    _servedNow
+      ..clear()
+      ..addAll(_servedNext);
+    _servedNext.clear();
+  }
+
+  /// Files the core can still open (tests).
+  @visibleForTesting
+  int get servedFileCount => _protocol?.registeredCount ?? 0;
+
   // DSD played as DoP (AUD-043): the item in play, and the queued one.
   var _dop = false;
   DsdInfo? _dopInfo;
@@ -621,6 +651,7 @@ final class MpvEngine implements PlaybackEngine {
           _source = _next;
           _next = null;
           _dop = false;
+          _servedAdvance();
           _state = _state.copyWith(nextPrepared: false, item: _itemSerial);
           _refreshAudioInfo();
           final c = _client;
@@ -997,6 +1028,7 @@ final class MpvEngine implements PlaybackEngine {
     final newDop = dop != null;
     String url;
     var rest = const <String>[];
+    final served = <VirtualFile>[];
     switch (played) {
       case UriSource(:final uri):
         _isNetwork = isNetworkUri(uri);
@@ -1018,6 +1050,7 @@ final class MpvEngine implements PlaybackEngine {
           return;
         }
         url = protocol.urlFor(file);
+        served.add(file);
     }
     _cacheByBitrate = _isNetwork && o.cacheBytes == null;
     final perFile = <String, String>{
@@ -1060,6 +1093,12 @@ final class MpvEngine implements PlaybackEngine {
     }
     await opened.future;
     if (gen != _generation) return;
+    // The previous item and the queued one are gone.
+    _forgetServed([..._servedNow, ..._servedNext], keep: served);
+    _servedNow
+      ..clear()
+      ..addAll(served);
+    _servedNext.clear();
     final info = _dopInfo;
     if (_dop && info != null) {
       final ok = await _dopOutputOk(c, info, wait: true);
@@ -1145,6 +1184,9 @@ final class MpvEngine implements PlaybackEngine {
     ++_generation;
     _source = null;
     await _quiet(c.command(['stop']));
+    _forgetServed([..._servedNow, ..._servedNext]);
+    _servedNow.clear();
+    _servedNext.clear();
     _state = PlaybackState(volume: _state.volume, muted: _state.muted);
     _idle = true;
     _loading = false;
@@ -1818,7 +1860,11 @@ final class MpvEngine implements PlaybackEngine {
     if (c == null) return;
     // Drop a previously queued entry, then append the new one; mpv prefetches
     // it and joins the two sample-accurately (gapless-audio, AUD-002).
-    if (_next != null) await _quiet(c.command(['playlist-clear']));
+    if (_next != null) {
+      await _quiet(c.command(['playlist-clear']));
+      _forgetServed(_servedNext, keep: _servedNow);
+      _servedNext.clear();
+    }
     _next = null;
     // A DoP item is never joined gaplessly: its output is checked when it is
     // opened, so the app opens it itself when the current one ends.
@@ -1833,7 +1879,10 @@ final class MpvEngine implements PlaybackEngine {
       final url = switch (played) {
         UriSource(:final uri) =>
           uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
-        VirtualFileSource(:final file) => _protocol!.urlFor(file),
+        VirtualFileSource(:final file) => () {
+          _servedNext.add(file);
+          return _protocol!.urlFor(file);
+        }(),
       };
       await _quiet(
         c.loadfile(
@@ -1856,6 +1905,7 @@ final class MpvEngine implements PlaybackEngine {
     _source = _next;
     _next = null;
     _dop = false;
+    _servedAdvance();
     _state = _state.copyWith(nextPrepared: false);
     await _quiet(c.command(['playlist-next', 'force']));
   }
