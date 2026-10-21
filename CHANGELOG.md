@@ -70,3 +70,5 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - FTP and FTPS through a built-in client that takes TLS from the operating system, SFTP through the platform's SSH stack, and a prompt to trust a server's self-signed certificate or SSH host key after comparing its fingerprint (NET-003, NET-004).
 - Offline downloads (NET-018), connection health (NET-019) and an encrypted backup and restore (CORE-014).
 - Native dependencies (B4a): `deps.lock` pins mediahro-deps `v2026.10.0-android.1` (Android arm64-v8a, armeabi-v7a, x86_64; FFmpeg 8.1.3, mpv 0.41.0, libplacebo 7.360.1, libvips 8.18.7 and 50 more, all LGPL parts shared). The licence scan now covers Gradle, SwiftPM and CocoaPods dependencies, GPL-only sources compiled into native libraries and GPL/banned markers in the binaries.
+- Photos: filter the timeline by source (IMG-016).
+- Audiobooks: books with chapters, per-book speed and place, bookmarks, sleep at chapter end, shake to extend (POD-001).
