@@ -26,6 +26,13 @@ void main() {
     }
   }
 
+  /// Parsing a feed runs on an isolate: wait for the run to report.
+  Future<void> reported(int runs) async {
+    for (var i = 0; i < 500 && work.completed.length < runs; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
   setUp(() {
     now = DateTime.utc(2026, 10, 22, 12);
     db = LibraryDatabase.memory();
@@ -83,7 +90,7 @@ void main() {
     await settle();
     expect(net.requests.length, before, reason: 'not our task');
     work.wake(PodcastBackgroundRefresh.taskId);
-    await settle();
+    await reported(1);
     expect(net.requests.length, greaterThan(before));
     expect(work.completed, [(PodcastBackgroundRefresh.taskId, true)]);
 
@@ -91,7 +98,7 @@ void main() {
     net.serve('https://show.example/rss', '', status: 500);
     now = now.add(const Duration(hours: 4));
     work.wake(PodcastBackgroundRefresh.taskId);
-    await settle();
+    await reported(2);
     expect(work.completed.last, (PodcastBackgroundRefresh.taskId, false));
   });
 }
