@@ -22,9 +22,7 @@ void main() {
     final function = constant('ENTRYPOINT');
     expect(library, startsWith('package:mediahro/'));
     final path = 'lib/${library.substring('package:mediahro/'.length)}';
-    final source = File(path).readAsStringSync().replaceAll('
-', '
-');
+    final source = File(path).readAsStringSync().replaceAll('\r\n', '\n');
     expect(
       source,
       contains("@pragma('vm:entry-point')\nvoid $function()"),
