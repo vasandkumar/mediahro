@@ -178,7 +178,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
 | SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
 | SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
-| SUB-020 | Online download | C1 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** OpenSubtitles.com and Subdl removed (publisher API key); Podnapisi stays (keyless status for the owner to confirm). |
+| SUB-020 | Online download | C1 | — | — | — | — | Removed from 1.0 by owner decision (ADR-048 amendment, 2026-10-22). |
 | SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
 | SUB-040 | Text-to-speech | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_text_test 2/2 (offline voices, short utterance), c1_video_player_test 33/33, engine_test ADR-031 5/5. |
 | SUB-050 | Auto-sync (audio-based) | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 3 (Samsung SM-M176B, main 311b583): engine_test ADR-032 5/5 (decodeAudio on Android 16), with c1_video_player_test 33/33 (sync UI) from batch 2; C1 side merged (#49: VAD + FFT cross-correlation, ±60 s, 8 frame-rate ratios, preview with Undo). |
@@ -319,8 +319,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | PRIV-001 | Zero telemetry by default | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| PRIV-002 | Opt-in crash reports | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| PRIV-003 | Opt-in usage analytics | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-002 | Opt-in crash reports | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
+| PRIV-003 | Opt-in usage analytics | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
 | PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-005 | Parsing safety | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-006 | Credentials | C5 | ☐ | ☐ | ☐ | ☐ |  |
@@ -342,6 +342,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Since | Lane | IDs / platforms | Blocker | Needs | Workaround in place |
 |---|---|---|---|---|---|
+| 2026-10-22 | C5 | PRIV-002, PRIV-003 (A I M W) | Owner decision (ADR-048 amendment): opt-in crash reports and usage analytics are on hold; they need owner-hosted servers (self-hosted Sentry/GlitchTip and Aptabase) | Owner: decides later whether and where to host them | None; not built. PRIV-001 (zero telemetry) is unaffected; the existing endpoint rows stay unused |
 | 2026-10-20 | B3 | CORE-001 mode-switch budget (A I) | Flutter profile mode does not run on emulators or simulators | Device lab profile run of b3_shell_perf_test.dart (§4) | Functional mode-switch tests pass in debug on A I; budget proven in profile on W (18.2 ms) |
 | 2026-10-19 | B1 | VID-031 native HDR on HDR displays (A I M W) | Flutter external textures are 8-bit only (Windows `FlutterDesktopGpuSurfaceDescriptor` BGRA/RGBA, Apple `CVPixelBuffer` BGRA, Android `SurfaceProducer` RGBA8), so a 10-bit/PQ frame cannot reach an HDR swap chain through the compositor | ADR: Flutter engine support for 10-bit/FP16 external textures, or an HDR platform-view surface | Tone mapping to SDR on every platform (bt.2390 default, all six curves, peak detection), tested on CI |
 | 2026-10-19 | B1 | VID-032…035 (A I M W) | No CC0/CC BY Dolby Vision (P5, P7 MEL/FEL, P8.1/8.4) or HDR10+ samples in `test-media/corpus`; DV P5 reshaping also needs libplacebo built with libdovi | Owner or a D lane: source licensed samples into Git LFS; B4: libdovi in libplacebo | Detection (profile, HDR10+ MaxRGB, P7 notice) unit-tested; suite runs automatically once samples land (`category: hdr-lfs`) **Update 2026-10-21:** HDR10+ and DV 8.1 samples landed in #101 (Android batch 3 passes); P5, P7 and 8.4 samples are still missing. |
@@ -379,7 +380,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | MDM test tenant (Android Enterprise, Apple MDM, Intune) | M7 | B2B-001/002 manual verification | Open |
 | Google Play Console: create the in-app products (tips, Supporter subscription) and licence-tester accounts, put the product ids in the app configuration (none are in the repo), and declare purchase history handled by Google Play in the Data safety form | Before the first Play internal-test upload | SUP-002 on Android (nothing can be bought until the products exist) | Open |
 | Device lab per docs/11 §3 (HDR panels, DACs, receivers, car head units, foldables) | M8 | Manual release checklists | Open |
-| Self-hosted Sentry/GlitchTip and Aptabase instances (EU VPS) and their hostnames | M7 | PRIV-002/003 live endpoint | Open |
+| Self-hosted Sentry/GlitchTip and Aptabase instances (EU VPS) and their hostnames | M7 | PRIV-002/003 live endpoint | On hold — owner decision 2026-10-22 (ADR-048 amendment); PRIV-002/003 not built until the owner decides |
 | Domain `mediahro.com` (site, `/support`, `/privacy`, downloads) and merchant of record (Paddle/Polar), GitHub Sponsors, Liberapay | M7 | SUP-003, PRIV policy URLs | Open |
 | Android developer verification registration incl. F-Droid signing key | Before 2027 | Sideload/F-Droid installs in enforced regions | Open |
 | EU DSA trader information; export-compliance answers in App Store Connect | Before submission | EU availability, App Store submission | Open |
@@ -430,6 +431,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-22 | Owner decisions (ADR-048 amendment): SUB-020 online subtitle search removed entirely (Podnapisi too); Libre.fm stays removed; no bring-your-own-key options anywhere; PRIV-002 crash reports and PRIV-003 usage analytics ON HOLD (not built until the owner decides; they need owner-hosted servers). Lanes remove the Podnapisi endpoint, privacy row and strings; the crash/analytics endpoints stay unused. |
 | 2026-10-22 | Owner decision: "Except ListenBrainz, remove the rest which requires API key or any key" (ADR-048). Removed: NET-007 (cloud drives). Narrowed: LIB-010 (no Trakt), LIB-011 (no TMDB/TVDB scraping), LIB-012 (no TMDB collections), SUB-020 (Podnapisi only), MUS-009 (ListenBrainz only), IMG-016 (no cloud drives). Kept as keyless: LRCLIB, MusicBrainz and Cover Art Archive (MUS-004), IntroDB (VID-073), Plex PIN sign-in, the open CASTv2 sender. Owner tasks for these keys and client IDs cancelled (§4). Lanes remove the matching code, hosts and strings (orchestrator task list). |
 | 2026-10-22 | Owner removed MUS-010 (fingerprinting / Identify song) from 1.0 because it needs an external API key (ADR-047); PR #120 closed unmerged; status tooling now treats a `—` release in doc 04 as removed. |
 | 2026-10-21 | Merged C3 **#104** (merge 2e8ad5d, head 266d40d; PRIV-007 videos and music in the vault, played as sensitive sources per ADR-043). Reviewed clean earlier; the head is unchanged and only the merge of main is new. Verified at 266d40d merged on main d921c9f (auto-merged with #113 in vault_manager.dart and the vault tests; no `fillRange` left on a vault secret outside `wipe`): tools/check all stages passed, 584 + 311 + 731 app tests passed, 9 skipped, engine 140 passed, 116 skipped, packages 31, 2, 37, 244, analyze clean, no flakes. Device: `c3_vault_test` PRIV-007 case and the hand check "vault video plays and stops when backgrounded" are in batch 4; nothing ticked. |

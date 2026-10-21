@@ -27,7 +27,7 @@ VID-036…042, VID-060…074, SUB-010…016 (UI and editor side; the engine side
 3. **Rendering features** over the frozen engine API: scaling and filter presets, user shaders, interpolation, ICC, 3D/360° (VID-037…041), and screenshot/GIF/WebP/clip export through `PlaybackEngine.export` (VID-042). If a property you need isn't on the API, file an ADR request; B1 implements it.
 4. **`mediahro_subtitles`:**
    - parsing and the model for the editor (SUB-030: timing shift and stretch, split/merge, spell check through the OS, save as SRT/ASS/VTT)
-   - online download (SUB-020): Podnapisi only through `NetworkGateway`, opt-in (ADR-048 removed OpenSubtitles and Subdl, which need a publisher API key; raise any provider that needs a key with the owner first).
+   - ~~online download (SUB-020)~~ **Removed from 1.0 by owner decision 2026-10-22 (ADR-048 amendment): online subtitle search is removed entirely, Podnapisi included. Build nothing; no bring-your-own-key options.**
    - TTS over `SpeechSynthesisFacade` (SUB-040)
    - audio-based auto-sync (SUB-050): VAD + cross-correlation in an isolate, ≤ 2× real time on phone, preview before save
    - OCR of PGS/VobSub (SUB-051): `TextRecognitionFacade`, or Tesseract via FFI when it reports unsupported (ADR-025 §5)

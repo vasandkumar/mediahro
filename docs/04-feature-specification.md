@@ -126,7 +126,7 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | SUB-014 | Styling | Font, size, colour, outline, shadow, background box, position (vertical/horizontal), alignment; override ASS styles optionally; honours system caption preferences (MACaptionAppearance / Android CaptioningManager / Windows caption styles) | All | 1.0 |
 | SUB-015 | Timing | Delay ±60 s in 50 ms steps; speed/stretch (fps conversion 23.976↔25); keyboard and gesture shortcuts; per-file memory | All | 1.0 |
 | SUB-016 | Dual subtitles | Primary + secondary track with independent position/size/delay | All | 1.0 |
-| SUB-020 | Online download | Podnapisi (OpenSubtitles.com and Subdl removed by ADR-048); hash + name search; one-tap best match; auto-download for preferred languages (opt-in); rate-limit aware | All | 1.0 |
+| SUB-020 | Online download | Removed from 1.0 by owner decision 2026-10-22 (ADR-048 amendment): online subtitle search removed entirely | All | — |
 | SUB-030 | Subtitle editor | Shift, resync by two points, fix encoding, save as SRT/ASS | All | 1.0 |
 | SUB-040 | Text-to-speech | Read subtitles aloud via system TTS (accessibility) | All | 1.0 |
 | SUB-050 | Auto-sync (audio-based) | On-device alignment of a subtitle file to the audio track (VAD + cross-correlation, alass/ffsubsync approach); runs in background ≤ 2× real-time on phone; result previewed before save | All | 1.0 |
@@ -269,8 +269,8 @@ Version 1.0 · 2026-10-19 · Status: the build contract. Every row marked **1.0*
 | ID | Feature | Acceptance criteria | Platforms | Rel. |
 |---|---|---|---|---|
 | PRIV-001 | Zero telemetry by default | No analytics, no crash upload, no update check beyond the store, unless each is enabled; first-run explains the three toggles (off) | All | 1.0 |
-| PRIV-002 | Opt-in crash reports | Sentry (self-hosted) with PII scrubbing (no paths/filenames/IPs); viewable before send | All | 1.0 |
-| PRIV-003 | Opt-in usage analytics | Aptabase events without identifiers; event list published | All | 1.0 |
+| PRIV-002 | Opt-in crash reports | Sentry (self-hosted) with PII scrubbing (no paths/filenames/IPs); viewable before send (ON HOLD by owner 2026-10-22: not built until the owner decides; needs owner-hosted servers) | All | 1.0 |
+| PRIV-003 | Opt-in usage analytics | Aptabase events without identifiers; event list published (ON HOLD by owner 2026-10-22: not built until the owner decides; needs owner-hosted servers) | All | 1.0 |
 | PRIV-004 | Network allow-list | Every outbound domain listed in the privacy dashboard; subtitle/metadata/lyrics/scrobble/map each toggleable; FOSS flavour defaults all off | All | 1.0 |
 | PRIV-005 | Parsing safety | Subtitle, playlist, metadata and image parsing run in sandboxed isolates/processes with size limits; fuzzed in CI | All | 1.0 |
 | PRIV-006 | Credentials | OS keychain/keystore/DPAPI; never in plain files; export encrypted | All | 1.0 |
