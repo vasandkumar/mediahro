@@ -8,6 +8,7 @@ import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/api/video_target.dart';
 import 'package:mediahro_engine/src/bridge/audio_bridge.dart';
 import 'package:mediahro_engine/src/bridge/render_bridge.dart';
@@ -1420,8 +1421,8 @@ final class MpvEngine implements PlaybackEngine {
     }
   }
 
-  @override
-  Future<void> extractSubtitles(int trackId, Uri out) async {
+  // The open source and its embedded subtitle track [trackId].
+  (MediaSource, Track) _embeddedSubtitle(int trackId) {
     final src = _source;
     final track = _state.tracks
         .where((t) => t.type == TrackType.subtitle && t.id == trackId)
@@ -1436,6 +1437,32 @@ final class MpvEngine implements PlaybackEngine {
         ),
       );
     }
+    return (src, track);
+  }
+
+  @override
+  Stream<SubtitleImage> extractSubtitleImages(int trackId) async* {
+    final (src, track) = _embeddedSubtitle(trackId);
+    yield* extractSubtitleImageTrack(
+      url: switch (src) {
+        UriSource(:final uri) =>
+          uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
+        VirtualFileSource() => '',
+      },
+      virtualFile: src is VirtualFileSource ? src.file : null,
+      headers: src is UriSource ? src.headers : const {},
+      trackId: trackId,
+      codec: track.codec ?? '',
+      audioTracks: _state.tracks
+          .where((t) => t.type == TrackType.audio && !t.isExternal)
+          .length,
+      libmpvPath: config.libmpvPath,
+    );
+  }
+
+  @override
+  Future<void> extractSubtitles(int trackId, Uri out) async {
+    final (src, track) = _embeddedSubtitle(trackId);
     if (out.scheme != 'file') {
       throw const EngineException(
         EngineError(

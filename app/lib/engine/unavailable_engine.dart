@@ -125,6 +125,10 @@ final class UnavailableEngine implements PlaybackEngine {
     const EngineException(EngineError(code: EngineErrorCode.libraryMissing)),
   );
   @override
+  Stream<SubtitleImage> extractSubtitleImages(int trackId) => Stream.error(
+    const EngineException(EngineError(code: EngineErrorCode.libraryMissing)),
+  );
+  @override
   Stream<Float32List> decodeAudio(
     MediaSource source, {
     int? trackId,
