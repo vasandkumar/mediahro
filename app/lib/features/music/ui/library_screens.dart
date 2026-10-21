@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/library/library_views.dart';
 import 'package:mediahro/core/providers.dart';
+import 'package:mediahro/features/music/books/book_library.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/music_widgets.dart';
@@ -629,7 +630,31 @@ class FolderScreen extends ConsumerWidget {
       musicPlayerStateProvider.select((s) => s.value?.current?.itemId),
     );
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: [
+          if (path.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: l10n.musicMoreActions(title),
+              onSelected: (_) async {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                await ref
+                    .read(bookStoreProvider)
+                    .setMark(BookLibrary.folderId(sourceId, path), 'book');
+                ref.invalidate(bookEntriesProvider);
+                messenger?.showSnackBar(
+                  SnackBar(content: Text(l10n.musicBookMarked(title))),
+                );
+              },
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: 'book',
+                  child: Text(l10n.musicBookTreatAsBook),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: LibraryQuery<(List<FolderEntry>, List<MusicTrack>)>(
         queryKey: (sourceId, path),
         load: (lib) async => (

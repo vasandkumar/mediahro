@@ -9,6 +9,9 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
+import 'package:mediahro/features/music/books/book_library.dart';
+import 'package:mediahro/features/music/books/book_player.dart';
+import 'package:mediahro/features/music/books/book_store.dart';
 import 'package:mediahro/features/music/car/music_browse_tree.dart';
 import 'package:mediahro/features/music/library/artwork_store.dart';
 import 'package:mediahro/features/music/library/music_files.dart';
@@ -24,6 +27,7 @@ import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
+import 'package:mediahro/features/music/player/sleep_shake.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/radio/radio_stations.dart';
@@ -261,6 +265,12 @@ final sleepTimerProvider = Provider<SleepTimer>((ref) {
     engine: ref.watch(playbackEngineProvider(EngineRole.music)),
   );
   ref.onDispose(() => unawaited(t.dispose()));
+  // Shake-to-extend (POD-001), where the phone has a motion sensor.
+  final motion = _optional(() => ref.read(motionProvider));
+  if (motion != null) {
+    final shake = SleepShakeExtender(timer: t, motion: motion)..start();
+    ref.onDispose(() => unawaited(shake.dispose()));
+  }
   return t;
 });
 
@@ -325,6 +335,47 @@ final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
     FutureProvider.family<Lyrics?, MusicTrack>(
       (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
     );
+
+/// Audiobooks (POD-001): the books in the music library, where the listener
+/// stands in each, and the player mode that remembers it.
+final bookStoreProvider = Provider<BookStore>(
+  (ref) => BookStore(ref.watch(musicPrefsProvider)),
+);
+
+final bookLibraryProvider = Provider<BookLibrary>(
+  (ref) => BookLibrary(
+    library: ref.watch(musicLibraryProvider),
+    store: ref.watch(bookStoreProvider),
+    files: ref.watch(musicFilesProvider),
+    readTags: readTagsOf,
+  ),
+);
+
+final bookPlayerProvider = Provider<BookPlayer>((ref) {
+  final b = BookPlayer(
+    player: ref.watch(musicPlayerProvider),
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+    dsp: ref.watch(musicDspProvider),
+    library: ref.watch(bookLibraryProvider),
+    store: ref.watch(bookStoreProvider),
+  );
+  ref.onDispose(() => unawaited(b.dispose()));
+  return b;
+});
+
+final bookPlayerStateProvider = StreamProvider<BookPlayerState>(
+  (ref) => ref.watch(bookPlayerProvider).states,
+);
+
+/// The book list; reloads when the library changes or the book in play
+/// changes. Pull to refresh with `ref.invalidate`.
+final bookEntriesProvider = FutureProvider<List<BookEntry>>((ref) {
+  ref
+    ..watch(musicLibraryChangesProvider)
+    ..watch(bookPlayerStateProvider.select((s) => s.value?.book?.id))
+    ..watch(bookPlayerStateProvider.select((s) => s.value?.finished));
+  return ref.watch(bookLibraryProvider).entries();
+});
 
 /// Safe tag editing (MUS-003).
 final tagEditorProvider = Provider<TagEditor>(

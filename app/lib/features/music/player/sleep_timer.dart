@@ -97,6 +97,23 @@ final class SleepTimer {
     );
   }
 
+  /// A shake of the phone while the timer runs (POD-001): five more minutes
+  /// for a timer by time, one more track for a timer by tracks. A timer
+  /// already fading out is brought back to full volume.
+  void shake() {
+    switch (_state.mode) {
+      case SleepMode.time:
+        extend(const Duration(minutes: 5));
+      case SleepMode.tracks || SleepMode.endOfTrack:
+        final left = _state.tracksLeft;
+        if (left == null) return;
+        unawaited(_restoreVolume());
+        _emit(SleepTimerState(mode: SleepMode.tracks, tracksLeft: left + 1));
+      case SleepMode.off:
+        break;
+    }
+  }
+
   void cancel() {
     _reset();
     unawaited(_restoreVolume());

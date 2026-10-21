@@ -6,6 +6,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/alarms_screen.dart';
+import 'package:mediahro/features/music/ui/books_tab.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
 import 'package:mediahro/features/music/ui/library_screens.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart';
@@ -95,6 +96,7 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       (l10n.musicTabComposers, const GroupsTab(field: GroupField.composer)),
       (l10n.musicTabYears, const GroupsTab(field: GroupField.year)),
       (l10n.musicTabFolders, const FoldersTab()),
+      (l10n.musicTabBooks, const BooksTab()),
       (l10n.musicTabRadio, const RadioTab()),
     ];
     final songs = _songs;

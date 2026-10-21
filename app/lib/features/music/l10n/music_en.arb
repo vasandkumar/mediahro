@@ -677,5 +677,85 @@
   "musicScrobbleOffline": "Couldn't reach the service. Try again when you're online.",
   "musicScrobbleExclude": "Don't scrobble from",
   "musicScrobbleExcludeHint": "Songs from sources you switch off here are never sent.",
-  "musicScrobbleUnavailable": "Scrobbling needs secure storage, which is not available on this device."
+  "musicScrobbleUnavailable": "Scrobbling needs secure storage, which is not available on this device.",
+  "musicTabBooks": "Audiobooks",
+  "musicBooksEmpty": "No audiobooks yet. M4B files, and folders tagged Audiobook or Spoken Word, show up here. To make any other folder a book, open its menu in Folders and choose Treat as audiobook.",
+  "musicBookNotStarted": "Not started",
+  "musicBookFinished": "Finished",
+  "musicBookLeft": "{time} left",
+  "@musicBookLeft": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "musicBookNowPlaying": "Audiobook",
+  "musicBookChapterOf": "Chapter {n} of {total}",
+  "@musicBookChapterOf": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "musicBookChapterUnnamed": "Chapter {n}",
+  "@musicBookChapterUnnamed": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "musicBookChapters": "Chapters",
+  "musicBookBookmarks": "Bookmarks",
+  "musicBookAddBookmark": "Add bookmark",
+  "musicBookNote": "Note (optional)",
+  "musicBookBookmarkAdded": "Bookmark added",
+  "musicBookNoBookmarks": "No bookmarks yet.",
+  "musicBookEditNote": "Edit note",
+  "musicBookDeleteBookmark": "Delete bookmark",
+  "musicBookBookmarkActions": "Bookmark actions",
+  "musicBookPosition": "Position in the book",
+  "musicBookBack30": "Back 30 seconds",
+  "musicBookForward30": "Forward 30 seconds",
+  "musicBookPreviousChapter": "Previous chapter",
+  "musicBookNextChapter": "Next chapter",
+  "musicBookSpeed": "Speed",
+  "musicBookSpeedValue": "{speed}×",
+  "@musicBookSpeedValue": {
+    "placeholders": {
+      "speed": {
+        "type": "double",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "musicBookSpeedRemembered": "Each book remembers its own speed.",
+  "musicBookSkipSilence": "Skip silence",
+  "musicBookSleepEndOfChapter": "End of this chapter",
+  "musicBookSleepEndOfChapterOn": "Pausing at the end of this chapter",
+  "musicBookStartOver": "Start over",
+  "musicBookTreatAsMusic": "Treat as music",
+  "musicBookTreatAsBook": "Treat as audiobook",
+  "musicBookMarked": "\"{title}\" is now an audiobook.",
+  "@musicBookMarked": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicBookNumber": "{n}",
+  "@musicBookNumber": {
+    "placeholders": {
+      "n": {
+        "type": "int",
+        "format": "decimalPattern"
+      }
+    }
+  }
 }
