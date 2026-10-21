@@ -95,8 +95,12 @@ final class FakeNet {
   /// Holds the answer for an address until the gate completes.
   final gates = <String, Completer<void>>{};
 
-  /// What a name resolves to (everything else is a public address).
+  /// What a name resolves to (everything else is a public address). An
+  /// empty list is a name that could not be resolved.
   final dns = <String, List<InternetAddress>>{};
+
+  /// Every name looked up.
+  final lookups = <String>[];
 
   /// Answers by code for an address, called for every request to it.
   final handlers =
@@ -109,6 +113,30 @@ final class FakeNet {
 
   /// Chains started and not yet closed.
   int get openChains => _open.length;
+
+  /// Serves [bytes] at [url] the way a media server does: ranges answered
+  /// with 206, or (with [ranges] false) always the whole body in chunks.
+  void serveBytes(String url, List<int> bytes, {bool ranges = true}) {
+    handlers[url] = (r) {
+      final range = RegExp(r'bytes=(\d+)-(\d+)')
+          .firstMatch(r.headers['range'] ?? '');
+      if (!ranges || range == null) {
+        return HttpStreamResponse(
+          200,
+          {'content-length': '${bytes.length}'},
+          Stream.fromIterable([
+            for (var i = 0; i < bytes.length; i += 64 << 10)
+              bytes.sublist(i, (i + (64 << 10)).clamp(0, bytes.length)),
+          ]),
+        );
+      }
+      final from = int.parse(range.group(1)!);
+      final to = int.parse(range.group(2)!).clamp(0, bytes.length - 1);
+      return response(206, bytes.sublist(from, to + 1), {
+        'content-range': 'bytes $from-$to/${bytes.length}',
+      });
+    };
+  }
 
   static HttpStreamResponse response(
     int status,
@@ -139,7 +167,10 @@ final class FakeNet {
   late final http = PodcastHttp(
     nonPublic: (host) => resolvesToNonPublic(
       host,
-      lookup: (n) async => dns[n] ?? [InternetAddress('93.184.216.34')],
+      lookup: (n) async {
+        lookups.add(n);
+        return dns[n] ?? [InternetAddress('93.184.216.34')];
+      },
     ),
     beginChain: () {
       final hosts = <String>{};

@@ -136,9 +136,11 @@ bool isNonPublicHost(String host) {
 }
 
 /// [isNonPublicHost], and for a name, whether any address it resolves to is
-/// non-public (a public-looking name that points inside, or DNS rebinding
-/// between this check and the connection: the connection resolves again).
-/// A name that does not resolve is not refused here; the request fails.
+/// non-public (a public-looking name that points inside). A name that cannot
+/// be resolved (no answer, an error, a timeout, no addresses) counts as
+/// non-public too: an address nobody could check is not one to follow. A name
+/// can still resolve differently when the connection is made (DNS rebinding:
+/// the gateway connects separately).
 Future<bool> resolvesToNonPublic(
   String host, {
   Future<List<InternetAddress>> Function(String host) lookup = _systemLookup,
@@ -148,13 +150,26 @@ Future<bool> resolvesToNonPublic(
   if (parseHostAddress(h) != null) return false;
   try {
     final addresses = await lookup(h).timeout(const Duration(seconds: 5));
-    return addresses.any(
-      (a) =>
-          _nonPublicBytes(a.rawAddress, v6: a.type == InternetAddressType.IPv6),
-    );
+    return addresses.isEmpty ||
+        addresses.any(
+          (a) => _nonPublicBytes(
+            a.rawAddress,
+            v6: a.type == InternetAddressType.IPv6,
+          ),
+        );
   } on Object {
-    return false;
+    return true;
   }
+}
+
+/// The private-network hosts a feed's requests may reach: its own host when
+/// the listener gave a host on their own network (an address or `.local`
+/// name), nothing for a feed on the internet. A feed on the internet is
+/// checked like any other hop on every request, so it cannot be repointed at
+/// the listener's network.
+Set<String> trustedFeedHosts(String feedHost) {
+  final h = normalizeHost(feedHost);
+  return isLocalNetworkHost(h) ? {h} : const {};
 }
 
 Future<List<InternetAddress>> _systemLookup(String host) =>

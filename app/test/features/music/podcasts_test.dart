@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/files/file_systems.dart';
+import 'package:mediahro/core/sources/downloads.dart';
 import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/podcasts/episode_downloads.dart';
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
@@ -606,6 +608,26 @@ void main() {
 </body></opml>''';
       // No answer, or no: the public one only.
       var asked = <String>[];
+      // A name that points inside, or cannot be checked, is asked about too.
+      net.dns['sneaky.example'] = [InternetAddress('10.9.9.9')];
+      net.dns['unknown.example'] = [];
+      final named = await svc.importOpml(
+        '<opml version="2.0"><body> '
+        '<outline xmlUrl="https://sneaky.example/f"/> '
+        '<outline xmlUrl="https://unknown.example/f"/> '
+        '<outline xmlUrl="https://b.example/f"/> '
+        '</body></opml>',
+        confirmLocal: (urls) async {
+          expect(urls, [
+            'https://sneaky.example/f',
+            'https://unknown.example/f',
+          ]);
+          return false;
+        },
+      );
+      expect(named.declined, hasLength(2));
+      expect(named.added, 1);
+      await svc.unsubscribe(PodcastStore.idOf('https://b.example/f'));
       final declined = await svc.importOpml(
         opml,
         confirmLocal: (urls) async {
@@ -669,6 +691,56 @@ void main() {
       final other = await svc.subscribe('http://192.168.1.9/rss2');
       expect(other.artPath, isNull);
       expect(net.requests.map((r) => r.uri.host), isNot(contains('10.0.0.7')));
+    });
+
+    test("POD-002 a public feed host that is repointed at the listener's "
+        'network is refused: it gets the lookup like any other hop', () async {
+      net.dns['show.example'] = [InternetAddress('192.168.1.1')];
+      await expectLater(
+        svc.subscribe('https://show.example/rss'),
+        throwsA(
+          isA<PodcastException>().having(
+            (e) => e.reason,
+            'reason',
+            PodcastFailure.privateAddress,
+          ),
+        ),
+      );
+      expect(net.requests, isEmpty);
+      // A name that cannot be resolved is not followed either.
+      net.dns['show.example'] = [];
+      await expectLater(
+        svc.subscribe('https://show.example/rss'),
+        throwsA(isA<PodcastException>()),
+      );
+      expect(net.requests, isEmpty);
+      // A feed the listener typed on their own network keeps working, as a
+      // `.local` name does.
+      net
+        ..serve('http://nas.local/rss', podcastRss)
+        ..dns.remove('show.example');
+      expect((await svc.subscribe('http://nas.local/rss')).title, isNotEmpty);
+    });
+
+    test('POD-002 the feed host trusted for an episode is only a private one '
+        'the listener gave', () async {
+      net
+        ..serve('http://192.168.1.9/rss', podcastRss)
+        ..serve('http://192.168.1.9/art/cover.jpg', 'x')
+        ..serve('https://b.example/f', podcastAtom);
+      final local = await svc.subscribe('http://192.168.1.9/rss');
+      final online = await svc.subscribe('https://b.example/f');
+      expect(await store.feedHostFor(Uri.parse(local.episodes.first.url)), {
+        '192.168.1.9',
+      });
+      expect(
+        await store.feedHostFor(Uri.parse(online.episodes.first.url)),
+        isEmpty,
+      );
+      expect(
+        await store.feedHostFor(Uri.parse('https://nowhere.example/x')),
+        isEmpty,
+      );
     });
 
     test('POD-002 a public feed cannot send the app to the LAN: a redirect '
@@ -819,6 +891,71 @@ void main() {
       );
     });
 
+    test('POD-002 a file looks a host up once, not for every block', () async {
+      final net = FakeNet();
+      final bytes = List<int>.generate(3 << 20, (i) => i & 255);
+      net.serveBytes('https://cdn.example/a.mp3', bytes);
+      final file = await net.http.openFile(
+        Uri.parse('https://cdn.example/a.mp3'),
+      );
+      for (var i = 0; i < 6; i++) {
+        final got = await file.read(i * (300 << 10), 1000);
+        expect(got, bytes.sublist(i * (300 << 10), i * (300 << 10) + 1000));
+      }
+      expect(net.lookups, ['cdn.example']);
+      await file.close();
+    });
+
+    test(
+      'POD-002 a read of a megabyte is one request, not four blocks',
+      () async {
+        final net = FakeNet();
+        final bytes = List<int>.generate(3 << 20, (i) => (i * 7) & 255);
+        net.serveBytes('https://cdn.example/a.mp3', bytes);
+        final file = await net.http.openFile(
+          Uri.parse('https://cdn.example/a.mp3'),
+        );
+        final before = net.requests.length;
+        expect(
+          await file.read(100, 1 << 20),
+          bytes.sublist(100, 100 + (1 << 20)),
+        );
+        expect(net.requests.length - before, 1);
+        expect(
+          net.requests.last.headers['range'],
+          'bytes=100-${100 + (1 << 20) - 1}',
+        );
+        await file.close();
+      },
+    );
+
+    test('POD-002 a server without ranges is read as one stream: later and '
+        'repeated reads work, going back starts it again', () async {
+      final net = FakeNet();
+      final bytes = List<int>.generate(700 << 10, (i) => (i * 13) & 255);
+      net.serveBytes('https://cdn.example/a.mp3', bytes, ranges: false);
+      final file = await net.http.openFile(
+        Uri.parse('https://cdn.example/a.mp3'),
+      );
+      expect(file.isSeekable, isFalse);
+      expect(await file.length(), bytes.length);
+      final probe = net.requests.length;
+      expect(await file.read(0, 256 << 10), bytes.sublist(0, 256 << 10));
+      expect(
+        await file.read(256 << 10, 256 << 10),
+        bytes.sublist(256 << 10, 512 << 10),
+      );
+      // Forward past what was read, and the end of the file.
+      expect(await file.read(600 << 10, 500 << 10), bytes.sublist(600 << 10));
+      // The same stream served all of that.
+      expect(net.requests.length - probe, 1);
+      // Back to the start: the stream begins again.
+      expect(await file.read(10, 100), bytes.sublist(10, 110));
+      expect(net.requests.length - probe, 2);
+      expect(net.lookups, ['cdn.example']);
+      await file.close();
+    });
+
     test('POD-002 an episode file holds its allowance for as long as it is '
         'open, and no longer', () async {
       final net = FakeNet()
@@ -950,6 +1087,105 @@ void main() {
     });
   });
 
+  group('POD-002 podcast downloads', () {
+    test('POD-002 a download is opened by the podcast file system only, '
+        'never by a source the listener added for the same host', () async {
+      final db = LibraryDatabase.memory();
+      final dir = Directory.systemTemp.createTempSync('c2_pod_dl');
+      addTearDown(() async {
+        await db.close();
+        try {
+          dir.deleteSync(recursive: true);
+        } on FileSystemException {
+          // Best effort.
+        }
+      });
+      final net = FakeNet();
+      final bytes = List<int>.generate(300 << 10, (i) => (i * 3) & 255);
+      net.serveBytes('https://cdn.example/dl/e.mp3', bytes);
+      final mounts = MountedFileSystems();
+      final user = _UserShare();
+      // The listener's own WebDAV source on the very same host.
+      mounts.mount(Uri.parse('https://cdn.example'), user);
+      final manager = DownloadManager(
+        db: db,
+        directory: Directory('${dir.path}/downloads'),
+        opener: (uri) => mounts.forUri(uri).open(uri),
+        concurrency: 1,
+      );
+      final downloads = ManagerEpisodeDownloads(
+        manager: manager,
+        mounts: mounts,
+        fileSystem: HttpUrlFileSystem(
+          net.http,
+          trustedFor: (_) async => const {},
+        ),
+      );
+      final url = Uri.parse('https://cdn.example/dl/e.mp3');
+      await downloads.enqueue(url, title: 'E', size: bytes.length);
+      EpisodeDownload? d;
+      for (var i = 0; i < 100; i++) {
+        d = await downloads.status(url);
+        if (d != null && d.done) break;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(d?.done, isTrue, reason: '${d?.state}');
+      expect(d!.file!.readAsBytesSync(), bytes);
+      expect(user.opened, isEmpty, reason: "the listener's source was used");
+      final row = (await db.select(db.downloads).get()).single;
+      expect(row.remoteUri, 'podcast-https://cdn.example/dl/e.mp3');
+      expect(podcastEpisodeUri(Uri.parse(row.remoteUri)), url);
+      expect(podcastEpisodeUri(url), isNull);
+      // Removing it goes by the episode's own address.
+      await downloads.remove(url);
+      expect(await downloads.status(url), isNull);
+      await manager.dispose();
+    });
+
+    test('POD-002 a download whose address leads inside the network fails '
+        'and is not fetched', () async {
+      final db = LibraryDatabase.memory();
+      final dir = Directory.systemTemp.createTempSync('c2_pod_dl2');
+      addTearDown(() async {
+        await db.close();
+        try {
+          dir.deleteSync(recursive: true);
+        } on FileSystemException {
+          // Best effort.
+        }
+      });
+      final net = FakeNet()
+        ..redirect('https://cdn.example/e.mp3', 'http://10.0.0.5/e.mp3')
+        ..serve('http://10.0.0.5/e.mp3', 'INSIDE');
+      final mounts = MountedFileSystems();
+      final manager = DownloadManager(
+        db: db,
+        directory: Directory('${dir.path}/downloads'),
+        opener: (uri) => mounts.forUri(uri).open(uri),
+        concurrency: 1,
+      );
+      final downloads = ManagerEpisodeDownloads(
+        manager: manager,
+        mounts: mounts,
+        fileSystem: HttpUrlFileSystem(
+          net.http,
+          trustedFor: (_) async => const {},
+        ),
+      );
+      final url = Uri.parse('https://cdn.example/e.mp3');
+      await downloads.enqueue(url, title: 'E');
+      EpisodeDownload? d;
+      for (var i = 0; i < 100; i++) {
+        d = await downloads.status(url);
+        if (d != null && d.state == DownloadState.failed) break;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(d?.state, DownloadState.failed);
+      expect(net.requests.map((r) => r.uri.host), everyElement('cdn.example'));
+      await manager.dispose();
+    });
+  });
+
   group('POD-002 the network path', () {
     test('POD-002 the body is limited, and a chain that never ends is '
         'cut', () async {
@@ -976,4 +1212,27 @@ void main() {
       expect(r.status, 302);
     });
   });
+}
+
+/// A source the listener added that serves a host, and says if it was used.
+final class _UserShare implements VirtualFileSystem {
+  final opened = <Uri>[];
+
+  @override
+  Set<String> get schemes => const {'https'};
+
+  @override
+  Set<VirtualFsCapability> get capabilities => const {};
+
+  @override
+  Future<VirtualFile> open(Uri uri) async {
+    opened.add(uri);
+    throw VirtualFileException(VirtualFileError.io, uri, 'used');
+  }
+
+  @override
+  Future<VirtualEntry> stat(Uri uri) => throw UnimplementedError();
+
+  @override
+  Stream<VirtualEntry> list(Uri directory) => const Stream.empty();
 }

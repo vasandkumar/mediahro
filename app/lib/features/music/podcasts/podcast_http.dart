@@ -139,15 +139,19 @@ final class PodcastHttp {
 
   /// One GET with its redirects followed through [_permit], returning the
   /// answer and where it came from.
+  ///
+  /// [permitted] are hosts already checked for this chain (an open file's):
+  /// they are not looked up again for every read.
   Future<(HttpStreamResponse, Uri)> _get(
     ChainAllowance chain,
     Uri uri,
     Map<String, String> headers,
-    Set<String> trusted,
-  ) async {
+    Set<String> trusted, {
+    Set<String>? permitted,
+  }) async {
     var u = uri;
     for (var hop = 0; hop <= maxHops; hop++) {
-      await _permit(chain, u, trusted);
+      await _permit(chain, u, trusted, permitted);
       final res = await chain.run(
         () => send(
           HttpRequestData(method: 'GET', uri: u, headers: headers),
@@ -164,10 +168,18 @@ final class PodcastHttp {
 
   /// Allows [u]'s host for the chain, unless it is on the listener's own
   /// network and not one they gave.
-  Future<void> _permit(ChainAllowance chain, Uri u, Set<String> trusted) async {
+  Future<void> _permit(
+    ChainAllowance chain,
+    Uri u,
+    Set<String> trusted,
+    Set<String>? permitted,
+  ) async {
     final host = normalizeHost(u.host);
-    if (!trusted.contains(host) && await nonPublic(host)) {
-      throw const PodcastHttpException('private address');
+    if (permitted == null || !permitted.contains(host)) {
+      if (!trusted.contains(host) && await nonPublic(host)) {
+        throw const PodcastHttpException('private address');
+      }
+      permitted?.add(host);
     }
     chain.allow(host);
   }
@@ -206,6 +218,20 @@ final class _PodcastFile implements VirtualFile {
   final _blocks = <int, Uint8List>{};
   Future<void> _turn = Future.value();
 
+  /// Hosts already checked for this file.
+  final _permitted = <String>{};
+
+  // A server without ranges is read as one stream: [_chunks] are the bytes
+  // from [_winStart] to [_seqPos] of it, the most recent [_window] at most.
+  static const int _window = 8 << 20;
+  StreamIterator<List<int>>? _seq;
+  final _chunks = <Uint8List>[];
+  int _winStart = 0;
+  int _seqPos = 0;
+
+  Future<(HttpStreamResponse, Uri)> _fetch(Map<String, String> headers) =>
+      _http._get(_chain, _url, headers, _trusted, permitted: _permitted);
+
   @override
   bool get isSeekable => _seekable;
 
@@ -213,11 +239,11 @@ final class _PodcastFile implements VirtualFile {
   Future<int?> length() async => _length;
 
   Future<void> _probe() => _guard(() async {
-    final (res, at) = await _http._get(_chain, _url, const {
-      'range': 'bytes=0-0',
-    }, _trusted);
+    final (res, at) = await _fetch(const {'range': 'bytes=0-0'});
     _url = at;
-    await res.body.drain<void>();
+    // Only the headers matter: a server that ignores the range would send
+    // the whole episode.
+    await res.body.listen((_) {}).cancel();
     HttpSession.check(res.statusCode, uri);
     if (res.statusCode == 206) {
       _seekable = true;
@@ -273,15 +299,9 @@ final class _PodcastFile implements VirtualFile {
     var end = offset + length;
     if (size != null && end > size) end = size;
     if (end <= offset) return Uint8List(0);
-    if (!_seekable && offset != 0) {
-      throw VirtualFileException(
-        VirtualFileError.unsupported,
-        uri,
-        'server does not support ranges',
-      );
-    }
-    // Large reads bypass the cache.
-    if (end - offset > _blockSize * 4) return await _range(offset, end - 1);
+    if (!_seekable) return await _readSequential(offset, end);
+    // Large reads (a block of four or more) bypass the cache.
+    if (end - offset >= _blockSize * 4) return await _range(offset, end - 1);
     final out = BytesBuilder(copy: false);
     for (var b = offset ~/ _blockSize; b * _blockSize < end; b++) {
       final block = await _block(b);
@@ -314,9 +334,7 @@ final class _PodcastFile implements VirtualFile {
   }
 
   Future<Uint8List> _range(int first, int last) async {
-    final (res, at) = await _http._get(_chain, _url, {
-      'range': 'bytes=$first-$last',
-    }, _trusted);
+    final (res, at) = await _fetch({'range': 'bytes=$first-$last'});
     _url = at;
     if (res.statusCode == 416) {
       await res.body.drain<void>();
@@ -345,11 +363,65 @@ final class _PodcastFile implements VirtualFile {
     return bytes.length > want ? Uint8List.sublistView(bytes, 0, want) : bytes;
   }
 
+  /// Bytes [offset, end) of a server that does not honour ranges. Reading
+  /// on takes the stream forward (what is skipped is dropped); reading from
+  /// before what is still held starts the stream again.
+  Future<Uint8List> _readSequential(int offset, int end) async {
+    if (offset < _winStart) await _restartSequential();
+    while (_seqPos < end) {
+      final iter = await _sequential();
+      if (!await iter.moveNext()) break;
+      final c = Uint8List.fromList(iter.current);
+      _chunks.add(c);
+      _seqPos += c.length;
+      final keepFrom = offset > _seqPos - _window ? offset : _seqPos - _window;
+      while (_chunks.isNotEmpty &&
+          _winStart + _chunks.first.length <= keepFrom) {
+        _winStart += _chunks.removeAt(0).length;
+      }
+    }
+    final out = BytesBuilder(copy: false);
+    var at = _winStart;
+    for (final c in _chunks) {
+      final cEnd = at + c.length;
+      if (cEnd > offset && at < end) {
+        out.add(
+          Uint8List.sublistView(
+            c,
+            offset > at ? offset - at : 0,
+            end < cEnd ? end - at : c.length,
+          ),
+        );
+      }
+      at = cEnd;
+    }
+    return out.takeBytes();
+  }
+
+  Future<StreamIterator<List<int>>> _sequential() async {
+    final open = _seq;
+    if (open != null) return open;
+    final (res, at) = await _fetch(const {});
+    _url = at;
+    HttpSession.check(res.statusCode, uri);
+    return _seq = StreamIterator(res.body.timeout(_http.timeout));
+  }
+
+  Future<void> _restartSequential() async {
+    final old = _seq;
+    _seq = null;
+    _chunks.clear();
+    _winStart = 0;
+    _seqPos = 0;
+    await old?.cancel();
+  }
+
   @override
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
     _blocks.clear();
     _chain.close();
+    await _restartSequential();
   }
 }

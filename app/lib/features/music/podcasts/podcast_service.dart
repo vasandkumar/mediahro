@@ -458,10 +458,7 @@ final class PodcastService {
     Future<bool> Function(List<String> urls)? confirmLocal,
   }) async {
     var feeds = parseOpml(opml);
-    final local = [
-      for (final f in feeds)
-        if (_isLocal(f.url)) f.url,
-    ];
+    final local = await _localFeeds([for (final f in feeds) f.url]);
     var declined = const <String>[];
     if (local.isNotEmpty && !(await (confirmLocal?.call(local) ?? false))) {
       declined = local;
@@ -494,11 +491,26 @@ final class PodcastService {
     );
   }
 
-  /// Whether a feed address names this device or the listener's network
-  /// (without a name lookup: the checks on every request catch the rest).
-  static bool _isLocal(String url) {
-    final u = normalize(url);
-    return u != null && isNonPublicHost(u.host);
+  /// The addresses among [urls] that lead to this device or the listener's
+  /// network: written as an address, or a name that resolves to one (or to
+  /// nothing: an address nobody could check). Names are looked up a few at a
+  /// time.
+  Future<List<String>> _localFeeds(List<String> urls) async {
+    final out = <String>[];
+    for (var i = 0; i < urls.length; i += 8) {
+      final batch = urls.skip(i).take(8).toList();
+      final flags = await Future.wait([
+        for (final url in batch)
+          () async {
+            final u = normalize(url);
+            return u != null && await http.nonPublic(normalizeHost(u.host));
+          }(),
+      ]);
+      for (final (j, local) in flags.indexed) {
+        if (local) out.add(batch[j]);
+      }
+    }
+    return out;
   }
 
   Future<void> dispose() => _changes.close();
@@ -537,8 +549,9 @@ final class PodcastService {
         uri,
         headers: headers,
         maxBytes: maxBytes,
-        // The listener gave this address, so it may be on their own network.
-        trusted: {normalizeHost(uri.host)},
+        // A host the listener typed on their own network is theirs to use; a
+        // host on the internet is checked on every hop like any other.
+        trusted: trustedFeedHosts(uri.host),
       );
     } on PodcastHttpException catch (e) {
       throw PodcastException(
@@ -614,9 +627,9 @@ final class PodcastService {
     try {
       final res = await http.fetch(
         Uri.parse(url),
-        // Artwork may sit on the feed's own host, even on the listener's
-        // network; any other private address is refused.
-        trusted: {normalizeHost(Uri.parse(show.url).host)},
+        // Artwork may sit on the feed's own host when that is on the
+        // listener's network; any other private address is refused.
+        trusted: trustedFeedHosts(Uri.parse(show.url).host),
       );
       if (res.status != 200 || res.body.isEmpty) return show.artPath;
       final type = res.headers['content-type']?.toLowerCase() ?? '';
