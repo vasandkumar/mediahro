@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/app_strings.dart';
 import 'package:mediahro/app/appearance.dart';
-import 'package:mediahro/app/background_work_dispatcher.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/app/locales.dart';
 import 'package:mediahro/app/router.dart';
@@ -42,11 +41,7 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
   void initState() {
     super.initState();
     // AUD-043: re-check every engine when the Android audio route changes.
-    ref
-      ..read(audioRouteWiringProvider)
-      // ADR-049: listen for scheduled jobs from the first frame, also in the
-      // engine the OS starts without a screen to run one.
-      ..read(backgroundWorkDispatcherProvider);
+    ref.read(audioRouteWiringProvider);
   }
 
   GoRouter _routerFor(SettingsStore store) {
