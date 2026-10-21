@@ -1,12 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/net/local_hosts.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/sources/cloud/cloud_providers.dart';
 import 'package:mediahro/core/sources/source_access.dart' show decodeOptions;
 import 'package:meta/meta.dart';
+
+export 'package:mediahro/core/net/local_hosts.dart' show isLocalNetworkHost;
 
 /// The state of one allow-list endpoint for the privacy dashboard
 /// (CORE-015, owned by lane B3) and PRIV-004.
@@ -76,9 +78,6 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   final Map<String, DateTime> _hostLastUsed = {};
   final Set<String> _userHosts = {};
   final Set<String> _sessionHosts = {};
-
-  /// Hosts allowed until their [AllowScope] closes.
-  final List<Set<String>> _scopes = [];
 
   /// Cloud drives with a connected account (or signing in now).
   final Set<CloudProvider> _providers = {};
@@ -153,7 +152,11 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   bool isUserConfiguredHost(String host) {
     final h = host.toLowerCase();
     if (_userHosts.contains(h) || _sessionHosts.contains(h)) return true;
-    if (_scopes.any((s) => s.contains(h))) return true;
+    // Only code running inside an allowance's own request chain.
+    if (Zone.current[_scopeKey] case final AllowScope scope
+        when scope.allows(h)) {
+      return true;
+    }
     if (_providers.any((p) => cloudHostMatches(p, h))) return true;
     return _lan && isLocalNetworkHost(h);
   }
@@ -165,17 +168,12 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   }
 
   /// Starts an allowance for one request chain (a feed, its redirects, the
-  /// artwork or episode it points to): the hosts passed to [AllowScope.allow]
-  /// are allowed until [AllowScope.close], and not after. Nothing is added
-  /// to the session or to the dashboard.
-  AllowScope beginAllowScope() {
-    final hosts = <String>{};
-    _scopes.add(hosts);
-    return AllowScope._(
-      (host) => hosts.add(host.toLowerCase()),
-      () => _scopes.remove(hosts),
-    );
-  }
+  /// artwork or episode it points to). The hosts passed to
+  /// [AllowScope.allow] are allowed to code running inside [AllowScope.run]
+  /// and to nothing else (no other feature, no other request, however long
+  /// the scope stays open), and not after [AllowScope.close]. Nothing is
+  /// added to the session or to the dashboard.
+  AllowScope beginAllowScope() => AllowScope._();
 
   /// Allows a cloud provider's hosts while the user signs in (NET-007).
   void allowProviderForSession(CloudProvider provider) {
@@ -243,42 +241,34 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   }
 }
 
-/// The hosts one request chain may reach, until [close].
+const _scopeKey = #mediahro.net.allowScope;
+
+/// The hosts one request chain may reach. Only work started through [run]
+/// can use them (the policy looks for the scope in the current zone), and
+/// only until [close].
 final class AllowScope {
-  AllowScope._(this._allow, this._close);
+  AllowScope._();
 
-  final void Function(String host) _allow;
-  final void Function() _close;
+  final Set<String> _hosts = {};
+  bool _closed = false;
 
-  void allow(String host) => _allow(host);
+  void allow(String host) {
+    if (!_closed) _hosts.add(normalizeHost(host));
+  }
 
-  void close() => _close();
+  bool allows(String host) => !_closed && _hosts.contains(normalizeHost(host));
+
+  /// Runs [body] with this allowance in force.
+  T run<T>(T Function() body) => runZoned(body, zoneValues: {_scopeKey: this});
+
+  void close() {
+    _closed = true;
+    _hosts.clear();
+  }
 }
 
 /// `host` option of a source (e.g. the OAuth API host of a cloud drive).
 String? decodeHostOption(String optionsJson) {
   final m = RegExp(r'"apiHost"\s*:\s*"([^"]+)"').firstMatch(optionsJson);
   return m?.group(1)?.toLowerCase();
-}
-
-/// Private, link-local and loopback addresses and `.local` names: LAN only.
-bool isLocalNetworkHost(String host) {
-  final h = host.toLowerCase();
-  if (h == 'localhost' || h.endsWith('.local') || h.endsWith('.localhost')) {
-    return true;
-  }
-  final ip = InternetAddress.tryParse(
-    h.replaceAll('[', '').replaceAll(']', ''),
-  );
-  if (ip == null) return false;
-  if (ip.isLoopback || ip.isLinkLocal) return true;
-  final b = ip.rawAddress;
-  if (ip.type == InternetAddressType.IPv4) {
-    return b[0] == 10 ||
-        (b[0] == 172 && b[1] >= 16 && b[1] <= 31) ||
-        (b[0] == 192 && b[1] == 168) ||
-        (b[0] == 100 && b[1] >= 64 && b[1] <= 127); // CGNAT (Tailscale etc.)
-  }
-  // fc00::/7 unique local.
-  return (b[0] & 0xFE) == 0xFC;
 }

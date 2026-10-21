@@ -783,7 +783,18 @@
   "musicPodErrNotFeed": "That address isn't a podcast feed.",
   "musicPodErrTooLarge": "That feed is too large.",
   "musicPodErrBlocked": "Network access for this address is turned off.",
+  "musicPodErrPrivate": "That address is on your own network or this device. Mediahro won't follow a podcast there unless you subscribed to it yourself.",
   "musicPodErrAlready": "You're already subscribed to this podcast.",
+  "musicPodLocalTitle": "Add feeds on your own network?",
+  "musicPodLocalBody": "This file lists podcasts on this device or your own network:\n\n{urls}\n\nOnly add them if you know what they are.",
+  "@musicPodLocalBody": {
+    "placeholders": {
+      "urls": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodLocalAdd": "Add them",
   "musicPodNewEpisodes": "{count, plural, =0{No new episodes} =1{1 new episode} other{{count} new episodes}}",
   "@musicPodNewEpisodes": {
     "placeholders": {

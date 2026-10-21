@@ -3,11 +3,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro/core/db/library_database.dart' show DownloadState;
+import 'package:mediahro/core/net/local_hosts.dart';
 import 'package:mediahro/core/net/network_policy.dart' show NetworkBlocked;
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:mediahro/features/music/podcasts/opml.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
 import 'package:mediahro/features/music/podcasts/podcast_store.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart'
+    show VirtualFile, VirtualFileError, VirtualFileException;
 import 'package:meta/meta.dart';
 
 enum PodcastFailure {
@@ -16,6 +19,9 @@ enum PodcastFailure {
   notAFeed,
   tooLarge,
   blocked,
+
+  /// The address is on the listener's own network and they did not type it.
+  privateAddress,
   alreadySubscribed,
 }
 
@@ -51,6 +57,7 @@ final class OpmlImportResult {
     required this.added,
     required this.alreadySubscribed,
     required this.failed,
+    this.declined = const [],
   });
 
   final int added;
@@ -58,6 +65,9 @@ final class OpmlImportResult {
 
   /// Addresses that could not be subscribed to.
   final List<String> failed;
+
+  /// Addresses on the listener's own network that they did not confirm.
+  final List<String> declined;
 }
 
 /// Where an episode's offline copy stands.
@@ -83,6 +93,11 @@ abstract interface class EpisodeDownloads {
   Future<void> enqueue(Uri url, {required String title, int? size});
   Future<EpisodeDownload?> status(Uri url);
   Future<void> remove(Uri url);
+
+  /// An episode that is not downloaded, to play from the internet. Every
+  /// request it makes goes through the network checks; it is closed by the
+  /// player when it moves on.
+  Future<VirtualFile> openStream(Uri url);
 }
 
 /// One row of a show's episode list.
@@ -125,6 +140,9 @@ final class PodcastService {
   final DateTime Function() _clock;
 
   final _changes = StreamController<void>.broadcast();
+
+  /// The tail of each show's queue of changes (see [_locked]).
+  final _tails = <String, Future<void>>{};
 
   /// Fires when subscriptions, episodes or played marks change.
   Stream<void> get changes => _changes.stream;
@@ -187,7 +205,12 @@ final class PodcastService {
       episodes: _kept(feed.episodes, const {}),
     );
     final withArt = show.copyWith(artPath: await _cacheArt(show));
-    await store.save(withArt);
+    await _locked(id, () async {
+      if (await store.show(id) != null) {
+        throw PodcastException(PodcastFailure.alreadySubscribed, showId: id);
+      }
+      await store.save(withArt);
+    });
     _changes.add(null);
     return withArt;
   }
@@ -208,9 +231,12 @@ final class PodcastService {
       );
       if (res.status == 304) {
         // The listener may have unsubscribed while the request was out.
-        final now = await store.show(showId);
-        if (now == null) return RefreshResult(showId);
-        await store.save(now.copyWith(lastFetched: _clock().toUtc()));
+        await _locked(showId, () async {
+          final now = await store.show(showId);
+          if (now != null) {
+            await store.save(now.copyWith(lastFetched: _clock().toUtc()));
+          }
+        });
         return RefreshResult(showId);
       }
       if (res.status != 200) {
@@ -222,38 +248,47 @@ final class PodcastService {
           ? await _cacheArt(show, image)
           : null;
       // Everything above took time, and the listener may have unsubscribed
-      // or changed the show's settings meanwhile: merge into the show as it
-      // is now, and drop the result when it is gone.
-      final current = await store.show(showId);
-      if (current == null) {
-        await _dropArt(art);
-        return RefreshResult(showId);
-      }
-      final before = {for (final e in current.episodes) e.guid};
-      final progress = await store.progress(showId);
-      final updated = current.copyWith(
-        title: feed.title.isEmpty ? current.title : feed.title,
-        author: feed.author ?? current.author,
-        description: feed.description ?? current.description,
-        link: feed.link ?? current.link,
-        imageUrl: feed.imageUrl ?? current.imageUrl,
-        artPath: art ?? current.artPath,
-        lastFetched: _clock().toUtc(),
-        etag: res.headers['etag'],
-        lastModified: res.headers['last-modified'],
-        episodes: _kept(feed.episodes, {
-          ...progress.keys,
-          ...await _downloadedGuids(current.episodes),
-        }, previous: current.episodes),
-      );
-      await store.save(updated);
-      final added = [
-        for (final e in feed.episodes)
-          if (!before.contains(e.guid)) e,
-      ];
-      await _autoDownload(updated, progress, newest: added);
+      // or changed the show's settings meanwhile. Reading the show as it is
+      // now and writing it back is one step no unsubscribe, setting or
+      // second refresh can slip into: the result is merged into the show as
+      // it is, or dropped, with its artwork, when the show is gone.
+      final done = await _locked(showId, () async {
+        final current = await store.show(showId);
+        if (current == null) {
+          await _dropArt(art);
+          return null;
+        }
+        final before = {for (final e in current.episodes) e.guid};
+        final progress = await store.progress(showId);
+        final updated = current.copyWith(
+          title: feed.title.isEmpty ? current.title : feed.title,
+          author: feed.author ?? current.author,
+          description: feed.description ?? current.description,
+          link: feed.link ?? current.link,
+          imageUrl: feed.imageUrl ?? current.imageUrl,
+          artPath: art ?? current.artPath,
+          lastFetched: _clock().toUtc(),
+          etag: res.headers['etag'],
+          lastModified: res.headers['last-modified'],
+          episodes: _kept(feed.episodes, {
+            ...progress.keys,
+            ...await _downloadedGuids(current.episodes),
+          }, previous: current.episodes),
+        );
+        await store.save(updated);
+        return (
+          show: updated,
+          progress: progress,
+          added: [
+            for (final e in feed.episodes)
+              if (!before.contains(e.guid)) e,
+          ],
+        );
+      });
+      if (done == null) return RefreshResult(showId);
+      await _autoDownload(done.show, done.progress, newest: done.added);
       _changes.add(null);
-      return RefreshResult(showId, added: added.length);
+      return RefreshResult(showId, added: done.added.length);
     } on PodcastException catch (e) {
       return RefreshResult(showId, failure: e.reason);
     }
@@ -281,7 +316,7 @@ final class PodcastService {
     return out;
   }
 
-  Future<void> unsubscribe(String showId) async {
+  Future<void> unsubscribe(String showId) => _locked(showId, () async {
     final show = await store.show(showId);
     if (show == null) return;
     for (final e in show.episodes) {
@@ -294,7 +329,7 @@ final class PodcastService {
     }
     await store.remove(showId);
     _changes.add(null);
-  }
+  });
 
   /// Per-show choices: order, automatic downloads, deleting what is played.
   Future<void> configure(
@@ -304,7 +339,7 @@ final class PodcastService {
     bool? deleteWhenPlayed,
     double? speed,
     bool? skipSilence,
-  }) async {
+  }) => _locked(showId, () async {
     final show = await store.show(showId);
     if (show == null) return;
     await store.save(
@@ -317,7 +352,7 @@ final class PodcastService {
       ),
     );
     _changes.add(null);
-  }
+  });
 
   /// The episodes of a show in its order, with where the listener is and
   /// what is downloaded.
@@ -386,6 +421,20 @@ final class PodcastService {
     _changes.add(null);
   }
 
+  /// An episode that is not downloaded, opened to be played from the
+  /// internet: through the network checks, never as an address handed to the
+  /// player. Throws [PodcastException].
+  Future<VirtualFile> openStream(ParsedEpisode episode) async {
+    try {
+      return await downloads.openStream(Uri.parse(episode.url));
+    } on VirtualFileException catch (e) {
+      throw PodcastException(switch (e.error) {
+        VirtualFileError.permissionDenied => PodcastFailure.privateAddress,
+        _ => PodcastFailure.unreachable,
+      });
+    }
+  }
+
   Future<void> removeDownload(ParsedEpisode episode) async {
     await downloads.remove(Uri.parse(episode.url));
     _changes.add(null);
@@ -399,11 +448,28 @@ final class PodcastService {
 
   /// Subscribes to every feed in [opml] not already subscribed to.
   /// [onProgress] reports how many of the total have been handled.
+  ///
+  /// A file someone else wrote may list addresses on the listener's own
+  /// network or this device. Those are only added when [confirmLocal], shown
+  /// the list, says yes; the rest import as usual.
   Future<OpmlImportResult> importOpml(
     String opml, {
     void Function(int done, int total)? onProgress,
+    Future<bool> Function(List<String> urls)? confirmLocal,
   }) async {
-    final feeds = parseOpml(opml);
+    var feeds = parseOpml(opml);
+    final local = [
+      for (final f in feeds)
+        if (_isLocal(f.url)) f.url,
+    ];
+    var declined = const <String>[];
+    if (local.isNotEmpty && !(await (confirmLocal?.call(local) ?? false))) {
+      declined = local;
+      feeds = [
+        for (final f in feeds)
+          if (!local.contains(f.url)) f,
+      ];
+    }
     var added = 0;
     var already = 0;
     final failed = <String>[];
@@ -424,12 +490,42 @@ final class PodcastService {
       added: added,
       alreadySubscribed: already,
       failed: failed,
+      declined: declined,
     );
+  }
+
+  /// Whether a feed address names this device or the listener's network
+  /// (without a name lookup: the checks on every request catch the rest).
+  static bool _isLocal(String url) {
+    final u = normalize(url);
+    return u != null && isNonPublicHost(u.host);
   }
 
   Future<void> dispose() => _changes.close();
 
   // ------------------------------------------------------------ internals --
+
+  /// Runs [body] after everything already queued for [showId] has finished,
+  /// so changes to one show (a refresh landing, unsubscribing, a setting, an
+  /// automatic download) never interleave. Only the short read-and-write
+  /// steps are queued, never a network request.
+  Future<T> _locked<T>(String showId, Future<T> Function() body) {
+    final previous = _tails[showId] ?? Future<void>.value();
+    final done = Completer<void>();
+    final mine = done.future;
+    _tails[showId] = mine;
+    Future<T> run() async {
+      try {
+        await previous;
+        return await body();
+      } finally {
+        done.complete();
+        if (identical(_tails[showId], mine)) unawaited(_tails.remove(showId));
+      }
+    }
+
+    return run();
+  }
 
   Future<FetchResult> _get(
     Uri uri, {
@@ -442,12 +538,12 @@ final class PodcastService {
         headers: headers,
         maxBytes: maxBytes,
         // The listener gave this address, so it may be on their own network.
-        trusted: {uri.host.toLowerCase()},
+        trusted: {normalizeHost(uri.host)},
       );
     } on PodcastHttpException catch (e) {
       throw PodcastException(
         e.reason == 'private address'
-            ? PodcastFailure.blocked
+            ? PodcastFailure.privateAddress
             : PodcastFailure.tooLarge,
       );
     } on NetworkBlocked {
@@ -520,7 +616,7 @@ final class PodcastService {
         Uri.parse(url),
         // Artwork may sit on the feed's own host, even on the listener's
         // network; any other private address is refused.
-        trusted: {Uri.parse(show.url).host.toLowerCase()},
+        trusted: {normalizeHost(Uri.parse(show.url).host)},
       );
       if (res.status != 200 || res.body.isEmpty) return show.artPath;
       final type = res.headers['content-type']?.toLowerCase() ?? '';
@@ -554,11 +650,16 @@ final class PodcastService {
         .where((e) => !(progress[e.guid]?.played ?? false))
         .take(n);
     for (final e in wanted) {
-      // Unsubscribing stops what is still to come.
-      if (await store.show(show.id) == null) return;
-      if (await downloads.status(Uri.parse(e.url)) == null) {
-        await download(show, e);
-      }
+      // Unsubscribing stops what is still to come: checking that the show is
+      // still there and queueing the download is one step.
+      final go = await _locked(show.id, () async {
+        if (await store.show(show.id) == null) return false;
+        if (await downloads.status(Uri.parse(e.url)) == null) {
+          await download(show, e);
+        }
+        return true;
+      });
+      if (!go) return;
     }
   }
 
