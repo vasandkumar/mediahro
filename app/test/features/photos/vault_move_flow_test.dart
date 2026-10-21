@@ -150,11 +150,11 @@ void main() {
       await tester.ensureVisible(set);
       await tester.tap(set);
       await settleReal(tester);
-      expect(find.text('Move this photo to the vault?'), findsOneWidget);
+      expect(find.text('Move this item to the vault?'), findsOneWidget);
       expect(find.textContaining('best effort'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Move'));
       await settleReal(tester);
-      expect(find.text('1 photo is in the vault.'), findsOneWidget);
+      expect(find.text('1 item is in the vault.'), findsOneWidget);
       expect(
         File('${dir.path}/lib/${entries.first.relPath}').existsSync(),
         isFalse,
@@ -178,10 +178,10 @@ void main() {
     expect(find.text('Enter your PIN'), findsOneWidget);
     // The second PIN takes the photo to the second vault, with no other prompt.
     await typePin(tester, '135790');
-    expect(find.text('Move this photo to the vault?'), findsOneWidget);
+    expect(find.text('Move this item to the vault?'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Move'));
     await settleReal(tester);
-    expect(find.text('1 photo is in the vault.'), findsOneWidget);
+    expect(find.text('1 item is in the vault.'), findsOneWidget);
     expect(
       File('${dir.path}/lib/${entries.first.relPath}').existsSync(),
       isFalse,
@@ -223,7 +223,7 @@ void main() {
       final entries = await open(tester);
       await chooseMove(tester);
       await typePin(tester, '246810');
-      expect(find.text('Move this photo to the vault?'), findsOneWidget);
+      expect(find.text('Move this item to the vault?'), findsOneWidget);
       tester.binding
         ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
         ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
@@ -252,18 +252,36 @@ void main() {
     await chooseMove(tester);
     await tester.tap(find.byTooltip('Close'));
     await settleReal(tester);
-    expect(find.text('Move this photo to the vault?'), findsNothing);
+    expect(find.text('Move this item to the vault?'), findsNothing);
     expect(
       File('${dir.path}/lib/${entries.first.relPath}').existsSync(),
       isTrue,
     );
   });
 
-  testWidgets('IMG-011 videos are told they cannot go in yet', (tester) async {
-    await open(tester, videos: {1});
+  testWidgets('PRIV-007 a video goes in like a photo and stays a video', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => manager.setUp(pin: '246810').then((r) => r.vault!.close()),
+    );
+    final entries = await open(tester, videos: {1});
     await chooseMove(tester);
-    expect(find.text("Videos can't go in the vault yet."), findsOneWidget);
-    expect(find.text('Enter your PIN'), findsNothing);
+    expect(find.text('Enter your PIN'), findsOneWidget);
+    await typePin(tester, '246810');
+    expect(find.text('Move this item to the vault?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Move'));
+    await settleReal(tester);
+    expect(find.text('1 item is in the vault.'), findsOneWidget);
+    expect(
+      File('${dir.path}/lib/${entries.first.relPath}').existsSync(),
+      isFalse,
+    );
+    await tester.runAsync(() async {
+      final again = await manager.openWithPin('246810');
+      expect(again.vault!.container.list().single.kind, 'video');
+      await again.vault!.close();
+    });
   });
 
   testWidgets('IMG-011 where the platform has no OS crypto the move says so', (

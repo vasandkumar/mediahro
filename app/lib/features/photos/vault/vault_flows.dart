@@ -108,11 +108,9 @@ Future<bool> _moveToVault(
 ) async {
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
-  final images = photos.where((p) => !p.isVideo).toList();
-  if (images.isEmpty) {
-    messenger?.showSnackBar(SnackBar(content: Text(l10n.photosVaultNoVideos)));
-    return false;
-  }
+  // Photos and videos alike (PRIV-007).
+  final images = photos;
+  if (images.isEmpty) return false;
   try {
     await container.read(vaultManagerProvider.future);
   } on Object {

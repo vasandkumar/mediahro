@@ -964,9 +964,9 @@
   "photosVaultResetBody": "This deletes the vault and everything in it for good. Photos inside can't be recovered.",
   "photosVaultResetConfirm": "Delete the vault",
   "photosVaultLock": "Lock",
-  "photosVaultAdd": "Add photos",
-  "photosVaultAddNote": "The photos you pick are copied in and stay where they are; delete the originals yourself. Files over 64 MB are skipped.",
-  "photosVaultAddContinue": "Choose photos",
+  "photosVaultAdd": "Add to the vault",
+  "photosVaultAddNote": "The photos, videos and music you pick are copied in and stay where they are; delete the originals yourself.",
+  "photosVaultAddContinue": "Choose files",
   "photosVaultEmptyTitle": "The vault is empty",
   "photosVaultEmptyMessage": "Move photos here from the viewer menu or from a selection, or add them with the plus button.",
   "photosVaultMenuFingerprint": "Fingerprint unlock",
@@ -976,7 +976,7 @@
   "photosVaultChangePinDone": "PIN changed.",
   "photosVaultNewPin": "New PIN",
   "photosVaultMove": "Move to vault",
-  "photosVaultMoveTitle": "{count, plural, =1{Move this photo to the vault?} other{Move {count} photos to the vault?}}",
+  "photosVaultMoveTitle": "{count, plural, =1{Move this item to the vault?} other{Move {count} items to the vault?}}",
   "@photosVaultMoveTitle": {
     "placeholders": {
       "count": {
@@ -997,7 +997,7 @@
       }
     }
   },
-  "photosVaultMoved": "{count, plural, =1{1 photo is in the vault.} other{{count} photos are in the vault.}}",
+  "photosVaultMoved": "{count, plural, =1{1 item is in the vault.} other{{count} items are in the vault.}}",
   "@photosVaultMoved": {
     "placeholders": {
       "count": {
@@ -1005,7 +1005,7 @@
       }
     }
   },
-  "photosVaultMoveFailed": "{count, plural, =1{1 photo could not be moved and stays where it was.} other{{count} photos could not be moved and stay where they were.}}",
+  "photosVaultMoveFailed": "{count, plural, =1{1 item could not be moved and stays where it was.} other{{count} items could not be moved and stay where they were.}}",
   "@photosVaultMoveFailed": {
     "placeholders": {
       "count": {
@@ -1013,7 +1013,7 @@
       }
     }
   },
-  "photosVaultMoveCleanup": "{count, plural, =1{1 photo is in the vault but may still show in the library until the next scan.} other{{count} photos are in the vault but may still show in the library until the next scan.}}",
+  "photosVaultMoveCleanup": "{count, plural, =1{1 item is in the vault but may still show in the library until the next scan.} other{{count} items are in the vault but may still show in the library until the next scan.}}",
   "@photosVaultMoveCleanup": {
     "placeholders": {
       "count": {
@@ -1021,8 +1021,7 @@
       }
     }
   },
-  "photosVaultNoVideos": "Videos can't go in the vault yet.",
-  "photosVaultAdded": "{count, plural, =1{1 photo added.} other{{count} photos added.}}",
+  "photosVaultAdded": "{count, plural, =1{1 file added.} other{{count} files added.}}",
   "@photosVaultAdded": {
     "placeholders": {
       "count": {
@@ -1030,7 +1029,7 @@
       }
     }
   },
-  "photosVaultSkipped": "{count, plural, =1{1 file was skipped (too big, or not readable).} other{{count} files were skipped (too big, or not readable).}}",
+  "photosVaultSkipped": "{count, plural, =1{1 file was skipped (not a photo, video or song, or not readable).} other{{count} files were skipped (not a photo, video or song, or not readable).}}",
   "@photosVaultSkipped": {
     "placeholders": {
       "count": {
@@ -1039,7 +1038,7 @@
     }
   },
   "photosVaultTakeOut": "Take out",
-  "photosVaultTakenOut": "{count, plural, =1{1 photo taken out of the vault.} other{{count} photos taken out of the vault.}}",
+  "photosVaultTakenOut": "{count, plural, =1{1 item taken out of the vault.} other{{count} items taken out of the vault.}}",
   "@photosVaultTakenOut": {
     "placeholders": {
       "count": {
@@ -1048,7 +1047,7 @@
     }
   },
   "photosVaultDeleteForever": "Delete for good",
-  "photosVaultDeleteConfirm": "{count, plural, =1{Delete this photo for good? This can't be undone.} other{Delete these {count} photos for good? This can't be undone.}}",
+  "photosVaultDeleteConfirm": "{count, plural, =1{Delete this item for good? This can't be undone.} other{Delete these {count} items for good? This can't be undone.}}",
   "@photosVaultDeleteConfirm": {
     "placeholders": {
       "count": {
@@ -1062,5 +1061,21 @@
   "photosVaultPinNotAllowed": "Choose a different PIN.",
   "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type.",
   "photosVaultResetPending": "The reset will finish the next time the app starts.",
-  "photosVaultResetFailed": "The reset could not be finished. Try again."
+  "photosVaultResetFailed": "The reset could not be finished. Try again.",
+  "photosVaultPlayerPlay": "Play",
+  "photosVaultPlayerPause": "Pause",
+  "photosVaultPlayerBack": "Back 10 seconds",
+  "photosVaultPlayerForward": "Forward 10 seconds",
+  "photosVaultPlayerFailed": "This file could not be played.",
+  "photosVaultPlayerPosition": "{position} of {total}",
+  "@photosVaultPlayerPosition": {
+    "placeholders": {
+      "position": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  }
 }

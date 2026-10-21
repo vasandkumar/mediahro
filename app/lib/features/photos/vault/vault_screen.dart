@@ -7,13 +7,14 @@ import 'package:flutter/material.dart' hide ImageInfo;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
-import 'package:mediahro/core/files/picked_files.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_gate.dart';
+import 'package:mediahro/features/photos/vault/vault_import.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/features/photos/vault/vault_mover.dart';
+import 'package:mediahro/features/photos/vault/vault_player.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/images/image_pipeline.dart';
@@ -137,6 +138,17 @@ String _mimeOf(VaultItem i) => switch (i.ext) {
   'mp4' => 'video/mp4',
   'mkv' => 'video/x-matroska',
   'mov' => 'video/quicktime',
+  'webm' => 'video/webm',
+  'avi' => 'video/x-msvideo',
+  'm4v' => 'video/x-m4v',
+  '3gp' => 'video/3gpp',
+  'mp3' => 'audio/mpeg',
+  'm4a' || 'm4b' => 'audio/mp4',
+  'aac' => 'audio/aac',
+  'flac' => 'audio/flac',
+  'wav' => 'audio/wav',
+  'ogg' || 'oga' => 'audio/ogg',
+  'opus' => 'audio/opus',
   _ => 'application/octet-stream',
 };
 
@@ -299,7 +311,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     if (go != true || !_live) return;
     final storage = ref.read(storageProvider);
     final picked = await storage.pickFiles(
-      kinds: {PickKind.image},
+      kinds: {PickKind.image, PickKind.video, PickKind.audio},
       multiple: true,
     );
     var added = 0;
@@ -307,13 +319,19 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     for (final f in picked) {
       if (!_live) return;
       try {
-        final bytes = await readPickedFile(storage, f.uri);
+        final kind = vaultKindOf(f.name);
+        if (kind == null) {
+          skipped++;
+          continue;
+        }
+        // In pieces: a film does not have to fit in memory.
+        final source = await openPickedStream(storage, f.uri);
         if (!_live) return;
         await _c.add(
           name: f.name,
-          kind: 'image',
-          content: Stream.value(bytes),
-          size: bytes.length,
+          kind: kind.name,
+          content: source.content,
+          size: source.size,
         );
         added++;
       } on VaultLocked {
@@ -538,6 +556,13 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
                   onTap: () {
                     if (_chosen.isNotEmpty) {
                       toggle();
+                    } else if (item.kind == 'video' || item.kind == 'audio') {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              VaultPlayerScreen(container: _c, item: item),
+                        ),
+                      );
                     } else if (item.kind == 'image') {
                       final images = [
                         for (final x in items)
@@ -603,8 +628,26 @@ class _VaultTile extends StatelessWidget {
                 failed: (context) => const Icon(Icons.broken_image_outlined),
               )
             else
-              Icon(
-                item.kind == 'video' ? Icons.movie_outlined : Icons.audiotrack,
+              Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      item.kind == 'video'
+                          ? Icons.movie_outlined
+                          : Icons.audiotrack,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ],
+                ),
               ),
             if (selected)
               ColoredBox(

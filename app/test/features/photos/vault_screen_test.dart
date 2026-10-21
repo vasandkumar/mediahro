@@ -7,10 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
+import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
+import 'package:mediahro/features/photos/vault/vault_player.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
 import 'package:mediahro/features/photos/vault/vault_screen.dart';
 import 'package:mediahro/platform/platform_facades.dart';
+import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine/testing.dart';
 
 import 'fake_vault_crypto.dart';
 
@@ -114,7 +118,11 @@ void main() {
     }
   });
 
-  Future<void> open(WidgetTester tester, {double height = 900}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    double height = 900,
+    FakePlaybackEngine? engine,
+  }) async {
     tester.view
       ..physicalSize = Size(400, height)
       ..devicePixelRatio = 1;
@@ -123,6 +131,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          if (engine != null)
+            playbackEngineProvider(EngineRole.video).overrideWithValue(engine),
           vaultManagerProvider.overrideWith((ref) async => manager),
           secureWindowProvider.overrideWithValue(window),
           storageProvider.overrideWithValue(storage),
@@ -189,6 +199,22 @@ void main() {
         await o.vault!.close();
       }
     });
+  }
+
+  /// Taps the item and waits until the player has handed the file to the
+  /// engine. The player's spinner never rests, so there is no settling.
+  Future<void> openPlayer(
+    WidgetTester tester,
+    FakePlaybackEngine engine,
+    String name,
+  ) async {
+    await tester.tap(find.bySemanticsLabel(name));
+    for (var i = 0; i < 400 && !engine.calls.contains('play'); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
   }
 
   Set<String> everyText(WidgetTester tester) => {
@@ -545,10 +571,10 @@ void main() {
         await tester.tap(find.byTooltip('Take out'));
         await settleReal(
           tester,
-          until: find.text('1 photo taken out of the vault.'),
+          until: find.text('1 item taken out of the vault.'),
         );
         expect(storage.saved, ['one.mp4']);
-        expect(find.text('1 photo taken out of the vault.'), findsOneWidget);
+        expect(find.text('1 item taken out of the vault.'), findsOneWidget);
         expect(find.bySemanticsLabel('one.mp4'), findsNothing);
       },
     );
@@ -565,11 +591,10 @@ void main() {
             name: 'a.jpg',
           ),
         );
-        await tester.tap(find.byTooltip('Add photos'));
+        await tester.tap(find.byTooltip('Add to the vault'));
         await tester.pumpAndSettle();
         expect(find.textContaining('stay where they are'), findsOneWidget);
-        expect(find.textContaining('64 MB'), findsOneWidget);
-        await tester.tap(find.text('Choose photos'));
+        await tester.tap(find.text('Choose files'));
         await settleReal(tester);
         expect(find.textContaining('1 file was skipped'), findsOneWidget);
       },
@@ -768,4 +793,118 @@ void main() {
       );
     },
   );
+
+  group('PRIV-007 video and audio in the vault', () {
+    testWidgets('PRIV-007 a video opens in the player as a sensitive source', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      final source = engine.openedSource;
+      expect(source, isA<VirtualFileSource>());
+      expect(source!.sensitive, isTrue);
+      // Nothing that names the file is handed to the engine.
+      expect(source.title, isNull);
+      expect(engine.calls, containsAllInOrder(['open', 'play']));
+      expect(find.byTooltip('Pause'), findsOneWidget);
+      expect(find.byTooltip('Back 10 seconds'), findsOneWidget);
+      expect(find.byTooltip('Forward 10 seconds'), findsOneWidget);
+    });
+
+    testWidgets('PRIV-007 the player stops the engine when it is left', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      Navigator.of(tester.element(find.byType(VaultPlayerScreen))).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
+      expect(engine.calls.last, 'stop');
+    });
+
+    testWidgets('PRIV-007 locking the vault closes the player and stops it', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).last),
+      );
+      container.read(vaultSessionProvider.notifier).lock();
+      await settleReal(tester);
+      expect(find.text('Enter your PIN'), findsOneWidget);
+      expect(engine.calls.last, 'stop');
+    });
+
+    testWidgets(
+      'PRIV-007 the player has no visualiser, subtitles or screenshots',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        for (final tip in [
+          'Screenshot',
+          'Subtitles',
+          'Picture in picture',
+          'Cast',
+          'Visualiser',
+        ]) {
+          expect(find.byTooltip(tip), findsNothing, reason: tip);
+        }
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 files picked for the vault are kept by kind, in pieces',
+      (tester) async {
+        await seeded(tester);
+        final dir = Directory.systemTemp.createTempSync('mediahro-vault-pick');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final video = File('${dir.path}/film.mkv')
+          ..writeAsBytesSync(bytesOf((2 << 20) + 5, 3));
+        final song = File('${dir.path}/song.flac')
+          ..writeAsBytesSync(bytesOf(1000, 4));
+        final odd = File('${dir.path}/notes.txt')..writeAsBytesSync([1, 2, 3]);
+        storage.picks.addAll([
+          PickedFile(uri: video.uri, name: 'film.mkv'),
+          PickedFile(uri: song.uri, name: 'song.flac'),
+          PickedFile(uri: odd.uri, name: 'notes.txt'),
+        ]);
+        await open(tester);
+        await typePin(tester, '246810');
+        await tester.tap(find.byTooltip('Add to the vault'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Choose files'));
+        await settleReal(tester, until: find.textContaining('skipped'));
+        expect(find.textContaining('2 files added'), findsOneWidget);
+        expect(find.textContaining('1 file was skipped'), findsOneWidget);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).last),
+        );
+        final vault = container.read(vaultSessionProvider).vault!;
+        final items = {for (final i in vault.container.list()) i.name: i};
+        expect(items['film.mkv']!.kind, 'video');
+        expect(items['film.mkv']!.size, (2 << 20) + 5);
+        expect(items['song.flac']!.kind, 'audio');
+        expect(
+          await tester.runAsync(
+            () => vault.container.readAll(items['film.mkv']!.id),
+          ),
+          bytesOf((2 << 20) + 5, 3),
+        );
+      },
+    );
+  });
 }
