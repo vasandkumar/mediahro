@@ -60,6 +60,26 @@ class PresentationRegistryTest {
     }
 
     @Test
+    fun `IMG-012 opening on a display that has a presentation replaces it, one engine per display`() {
+        val r = PresentationRegistry()
+        val order = mutableListOf<String>()
+        val first = r.add("2") { order += "close first" }
+        // What open() does: close what is on the display, then start the new one.
+        r.closeForDisplay("2")
+        order += "start second"
+        val second = r.add("2") { order += "close second" }
+        assertEquals(listOf("close first", "start second"), order)
+        assertFalse(r.contains(first))
+        assertTrue(r.contains(second))
+        assertEquals(1, r.count)
+        // Another display is not touched.
+        val other = r.add("3") {}
+        r.closeForDisplay("2")
+        assertTrue(r.contains(other))
+        assertEquals(1, r.count)
+    }
+
+    @Test
     fun `IMG-012 ids are not reused`() {
         val r = PresentationRegistry()
         val a = r.add("2") {}

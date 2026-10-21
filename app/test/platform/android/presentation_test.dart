@@ -95,25 +95,170 @@ void main() {
       }
     });
 
-    test('IMG-012 unknown names and loose number types are tolerated', () {
+    test('IMG-012 loose number types and a list of ints are read', () {
       final f = PresentationFrameCodec.fromMap({
-        'fit': 'no-such-fit',
-        'transition': 'spin',
+        'fit': 'cover',
+        'transition': 'crossfade',
         'transitionMs': 250.0,
-        'image': <int>[1, 2, 3],
+        'image': _png.toList(),
         'motion': {
           'from': [0, 0, 1, 1],
           'to': [0.25, 0.25, 0.75, 0.75],
           'durationMs': 4000.0,
         },
       });
-      expect(f.fit, BoxFit.contain);
-      expect(f.transition, PresentationTransition.none);
+      expect(f.fit, BoxFit.cover);
       expect(f.transitionDuration, const Duration(milliseconds: 250));
-      expect(f.image, Uint8List.fromList([1, 2, 3]));
+      expect(f.image, _png);
       expect(f.motion!.to, const Rect.fromLTRB(0.25, 0.25, 0.75, 0.75));
       expect(f.motion!.duration, const Duration(seconds: 4));
     });
+
+    test('IMG-012 a bad frame is a FormatException, never a crash', () {
+      void bad(Map<Object?, Object?> m, String why) => expect(
+        () => PresentationFrameCodec.fromMap(m),
+        throwsFormatException,
+        reason: why,
+      );
+      Map<Object?, Object?> motion(
+        Object? from,
+        Object? to, [
+        Object? ms = 1000,
+      ]) => {
+        'motion': {'from': from, 'to': to, 'durationMs': ms},
+      };
+      const whole = [0, 0, 1, 1];
+      bad({'fit': 'no-such-fit'}, 'unknown fit');
+      bad({'transition': 'spin'}, 'unknown transition');
+      bad({'image': 'not bytes'}, 'image of the wrong type');
+      bad({
+        'image': Uint8List.fromList([1, 2, 3]),
+      }, 'not a PNG or JPEG');
+      bad({'caption': 5}, 'caption of the wrong type');
+      bad({'motion': 'fast'}, 'motion of the wrong type');
+      bad({'transitionMs': 'slow'}, 'duration of the wrong type');
+      bad({'transitionMs': double.nan}, 'NaN duration');
+      bad({'transitionMs': 1e300}, 'absurd duration');
+      bad({'transitionMs': 60001}, 'transition over 60 s');
+      bad({'transitionMs': -1}, 'negative transition');
+      bad(motion([0, 0, 1], whole), 'three numbers');
+      bad(motion([0, 0, 1, 1, 1], whole), 'five numbers');
+      bad(motion(whole, 'x'), 'not a list');
+      bad(motion([0, 0, double.nan, 1], whole), 'NaN');
+      bad(motion([0, 0, double.infinity, 1], whole), 'infinite');
+      bad(motion([0, 0, 1.5, 1], whole), 'outside the image');
+      bad(motion([-0.1, 0, 1, 1], whole), 'negative');
+      bad(motion([0.5, 0, 0.5, 1], whole), 'no width');
+      bad(motion([0.6, 0, 0.4, 1], whole), 'inverted');
+      bad(motion(whole, [0, 0, 1, 1], 61000), 'motion over 60 s');
+      bad(motion(whole, [0, 0, 1, 1], null), 'motion without a duration');
+      bad({'caption': 'x' * 1001}, 'a caption of 1001 characters');
+      // And the limit itself is fine.
+      expect(
+        PresentationFrameCodec.fromMap({'transitionMs': 60000})
+            .transitionDuration,
+        const Duration(seconds: 60),
+      );
+      expect(
+        PresentationFrameCodec.fromMap({'caption': 'x' * 1000}).caption,
+        hasLength(1000),
+      );
+    });
+
+    test(
+      'IMG-012 image size limits: bytes, and pixels read from the header',
+      () {
+        Uint8List png(int w, int h) {
+          final b = ByteData(33);
+          for (var i = 0; i < 8; i++) {
+            b.setUint8(
+              i,
+              const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A][i],
+            );
+          }
+          b
+            ..setUint32(8, 13)
+            ..setUint32(12, 0x49484452)
+            ..setUint32(16, w)
+            ..setUint32(20, h);
+          return b.buffer.asUint8List();
+        }
+
+        Uint8List jpeg(int w, int h) => Uint8List.fromList([
+          0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, ...List.filled(14, 0), //
+          0xFF, 0xC0, 0x00, 0x11, 0x08, h >> 8, h & 255, w >> 8, w & 255,
+          0x03, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1,
+        ]);
+
+        expect(PresentationFrameCodec.imageSize(png(640, 480)), (640, 480));
+        expect(PresentationFrameCodec.imageSize(jpeg(1920, 1080)), (
+          1920,
+          1080,
+        ));
+        expect(PresentationFrameCodec.imageSize(_png), (1, 1));
+        expect(PresentationFrameCodec.imageSize(Uint8List(3)), isNull);
+        expect(
+          PresentationFrameCodec.imageSize(Uint8List.fromList([0xFF, 0xD8])),
+          isNull,
+        );
+
+        PresentationFrame frame(Uint8List b) => PresentationFrame(image: b);
+        // 8192 per side is the limit; a header claiming more is refused before any decode.
+        PresentationFrameCodec.toMap(frame(png(8192, 8192)));
+        PresentationFrameCodec.toMap(frame(jpeg(8192, 100)));
+        expect(
+          () => PresentationFrameCodec.toMap(frame(png(8193, 10))),
+          throwsFormatException,
+        );
+        expect(
+          () => PresentationFrameCodec.toMap(frame(png(10, 65000))),
+          throwsFormatException,
+        );
+        expect(
+          () => PresentationFrameCodec.toMap(frame(jpeg(9000, 100))),
+          throwsFormatException,
+        );
+        expect(
+          () => PresentationFrameCodec.toMap(frame(png(0, 10))),
+          throwsFormatException,
+        );
+        // Over 32 MB of bytes is refused whatever the header says.
+        final big = Uint8List(PresentationLimits.maxImageBytes + 1)
+          ..setRange(0, 33, png(10, 10));
+        expect(
+          () => PresentationFrameCodec.toMap(frame(big)),
+          throwsFormatException,
+        );
+        expect(
+          () => PresentationFrameCodec.fromMap({'image': big}),
+          throwsFormatException,
+        );
+      },
+    );
+
+    test(
+      'IMG-012 the sender is checked too: a bad frame never reaches the wire',
+      () {
+        expect(
+          () => PresentationFrameCodec.toMap(
+            const PresentationFrame(
+              motion: PresentationMotion(
+                from: Rect.fromLTRB(0, 0, 2, 1),
+                to: Rect.fromLTRB(0, 0, 1, 1),
+                duration: Duration(seconds: 1),
+              ),
+            ),
+          ),
+          throwsFormatException,
+        );
+        expect(
+          () => PresentationFrameCodec.toMap(
+            const PresentationFrame(transitionDuration: Duration(minutes: 5)),
+          ),
+          throwsFormatException,
+        );
+      },
+    );
 
     test('IMG-012 frames compare by content', () {
       final a = PresentationFrame(image: Uint8List.fromList([1, 2]));
@@ -138,6 +283,17 @@ void main() {
       expect(api.lastFrame!['image'], _png);
       await display.closePresentation(handle);
       expect(api.calls, ['open:2', 'present:7', 'close:7']);
+    });
+
+    test('ADR-044 a frame outside the limits is not sent', () async {
+      final api = _FakePresentation();
+      final display = AndroidDisplay(presentation: api);
+      const handle = PresentationHandle(id: 7, displayId: '2');
+      await expectLater(
+        display.present(handle, PresentationFrame(image: Uint8List(10))),
+        throwsFormatException,
+      );
+      expect(api.calls, isEmpty);
     });
 
     test(
@@ -195,6 +351,34 @@ void main() {
         expect(find.text('Hello'), findsNothing);
       },
     );
+
+    testWidgets('IMG-012 the page drops a bad frame and keeps what it shows', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const PresentationPage());
+      await send(tester, PresentationFrame(image: _png, caption: 'Keep'));
+      const codec = StandardMessageCodec();
+      for (final bad in <Object?>[
+        {
+          'image': Uint8List.fromList([1, 2, 3]),
+          'caption': 'Bad',
+        },
+        {'fit': 'nonsense'},
+        'not a map',
+        42,
+      ]) {
+        await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+          'mediahro/presentation',
+          codec.encodeMessage(bad),
+          (_) {},
+        );
+        await tester.pump();
+      }
+      expect(find.text('Keep'), findsOneWidget);
+      expect(find.text('Bad'), findsNothing);
+      expect(find.byType(Image), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('IMG-012 a crossfade keeps the old frame until it is done', (
       tester,

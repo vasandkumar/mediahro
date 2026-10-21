@@ -38,9 +38,15 @@ abstract interface class DisplayFacade {
 
   /// Shows [frame] on the presentation (ADR-044 amendment 1). The external
   /// screen shows only what the app sends, so a sender decodes, rotates and
-  /// colour-manages the image itself and passes encoded pixels. A no-op for a
-  /// handle that is closed. The default for platforms without presentations
-  /// is also a no-op.
+  /// colour-manages the image itself and passes encoded pixels (PNG or JPEG,
+  /// at most 32 MB and 8192 px per side; a frame outside the limits throws a
+  /// [FormatException]). A no-op for a handle that is closed. The default for
+  /// platforms without presentations is also a no-op.
+  ///
+  /// **Never pass vault (sensitive) content, nor DRM-protected content**, to
+  /// an external display: a screen the user cannot see is a screen anyone in
+  /// the room can. Only content the user chose to show, after the user's
+  /// confirmation where it is sensitive (ADR-044, ADR-043).
   Future<void> present(PresentationHandle handle, PresentationFrame frame);
 }
 

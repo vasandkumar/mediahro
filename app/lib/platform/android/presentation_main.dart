@@ -48,7 +48,11 @@ class _PresentationPageState extends State<PresentationPage>
     super.initState();
     presentationChannel.setMessageHandler((message) async {
       if (message is Map<Object?, Object?> && mounted) {
-        _show(PresentationFrameCodec.fromMap(message));
+        try {
+          _show(PresentationFrameCodec.fromMap(message));
+        } on FormatException {
+          // A frame outside the limits is dropped; the screen keeps what it shows.
+        }
       }
       return null;
     });
@@ -90,6 +94,14 @@ class _PresentationPageState extends State<PresentationPage>
     super.dispose();
   }
 
+  /// Pictures are decoded no larger than twice the display (room to zoom), and
+  /// never beyond [PresentationLimits.maxImageEdge], whatever their own size.
+  int _decodeEdge(BuildContext context) {
+    final size = View.of(context).physicalSize;
+    final longest = size.longestSide <= 0 ? 1920.0 : size.longestSide;
+    return (longest * 2).round().clamp(256, PresentationLimits.maxImageEdge);
+  }
+
   @override
   Widget build(BuildContext context) => Directionality(
     textDirection: TextDirection.ltr,
@@ -98,9 +110,12 @@ class _PresentationPageState extends State<PresentationPage>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (_below != null) _below!.build(),
+          if (_below != null) _below!.build(_decodeEdge(context)),
           if (_top != null)
-            FadeTransition(opacity: _fade, child: _top!.build()),
+            FadeTransition(
+              opacity: _fade,
+              child: _top!.build(_decodeEdge(context)),
+            ),
           if (_frame.caption != null && _frame.caption!.isNotEmpty)
             Align(
               alignment: Alignment.bottomCenter,
@@ -140,10 +155,21 @@ class _Layer {
   final BoxFit fit;
   final PresentationMotion? motion;
 
-  Widget build() => KenBurns(
+  Widget build(int edge) => KenBurns(
     key: ValueKey(generation),
     motion: motion,
-    child: Image.memory(image, fit: fit, gaplessPlayback: true),
+    child: Image(
+      image: ResizeImage(
+        MemoryImage(image),
+        width: edge,
+        height: edge,
+        policy: ResizeImagePolicy.fit,
+      ),
+      fit: fit,
+      gaplessPlayback: true,
+      // A picture that cannot be decoded leaves the screen black, not an error.
+      errorBuilder: (context, error, stack) => const SizedBox.expand(),
+    ),
   );
 }
 

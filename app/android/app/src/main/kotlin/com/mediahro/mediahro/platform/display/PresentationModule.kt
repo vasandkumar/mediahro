@@ -62,6 +62,8 @@ class PresentationModule(
         val display = displays.getDisplay(id) ?: return@withContext null
         // The built-in screen is the app itself; only another display can present.
         if (display.displayId == Display.DEFAULT_DISPLAY) return@withContext null
+        // One presentation per display: the old engine is released before the new one starts.
+        registry.closeForDisplay(displayId)
         val bundle = FlutterInjector.instance().flutterLoader().findAppBundlePath()
         // A group engine shares the VM resources of the first one; no plugins: the page only draws what it is sent.
         val engine = group.createAndRunEngine(
