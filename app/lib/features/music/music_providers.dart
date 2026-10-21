@@ -33,6 +33,7 @@ import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/player/spoken_mode.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
 import 'package:mediahro/features/music/podcasts/episode_downloads.dart';
+import 'package:mediahro/features/music/podcasts/podcast_background.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
 import 'package:mediahro/features/music/podcasts/podcast_player.dart';
 import 'package:mediahro/features/music/podcasts/podcast_service.dart';
@@ -408,6 +409,13 @@ final podcastBootProvider = Provider<void>((ref) {
       .refreshAll(minAge: const Duration(hours: 2))
       .then((_) {}, onError: (Object _) {});
   unawaited(Future(check));
+  // Also while the app is closed, where the platform can wake it (ADR-049).
+  final background = PodcastBackgroundRefresh(
+    work: ref.read(backgroundWorkProvider),
+    service: s,
+  );
+  unawaited(background.start().catchError((Object _) {}));
+  ref.onDispose(() => unawaited(background.dispose()));
   final timer = Timer.periodic(
     const Duration(hours: 1),
     (_) => unawaited(check()),
