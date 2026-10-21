@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
@@ -23,6 +24,7 @@ void main() {
     crypto: crypto,
     secure: secure,
     iterations: 4,
+    minRounds: 1,
     clock: () => now,
   );
 
@@ -204,21 +206,88 @@ void main() {
       expect(r.wait, isNotNull);
     });
 
-    test('PRIV-007 a right PIN clears the misses', () async {
+    test('PRIV-007 a right PIN does not clear the misses before it', () async {
       await manager.openWithPin('000001');
       await manager.openWithPin('000001');
       await (await manager.openWithPin('246810')).vault!.close();
+      // Two misses are still on record: one more is free, the next waits.
+      expect(
+        (await manager.openWithPin('000001')).outcome,
+        VaultOutcome.wrongPin,
+      );
+      expect(
+        (await manager.openWithPin('000001')).outcome,
+        VaultOutcome.waitToRetry,
+      );
+    });
+
+    test(
+      'PRIV-007 the holder of one PIN cannot reset the count for the other',
+      () async {
+        // Guesses at the first vault, each followed by a good entry of the second.
+        for (var i = 0; i < 3; i++) {
+          expect(
+            (await manager.openWithPin('00000$i')).outcome,
+            VaultOutcome.wrongPin,
+          );
+          final ok = await manager.openWithPin('135790');
+          expect(ok.isOpen, isTrue, reason: 'round $i');
+          await ok.vault!.close();
+        }
+        final next = await manager.openWithPin('000009');
+        expect(next.outcome, VaultOutcome.waitToRetry);
+      },
+    );
+
+    test(
+      'PRIV-007 an attempt is counted even if the app stops in the middle',
+      () async {
+        // The keystore fails before the PIN is checked, as a killed app would.
+        crypto.failPlainOpen = VaultCryptoError.unavailable;
+        for (var i = 0; i < 4; i++) {
+          await manager.openWithPin('000001');
+        }
+        crypto.failPlainOpen = null;
+        final r = await manager.openWithPin('246810');
+        expect(r.outcome, VaultOutcome.waitToRetry);
+      },
+    );
+
+    test('PRIV-007 misses fade, one every four hours', () async {
       for (var i = 0; i < 3; i++) {
+        await manager.openWithPin('000001');
+      }
+      now = now.add(const Duration(hours: 9));
+      // Two forgiven: only one miss left on record.
+      for (var i = 0; i < 2; i++) {
         expect(
           (await manager.openWithPin('000001')).outcome,
           VaultOutcome.wrongPin,
+          reason: 'try $i',
         );
       }
+      expect(
+        (await manager.openWithPin('000001')).outcome,
+        VaultOutcome.waitToRetry,
+      );
+    });
+
+    test('PRIV-007 a clock set back earns no forgiveness', () async {
+      for (var i = 0; i < 4; i++) {
+        await manager.openWithPin('000001');
+      }
+      now = now.subtract(const Duration(days: 30));
+      final r = await manager.openWithPin('246810');
+      expect(r.outcome, VaultOutcome.waitToRetry);
+      expect(r.wait! <= const Duration(days: 1), isTrue);
     });
 
     test('PRIV-007 the wait never exceeds a day', () async {
-      for (var i = 0; i < 30; i++) {
-        now = now.add(const Duration(days: 2));
+      for (var i = 0; i < 40; i++) {
+        await manager.openWithPin('000001');
+        now = now.add(const Duration(days: 1, minutes: 1));
+      }
+      for (var i = 0; i < 12; i++) {
         await manager.openWithPin('000001');
       }
       final r = await manager.openWithPin('000001');
@@ -251,6 +320,7 @@ void main() {
         crypto: crypto,
         secure: secure,
         iterations: 4,
+        minRounds: 1,
       );
       expect(
         (await empty.openWithPin('123456')).outcome,
@@ -369,6 +439,7 @@ void main() {
         crypto: crypto,
         secure: MemorySecureStorage(),
         iterations: 4,
+        minRounds: 1,
       );
       final r = await m.setUp(pin: '112233', fingerprint: true);
       await r.vault!.close();
@@ -382,7 +453,10 @@ void main() {
       () async {
         final r = await manager.setUp(pin: '246810', decoyPin: '135790');
         await addTo(r.vault!, 'real.jpg');
-        await manager.changePin(r.vault!, '555555');
+        expect(
+          await manager.changePin(r.vault!, '555555'),
+          VaultOutcome.opened,
+        );
         await r.vault!.close();
         expect((await manager.openWithPin('246810')).isOpen, isFalse);
         final ok = await manager.openWithPin('555555');
@@ -405,6 +479,39 @@ void main() {
         expect(await manager.fingerprintOn, isFalse);
       },
     );
+
+    test('PRIV-007 the other vault PIN is refused as a new PIN', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await addTo(r.vault!, 'real.jpg');
+      expect(
+        await manager.changePin(r.vault!, '135790'),
+        VaultOutcome.pinNotAllowed,
+      );
+      await r.vault!.close();
+      // Nothing changed: both PINs still open their own vaults.
+      final a = await manager.openWithPin('246810');
+      expect(a.vault!.container.list().single.name, 'real.jpg');
+      await a.vault!.close();
+      final b = await manager.openWithPin('135790');
+      expect(b.isOpen, isTrue);
+      await b.vault!.close();
+    });
+
+    test('PRIV-007 trying a new PIN counts like any attempt', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      for (var i = 0; i < 4; i++) {
+        expect(
+          await manager.changePin(r.vault!, '55555$i'),
+          VaultOutcome.opened,
+        );
+      }
+      // The fourth set a wait, as a fourth wrong PIN does.
+      expect(
+        await manager.changePin(r.vault!, '444444'),
+        VaultOutcome.waitToRetry,
+      );
+      await r.vault!.close();
+    });
 
     test('PRIV-007 reset also deletes the OS key, first', () async {
       final r = await manager.setUp(pin: '246810', decoyPin: '135790');
@@ -449,6 +556,168 @@ void main() {
         VaultOutcome.needsSetup,
       );
     });
+  });
+
+  group('PRIV-007 a Change PIN that is cut short', () {
+    late String name;
+    late Directory dir;
+
+    Uint8List tokenOf(String pin, Uint8List salt) =>
+        pbkdf2Sha256(pin.codeUnits, salt, 4);
+
+    Uint8List saltBytes(Uint8List salt) => Uint8List.fromList([
+      ...salt,
+      ...(ByteData(4)..setUint32(0, 4)).buffer.asUint8List(),
+    ]);
+
+    setUp(() async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await addTo(r.vault!, 'real.jpg');
+      dir = r.vault!.container.directory;
+      name = dir.path.split(Platform.pathSeparator).last;
+      await r.vault!.close();
+    });
+
+    /// The state after the new index is written and the new salt not yet.
+    Future<(Uint8List, Uint8List)> prepare() async {
+      final salt = Uint8List.fromList(List.generate(16, (i) => i + 1));
+      final token = tokenOf('555555', salt);
+      final master = await crypto.openMasterKey(requireBiometry: false);
+      final c = await VaultContainer.open(
+        directory: dir,
+        crypto: crypto,
+        master: master,
+        token: tokenOf(
+          '246810',
+          File('${dir.path}/salt').readAsBytesSync().sublist(0, 16),
+        ),
+      );
+      await c.prepareRekey(token);
+      c.close();
+      await crypto.close(master);
+      return (salt, token);
+    }
+
+    test(
+      'PRIV-007 after only the new index is written the old PIN opens',
+      () async {
+        await prepare();
+        final r = await manager.openWithPin('246810');
+        expect(r.isOpen, isTrue);
+        expect(r.vault!.container.list().single.name, 'real.jpg');
+        await r.vault!.close();
+        // The leftover is cleaned and the new PIN does not open.
+        expect(File('${dir.path}/index.mv.next').existsSync(), isFalse);
+        expect((await manager.openWithPin('555555')).isOpen, isFalse);
+      },
+    );
+
+    test('PRIV-007 with both new files written either PIN opens', () async {
+      final (salt, _) = await prepare();
+      File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
+      final fresh = make();
+      final r = await fresh.openWithPin('555555');
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      expect(r.vault!.container.list().single.name, 'real.jpg');
+      await r.vault!.close();
+      // The new pair is now the folder's own; the old PIN is gone.
+      expect(File('${dir.path}/salt.next').existsSync(), isFalse);
+      expect(File('${dir.path}/index.mv.next').existsSync(), isFalse);
+      expect((await manager.openWithPin('246810')).isOpen, isFalse);
+      final again = await manager.openWithPin('555555');
+      expect(again.isOpen, isTrue);
+      await again.vault!.close();
+    });
+
+    test(
+      'PRIV-007 with both new files written the old PIN still opens too',
+      () async {
+        final (salt, _) = await prepare();
+        File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
+        final r = await manager.openWithPin('246810');
+        expect(r.isOpen, isTrue);
+        await r.vault!.close();
+        expect((await manager.openWithPin('555555')).isOpen, isFalse);
+      },
+    );
+
+    test(
+      'PRIV-007 after the index is swapped but not the salt the new PIN opens',
+      () async {
+        final (salt, token) = await prepare();
+        File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
+        File('${dir.path}/index.mv.next').renameSync('${dir.path}/index.mv');
+        expect(token, hasLength(32));
+        final r = await manager.openWithPin('555555');
+        expect(r.isOpen, isTrue, reason: '${r.outcome}');
+        expect(r.vault!.container.list().single.name, 'real.jpg');
+        await r.vault!.close();
+        expect(File('${dir.path}/salt.next').existsSync(), isFalse);
+        expect(name, isNotEmpty);
+      },
+    );
+  });
+
+  group('PRIV-007 one damaged vault does not shut out the other', () {
+    test(
+      'PRIV-007 a damaged index in one folder leaves the other PIN working',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        final real = r.vault!.container.directory;
+        await r.vault!.close();
+        File('${real.path}/index.mv').writeAsBytesSync(bytesOf(300));
+        final other = await manager.openWithPin('135790');
+        expect(other.isOpen, isTrue, reason: '${other.outcome}');
+        await other.vault!.close();
+        // The damaged one is just a PIN that opens nothing.
+        expect(
+          (await manager.openWithPin('246810')).outcome,
+          VaultOutcome.wrongPin,
+        );
+      },
+    );
+
+    test(
+      'PRIV-007 a lost key is reported only when every vault is lost',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        crypto.loseKeys();
+        expect(
+          (await manager.openWithPin('246810')).outcome,
+          VaultOutcome.keyLost,
+        );
+        expect(crypto.openHandles, 0);
+      },
+    );
+  });
+
+  group('PRIV-007 hardening', () {
+    test(
+      'PRIV-007 a salt file cannot be edited to make the PIN cheap to guess',
+      () async {
+        final strict = VaultManager(
+          root: root,
+          crypto: crypto,
+          secure: secure,
+          iterations: 4,
+          minRounds: 4,
+          clock: () => now,
+        );
+        final r = await strict.setUp(pin: '246810', decoyPin: '135790');
+        final dir = r.vault!.container.directory;
+        await r.vault!.close();
+        final f = File('${dir.path}/salt');
+        final b = f.readAsBytesSync();
+        ByteData.sublistView(b).setUint32(16, 1);
+        f.writeAsBytesSync(b);
+        // Read as 4 rounds, as made: the PIN still opens (with one round the
+        // token would differ and nothing would).
+        final ok = await strict.openWithPin('246810');
+        expect(ok.isOpen, isTrue);
+        await ok.vault!.close();
+      },
+    );
   });
 
   group('PRIV-007 PIN work', () {

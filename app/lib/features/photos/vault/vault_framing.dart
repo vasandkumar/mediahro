@@ -51,7 +51,7 @@ final class MemoryVaultSource implements VaultSource {
 /// A chunk's associated data is the magic, the file id, the chunk number,
 /// whether it is the last, its own length, the length of the whole file and,
 /// when given, a 32-byte secret (the PIN-derived token) that never touches
-/// the disk. A file without `keyLength` takes its key from the index that
+/// the disk and a context (what the file is for). A file without `keyLength` takes its key from the index that
 /// lists it.
 abstract final class VaultFormat {
   /// Plaintext bytes per chunk: a native call per chunk, so not too small.
@@ -80,6 +80,7 @@ abstract final class VaultFormat {
     required int chunkLength,
     required int plainLength,
     Uint8List? secret,
+    Uint8List? context,
   }) {
     final b = BytesBuilder()
       ..add(magic)
@@ -89,6 +90,7 @@ abstract final class VaultFormat {
       ..add((ByteData(4)..setUint32(0, chunkLength)).buffer.asUint8List())
       ..add((ByteData(8)..setUint64(0, plainLength)).buffer.asUint8List());
     if (secret != null) b.add(secret);
+    if (context != null) b.add(context);
     return b.takeBytes();
   }
 }
@@ -116,6 +118,7 @@ final class VaultSealer {
     required Future<void> Function(Uint8List) out,
     bool embedKey = false,
     Uint8List? secret,
+    Uint8List? context,
   }) async {
     final fileId = randomBytes(16);
     final embedded = embedKey ? key.bytes : Uint8List(0);
@@ -148,6 +151,7 @@ final class VaultSealer {
           chunkLength: chunk.length,
           plainLength: plainLength,
           secret: secret,
+          context: context,
         ),
         chunk,
       );
@@ -196,6 +200,7 @@ final class VaultReader {
     required this.plainLength,
     required this.dataStart,
     required this.secret,
+    required this.context,
   });
 
   final VaultCryptoFacade crypto;
@@ -206,6 +211,11 @@ final class VaultReader {
   final int plainLength;
   final int dataStart;
   final Uint8List? secret;
+
+  /// What the file is for (the index of this folder, the picture of this
+  /// item): authenticated with every chunk, so a file moved to another place
+  /// does not open there.
+  final Uint8List? context;
 
   int _cachedIndex = -1;
   Uint8List? _cached;
@@ -218,6 +228,7 @@ final class VaultReader {
     WrappedKey? key,
     VaultKeyHandle? master,
     Uint8List? secret,
+    Uint8List? context,
   }) async {
     final total = await source.length();
     if (total < VaultFormat.fixedHeader) {
@@ -278,6 +289,7 @@ final class VaultReader {
       plainLength: plainLength,
       dataStart: VaultFormat.fixedHeader + keyLength,
       secret: secret,
+      context: context,
     );
   }
 
@@ -310,6 +322,7 @@ final class VaultReader {
           chunkLength: plainLen,
           plainLength: plainLength,
           secret: secret,
+          context: context,
         ),
         Uint8List.sublistView(raw, VaultFormat.nonceLength),
       );

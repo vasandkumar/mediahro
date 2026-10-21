@@ -45,10 +45,14 @@ final class VaultPictures {
   final Map<String, Future<ui.Image?>> _pending = {};
   bool _closed = false;
 
-  /// The picture of [item] for the grid (about 256 px).
+  /// The picture of [item] for the grid (about 256 px). The caller owns the
+  /// returned image and disposes it: it is a clone, so locking the vault (the
+  /// cache is emptied) never pulls a picture from under a widget that is
+  /// still drawing it.
   Future<ui.Image?> grid(VaultItem item) => _get(item, 256);
 
-  /// The picture of [item] for the viewer, at most [edge] px.
+  /// The picture of [item] for the viewer, at most [edge] px (a clone, see
+  /// [grid]).
   Future<ui.Image?> full(VaultItem item, int edge) => _get(item, edge);
 
   Future<ui.Image?> _get(VaultItem item, int edge) async {
@@ -57,11 +61,12 @@ final class VaultPictures {
     final hit = _cache.remove(key);
     if (hit != null) {
       _cache[key] = hit;
-      return hit;
+      return hit.clone();
     }
     final pending = _pending[key] ??= _load(item, edge, key);
     try {
-      return await pending;
+      final img = await pending;
+      return _closed ? null : img?.clone();
     } finally {
       await _pending.remove(key);
     }
@@ -189,7 +194,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen>
   /// The vault locked: forget what was decoded and close everything that
   /// was opened over this screen, the viewer and dialogs included.
   void _locked() {
-    _pictures?.close();
+    final dropped = _pictures;
     _pictures = null;
     _picturesFor = null;
     _chosen.clear();
@@ -197,6 +202,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen>
     if (mounted && route != null && route.isActive) {
       Navigator.of(context).popUntil((r) => r == route);
     }
+    // After the screens above have gone. What widgets still draw this frame
+    // are clones; the cache is dropped once the frame is done.
+    WidgetsBinding.instance.addPostFrameCallback((_) => dropped?.close());
   }
 
   VaultPictures _picturesOf(OpenVault v) {
@@ -382,8 +390,29 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
 
   Future<void> _toggleFingerprint() async {
     final l10n = AppLocalizations.of(context);
-    final manager = await ref.read(vaultManagerProvider.future);
     final want = !_fingerprintOn;
+    if (want) {
+      // The coercion warning comes before, not after.
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l10n.photosVaultMenuFingerprint),
+          content: Text(l10n.photosVaultFingerprintWarning),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(l10n.photosCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(l10n.photosVaultUseFingerprint),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !_live) return;
+    }
+    final manager = await ref.read(vaultManagerProvider.future);
     final outcome = await manager.setFingerprint(widget.vault, enabled: want);
     if (!mounted) return;
     if (outcome == VaultOutcome.opened) {
@@ -404,11 +433,30 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     );
     if (pin == null || !_live) return;
     final manager = await ref.read(vaultManagerProvider.future);
-    await manager.changePin(widget.vault, pin);
+    final VaultOutcome outcome;
+    try {
+      outcome = await manager.changePin(widget.vault, pin);
+    } on Object {
+      if (mounted) _toast(l10n.photosVaultUnavailable);
+      return;
+    }
     if (!mounted) return;
-    setState(() => _fingerprintOn = false);
+    if (outcome != VaultOutcome.opened) {
+      _toast(vaultOutcomeText(l10n, VaultOpenResult(outcome)));
+      return;
+    }
+    // Whether the fingerprint is still on is for the manager to say: it was
+    // turned off only if it belonged to this vault.
+    final wasOn = _fingerprintOn;
+    final on = await manager.fingerprintOn;
+    if (!mounted) return;
+    setState(() => _fingerprintOn = on);
     ref.invalidate(vaultFingerprintOnProvider);
-    _toast(l10n.photosVaultChangePinDone);
+    _toast(
+      wasOn && !on
+          ? l10n.photosVaultChangePinDoneFingerprintOff
+          : l10n.photosVaultChangePinDone,
+    );
   }
 
   @override
@@ -554,17 +602,12 @@ class _VaultTile extends StatelessWidget {
           children: [
             ColoredBox(color: scheme.surfaceContainerHighest),
             if (item.kind == 'image')
-              FutureBuilder<ui.Image?>(
-                future: pictures.grid(item),
-                builder: (context, snap) {
-                  final img = snap.data;
-                  if (img == null) {
-                    return snap.connectionState == ConnectionState.done
-                        ? const Icon(Icons.broken_image_outlined)
-                        : const SizedBox.shrink();
-                  }
-                  return RawImage(image: img, fit: BoxFit.cover);
-                },
+              _PictureHolder(
+                key: ValueKey(item.id),
+                load: () => pictures.grid(item),
+                builder: (img) => RawImage(image: img, fit: BoxFit.cover),
+                loading: (context) => const SizedBox.shrink(),
+                failed: (context) => const Icon(Icons.broken_image_outlined),
               )
             else
               Icon(
@@ -585,6 +628,71 @@ class _VaultTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// A picture that this widget owns: it asks for a clone once, draws it, and
+/// disposes it with itself (or at once if it arrives after the widget is
+/// gone).
+class _PictureHolder extends StatefulWidget {
+  const _PictureHolder({
+    required this.load,
+    required this.builder,
+    required this.loading,
+    required this.failed,
+    super.key,
+  });
+
+  final Future<ui.Image?> Function() load;
+  final Widget Function(ui.Image image) builder;
+  final WidgetBuilder loading;
+  final WidgetBuilder failed;
+
+  @override
+  State<_PictureHolder> createState() => _PictureHolderState();
+}
+
+class _PictureHolderState extends State<_PictureHolder> {
+  ui.Image? _image;
+  bool _done = false;
+  bool _gone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_fetch());
+  }
+
+  Future<void> _fetch() async {
+    ui.Image? img;
+    try {
+      img = await widget.load();
+    } on Object {
+      img = null;
+    }
+    if (_gone) {
+      img?.dispose();
+      return;
+    }
+    setState(() {
+      _image = img;
+      _done = true;
+    });
+  }
+
+  @override
+  void dispose() {
+    _gone = true;
+    _image?.dispose();
+    _image = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final img = _image;
+    if (img != null) return widget.builder(img);
+    return _done ? widget.failed(context) : widget.loading(context);
   }
 }
 
@@ -708,28 +816,24 @@ class _VaultViewerScreenState extends State<VaultViewerScreen> {
             controller: _pages,
             itemCount: widget.items.length,
             onPageChanged: (i) => setState(() => _at = i),
-            itemBuilder: (context, i) => FutureBuilder<ui.Image?>(
-              future: widget.pictures.full(widget.items[i], 3072),
-              builder: (context, snap) {
-                final img = snap.data;
-                if (img == null) {
-                  return Center(
-                    child: snap.connectionState == ConnectionState.done
-                        ? Semantics(
-                            label: l10n.photosVaultOpenFailed,
-                            child: const Icon(
-                              Icons.broken_image_outlined,
-                              color: Colors.white54,
-                            ),
-                          )
-                        : const CircularProgressIndicator(),
-                  );
-                }
-                return InteractiveViewer(
-                  maxScale: 8,
-                  child: RawImage(image: img, fit: BoxFit.contain),
-                );
-              },
+            itemBuilder: (context, i) => _PictureHolder(
+              key: ValueKey(widget.items[i].id),
+              load: () => widget.pictures.full(widget.items[i], 3072),
+              builder: (img) => InteractiveViewer(
+                maxScale: 8,
+                child: RawImage(image: img, fit: BoxFit.contain),
+              ),
+              loading: (context) =>
+                  const Center(child: CircularProgressIndicator()),
+              failed: (context) => Center(
+                child: Semantics(
+                  label: l10n.photosVaultOpenFailed,
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: Colors.white54,
+                  ),
+                ),
+              ),
             ),
           ),
           PositionedDirectional(

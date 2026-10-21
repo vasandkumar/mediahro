@@ -40,6 +40,7 @@ String vaultOutcomeText(AppLocalizations l10n, VaultOpenResult r) =>
       VaultOutcome.unavailable => l10n.photosVaultUnavailable,
       VaultOutcome.damaged => l10n.photosVaultDamaged,
       VaultOutcome.noFingerprint => l10n.photosVaultCancelled,
+      VaultOutcome.pinNotAllowed => l10n.photosVaultPinNotAllowed,
     };
 
 /// The one way into the vault (IMG-011, ADR-040): a PIN pad, and the
@@ -61,13 +62,18 @@ class _VaultGateState extends ConsumerState<VaultGate> {
   bool _busy = false;
   bool _lost = false;
 
+  // A lost key is told once; the way out (Reset) is offered when it happens
+  // again, so one odd read does not tempt anybody to delete the vault.
+  int _lostCount = 0;
+
   void _finish(VaultOpenResult r) {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     setState(() {
       _busy = false;
       _message = vaultOutcomeText(l10n, r);
-      _lost = r.outcome == VaultOutcome.keyLost;
+      if (r.outcome == VaultOutcome.keyLost) _lostCount++;
+      _lost = _lostCount >= 2;
     });
     // A refused fingerprint may have switched itself off.
     if (!r.isOpen) ref.invalidate(vaultFingerprintOnProvider);
@@ -135,6 +141,7 @@ class _VaultGateState extends ConsumerState<VaultGate> {
     if (mounted) {
       setState(() {
         _lost = false;
+        _lostCount = 0;
         _message = '';
       });
     }
@@ -346,6 +353,8 @@ class _VaultSetUpFormState extends ConsumerState<VaultSetUpForm> {
               Text(l10n.photosVaultIntro, textAlign: TextAlign.center),
               const SizedBox(height: 20),
               pinField(_pin, l10n.photosVaultPinLabel),
+              const SizedBox(height: 4),
+              Text(l10n.photosVaultPinHelp, style: theme.textTheme.bodySmall),
               const SizedBox(height: 12),
               pinField(_repeat, l10n.photosVaultPinRepeat),
               const SizedBox(height: 20),
@@ -364,7 +373,14 @@ class _VaultSetUpFormState extends ConsumerState<VaultSetUpForm> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(l10n.photosVaultUseFingerprint),
-                subtitle: Text(l10n.photosVaultFingerprintNote),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.photosVaultFingerprintNote),
+                    const SizedBox(height: 4),
+                    Text(l10n.photosVaultFingerprintWarning),
+                  ],
+                ),
                 value: _fingerprint,
                 onChanged: _busy
                     ? null

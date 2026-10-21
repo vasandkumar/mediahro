@@ -65,6 +65,7 @@ void main() {
       crypto: crypto,
       secure: secure,
       iterations: 4,
+      minRounds: 1,
     );
   });
 
@@ -159,8 +160,7 @@ void main() {
       );
       expect(crypto.openHandles, 0);
       // The window was protected for the whole visit and let go after.
-      expect(window.calls.first, isTrue);
-      expect(window.calls.last, isFalse);
+      expect(window.calls, [true, false]);
     },
   );
 
@@ -212,6 +212,36 @@ void main() {
     );
     expect(crypto.openHandles, 0);
   });
+
+  testWidgets(
+    'IMG-011 leaving the app at the question locks the vault and moves nothing',
+    (tester) async {
+      await tester.runAsync(
+        () => manager.setUp(pin: '246810').then((r) => r.vault!.close()),
+      );
+      final entries = await open(tester);
+      await chooseMove(tester);
+      await typePin(tester, '246810');
+      expect(find.text('Move this photo to the vault?'), findsOneWidget);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await settleReal(tester);
+      expect(crypto.openHandles, 0);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.tap(find.widgetWithText(FilledButton, 'Move'));
+      await settleReal(tester);
+      expect(
+        File('${dir.path}/lib/${entries.first.relPath}').existsSync(),
+        isTrue,
+      );
+      expect(window.calls.last, isFalse);
+    },
+  );
 
   testWidgets('IMG-011 closing the PIN pad moves nothing', (tester) async {
     await tester.runAsync(

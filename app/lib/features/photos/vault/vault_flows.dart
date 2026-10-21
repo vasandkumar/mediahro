@@ -49,6 +49,36 @@ class _GateScreenState extends ConsumerState<_GateScreen> {
   }
 }
 
+/// Keeps a move to the vault out of screenshots from the first screen to the
+/// last message, and locks it, stopping the move, if the app goes to the
+/// background.
+final class _FlowGuard with WidgetsBindingObserver {
+  _FlowGuard(this._session, this._secure) {
+    _secure.enter();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  final VaultSession _session;
+  final SecureWindowScope _secure;
+
+  /// The app left the screen: the vault is locked and the move stops.
+  bool backgrounded = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      backgrounded = true;
+      _session.lock();
+    }
+  }
+
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _secure.leave();
+  }
+}
+
 /// Asks, then moves [photos] into the vault (IMG-011): the PIN pad first
 /// (the vault the PIN opens takes them, whichever it is; no other prompt),
 /// then the question, then the move with its progress. A vault that was
@@ -58,9 +88,26 @@ Future<bool> moveToVaultFlow(
   WidgetRef ref,
   List<PhotoEntry> photos,
 ) async {
+  final container = ProviderScope.containerOf(context);
+  final guard = _FlowGuard(
+    container.read(vaultSessionProvider.notifier),
+    container.read(secureWindowScopeProvider),
+  );
+  try {
+    return await _moveToVault(context, container, photos, guard);
+  } finally {
+    guard.dispose();
+  }
+}
+
+Future<bool> _moveToVault(
+  BuildContext context,
+  ProviderContainer container,
+  List<PhotoEntry> photos,
+  _FlowGuard guard,
+) async {
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
-  final container = ProviderScope.containerOf(context);
   final images = photos.where((p) => !p.isVideo).toList();
   if (images.isEmpty) {
     messenger?.showSnackBar(SnackBar(content: Text(l10n.photosVaultNoVideos)));
@@ -147,7 +194,12 @@ Future<bool> moveToVaultFlow(
   try {
     report = await container
         .read(vaultMoverProvider)
-        .moveIn(vault.container, images, onProgress: (n) => done.value = n);
+        .moveIn(
+          vault.container,
+          images,
+          onProgress: (n) => done.value = n,
+          cancelled: () => guard.backgrounded,
+        );
   } finally {
     navigator.pop();
     done.dispose();

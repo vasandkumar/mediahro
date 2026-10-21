@@ -181,8 +181,12 @@ final class _FileSource implements VaultSource {
 /// A folder of encrypted files with an encrypted index (IMG-011). No plain
 /// name, size or picture is ever written outside it. Opening needs the
 /// keystore's master key (a handle) and the PIN-derived token; the token
-/// binds the index, so without the PIN nothing in the folder can be read,
-/// not even by someone who can use the keystore.
+/// binds the index, so without the PIN the index (and with it the wrapped
+/// keys of the files) cannot be read.
+///
+/// Everything that changes the folder runs one at a time, on a copy of the
+/// token taken when it starts, so a lock that arrives in the middle zeroes the
+/// token for later work without spoiling work already under way.
 final class VaultContainer {
   VaultContainer._(
     this.directory,
@@ -199,17 +203,33 @@ final class VaultContainer {
   Uint8List _token;
   List<VaultItem> _items;
   bool _closed = false;
+  Future<void> _tail = Future<void>.value();
 
   static const String indexName = 'index.mv';
 
+  /// The index being written for a new PIN (see [prepareRekey]).
+  static const String nextSuffix = '.next';
+
+  String get _name => directory.path.split(Platform.pathSeparator).last;
+
   File get _index =>
       File('${directory.path}${Platform.pathSeparator}$indexName');
+
+  File get _indexNext =>
+      File('${directory.path}${Platform.pathSeparator}$indexName$nextSuffix');
 
   File _file(String id) =>
       File('${directory.path}${Platform.pathSeparator}$id.mv');
 
   File _thumb(String id) =>
       File('${directory.path}${Platform.pathSeparator}$id.tm');
+
+  /// What the index of the folder named [name] is for.
+  static Uint8List _indexContext(String name) =>
+      Uint8List.fromList(utf8.encode('index:$name'));
+
+  static Uint8List _thumbContext(String id) =>
+      Uint8List.fromList(utf8.encode('thumb:$id'));
 
   /// Makes the folder with an empty index.
   static Future<VaultContainer> create({
@@ -228,25 +248,32 @@ final class VaultContainer {
       Uint8List.fromList(token),
       [],
     );
-    await c._saveIndex();
+    await c._serial(() => c._saveIndex(c._token));
     return c;
   }
 
   /// Opens the folder; throws [VaultCorrupt] when [token] is not the one the
   /// index was sealed with (a wrong PIN looks like a damaged index).
+  /// [next] opens the index written for a new PIN instead (a Change PIN that
+  /// was cut short).
   static Future<VaultContainer> open({
     required Directory directory,
     required VaultCryptoFacade crypto,
     required VaultKeyHandle master,
     required Uint8List token,
+    bool next = false,
   }) async {
-    final file = File('${directory.path}${Platform.pathSeparator}$indexName');
+    final suffix = next ? nextSuffix : '';
+    final file = File(
+      '${directory.path}${Platform.pathSeparator}$indexName$suffix',
+    );
     if (!file.existsSync()) throw const VaultCorrupt('no index');
     final reader = await VaultReader.open(
       crypto: crypto,
       source: MemoryVaultSource(await file.readAsBytes()),
       master: master,
       secret: token,
+      context: _indexContext(directory.path.split(Platform.pathSeparator).last),
     );
     final plain = await reader.readAll();
     final Object? data;
@@ -273,33 +300,71 @@ final class VaultContainer {
     if (_closed) throw const VaultLocked();
   }
 
+  /// Runs [op] after everything before it, and refuses once the vault is
+  /// locked.
+  Future<T> _serial<T>(Future<T> Function() op) {
+    _live();
+    final done = Completer<T>();
+    final previous = _tail;
+    _tail = done.future.then((_) {}, onError: (_) {});
+    unawaited(
+      previous.then((_) async {
+        try {
+          if (_closed) throw const VaultLocked();
+          done.complete(await op());
+        } on Object catch (e, st) {
+          done.completeError(e, st);
+        }
+      }),
+    );
+    return done.future;
+  }
+
   Future<void> _writeSealed(
     File target,
     Uint8List plain, {
-    required bool embedKey,
+    required Uint8List token,
+    required Uint8List context,
   }) async {
     final key = await crypto.newFileKey(master);
     final part = File('${target.path}.part');
-    final raf = await part.open(mode: FileMode.write);
     try {
-      await _sealer.seal(
-        key: key,
-        plain: Stream.value(plain),
-        plainLength: plain.length,
-        out: (b) async => await raf.writeFrom(b),
-        embedKey: embedKey,
-        secret: _token,
-      );
-      await raf.flush();
-    } finally {
-      await raf.close();
+      final raf = await part.open(mode: FileMode.write);
+      try {
+        await _sealer.seal(
+          key: key,
+          plain: Stream.value(plain),
+          plainLength: plain.length,
+          out: (b) async => await raf.writeFrom(b),
+          embedKey: true,
+          secret: token,
+          context: context,
+        );
+        await raf.flush();
+      } finally {
+        await raf.close();
+      }
+      await part.rename(target.path);
+    } on Object {
+      if (part.existsSync()) {
+        try {
+          part.deleteSync();
+        } on FileSystemException {
+          // Left for the next write over it.
+        }
+      }
+      rethrow;
     }
-    await part.rename(target.path);
   }
 
-  Future<void> _saveIndex() async {
+  Future<void> _saveIndex(Uint8List token, {File? to}) async {
     final json = utf8.encode(jsonEncode([for (final i in _items) i.toJson()]));
-    await _writeSealed(_index, Uint8List.fromList(json), embedKey: true);
+    await _writeSealed(
+      to ?? _index,
+      Uint8List.fromList(json),
+      token: token,
+      context: _indexContext(_name),
+    );
   }
 
   /// Everything in the vault, newest first.
@@ -331,57 +396,59 @@ final class VaultContainer {
     bool favourite = false,
     String? label,
     DateTime? now,
-  }) async {
-    _live();
-    final id = _hex(randomBytes(16));
-    final file = _file(id);
-    final key = await crypto.newFileKey(master);
+  }) => _serial(() async {
+    final token = Uint8List.fromList(_token);
     try {
-      final raf = await file.open(mode: FileMode.write);
+      final id = _hex(randomBytes(16));
+      final file = _file(id);
+      final key = await crypto.newFileKey(master);
       try {
-        await _sealer.seal(
-          key: key,
-          plain: content,
-          plainLength: size,
-          out: (b) async => await raf.writeFrom(b),
-        );
-        await raf.flush();
-      } finally {
-        await raf.close();
+        final raf = await file.open(mode: FileMode.write);
+        try {
+          await _sealer.seal(
+            key: key,
+            plain: content,
+            plainLength: size,
+            out: (b) async => await raf.writeFrom(b),
+          );
+          await raf.flush();
+        } finally {
+          await raf.close();
+        }
+        await _verify(file, key, size);
+      } on Object {
+        if (file.existsSync()) file.deleteSync();
+        rethrow;
       }
-      await _verify(file, key, size);
-    } on Object {
-      if (file.existsSync()) file.deleteSync();
-      rethrow;
+      final item = VaultItem(
+        id: id,
+        name: name,
+        kind: kind,
+        size: size,
+        addedAt: now ?? DateTime.now(),
+        key: key.bytes,
+        takenAt: takenAt,
+        width: width,
+        height: height,
+        tags: tags,
+        halfStars: halfStars,
+        favourite: favourite,
+        label: label,
+      );
+      final before = _items;
+      _items = [..._items, item];
+      try {
+        await _saveIndex(token);
+      } on Object {
+        _items = before;
+        if (file.existsSync()) file.deleteSync();
+        rethrow;
+      }
+      return item;
+    } finally {
+      token.fillRange(0, token.length, 0);
     }
-    final item = VaultItem(
-      id: id,
-      name: name,
-      kind: kind,
-      size: size,
-      addedAt: now ?? DateTime.now(),
-      key: key.bytes,
-      takenAt: takenAt,
-      width: width,
-      height: height,
-      tags: tags,
-      halfStars: halfStars,
-      favourite: favourite,
-      label: label,
-    );
-    _items = [..._items, item];
-    try {
-      await _saveIndex();
-    } on Object {
-      _items = [
-        for (final i in _items)
-          if (i.id != id) i,
-      ];
-      if (file.existsSync()) file.deleteSync();
-      rethrow;
-    }
-    return item;
-  }
+  });
 
   Future<void> _verify(File file, WrappedKey key, int size) async {
     final raf = await file.open();
@@ -433,66 +500,124 @@ final class VaultContainer {
 
   /// Stores a small picture of [id] (sealed like everything else) so the grid
   /// never decrypts the whole file.
-  Future<void> putThumbnail(String id, Uint8List bytes) async {
-    _live();
-    await _writeSealed(_thumb(id), bytes, embedKey: true);
-  }
+  Future<void> putThumbnail(String id, Uint8List bytes) => _serial(() async {
+    final token = Uint8List.fromList(_token);
+    try {
+      await _writeSealed(
+        _thumb(id),
+        bytes,
+        token: token,
+        context: _thumbContext(id),
+      );
+    } finally {
+      token.fillRange(0, token.length, 0);
+    }
+  });
 
   /// The stored picture of [id], or null when there is none.
   Future<Uint8List?> thumbnail(String id) async {
     _live();
     final f = _thumb(id);
     if (!f.existsSync()) return null;
+    final token = Uint8List.fromList(_token);
     try {
       final reader = await VaultReader.open(
         crypto: crypto,
         source: MemoryVaultSource(await f.readAsBytes()),
         master: master,
-        secret: _token,
+        secret: token,
+        context: _thumbContext(id),
       );
       return await reader.readAll();
     } on VaultCorrupt {
       return null;
+    } finally {
+      token.fillRange(0, token.length, 0);
     }
   }
 
   /// Takes [id] out of the vault for good.
-  Future<void> remove(String id) async {
-    _live();
-    _items = [
-      for (final i in _items)
-        if (i.id != id) i,
-    ];
-    await _saveIndex();
-    for (final f in [_file(id), _thumb(id)]) {
-      if (f.existsSync()) f.deleteSync();
+  Future<void> remove(String id) => _serial(() async {
+    final token = Uint8List.fromList(_token);
+    try {
+      final before = _items;
+      _items = [
+        for (final i in _items)
+          if (i.id != id) i,
+      ];
+      try {
+        await _saveIndex(token);
+      } on Object {
+        _items = before;
+        rethrow;
+      }
+      for (final f in [_file(id), _thumb(id)]) {
+        if (f.existsSync()) f.deleteSync();
+      }
+    } finally {
+      token.fillRange(0, token.length, 0);
     }
-  }
+  });
 
-  /// Binds the vault to a new PIN token: the index and the thumbnails are
-  /// sealed again (the files themselves do not depend on the PIN).
-  Future<void> rekey(Uint8List newToken) async {
-    _live();
+  /// First half of Change PIN: writes the index sealed for [newToken] beside
+  /// the current one (`index.mv.next`). Nothing else changes; the manager
+  /// then writes the matching salt and calls [commitRekey]. A cut-off between
+  /// the two leaves both pairs on disk, and opening takes whichever the PIN
+  /// fits.
+  Future<void> prepareRekey(Uint8List newToken) => _serial(() async {
+    final token = Uint8List.fromList(newToken);
+    try {
+      await _saveIndex(token, to: _indexNext);
+    } finally {
+      token.fillRange(0, token.length, 0);
+    }
+  });
+
+  /// Second half: the new index takes the place of the old, the pictures are
+  /// sealed again (best effort: one that is not, is decoded from its photo),
+  /// and [newToken] becomes the token in use. The token in use is changed
+  /// only when the rename has worked.
+  Future<void> commitRekey(Uint8List newToken) => _serial(() async {
     final thumbs = <String, Uint8List>{};
     for (final i in _items) {
       final t = await thumbnail(i.id);
       if (t != null) thumbs[i.id] = t;
     }
+    await _indexNext.rename(_index.path);
     final old = _token;
     _token = Uint8List.fromList(newToken);
-    await _saveIndex();
-    for (final e in thumbs.entries) {
-      await _writeSealed(_thumb(e.key), e.value, embedKey: true);
-    }
     old.fillRange(0, old.length, 0);
+    final token = Uint8List.fromList(_token);
+    try {
+      for (final e in thumbs.entries) {
+        try {
+          await _writeSealed(
+            _thumb(e.key),
+            e.value,
+            token: token,
+            context: _thumbContext(e.key),
+          );
+        } on Object {
+          // Decoded from the photo next time.
+        }
+      }
+    } finally {
+      token.fillRange(0, token.length, 0);
+    }
+  });
+
+  /// Drops a half-made new index.
+  Future<void> abandonRekey() async {
+    if (_indexNext.existsSync()) _indexNext.deleteSync();
   }
 
-  /// The vault is locked: the token is zeroed and nothing is listed.
+  /// The vault is locked: nothing more starts, work under way finishes on
+  /// its own copy of the token, and then the token is zeroed.
   void close() {
     if (_closed) return;
     _closed = true;
-    _token.fillRange(0, _token.length, 0);
     _items = const [];
+    unawaited(_tail.whenComplete(() => _token.fillRange(0, _token.length, 0)));
   }
 
   bool get isClosed => _closed;

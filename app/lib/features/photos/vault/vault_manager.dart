@@ -52,6 +52,9 @@ enum VaultOutcome {
 
   /// Fingerprint unlock is not turned on.
   noFingerprint,
+
+  /// The PIN chosen is one another vault already uses.
+  pinNotAllowed,
 }
 
 /// A vault that is open: its container and the keystore handle behind it.
@@ -107,6 +110,7 @@ final class VaultManager {
     required this.crypto,
     required this.secure,
     this.iterations = vaultKdfIterations,
+    this.minRounds = vaultKdfIterations,
     DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
@@ -114,6 +118,11 @@ final class VaultManager {
   final VaultCryptoFacade crypto;
   final SecureStorageFacade secure;
   final int iterations;
+
+  /// The fewest rounds a salt file may name; a file that names fewer is read
+  /// as this many.
+  final int minRounds;
+  static const int maxRounds = 10000000;
   final DateTime Function() _clock;
 
   static const String _bioKey = 'photos.vault.fingerprint';
@@ -125,6 +134,9 @@ final class VaultManager {
   static const int freeAttempts = 3;
   static const Duration firstWait = Duration(seconds: 30);
   static const Duration longestWait = Duration(days: 1);
+
+  /// A miss is forgiven after four hours.
+  static const double missesForgivenPerHour = 0.25;
 
   static final RegExp _dirName = RegExp(r'^[0-9a-f]{16}$');
 
@@ -143,22 +155,27 @@ final class VaultManager {
 
   File _saltFile(Directory d) => File('${d.path}${Platform.pathSeparator}salt');
 
-  Future<({Uint8List salt, int rounds})> _salt(Directory d) async {
-    final b = await _saltFile(d).readAsBytes();
-    if (b.length != 20) throw const VaultCorrupt('salt');
-    return (
-      salt: Uint8List.sublistView(b, 0, 16),
-      rounds: ByteData.sublistView(b).getUint32(16),
-    );
-  }
+  File _saltNextFile(Directory d) =>
+      File('${d.path}${Platform.pathSeparator}salt.next');
 
-  Future<void> _writeSalt(Directory d, Uint8List salt, int rounds) async {
+  Future<void> _writeSalt(
+    Directory d,
+    Uint8List salt,
+    int rounds, {
+    bool next = false,
+  }) async {
     final b = BytesBuilder()
       ..add(salt)
       ..add((ByteData(4)..setUint32(0, rounds)).buffer.asUint8List());
-    final part = File('${_saltFile(d).path}.part');
-    await part.writeAsBytes(b.takeBytes(), flush: true);
-    await part.rename(_saltFile(d).path);
+    final target = next ? _saltNextFile(d) : _saltFile(d);
+    final part = File('${target.path}.part');
+    try {
+      await part.writeAsBytes(b.takeBytes(), flush: true);
+      await part.rename(target.path);
+    } on Object {
+      if (part.existsSync()) part.deleteSync();
+      rethrow;
+    }
   }
 
   static String _randomName() =>
@@ -256,78 +273,220 @@ final class VaultManager {
 
   // ---- PIN -------------------------------------------------------------
 
-  Future<Duration?> _waitLeft() async {
+  // ---- wrong PINs ------------------------------------------------------
+
+  Future<_Misses> _loadMisses() async {
+    final now = _clock().millisecondsSinceEpoch;
     final raw = await secure.read(_attemptsKey);
-    if (raw == null) return null;
-    final parts = raw.split(':');
-    if (parts.length != 2) return null;
-    final until = int.tryParse(parts[1]);
-    if (until == null) return null;
-    final left = DateTime.fromMillisecondsSinceEpoch(until)
-        .difference(_clock());
+    final parts = raw?.split(':');
+    if (parts == null || parts.length != 4 || parts[0] != 'v2') {
+      return _Misses(0, now, 0);
+    }
+    var count = double.tryParse(parts[1]) ?? 0;
+    final stamp = int.tryParse(parts[2]) ?? now;
+    var until = int.tryParse(parts[3]) ?? 0;
+    // A clock set back earns no forgiveness and cannot stretch a wait past
+    // the longest one.
+    final hours = now > stamp
+        ? (now - stamp) / Duration.millisecondsPerHour
+        : 0;
+    count = max<double>(0, count - hours * missesForgivenPerHour);
+    final cap = now + longestWait.inMilliseconds;
+    if (until > cap) until = cap;
+    return _Misses(count, now, until);
+  }
+
+  Future<void> _saveMisses(_Misses m) => secure.write(
+    _attemptsKey,
+    'v2:${m.count.toStringAsFixed(4)}:${m.stamp}:${m.until}',
+  );
+
+  Duration _waitFor(double misses) {
+    final n = misses.ceil();
+    if (n <= freeAttempts) return Duration.zero;
+    final wait = firstWait * (1 << min(n - freeAttempts - 1, 12));
+    return wait > longestWait ? longestWait : wait;
+  }
+
+  /// Counts an attempt BEFORE the work that tells whether the PIN is right,
+  /// so stopping the app in the middle buys no free guess. Null: go ahead;
+  /// otherwise the wait still to run. Misses are not cleared by success
+  /// (whoever holds one PIN cannot reset the count for the other); they fade
+  /// by [missesForgivenPerHour].
+  Future<Duration?> _countAttempt() async {
+    final m = await _loadMisses();
+    final left = Duration(milliseconds: m.until - m.stamp);
+    if (left > Duration.zero) return left;
+    final next = _Misses(m.count + 1, m.stamp, 0);
+    final wait = _waitFor(next.count);
+    await _saveMisses(
+      _Misses(
+        next.count,
+        next.stamp,
+        wait == Duration.zero ? 0 : m.stamp + wait.inMilliseconds,
+      ),
+    );
+    return null;
+  }
+
+  /// Gives back the attempt that [_countAttempt] counted (a PIN that opened
+  /// the vault it was for); earlier misses stay.
+  Future<void> _refundAttempt() async {
+    final m = await _loadMisses();
+    final count = max<double>(0, m.count - 1);
+    await _saveMisses(_Misses(count, m.stamp, 0));
+  }
+
+  /// The wait now running, if any.
+  Future<Duration?> _waitLeft() async {
+    final m = await _loadMisses();
+    final left = Duration(milliseconds: m.until - m.stamp);
     return left > Duration.zero ? left : null;
   }
 
-  Future<void> _recordMiss() async {
-    final raw = await secure.read(_attemptsKey);
-    var n = int.tryParse(raw?.split(':').first ?? '') ?? 0;
-    n++;
-    var until = 0;
-    if (n > freeAttempts) {
-      final factor = 1 << min(n - freeAttempts - 1, 12);
-      final wait = firstWait * factor;
-      until = _clock()
-          .add(wait > longestWait ? longestWait : wait)
-          .millisecondsSinceEpoch;
-    }
-    await secure.write(_attemptsKey, '$n:$until');
+  // ---- opening with a PIN ----------------------------------------------
+
+  /// The salt (and rounds) of [d], or of the pair a cut-off Change PIN left
+  /// beside it. The rounds are kept within [minRounds] and [maxRounds], so a
+  /// salt file edited to make the PIN cheap to guess does not.
+  Future<({Uint8List salt, int rounds})?> _readSalt(
+    Directory d, {
+    bool next = false,
+  }) async {
+    final f = next ? _saltNextFile(d) : _saltFile(d);
+    if (!f.existsSync()) return null;
+    final b = await f.readAsBytes();
+    if (b.length != 20) return null;
+    final rounds = ByteData.sublistView(b).getUint32(16);
+    return (
+      salt: Uint8List.fromList(b.sublist(0, 16)),
+      rounds: rounds.clamp(minRounds, maxRounds),
+    );
   }
 
-  Future<void> _forgetMisses() => secure.delete(_attemptsKey);
+  /// Tries a PIN on the folder [d]: the pair of files it normally has, and
+  /// the pair a Change PIN that was cut short wrote. The pair that opens
+  /// becomes the folder's, the other is removed.
+  Future<VaultContainer?> _openDir(
+    Directory d,
+    VaultKeyHandle master,
+    Future<Uint8List>? current,
+    Future<Uint8List>? pending,
+  ) async {
+    final tokens = <Uint8List?>[
+      if (current == null) null else await current,
+      if (pending == null) null else await pending,
+    ];
+    try {
+      for (var s = 0; s < 2; s++) {
+        final token = tokens[s];
+        if (token == null) continue;
+        for (final nextIndex in [false, true]) {
+          if (nextIndex &&
+              !File(
+                '${d.path}${Platform.pathSeparator}${VaultContainer.indexName}'
+                '${VaultContainer.nextSuffix}',
+              ).existsSync()) {
+            continue;
+          }
+          try {
+            final c = await VaultContainer.open(
+              directory: d,
+              crypto: crypto,
+              master: master,
+              token: token,
+              next: nextIndex,
+            );
+            await _settle(d, saltNext: s == 1, indexNext: nextIndex);
+            return c;
+          } on VaultCorrupt {
+            // Not this pair.
+          }
+        }
+      }
+      return null;
+    } finally {
+      for (final t in tokens) {
+        t?.fillRange(0, t.length, 0);
+      }
+    }
+  }
+
+  /// Makes the pair that opened the folder's own and drops what is left of
+  /// the other.
+  Future<void> _settle(
+    Directory d, {
+    required bool saltNext,
+    required bool indexNext,
+  }) async {
+    final sep = Platform.pathSeparator;
+    final index = '${d.path}$sep${VaultContainer.indexName}';
+    final indexNextFile = File('$index${VaultContainer.nextSuffix}');
+    try {
+      if (saltNext) await _saltNextFile(d).rename(_saltFile(d).path);
+      if (indexNext) await indexNextFile.rename(index);
+      if (_saltNextFile(d).existsSync()) _saltNextFile(d).deleteSync();
+      if (indexNextFile.existsSync()) indexNextFile.deleteSync();
+    } on FileSystemException {
+      // The pair that opened still opens next time.
+    }
+  }
 
   /// Opens the vault [pin] belongs to. Both vaults are tried every time, so
-  /// a right PIN of either costs the same as a wrong one.
+  /// a right PIN of either costs the same as a wrong one, and the attempt is
+  /// counted before the work starts.
   Future<VaultOpenResult> openWithPin(String pin) async {
     final dirs = _dirs();
     if (dirs.isEmpty) return const VaultOpenResult(VaultOutcome.needsSetup);
-    final wait = await _waitLeft();
+    final wait = await _countAttempt();
     if (wait != null) {
       return VaultOpenResult(VaultOutcome.waitToRetry, wait: wait);
     }
     VaultKeyHandle? master;
-    final tokens = <Uint8List>[];
     try {
-      final salts = [for (final d in dirs) await _salt(d)];
-      tokens.addAll(
-        await Future.wait([
-          for (final s in salts) derivePinToken(pin, s.salt, s.rounds),
-        ]),
-      );
+      final cur = <Future<Uint8List>?>[];
+      final nxt = <Future<Uint8List>?>[];
+      for (final d in dirs) {
+        final a = await _readSalt(d);
+        final b = await _readSalt(d, next: true);
+        cur.add(a == null ? null : derivePinToken(pin, a.salt, a.rounds));
+        nxt.add(b == null ? null : derivePinToken(pin, b.salt, b.rounds));
+      }
       master = await crypto.openMasterKey(requireBiometry: false);
       VaultContainer? found;
+      var lost = 0;
       for (var i = 0; i < dirs.length; i++) {
         try {
-          final c = await VaultContainer.open(
-            directory: dirs[i],
-            crypto: crypto,
-            master: master,
-            token: tokens[i],
-          );
-          found ??= c;
-          if (!identical(found, c)) c.close();
-        } on VaultCorrupt {
-          // Not this one.
+          final c = await _openDir(dirs[i], master, cur[i], nxt[i]);
+          if (c == null) continue;
+          if (found == null) {
+            found = c;
+          } else {
+            c.close();
+          }
+        } on VaultCryptoException catch (e) {
+          // One folder whose key is gone or whose data is damaged is not
+          // this PIN's vault; it must not shut out the other.
+          if (e.error == VaultCryptoError.keyLost ||
+              e.error == VaultCryptoError.keyInvalidated ||
+              e.error == VaultCryptoError.integrityFailure) {
+            lost++;
+          } else {
+            rethrow;
+          }
         }
       }
       if (found != null) {
-        await _forgetMisses();
+        await _refundAttempt();
         return VaultOpenResult(
           VaultOutcome.opened,
           vault: OpenVault._(found, this, master),
         );
       }
       await crypto.close(master);
-      await _recordMiss();
+      if (lost == dirs.length) {
+        return const VaultOpenResult(VaultOutcome.keyLost);
+      }
       final left = await _waitLeft();
       return left == null
           ? const VaultOpenResult(VaultOutcome.wrongPin)
@@ -342,10 +501,6 @@ final class VaultManager {
     } on Object {
       if (master != null) await crypto.close(master);
       return const VaultOpenResult(VaultOutcome.damaged);
-    } finally {
-      for (final t in tokens) {
-        t.fillRange(0, t.length, 0);
-      }
     }
   }
 
@@ -388,7 +543,6 @@ final class VaultManager {
         master: master,
         token: token,
       );
-      await _forgetMisses();
       return VaultOpenResult(
         VaultOutcome.opened,
         vault: OpenVault._(c, this, master),
@@ -469,25 +623,56 @@ final class VaultManager {
 
   // ---- changing and ending ---------------------------------------------
 
-  /// Gives the open vault a new PIN. The fingerprint is turned off if it was
-  /// on for this vault (it held the old token); turn it on again.
-  Future<void> changePin(OpenVault vault, String newPin) async {
+  /// Gives the open vault a new PIN, safely: the new index and the new salt
+  /// are written beside the old ones, then swapped in, and opening takes
+  /// whichever pair the PIN fits, so a stop at any moment leaves a vault that
+  /// opens. The new PIN is first tried on the other vaults (counted like any
+  /// attempt): one of theirs is refused, because the two would collide. The
+  /// fingerprint is turned off if it was on for this vault (it held the old
+  /// token). Returns [VaultOutcome.opened] when it worked,
+  /// [VaultOutcome.pinNotAllowed] for a PIN another vault uses.
+  Future<VaultOutcome> changePin(OpenVault vault, String newPin) async {
+    final here = vault.container.directory;
+    final wait = await _countAttempt();
+    if (wait != null) return VaultOutcome.waitToRetry;
+    // Does the new PIN already open another vault?
+    for (final d in _dirs()) {
+      if (d.path == here.path) continue;
+      final a = await _readSalt(d);
+      final b = await _readSalt(d, next: true);
+      final other = await _openDir(
+        d,
+        vault._master,
+        a == null ? null : derivePinToken(newPin, a.salt, a.rounds),
+        b == null ? null : derivePinToken(newPin, b.salt, b.rounds),
+      );
+      if (other != null) {
+        other.close();
+        return VaultOutcome.pinNotAllowed;
+      }
+    }
     final salt = randomBytes(16);
     final token = await derivePinToken(newPin, salt, iterations);
     try {
-      await vault.container.rekey(token);
-      await _writeSalt(vault.container.directory, salt, iterations);
-      final raw = await secure.read(_bioKey);
-      if (raw != null) {
-        final j = jsonDecode(raw) as Map<String, Object?>;
-        if (j['d'] ==
-            vault.container.directory.path.split(Platform.pathSeparator).last) {
-          await secure.delete(_bioKey);
-        }
-      }
+      await vault.container.prepareRekey(token);
+      await _writeSalt(here, salt, iterations, next: true);
+      await vault.container.commitRekey(token);
+      await _saltNextFile(here).rename(_saltFile(here).path);
+    } on Object {
+      await vault.container.abandonRekey();
+      if (_saltNextFile(here).existsSync()) _saltNextFile(here).deleteSync();
+      rethrow;
     } finally {
       token.fillRange(0, token.length, 0);
     }
+    final raw = await secure.read(_bioKey);
+    if (raw != null) {
+      final j = jsonDecode(raw) as Map<String, Object?>;
+      if (j['d'] == here.path.split(Platform.pathSeparator).last) {
+        await secure.delete(_bioKey);
+      }
+    }
+    return VaultOutcome.opened;
   }
 
   /// Deletes both vaults and everything in them, the fingerprint entry and
@@ -505,4 +690,14 @@ final class VaultManager {
     await secure.delete(_bioKey);
     await secure.delete(_attemptsKey);
   }
+}
+
+/// How many wrong guesses are on record, when that was last worked out, and
+/// until when the next try must wait (milliseconds since the epoch).
+final class _Misses {
+  const _Misses(this.count, this.stamp, this.until);
+
+  final double count;
+  final int stamp;
+  final int until;
 }

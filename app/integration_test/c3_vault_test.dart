@@ -24,10 +24,28 @@ void main() {
   late ProviderContainer c;
   late VaultManager manager;
 
-  setUp(() {
+  // The vault key and the vault entries in secure storage are the app's own,
+  // not the test's: on a phone that already has a real vault these tests
+  // would use (and, in reset, delete) the real key. They run only where there
+  // is no vault yet.
+  var realVault = false;
+
+  /// True (and the test is marked skipped) when the phone has a real vault.
+  bool skipForRealVault() {
+    if (!realVault) return false;
+    markTestSkipped('this phone has a vault of its own; not touching its key');
+    return true;
+  }
+
+  setUp(() async {
     dir = Directory.systemTemp.createTempSync('c3-vault');
     c = ProviderContainer(overrides: platformOverrides());
     if (!Platform.isAndroid) return;
+    final real = Directory.fromUri(
+      await c.read(imagingProvider).noBackupDirectory('vault'),
+    );
+    realVault =
+        real.existsSync() && real.listSync().whereType<Directory>().isNotEmpty;
     manager = VaultManager(
       root: Directory('${dir.path}/vault'),
       crypto: c.read(vaultCryptoProvider),
@@ -36,7 +54,7 @@ void main() {
   });
 
   tearDown(() async {
-    if (Platform.isAndroid) await manager.reset();
+    if (Platform.isAndroid && !realVault) await manager.reset();
     c.dispose();
     dir.deleteSync(recursive: true);
   });
@@ -47,6 +65,7 @@ void main() {
   testWidgets('IMG-011 two vaults, a PIN each, and a photo that reads back', (
     tester,
   ) async {
+    if (skipForRealVault()) return;
     final m = manager;
     final kdf = Stopwatch()..start();
     final made = await m.setUp(pin: '246810', decoyPin: '135790');
@@ -82,6 +101,7 @@ void main() {
   testWidgets('IMG-011 nothing readable is on disk and the folder is private', (
     tester,
   ) async {
+    if (skipForRealVault()) return;
     final m = manager;
     final r = await m.setUp(pin: '246810');
     final secret = bytes(200000, 3);
@@ -107,6 +127,7 @@ void main() {
   testWidgets(
     'IMG-011 locking releases the keystore handle and a tampered file fails',
     (tester) async {
+      if (skipForRealVault()) return;
       final m = manager;
       final r = await m.setUp(pin: '246810');
       final data = bytes(500000, 5);
@@ -133,6 +154,7 @@ void main() {
   testWidgets(
     'IMG-011 reset deletes the Keystore key and a new vault can be made',
     (tester) async {
+      if (skipForRealVault()) return;
       final m = manager;
       final first = await m.setUp(pin: '246810');
       expect(first.isOpen, isTrue, reason: '${first.outcome}');

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,7 @@ void main() {
     Uint8List plain, {
     Stream<List<int>>? as,
     bool embed = false,
+    Uint8List? context,
     Uint8List? secret,
     WrappedKey? key,
   }) async {
@@ -38,6 +40,7 @@ void main() {
       out: (b) async => out.add(b),
       embedKey: embed,
       secret: secret,
+      context: context,
     );
     return (out.takeBytes(), k);
   }
@@ -46,11 +49,13 @@ void main() {
     Uint8List file,
     WrappedKey key, {
     Uint8List? secret,
+    Uint8List? context,
   }) => VaultReader.open(
     crypto: crypto,
     source: MemoryVaultSource(file),
     key: key,
     secret: secret,
+    context: context,
   );
 
   group('IMG-011 sealed file layout', () {
@@ -247,6 +252,29 @@ void main() {
         await expectLater(r.readAll(), throwsA(isA<VaultCorrupt>()));
       }
     });
+
+    test(
+      'IMG-011 a file opens only for the purpose and item it was sealed for',
+      () async {
+        final token = bytesOf(32, 3);
+        final ctx = Uint8List.fromList(utf8.encode('thumb:a'));
+        final (file, key) = await sealed(
+          bytesOf(500),
+          secret: token,
+          context: ctx,
+        );
+        final good = await reader(file, key, secret: token, context: ctx);
+        expect(await good.readAll(), bytesOf(500));
+        for (final bad in [
+          Uint8List.fromList(utf8.encode('thumb:b')),
+          Uint8List.fromList(utf8.encode('index:a')),
+          null,
+        ]) {
+          final r = await reader(file, key, secret: token, context: bad);
+          await expectLater(r.readAll(), throwsA(isA<VaultCorrupt>()));
+        }
+      },
+    );
 
     test(
       'IMG-011 a file that carries its key opens with the master only',

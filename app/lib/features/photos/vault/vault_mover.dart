@@ -152,8 +152,9 @@ final class VaultMover {
       }
       VaultItem? item;
       var originalDeleted = false;
+      Uri? origin;
       try {
-        final origin = await files.uriOf(p);
+        origin = await files.uriOf(p);
         final probe = await files.open(p);
         final int length;
         try {
@@ -199,15 +200,44 @@ final class VaultMover {
         }
         moved++;
       } on Object {
-        if (item != null && !originalDeleted) {
-          // The original is still there: the vault copy must not be.
+        if (item != null && !originalDeleted && origin != null) {
+          // Did the delete fail, or fail after it had done its work? Look
+          // before taking the vault copy away: if the original is gone the
+          // vault copy is the only one.
+          bool? stillThere;
           try {
-            await container.remove(item.id);
+            stillThere = await io.exists(origin);
           } on Object {
-            // Nothing more to do; the next open lists it.
+            stillThere = null;
           }
+          if (stillThere ?? false) {
+            // The original is still there: the vault copy must not be.
+            try {
+              await container.remove(item.id);
+            } on Object {
+              // Nothing more to do; the next open lists it.
+            }
+            failed.add(p.name);
+          } else if (stillThere == null) {
+            // Cannot tell: keep both rather than risk the only copy.
+            leftInLibrary.add(p.name);
+          } else {
+            try {
+              await _scrubLibrary(p);
+              await pipeline.forgetThumbnails(
+                uri: origin,
+                size: p.size,
+                mtime: p.mtime,
+                orientation: p.orientation ?? 1,
+              );
+            } on Object {
+              leftInLibrary.add(p.name);
+            }
+            moved++;
+          }
+        } else if (!originalDeleted) {
+          failed.add(p.name);
         }
-        if (!originalDeleted) failed.add(p.name);
       }
       onProgress?.call(++n);
     }

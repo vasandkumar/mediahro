@@ -852,7 +852,7 @@
   },
   "photosVault": "Vault",
   "photosVaultSubtitle": "Private photos, locked with a PIN",
-  "photosVaultIntro": "Keep private photos behind a PIN, and your fingerprint or screen lock if you like. They are encrypted on this device, kept out of the gallery and out of backups, and hidden from screenshots and the app switcher.",
+  "photosVaultIntro": "Keep private photos behind a PIN, and your fingerprint if you like. They are encrypted on this device, kept out of the gallery and out of backups, and hidden from screenshots and the app switcher.",
   "photosVaultSetUpTitle": "Set up the vault",
   "photosVaultPinLabel": "PIN, 4 to 12 digits",
   "photosVaultPinRepeat": "Repeat the PIN",
@@ -862,8 +862,8 @@
   "photosVaultSecondBody": "A second, separate vault that opens with another PIN. It looks exactly like this one and holds only what you put in it, so you can open it if someone makes you open the vault. Nothing in the app shows that it exists. Anyone who examines this phone's storage can still find that there are two vaults.",
   "photosVaultSecondPin": "PIN of the second vault",
   "photosVaultSecondSame": "The second PIN must differ from the first.",
-  "photosVaultUseFingerprint": "Open with fingerprint or screen lock",
-  "photosVaultFingerprintNote": "Needs a screen lock on this device. If you add a fingerprint to the phone later, this turns itself off; the PIN keeps working.",
+  "photosVaultUseFingerprint": "Open with fingerprint",
+  "photosVaultFingerprintNote": "Needs a fingerprint on this phone. If you add or remove a fingerprint on the phone later, this turns itself off; the PIN keeps working.",
   "photosVaultSetUp": "Set up",
   "photosVaultEnterPin": "Enter your PIN",
   "photosVaultUnlock": "Unlock",
@@ -928,11 +928,11 @@
     }
   },
   "photosVaultCancelled": "The vault stayed locked.",
-  "photosVaultNotEnrolled": "Set a screen lock or a fingerprint on this device first.",
+  "photosVaultNotEnrolled": "Set a screen lock on this phone first. To open with a fingerprint, add one too.",
   "photosVaultFingerprintInvalidated": "The fingerprints on this phone changed, so the fingerprint no longer opens the vault. Use your PIN; inside the vault you can turn the fingerprint on again.",
   "photosVaultKeyLost": "This vault's key is gone from the phone (the data was restored on another device, or the key store was reset). The vault can't be opened any more.",
   "photosVaultLockedOut": "Too many fingerprint attempts. Wait a little, or use your PIN.",
-  "photosVaultAuthFailed": "The fingerprint or screen lock wasn't accepted.",
+  "photosVaultAuthFailed": "That fingerprint wasn't accepted.",
   "photosVaultUnavailable": "The vault isn't available on this device.",
   "photosVaultDamaged": "The vault's files are damaged and can't be read.",
   "photosVaultReset": "Reset the vault",
@@ -949,7 +949,8 @@
   "photosVaultFingerprintOn": "The fingerprint now opens this vault.",
   "photosVaultFingerprintOff": "The fingerprint no longer opens a vault.",
   "photosVaultChangePin": "Change PIN",
-  "photosVaultChangePinDone": "PIN changed. Fingerprint unlock is off for this vault; turn it on again if you want it.",
+  "photosVaultChangePinDone": "PIN changed.",
+  "photosVaultChangePinDoneFingerprintOff": "PIN changed. Fingerprint unlock is now off; turn it on again if you want it.",
   "photosVaultNewPin": "New PIN",
   "photosVaultMove": "Move to vault",
   "photosVaultMoveTitle": "{count, plural, =1{Move this photo to the vault?} other{Move {count} photos to the vault?}}",
@@ -1033,5 +1034,8 @@
     }
   },
   "photosVaultOpenFailed": "This photo can't be opened.",
-  "photosVaultLocked": "The vault is locked."
+  "photosVaultLocked": "The vault is locked.",
+  "photosVaultFingerprintWarning": "Anyone can make you place your finger on the phone. The fingerprint opens the vault it was turned on in, so turn it on only in the vault you would not mind being made to open.",
+  "photosVaultPinNotAllowed": "Choose a different PIN.",
+  "photosVaultPinHelp": "The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type."
 }

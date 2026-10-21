@@ -19,9 +19,9 @@ Uint8List bytesOf(int n, [int seed = 1]) =>
 
 /// Waits for real work the screen started (isolates, files): alternate the
 /// real event loop with the fake-async microtasks.
-Future<void> settleReal(WidgetTester tester) async {
+Future<void> settleReal(WidgetTester tester, {int quietPumps = 20}) async {
   var quiet = 0;
-  for (var i = 0; i < 400 && quiet < 20; i++) {
+  for (var i = 0; i < 800 && quiet < quietPumps; i++) {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
@@ -92,6 +92,7 @@ void main() {
       crypto: crypto,
       secure: secure,
       iterations: 4,
+      minRounds: 1,
       clock: () => now,
     );
   });
@@ -105,9 +106,9 @@ void main() {
     }
   });
 
-  Future<void> open(WidgetTester tester) async {
+  Future<void> open(WidgetTester tester, {double height = 900}) async {
     tester.view
-      ..physicalSize = const Size(400, 900)
+      ..physicalSize = Size(400, height)
       ..devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -193,7 +194,7 @@ void main() {
     testWidgets('IMG-011 the first visit offers set-up and checks the PINs', (
       tester,
     ) async {
-      await open(tester);
+      await open(tester, height: 1400);
       expect(find.text('Set up the vault'), findsOneWidget);
       final fields = find.byType(TextField);
       final set = find.widgetWithText(FilledButton, 'Set up');
@@ -205,11 +206,13 @@ void main() {
       expect(find.text('Use 4 to 12 digits.'), findsOneWidget);
       await tester.enterText(fields.at(0), '246810');
       await tester.enterText(fields.at(1), '246811');
+      await tester.ensureVisible(set);
       await tester.tap(set);
       await tester.pump();
       expect(find.text('The two PINs differ.'), findsOneWidget);
       await tester.enterText(fields.at(1), '246810');
       await tester.enterText(fields.at(2), '246810');
+      await tester.ensureVisible(set);
       await tester.tap(set);
       await tester.pump();
       expect(
@@ -367,6 +370,11 @@ void main() {
       await tester.tap(find.byTooltip('More'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Fingerprint unlock'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Anyone can make you'), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Open with fingerprint'),
+      );
       await settleReal(tester);
       expect(
         find.text('The fingerprint now opens this vault.'),
@@ -573,7 +581,7 @@ void main() {
         await tester.enterText(fields.at(0), '999999');
         await tester.enterText(fields.at(1), '999999');
         await tester.tap(find.widgetWithText(FilledButton, 'Change PIN'));
-        await settleReal(tester);
+        await settleReal(tester, quietPumps: 100);
         expect(find.textContaining('PIN changed'), findsOneWidget);
         await tester.tap(find.byTooltip('Lock'));
         await settleReal(tester);
@@ -583,6 +591,99 @@ void main() {
         expect(find.bySemanticsLabel('one.mp4'), findsOneWidget);
       },
     );
+
+    Future<void> changePinTo(WidgetTester tester, String pin) async {
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Change PIN'));
+      await tester.pumpAndSettle();
+      final fields = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(fields.at(0), pin);
+      await tester.enterText(fields.at(1), pin);
+      await tester.tap(find.widgetWithText(FilledButton, 'Change PIN'));
+      await settleReal(tester, quietPumps: 100);
+    }
+
+    testWidgets('IMG-011 the other vault PIN is refused as a new PIN', (
+      tester,
+    ) async {
+      await seeded(tester, names: ['one.mp4']);
+      await open(tester);
+      await typePin(tester, '246810');
+      await changePinTo(tester, '135790');
+      expect(find.text('Choose a different PIN.'), findsOneWidget);
+      // Nothing changed: the old PIN still opens it and the other opens its own.
+      await tester.tap(find.byTooltip('Lock'));
+      await settleReal(tester);
+      await typePin(tester, '246810');
+      expect(find.bySemanticsLabel('one.mp4'), findsOneWidget);
+    });
+
+    testWidgets('IMG-011 a plain Change PIN does not mention the fingerprint', (
+      tester,
+    ) async {
+      await seeded(tester);
+      await open(tester);
+      await typePin(tester, '246810');
+      await changePinTo(tester, '999999');
+      expect(find.text('PIN changed.'), findsOneWidget);
+    });
+
+    testWidgets(
+      'IMG-011 the fingerprint stays on when the other vault changes its PIN',
+      (tester) async {
+        await seeded(tester);
+        await tester.runAsync(() async {
+          final v = (await manager.openWithPin('246810')).vault!;
+          await manager.setFingerprint(v, enabled: true);
+          await v.close();
+        });
+        await open(tester);
+        await typePin(tester, '135790');
+        await changePinTo(tester, '999999');
+        expect(find.text('PIN changed.'), findsOneWidget);
+        expect(await tester.runAsync(() => manager.fingerprintOn), isTrue);
+      },
+    );
+
+    testWidgets(
+      'IMG-011 changing the PIN of the vault with the fingerprint turns it off',
+      (tester) async {
+        await seeded(tester);
+        await tester.runAsync(() async {
+          final v = (await manager.openWithPin('246810')).vault!;
+          await manager.setFingerprint(v, enabled: true);
+          await v.close();
+        });
+        await open(tester);
+        await typePin(tester, '246810');
+        await changePinTo(tester, '999999');
+        expect(
+          find.textContaining('Fingerprint unlock is now off'),
+          findsOneWidget,
+        );
+        expect(await tester.runAsync(() => manager.fingerprintOn), isFalse);
+      },
+    );
+
+    testWidgets('IMG-011 the fingerprint is explained before it is turned on', (
+      tester,
+    ) async {
+      await seeded(tester);
+      await open(tester);
+      await typePin(tester, '246810');
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Fingerprint unlock'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Anyone can make you'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await settleReal(tester);
+      expect(await tester.runAsync(() => manager.fingerprintOn), isFalse);
+    });
   });
 
   group('IMG-011 a lost key', () {
@@ -592,6 +693,9 @@ void main() {
       await seeded(tester, names: ['one.mp4']);
       crypto.loseKeys();
       await open(tester);
+      await typePin(tester, '246810');
+      // One lost-key answer could be one damaged folder; Reset comes after two.
+      expect(find.text('Reset the vault'), findsNothing);
       await typePin(tester, '246810');
       expect(find.textContaining('key is gone'), findsOneWidget);
       await tester.tap(find.text('Reset the vault'));
@@ -615,6 +719,7 @@ void main() {
     await seeded(tester, names: ['one.mp4']);
     crypto.loseKeys();
     await open(tester);
+    await typePin(tester, '246810');
     await typePin(tester, '246810');
     crypto.failReset = VaultCryptoError.unavailable;
     await tester.tap(find.text('Reset the vault'));
