@@ -515,6 +515,128 @@ void main() {
       expect(net.openChains, 0);
     });
 
+    test('POD-002 unsubscribing in the middle of the step that writes a '
+        'refresh back waits for it, then removes everything', () async {
+      final show = await svc.subscribe('https://show.example/rss');
+      await svc.configure(show.id, autoDownload: 2);
+      downloads.have.add('https://cdn.example/ep2.mp3');
+      final withNew = podcastRss.replaceFirst(
+        '<item>',
+        '<item><title>Episode 3</title><guid>ep-3</guid> '
+            '<pubDate>Tue, 17 Jun 2025 04:00:00 GMT</pubDate> '
+            '<enclosure url="https://cdn.example/ep3.mp3" type="audio/mpeg"/></item><item>',
+      );
+      net.serve('https://show.example/rss', withNew, etag: '"v2"');
+      // The refresh has read the show and is looking at what is downloaded
+      // (an await inside the read-then-write step) when the listener
+      // unsubscribes.
+      downloads
+        ..statusAsked = Completer<void>()
+        ..statusGate = Completer<void>();
+      final refreshing = svc.refresh(show.id);
+      await downloads.statusAsked.future;
+      final unsubscribing = svc.unsubscribe(show.id);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final gate = downloads.statusGate!;
+      downloads.statusGate = null;
+      gate.complete();
+      await refreshing;
+      await unsubscribing;
+      expect(await svc.shows(), isEmpty);
+      expect(await store.show(show.id), isNull);
+      expect(downloads.enqueued, isEmpty);
+      expect(downloads.have, isEmpty);
+    });
+
+    test(
+      'POD-002 a setting changed during the write-back step is not lost',
+      () async {
+        final show = await svc.subscribe('https://show.example/rss');
+        await svc.configure(show.id, autoDownload: 2);
+        final withNew = podcastRss.replaceFirst(
+          '<item>',
+          '<item><title>Episode 3</title><guid>ep-3</guid> '
+              '<pubDate>Tue, 17 Jun 2025 04:00:00 GMT</pubDate> '
+              '<enclosure url="https://cdn.example/ep3.mp3" type="audio/mpeg"/></item><item>',
+        );
+        net.serve('https://show.example/rss', withNew, etag: '"v2"');
+        downloads
+          ..statusAsked = Completer<void>()
+          ..statusGate = Completer<void>();
+        final refreshing = svc.refresh(show.id);
+        await downloads.statusAsked.future;
+        final configuring = svc.configure(show.id, speed: 1.75);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        final gate = downloads.statusGate!;
+        downloads.statusGate = null;
+        gate.complete();
+        await refreshing;
+        await configuring;
+        expect((await store.show(show.id))!.speed, 1.75);
+        expect((await store.show(show.id))!.episodes.first.guid, 'ep-3');
+      },
+    );
+
+    test('POD-002 two subscriptions to one feed at the same time make one '
+        'subscription', () async {
+      final both = await Future.wait([
+        svc
+            .subscribe('https://show.example/rss')
+            .then<Object>((s) => s, onError: (Object e) => e),
+        svc
+            .subscribe('https://show.example/rss')
+            .then<Object>((s) => s, onError: (Object e) => e),
+      ]);
+      expect(both.whereType<PodcastShow>(), hasLength(1));
+      expect(both.whereType<PodcastException>(), hasLength(1));
+      expect(await svc.shows(), hasLength(1));
+    });
+
+    test("POD-002 an OPML file that lists addresses on the listener's own "
+        'network asks first; public ones import as usual', () async {
+      net
+        ..serve('https://b.example/f', podcastAtom)
+        ..serve('http://192.168.1.9/rss', podcastRss)
+        ..serve('http://localhost:8080/f', podcastRss);
+      const opml = '''
+<opml version="2.0"><body>
+  <outline xmlUrl="https://b.example/f"/>
+  <outline xmlUrl="http://192.168.1.9/rss"/>
+  <outline xmlUrl="http://localhost:8080/f"/>
+</body></opml>''';
+      // No answer, or no: the public one only.
+      var asked = <String>[];
+      final declined = await svc.importOpml(
+        opml,
+        confirmLocal: (urls) async {
+          asked = urls;
+          return false;
+        },
+      );
+      expect(asked, ['http://192.168.1.9/rss', 'http://localhost:8080/f']);
+      expect(declined.added, 1);
+      expect(declined.declined, asked);
+      expect((await svc.shows()).map((s) => s.url), ['https://b.example/f']);
+      expect(
+        net.requests.map((r) => r.uri.host),
+        isNot(contains('192.168.1.9')),
+      );
+      final noCallback = await svc.importOpml(opml);
+      expect(noCallback.declined, hasLength(2));
+      expect(await svc.shows(), hasLength(1));
+      // Yes: they are added, and typing their address is theirs to do.
+      final yes = await svc.importOpml(opml, confirmLocal: (_) async => true);
+      expect(yes.added, 2);
+      expect(yes.declined, isEmpty);
+      expect(await svc.shows(), hasLength(3));
+      // A file with only public feeds never asks.
+      final fresh = await svc.importOpml(
+        '<opml version="2.0"><body><outline xmlUrl="https://b.example/f"/></body></opml>',
+        confirmLocal: (_) async => fail('asked about a public feed'),
+      );
+      expect(fresh.alreadySubscribed, 1);
+    });
+
     test('POD-002 a refresh keeps the choices made while it was in '
         'flight', () async {
       final show = await svc.subscribe('https://show.example/rss');
@@ -560,7 +682,7 @@ void main() {
           isA<PodcastException>().having(
             (e) => e.reason,
             'reason',
-            PodcastFailure.blocked,
+            PodcastFailure.privateAddress,
           ),
         ),
       );
@@ -607,9 +729,7 @@ void main() {
       expect(res.status, 200);
       expect(net.allowed, ['short.example', 'tracker.example', 'show.example']);
       expect(net.openChains, 0);
-      for (final h in net.allowed) {
-        expect(net.allowedNow(h), isFalse);
-      }
+      expect(net.openHosts, isEmpty);
       // A request that fails ends its allowance too.
       net.serve('https://blocked.example/f', 'x', blocked: true);
       await expectLater(
@@ -619,17 +739,29 @@ void main() {
       expect(net.openChains, 0);
     });
 
-    test('POD-002 a private-network hop is refused unless the host is the '
-        "one asked for or a subscription's", () async {
-      final net = FakeNet()
-        ..serve('http://192.168.1.5/e.mp3', 'AUDIO')
-        ..serve('http://localhost:8080/f', 'x');
+    test("POD-002 the listener's own network is refused whatever the "
+        'address looks like, unless it is the host they gave', () async {
+      final net = FakeNet()..serve('http://localhost:8080/f', 'x');
       for (final target in const [
         'http://192.168.1.5/e.mp3',
         'http://127.0.0.1/e.mp3',
-        'http://169.254.1.1/e.mp3',
+        'http://127.1/e.mp3',
+        'http://2130706433/e.mp3',
+        'http://0x7f000001/e.mp3',
+        'http://0177.0.0.1/e.mp3',
+        'http://0.0.0.0/e.mp3',
+        'http://169.254.169.254/e.mp3',
+        'http://10.0.0.1./e.mp3',
+        'http://100.64.0.9/e.mp3',
+        'http://localhost./e.mp3',
         'http://nas.local/e.mp3',
+        'http://router/e.mp3',
+        'http://[::1]/e.mp3',
+        'http://[::]/e.mp3',
+        'http://[::ffff:192.168.1.5]/e.mp3',
+        'http://[::ffff:8.8.8.8]/e.mp3',
         'http://[fd00::1]/e.mp3',
+        'http://[fe80::1]/e.mp3',
       ]) {
         net.redirect('https://cdn.example/e.mp3', target);
         await expectLater(
@@ -643,54 +775,100 @@ void main() {
           ),
           reason: target,
         );
-        await expectLater(
-          net.http.openChain(Uri.parse('https://cdn.example/e.mp3')),
-          throwsA(isA<PodcastHttpException>()),
-          reason: target,
-        );
       }
       expect(net.requests.map((r) => r.uri.host), everyElement('cdn.example'));
       expect(net.openChains, 0);
-      // The host the listener typed is theirs to use.
+      // The host the listener gave is theirs to use, and only that one.
       final typed = await net.http.fetch(
         Uri.parse('http://localhost:8080/f'),
         trusted: {'localhost'},
       );
       expect(typed.status, 200);
-      // So is the host of a subscription.
-      net.redirect('https://cdn.example/e.mp3', 'http://192.168.1.5/e.mp3');
-      net.localHosts.add('192.168.1.5');
-      final sub = await net.http.fetch(Uri.parse('https://cdn.example/e.mp3'));
-      expect(sub.status, 200);
+      net.redirect('http://localhost:8080/f', 'http://192.168.1.5/e.mp3');
+      await expectLater(
+        net.http.fetch(
+          Uri.parse('http://localhost:8080/f'),
+          trusted: {'localhost'},
+        ),
+        throwsA(isA<PodcastHttpException>()),
+      );
     });
 
-    test('POD-002 an episode file holds its allowance until it is closed, '
-        'and a LAN enclosure is refused as permission denied', () async {
+    test('POD-002 a name that points inside is refused too, on any of its '
+        'addresses', () async {
+      final net = FakeNet()
+        ..dns['inside.example'] = [InternetAddress('10.1.2.3')]
+        ..dns['mixed.example'] = [
+          InternetAddress('93.184.216.34'),
+          InternetAddress('192.168.0.9'),
+        ]
+        ..dns['v6.example'] = [InternetAddress('fd12::1')]
+        ..serve('https://outside.example/e', 'ok');
+      for (final host in const ['inside', 'mixed', 'v6']) {
+        net.redirect('https://cdn.example/e', 'https://$host.example/e');
+        await expectLater(
+          net.http.fetch(Uri.parse('https://cdn.example/e')),
+          throwsA(isA<PodcastHttpException>()),
+          reason: host,
+        );
+      }
+      net.redirect('https://cdn.example/e', 'https://outside.example/e');
+      expect(
+        (await net.http.fetch(Uri.parse('https://cdn.example/e'))).status,
+        200,
+      );
+    });
+
+    test('POD-002 an episode file holds its allowance for as long as it is '
+        'open, and no longer', () async {
       final net = FakeNet()
         ..redirect('https://cdn.example/a.mp3', 'https://media.example/a.mp3')
-        ..serve('https://media.example/a.mp3', 'AUDIO')
-        ..redirect('https://cdn.example/b.mp3', 'http://192.168.1.5/b.mp3');
-      final opened = <Uri>[];
-      final fs = HttpUrlFileSystem(
-        () => throw StateError('no session'),
-        net.http,
-        openInner: (u) async {
-          opened.add(u);
-          return _StubFile(u);
-        },
+        ..handlers['https://media.example/a.mp3'] = (r) {
+          final range = RegExp(r'bytes=(\d+)-(\d+)')
+              .firstMatch(r.headers['range']!)!;
+          final from = int.parse(range.group(1)!);
+          final to = int.parse(range.group(2)!).clamp(0, 9);
+          return FakeNet.response(
+            206,
+            utf8.encode('0123456789').sublist(from, to + 1),
+            {'content-range': 'bytes $from-$to/10'},
+          );
+        };
+      final file = await net.http.openFile(
+        Uri.parse('https://cdn.example/a.mp3'),
       );
-      final file = await fs.open(Uri.parse('https://cdn.example/a.mp3'));
       expect(file.uri, Uri.parse('https://cdn.example/a.mp3'));
-      expect(opened, [Uri.parse('https://media.example/a.mp3')]);
-      expect(net.allowedNow('cdn.example'), isTrue);
-      expect(net.allowedNow('media.example'), isTrue);
+      expect(await file.length(), 10);
+      expect(file.isSeekable, isTrue);
+      expect(net.openHosts, {'cdn.example', 'media.example'});
+      expect(utf8.decode(await file.read(2, 4)), '2345');
+      expect(utf8.decode(await file.read(7, 50)), '789');
       await file.close();
-      expect(net.allowedNow('cdn.example'), isFalse);
-      expect(net.allowedNow('media.example'), isFalse);
+      expect(net.openHosts, isEmpty);
       expect(net.openChains, 0);
+      await expectLater(file.read(0, 1), throwsA(isA<VirtualFileException>()));
+    });
 
+    test('POD-002 a redirect that only shows up on a later read is checked '
+        'like the first one', () async {
+      final net = FakeNet();
+      var requests = 0;
+      net.handlers['https://cdn.example/a.mp3'] = (r) {
+        requests++;
+        // The probe is fine; a later read is sent inside the network.
+        if (requests == 1) {
+          return FakeNet.response(206, [48], {'content-range': 'bytes 0-0/10'});
+        }
+        return FakeNet.response(302, const [], {
+          'location': 'http://10.0.0.1/a.mp3',
+        });
+      };
+      net.serve('http://10.0.0.1/a.mp3', 'INSIDE');
+      final file = await net.http.openFile(
+        Uri.parse('https://cdn.example/a.mp3'),
+      );
       await expectLater(
-        fs.open(Uri.parse('https://cdn.example/b.mp3')),
+        file.read(0, 4),
         throwsA(
           isA<VirtualFileException>().having(
             (e) => e.error,
@@ -699,17 +877,73 @@ void main() {
           ),
         ),
       );
+      expect(net.requests.map((r) => r.uri.host), isNot(contains('10.0.0.1')));
+      await file.close();
       expect(net.openChains, 0);
+    });
 
-      // A file that cannot be opened lets go of its allowance too.
-      final failing = HttpUrlFileSystem(
-        () => throw StateError('no session'),
+    test('POD-002 a read that redirects to another public host is followed, '
+        'one checked hop at a time', () async {
+      final net = FakeNet();
+      net.handlers['https://cdn.example/a.mp3'] = (r) {
+        if (r.headers['range'] == 'bytes=0-0') {
+          return FakeNet.response(206, [48], {'content-range': 'bytes 0-0/10'});
+        }
+        return FakeNet.response(302, const [], {
+          'location': 'https://other.example/a.mp3',
+        });
+      };
+      net.handlers['https://other.example/a.mp3'] = (r) => FakeNet.response(
+        206,
+        utf8.encode('0123456789'),
+        {'content-range': 'bytes 0-9/10'},
+      );
+      final file = await net.http.openFile(
+        Uri.parse('https://cdn.example/a.mp3'),
+      );
+      expect(utf8.decode(await file.read(0, 10)), '0123456789');
+      expect(net.allowed, contains('other.example'));
+      await file.close();
+    });
+
+    test("POD-002 an episode file opened on a feed's own host may reach it; "
+        'other private hosts are permission denied', () async {
+      final net = FakeNet();
+      net.handlers['http://192.168.1.9/a.mp3'] = (r) =>
+          FakeNet.response(206, [48], {'content-range': 'bytes 0-0/10'});
+      net
+        ..redirect('http://192.168.1.9/b.mp3', 'http://192.168.1.77/b.mp3')
+        ..redirect('https://cdn.example/c.mp3', 'http://192.168.1.9/a.mp3');
+      final fs = HttpUrlFileSystem(
         net.http,
-        openInner: (u) async =>
-            throw VirtualFileException(VirtualFileError.notFound, u),
+        trustedFor: (u) async => {'192.168.1.9'},
+      );
+      final file = await fs.open(Uri.parse('http://192.168.1.9/a.mp3'));
+      await file.close();
+      for (final u in const [
+        'http://192.168.1.9/b.mp3',
+        'http://192.168.1.77/b.mp3',
+      ]) {
+        await expectLater(
+          fs.open(Uri.parse(u)),
+          throwsA(
+            isA<VirtualFileException>().having(
+              (e) => e.error,
+              'error',
+              VirtualFileError.permissionDenied,
+            ),
+          ),
+          reason: u,
+        );
+      }
+      // Trust belongs to the feed: the same episode on a public feed gets
+      // none.
+      final publicFeed = HttpUrlFileSystem(
+        net.http,
+        trustedFor: (u) async => const {},
       );
       await expectLater(
-        failing.open(Uri.parse('https://cdn.example/a.mp3')),
+        publicFeed.open(Uri.parse('http://192.168.1.9/a.mp3')),
         throwsA(isA<VirtualFileException>()),
       );
       expect(net.openChains, 0);
@@ -732,38 +966,14 @@ void main() {
         throwsA(isA<PodcastHttpException>()),
       );
       await expectLater(
-        net.http.openChain(Uri.parse('https://loop.example/a')),
-        throwsA(isA<PodcastHttpException>()),
+        net.http.openFile(Uri.parse('https://loop.example/a')),
+        throwsA(isA<VirtualFileException>()),
       );
       expect(net.openChains, 0);
-      final opened = await net.http.openChain(
-        Uri.parse('https://big.example/f'),
-      );
-      expect(opened.uri, Uri.parse('https://big.example/f'));
-      opened.chain.close();
       // Redirects to other schemes are not followed.
       net.redirect('https://odd.example/a', 'file:///etc/passwd');
       final r = await net.http.fetch(Uri.parse('https://odd.example/a'));
       expect(r.status, 302);
     });
   });
-}
-
-final class _StubFile implements VirtualFile {
-  _StubFile(this.uri);
-
-  @override
-  final Uri uri;
-
-  @override
-  bool get isSeekable => true;
-
-  @override
-  Future<int?> length() async => 5;
-
-  @override
-  Future<Uint8List> read(int offset, int length) async => Uint8List(0);
-
-  @override
-  Future<void> close() async {}
 }

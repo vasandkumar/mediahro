@@ -105,6 +105,7 @@ class _PodcastsTabState extends ConsumerState<PodcastsTab> {
     final r = await service.importOpml(
       text,
       onProgress: (d, t) => progress.value = (d, t),
+      confirmLocal: _confirmLocal,
     );
     if (mounted) Navigator.of(context, rootNavigator: true).pop();
     progress.dispose();
@@ -116,11 +117,38 @@ class _PodcastsTabState extends ConsumerState<PodcastsTab> {
               : l10n.musicPodImported(
                   r.added,
                   r.alreadySubscribed,
-                  r.failed.length,
+                  r.failed.length + r.declined.length,
                 ),
         ),
       ),
     );
+  }
+
+  /// An imported file lists addresses on this device or the listener's own
+  /// network: say which, and add them only on a yes.
+  Future<bool> _confirmLocal(List<String> urls) async {
+    if (!mounted) return false;
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(l10n.musicPodLocalTitle),
+        content: SingleChildScrollView(
+          child: Text(l10n.musicPodLocalBody(urls.join('\n'))),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(false),
+            child: Text(l10n.musicCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(true),
+            child: Text(l10n.musicPodLocalAdd),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   Future<void> _export() async {
@@ -344,5 +372,6 @@ String podcastFailureText(AppLocalizations l10n, PodcastFailure f) =>
       PodcastFailure.notAFeed => l10n.musicPodErrNotFeed,
       PodcastFailure.tooLarge => l10n.musicPodErrTooLarge,
       PodcastFailure.blocked => l10n.musicPodErrBlocked,
+      PodcastFailure.privateAddress => l10n.musicPodErrPrivate,
       PodcastFailure.alreadySubscribed => l10n.musicPodErrAlready,
     };

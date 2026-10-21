@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/misc.dart'
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/providers.dart';
-import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/books/book_library.dart';
 import 'package:mediahro/features/music/books/book_player.dart';
@@ -350,9 +349,10 @@ final podcastStoreProvider = Provider<PodcastStore>(
 );
 
 /// The way podcasts reach the network: through the gateway, one allowed hop
-/// at a time, each request chain allowed only while it runs (a feed cannot
-/// widen the allow-list, and a private-network hop is refused unless a
-/// subscription is on that host).
+/// at a time, each request chain allowed only to the code running that
+/// request (a feed cannot widen the allow-list, nothing stays allowed after
+/// the request, and a hop to the listener's own network is refused unless it
+/// is the host the listener gave for that feed).
 final podcastHttpProvider = Provider<PodcastHttp>((ref) {
   // Looked up when a request is made, so a podcast screen costs nothing
   // until the network is used.
@@ -362,12 +362,12 @@ final podcastHttpProvider = Provider<PodcastHttp>((ref) {
         .sendStreamed(r, maxRedirects: maxRedirects),
     beginChain: () {
       final scope = ref.read(networkPolicyProvider).beginAllowScope();
-      return ChainAllowance(allow: scope.allow, close: scope.close);
+      return ChainAllowance(
+        allow: scope.allow,
+        close: scope.close,
+        run: scope.run,
+      );
     },
-    localAllowed: (host) async => [
-      for (final s in await ref.read(podcastStoreProvider).shows())
-        Uri.tryParse(s.url)?.host.toLowerCase(),
-    ].contains(host),
   );
 });
 
@@ -376,8 +376,8 @@ final episodeDownloadsProvider = Provider<ManagerEpisodeDownloads>((ref) {
     manager: ref.watch(downloadManagerProvider),
     mounts: ref.watch(mountsProvider),
     fileSystem: HttpUrlFileSystem(
-      () => HttpSession(ref.read(networkGatewayProvider)),
       ref.watch(podcastHttpProvider),
+      trustedFor: ref.read(podcastStoreProvider).feedHostFor,
     ),
   );
   unawaited(d.resumePending().catchError((Object _) {}));
