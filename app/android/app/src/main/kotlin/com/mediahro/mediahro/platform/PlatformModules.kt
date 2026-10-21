@@ -43,6 +43,7 @@ import com.mediahro.mediahro.pigeon.PhotoLibraryHostApi
 import com.mediahro.mediahro.pigeon.RemoteCommandsStreamHandler
 import com.mediahro.mediahro.pigeon.StorageChangesStreamHandler
 import com.mediahro.mediahro.pigeon.StorageHostApi
+import com.mediahro.mediahro.platform.background.BackgroundWorkModules
 import com.mediahro.mediahro.platform.captions.CaptionStyleModule
 import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.enterprise.EnterpriseModules
@@ -252,6 +253,8 @@ object PlatformModules {
         MotionModules.register(context.applicationContext, host, engine)
         // External-display presentations (ADR-044 amendment 1, IMG-012, CAST-004).
         PresentationModules.register(context.applicationContext, host, engine)
+        // Scheduled background jobs (ADR-049).
+        BackgroundWorkModules.register(context.applicationContext, engine)
         debugHooks(host, engine)
     }
 
