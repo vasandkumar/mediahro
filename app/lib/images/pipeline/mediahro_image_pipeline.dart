@@ -17,6 +17,7 @@ import 'package:mediahro/images/pipeline/thumbnail_cache.dart';
 import 'package:mediahro/images/pipeline/ui_fallback.dart';
 import 'package:mediahro/images/pipeline/worker_pool.dart';
 import 'package:mediahro/images/raw_preview.dart';
+import 'package:mediahro/images/svg/svg_rasteriser.dart';
 import 'package:mediahro/platform/imaging.dart';
 import 'package:mediahro/platform/platform_facades.dart'
     show PlatformCapabilityUnavailable;
@@ -42,14 +43,18 @@ final class MediahroImagePipeline implements ImagePipeline {
     required this.io,
     this.imaging,
     this.fallback = const DartUiFallback(),
+    SvgRasteriser? svg,
     this.maxBufferBytes = 192 << 20,
-  });
+  }) : svg = svg ?? SvgRasteriser();
 
   final ImageWorkerClient worker;
   final ThumbnailCache cache;
   final ImageIo io;
   final ImagingFacade? imaging;
   final UiImageFallback fallback;
+
+  /// Draws SVG pictures (bytes only, never a URL; see [SvgRasteriser]).
+  final SvgRasteriser svg;
 
   /// Largest file read into memory for a decode that cannot stream from disk
   /// (remote sources, content URIs).
@@ -208,6 +213,19 @@ final class MediahroImagePipeline implements ImagePipeline {
     final ext = extensionOf(src.uri);
     final format = sniffImageFormat(head, extension: ext);
 
+    // Vector pictures are drawn by the SVG engine, at the thumbnail size.
+    if (format == ImageFormat.svg) {
+      final bytes = await readAll(src, max: svg.maxBytes);
+      final (w, h) = await svg.size(bytes);
+      final k = edge / math.max(w, h);
+      final frame = await svg.render(bytes, scale: k > 1 ? 1 : k);
+      return await cache.store(
+        key,
+        await fallback.encodePng(frame),
+        ext: 'png',
+      );
+    }
+
     // 1. The OS thumbnail cache / decoder.
     final os = await _osThumbnail(src.uri, edge);
     if (os != null) {
@@ -341,6 +359,15 @@ final class MediahroImagePipeline implements ImagePipeline {
   }) async {
     final length = await _length(src);
     final format = await formatOf(src);
+    if (format == ImageFormat.svg) {
+      return toDecoded(
+        await svg.render(
+          await readAll(src, max: svg.maxBytes),
+          region: region,
+          scale: scale,
+        ),
+      );
+    }
     final support = await _imagingSupport();
 
     // 1. OS decoders for what they list (HEIC, AVIF, JXL where present).
@@ -439,7 +466,14 @@ final class MediahroImagePipeline implements ImagePipeline {
     var h = parsed.blocks.height;
     var frames = 1;
     var pages = 1;
-    if (w == 0 ||
+    if (format == ImageFormat.svg) {
+      // The virtual canvas of the vector picture (the whole file is read).
+      try {
+        (w, h) = await svg.size(await readAll(src, max: svg.maxBytes));
+      } on Object {
+        // An SVG that cannot be drawn keeps the size the header gave (none).
+      }
+    } else if (w == 0 ||
         h == 0 ||
         format == ImageFormat.gif ||
         format == ImageFormat.tiff) {
@@ -731,6 +765,7 @@ final class MediahroImagePipeline implements ImagePipeline {
       worker.pool.cancelBelow(priority.index);
 
   Future<void> dispose() async {
+    svg.dispose();
     await worker.dispose();
     await cache.dispose();
   }
