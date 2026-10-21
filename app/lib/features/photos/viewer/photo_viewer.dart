@@ -14,6 +14,7 @@ import 'package:mediahro/features/photos/compare/compare_tray.dart';
 import 'package:mediahro/features/photos/edit/editor_screen.dart';
 import 'package:mediahro/features/photos/info/info_sheet.dart';
 import 'package:mediahro/features/photos/output/output_actions.dart';
+import 'package:mediahro/features/photos/pano/pano_screen.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -130,9 +131,12 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   // button still brings the whole picture back.
   bool _panorama = false;
 
+  // The photo is a 360° sphere that can be looked around in (IMG-001).
+  bool _sphere = false;
+
   // What each loaded photo said about itself, so a photo that was kept alive
   // beside the current one shows its page bar again when swiped back to.
-  final Map<int, ({int pages, bool wide})> _facts = {};
+  final Map<int, ({int pages, bool wide, bool sphere})> _facts = {};
 
   /// The system's HDR picture replaces the tone-mapped one while the photo is
   /// at rest at fit size on an HDR display (IMG-002).
@@ -219,6 +223,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
       _clip = false;
       _pageCount = _facts[_entries[i].id]?.pages ?? 1;
       _panorama = _facts[_entries[i].id]?.wide ?? false;
+      _sphere = _facts[_entries[i].id]?.sphere ?? false;
     });
     _centreStrip(i);
     _scheduleHide();
@@ -394,18 +399,23 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                           final wide =
                               img.info.isPanorama &&
                               img.fullSize.width >= 2.2 * img.fullSize.height;
+                          final sphere =
+                              img.info.panorama?.isEquirectangular ?? false;
                           _facts[_entries[i].id] = (
                             pages: img.info.pages,
                             wide: wide,
+                            sphere: sphere,
                           );
                           if (i != _index) return;
                           if ((img.animation != null) != _animated ||
                               img.info.pages != _pageCount ||
-                              wide != _panorama) {
+                              wide != _panorama ||
+                              sphere != _sphere) {
                             setState(() {
                               _animated = img.animation != null;
                               _pageCount = img.info.pages;
                               _panorama = wide;
+                              _sphere = sphere;
                             });
                           }
                         },
@@ -591,6 +601,15 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                       ),
                                       onPressed: () =>
                                           setState(() => _clip = !_clip),
+                                    ),
+                                  if (_sphere)
+                                    IconButton(
+                                      tooltip: l10n.photosPanoLookAround,
+                                      color: Colors.white,
+                                      icon: const Icon(Icons.threesixty),
+                                      onPressed: () => unawaited(
+                                        openPanorama(context, _entry),
+                                      ),
                                     ),
                                   if (_pageCount > 1) ...[
                                     IconButton(
