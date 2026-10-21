@@ -2,11 +2,14 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:meta/meta.dart';
 
 /// Where analysis PCM lives (AUD-046 tap, ADR-032 decode), kept off flash
 /// where the OS makes that cheap:
 /// - Android and Linux: anonymous RAM-backed files (`memfd`), which mpv and
-///   the reader open as `/proc/self/fd/<n>`.
+///   the reader open as `/proc/self/fd/<n>`. Where the OS refuses that path
+///   (Android 16 answers EACCES), a plain temporary file takes over, with the
+///   same hole punching, so a decode still holds only undelivered PCM.
 /// - Windows: temporary files with `FILE_ATTRIBUTE_TEMPORARY`, which the
 ///   cache manager keeps in memory instead of writing them out.
 /// - Apple: plain temporary files (apps have no RAM-backed path that mpv's
@@ -31,23 +34,32 @@ final class PcmStorage {
   /// Whether the PCM is RAM-backed (memfd) rather than a file on disk.
   bool get inMemory => _fds.isNotEmpty;
 
+  /// Opens an anonymous RAM-backed file (tests: stands in for `memfd`).
+  @visibleForTesting
+  static ({int fd, String path})? Function(String name)? memfdOpener;
+
+  /// Closes a descriptor from [memfdOpener] (tests).
+  @visibleForTesting
+  static void Function(int fd)? fdCloser;
+
   static Future<PcmStorage> create({bool slice = true}) async {
-    if (Platform.isAndroid || Platform.isLinux) {
+    final opener = memfdOpener;
+    if (opener != null || Platform.isAndroid || Platform.isLinux) {
       final fds = <int>[];
+      final paths = <String>[];
       for (final name in ['mediahro-pcm', if (slice) 'mediahro-slice']) {
-        final fd = _memfd(name);
-        if (fd < 0) break;
-        fds.add(fd);
+        final made = opener != null ? opener(name) : _openMemfd(name);
+        if (made == null) break;
+        fds.add(made.fd);
+        paths.add(made.path);
       }
-      if (fds.length == (slice ? 2 : 1)) {
-        return PcmStorage._(
-          _fdPath(fds.first),
-          slice ? _fdPath(fds.last) : null,
-          fds,
-          null,
-        ).._puncher = _MemfdPuncher(fds.first);
+      // mpv and the reader open the descriptor by path; some Android
+      // versions refuse that even for the app's own memfd.
+      if (fds.length == (slice ? 2 : 1) && paths.every(_pathUsable)) {
+        return PcmStorage._(paths.first, slice ? paths.last : null, fds, null)
+          .._puncher = _FdPuncher(fds.first, ownsFd: false);
       }
-      fds.forEach(_close);
+      fds.forEach(fdCloser ?? _close);
     }
     final dir = await Directory.systemTemp.createTemp('mediahro-pcm');
     String file(String name) {
@@ -67,11 +79,28 @@ final class PcmStorage {
         ? _WindowsPuncher.open(storage.pcmPath)
         : (Platform.isIOS || Platform.isMacOS)
         ? _ApplePuncher.open(storage.pcmPath)
+        : (Platform.isAndroid || Platform.isLinux)
+        ? _FdPuncher.open(storage.pcmPath)
         : null;
     return storage;
   }
 
-  static String _fdPath(int fd) => '/proc/self/fd/$fd';
+  static ({int fd, String path})? _openMemfd(String name) {
+    final fd = _memfd(name);
+    return fd < 0 ? null : (fd: fd, path: '/proc/self/fd/$fd');
+  }
+
+  // Whether the path opens for appending (what mpv does) and for reading
+  // (what the reader does).
+  static bool _pathUsable(String path) {
+    try {
+      File(path).openSync(mode: FileMode.append).closeSync();
+      File(path).openSync().closeSync();
+      return true;
+    } on Object {
+      return false;
+    }
+  }
 
   /// Bytes of PCM written so far (released bytes included).
   int get pcmLength => _length(pcmPath);
@@ -101,7 +130,7 @@ final class PcmStorage {
   Future<void> dispose() async {
     _puncher?.close();
     _puncher = null;
-    _fds.forEach(_close);
+    _fds.forEach(fdCloser ?? _close);
     final dir = _dir;
     if (dir != null) {
       await dir.delete(recursive: true).catchError((Object _) => dir);
@@ -114,11 +143,28 @@ abstract interface class _Puncher {
   void close();
 }
 
-// fallocate(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE) on the memfd.
-final class _MemfdPuncher implements _Puncher {
-  _MemfdPuncher(this._fd);
+// fallocate(FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE) on a memfd, or on a
+// descriptor of the temporary file where memfd is not usable.
+final class _FdPuncher implements _Puncher {
+  _FdPuncher(this._fd, {required this.ownsFd});
 
   final int _fd;
+  final bool ownsFd;
+
+  static _Puncher? open(String path) {
+    try {
+      final open = DynamicLibrary.process()
+          .lookupFunction<
+            Int Function(Pointer<Utf8>, Int),
+            int Function(Pointer<Utf8>, int)
+          >('open');
+      // O_RDWR.
+      final fd = using((arena) => open(path.toNativeUtf8(allocator: arena), 2));
+      return fd < 0 ? null : _FdPuncher(fd, ownsFd: true);
+    } on Object {
+      return null;
+    }
+  }
 
   static final int Function(int, int, int, int)? _fallocate = () {
     try {
@@ -136,7 +182,9 @@ final class _MemfdPuncher implements _Puncher {
       (_fallocate?.call(_fd, 0x3, offset, length) ?? -1) == 0;
 
   @override
-  void close() {}
+  void close() {
+    if (ownsFd) _close(_fd);
+  }
 }
 
 typedef _Ioctl = int Function(

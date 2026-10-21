@@ -88,5 +88,61 @@ void main() {
       // The length stays, so offsets keep their meaning.
       expect(storage.pcmLength, 3 * mb);
     });
+
+    group('memfd paths the OS refuses', () {
+      late Directory dir;
+      late List<int> closed;
+
+      setUp(() {
+        dir = Directory.systemTemp.createTempSync('mediahro-pcm-test');
+        closed = [];
+        PcmStorage.fdCloser = closed.add;
+      });
+      tearDown(() {
+        PcmStorage.memfdOpener = null;
+        PcmStorage.fdCloser = null;
+        dir.deleteSync(recursive: true);
+      });
+
+      test(
+        'SUB-050 AUD-046 an unopenable descriptor path falls back to files',
+        () async {
+          // Android 16: /proc/self/fd/N answers EACCES to the app.
+          PcmStorage.memfdOpener = (name) => (
+            fd: 41,
+            path:
+                '${dir.path}${Platform.pathSeparator}no-such-dir'
+                '${Platform.pathSeparator}$name',
+          );
+          final storage = await PcmStorage.create();
+          addTearDown(storage.dispose);
+          expect(storage.inMemory, isFalse);
+          expect(closed, [
+            41,
+            41,
+          ], reason: 'the unusable descriptors are closed');
+          // The fallback must really work: append, read back, give back.
+          final pcm = File(storage.pcmPath)
+            ..writeAsBytesSync([1, 2, 3], mode: FileMode.append);
+          expect(pcm.openSync().readSync(3), [1, 2, 3]);
+          File(storage.slicePath!).writeAsBytesSync([7]);
+          expect(storage.sliceLength, 1);
+        },
+      );
+
+      test('SUB-050 a usable descriptor path stays in memory', () async {
+        PcmStorage.memfdOpener = (name) => (
+          fd: 42,
+          path: (File(
+            '${dir.path}${Platform.pathSeparator}$name',
+          )..writeAsBytesSync(const [])).path,
+        );
+        final storage = await PcmStorage.create(slice: false);
+        expect(storage.inMemory, isTrue);
+        expect(closed, isEmpty);
+        await storage.dispose();
+        expect(closed, [42]);
+      });
+    });
   });
 }
