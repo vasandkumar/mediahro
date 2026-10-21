@@ -42,5 +42,5 @@ Future<void> main() async {
       appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
     ],
   )..read(backgroundWorkDispatcherProvider);
-  runApp(mediahroApp(container));
+  showApp(container);
 }

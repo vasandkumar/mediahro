@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show Widget;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/appearance.dart';
@@ -86,6 +87,57 @@ void main() {
     expect(container.read(backgroundWorkDispatcherProvider), same(dispatcher));
     expect(work.listens, 1);
   });
+
+  testWidgets(
+    'ADR-049 an engine with no view skips runApp and keeps listening',
+    (tester) async {
+      final store = await tester.runAsync(memoryStore);
+      final work = _Work();
+      final container = mediahroContainer(
+        store!,
+        overrides: [backgroundWorkProvider.overrideWithValue(work)],
+      )..read(backgroundWorkDispatcherProvider);
+      addTearDown(() async {
+        container.dispose();
+        await work.controller.close();
+      });
+      Widget? shown;
+
+      final ran = showApp(container, hasView: false, run: (app) => shown = app);
+
+      expect(ran, isFalse);
+      expect(shown, isNull);
+      // No StateError, and the container still serves the dispatcher.
+      expect(work.controller.hasListener, isTrue);
+      expect(work.listens, 1);
+    },
+  );
+
+  testWidgets('ADR-049 an engine with a view runs the app', (tester) async {
+    final store = await tester.runAsync(memoryStore);
+    final container = mediahroContainer(store!);
+    addTearDown(container.dispose);
+    Widget? shown;
+
+    final ran = showApp(container, hasView: true, run: (app) => shown = app);
+
+    expect(ran, isTrue);
+    expect(shown, isNotNull);
+  });
+
+  testWidgets(
+    'ADR-049 the test engine has a view, so the default shows the app',
+    (tester) async {
+      final store = await tester.runAsync(memoryStore);
+      final container = mediahroContainer(store!);
+      addTearDown(container.dispose);
+      var runs = 0;
+
+      showApp(container, run: (_) => runs++);
+
+      expect(runs, 1);
+    },
+  );
 
   testWidgets('CORE-007 the container serves the default appearance', (
     tester,

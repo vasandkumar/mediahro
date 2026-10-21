@@ -98,3 +98,24 @@ Widget mediahroApp(ProviderContainer container) => DynamicColorBuilder(
     );
   },
 );
+
+/// Shows the app from [container] with [run] (`runApp` in `main`), unless the
+/// engine has no view. An engine the OS starts to run a scheduled job
+/// (ADR-036, ADR-049) may have none, and `runApp` would throw a `StateError`
+/// there. The container and everything started from it keep running either
+/// way. Returns whether the app was shown. [hasView] and [run] are for tests.
+bool showApp(
+  ProviderContainer container, {
+  bool? hasView,
+  void Function(Widget app) run = runApp,
+}) {
+  final view =
+      hasView ??
+      WidgetsBinding.instance.platformDispatcher.implicitView != null;
+  if (!view) {
+    debugPrint('app: no view in this engine, running without a screen');
+    return false;
+  }
+  run(mediahroApp(container));
+  return true;
+}
