@@ -27,8 +27,15 @@ internal object BiometricAuth {
     /**
      * [crypto]: a Keystore operation that needs the user (strong biometrics
      * or the device credential); null for a plain identity check.
+     * [strongOnly]: strong biometrics only, no device credential (the vault's
+     * fingerprint-only key, ADR-039 amendment 1).
      */
-    suspend fun prompt(activity: FragmentActivity, title: String, crypto: BiometricPrompt.CryptoObject?): Outcome =
+    suspend fun prompt(
+        activity: FragmentActivity,
+        title: String,
+        crypto: BiometricPrompt.CryptoObject?,
+        strongOnly: Boolean = false,
+    ): Outcome =
         suspendCancellableCoroutine { cont ->
             val callback = object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
@@ -46,7 +53,9 @@ internal object BiometricAuth {
             }
             val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), callback)
             val info = BiometricPrompt.PromptInfo.Builder().setTitle(title)
-            if (Build.VERSION.SDK_INT >= 30) {
+            if (strongOnly && crypto != null) {
+                info.setAllowedAuthenticators(BIOMETRIC_STRONG).setNegativeButtonText(activity.getString(android.R.string.cancel))
+            } else if (Build.VERSION.SDK_INT >= 30) {
                 info.setAllowedAuthenticators((if (crypto != null) BIOMETRIC_STRONG else BIOMETRIC_WEAK) or DEVICE_CREDENTIAL)
             } else if (crypto == null) {
                 @Suppress("DEPRECATION")

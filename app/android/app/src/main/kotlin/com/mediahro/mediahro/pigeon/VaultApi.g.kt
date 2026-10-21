@@ -71,6 +71,8 @@ interface VaultCryptoHostApi {
   suspend fun seal(handle: Long, wrapped: ByteArray, nonce: ByteArray, aad: ByteArray, plaintext: ByteArray): ByteArray
   suspend fun open(handle: Long, wrapped: ByteArray, nonce: ByteArray, aad: ByteArray, sealed: ByteArray): ByteArray
   suspend fun close(handle: Long)
+  /** Deletes the vault's Keystore keys and stored blob (explicit, UI-confirmed). */
+  suspend fun reset()
 
   companion object {
     /** The codec used by VaultCryptoHostApi. */
@@ -195,6 +197,24 @@ interface VaultCryptoHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 api.close(handleArg)
+                listOf(null)
+              } catch (exception: Throwable) {
+                VaultApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mediahro.VaultCryptoHostApi.reset$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.reset()
                 listOf(null)
               } catch (exception: Throwable) {
                 VaultApiPigeonUtils.wrapError(exception)

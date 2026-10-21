@@ -218,6 +218,25 @@ class VaultCryptoHostApi {
       isNullValid: true,
     );
   }
+
+  /// Deletes the vault's Keystore keys and stored blob (explicit, UI-confirmed).
+  Future<void> reset() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.mediahro.VaultCryptoHostApi.reset$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
 }
 
 class SecureWindowHostApi {

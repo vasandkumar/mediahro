@@ -59,6 +59,9 @@ final class _FakeCrypto extends VaultCryptoHostApi {
 
   @override
   Future<void> close(int handle) async => calls.add('close:$handle');
+
+  @override
+  Future<void> reset() async => calls.add('reset');
 }
 
 final class _FakeWindow extends SecureWindowHostApi {
@@ -95,7 +98,8 @@ void main() {
       Uint8List.fromList([5, 6]),
     );
     await crypto.close(master);
-    expect(api.calls, ['open:true', 'adopt:7:2', 'close:7']);
+    await crypto.reset();
+    expect(api.calls, ['open:true', 'adopt:7:2', 'close:7', 'reset']);
   });
 
   test('IMG-011 every native failure code maps to its error', () async {

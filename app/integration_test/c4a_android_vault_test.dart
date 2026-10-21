@@ -120,6 +120,63 @@ void main() {
     );
   }, skip: !android);
 
+  testWidgets('IMG-011 opening the master key twice at once gives one key', (
+    tester,
+  ) async {
+    final crypto = AndroidVaultCrypto();
+    final handles = await Future.wait([
+      crypto.openMasterKey(requireBiometry: false),
+      crypto.openMasterKey(requireBiometry: false),
+      crypto.openMasterKey(requireBiometry: false),
+    ]);
+    addTearDown(() => Future.wait(handles.map(crypto.close)));
+    expect(handles.toSet(), hasLength(3));
+    final key = await crypto.newFileKey(handles[0]);
+    final nonce = bytes(VaultCryptoFacade.nonceLength);
+    final sealed = await crypto.seal(key, nonce, Uint8List(0), bytes(32));
+    // A file key made under one handle opens under another: the same master key.
+    final other = await crypto.adoptFileKey(handles[2], key.bytes);
+    expect(await crypto.open(other, nonce, Uint8List(0), sealed), bytes(32));
+  }, skip: !android);
+
+  testWidgets('IMG-011 reset deletes the master key; nothing re-creates it', (
+    tester,
+  ) async {
+    // Touches only the vault's own keys; run before the vault holds real data.
+    final crypto = AndroidVaultCrypto();
+    final master = await crypto.openMasterKey(requireBiometry: false);
+    final old = await crypto.newFileKey(master);
+    await crypto.reset();
+    // The open handle was closed by the reset.
+    await expectLater(
+      crypto.newFileKey(master),
+      throwsA(isA<VaultCryptoException>()),
+    );
+    final fresh = await crypto.openMasterKey(requireBiometry: false);
+    addTearDown(() => crypto.close(fresh));
+    await expectLater(
+      crypto.adoptFileKey(fresh, old.bytes),
+      throwsA(
+        isA<VaultCryptoException>().having(
+          (e) => e.error,
+          'error',
+          VaultCryptoError.keyLost,
+        ),
+      ),
+    );
+    // And a strict error code on a handle that was never open.
+    await expectLater(
+      crypto.newFileKey(const VaultKeyHandle(987654)),
+      throwsA(
+        isA<VaultCryptoException>().having(
+          (e) => e.error,
+          'error',
+          VaultCryptoError.unavailable,
+        ),
+      ),
+    );
+  }, skip: !android);
+
   testWidgets('IMG-011 the secure window sets and clears FLAG_SECURE', (
     tester,
   ) async {

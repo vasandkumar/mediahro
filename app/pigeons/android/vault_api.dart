@@ -58,6 +58,10 @@ abstract class VaultCryptoHostApi {
 
   @async
   void close(int handle);
+
+  /// Deletes the vault's Keystore keys and stored blob (explicit, UI-confirmed).
+  @async
+  void reset();
 }
 
 @HostApi()

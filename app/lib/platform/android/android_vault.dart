@@ -52,6 +52,9 @@ final class AndroidVaultCrypto implements VaultCryptoFacade {
   @override
   Future<void> close(VaultKeyHandle handle) =>
       _call(() => _api.close(handle.id));
+
+  @override
+  Future<void> reset() => _call(_api.reset);
 }
 
 Future<T> _call<T>(Future<T> Function() op) async {

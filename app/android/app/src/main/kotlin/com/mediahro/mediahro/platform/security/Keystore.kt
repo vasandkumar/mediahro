@@ -6,7 +6,10 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
+import android.security.keystore.KeyInfo
+import java.security.GeneralSecurityException
 import java.security.KeyFactory
+import java.security.ProviderException
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
@@ -16,6 +19,7 @@ import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
@@ -91,6 +95,102 @@ internal class Keystore(private val context: Context) {
             generator.generateKeyPair()
         }
         return pair.public to pair.private
+    }
+
+    fun has(alias: String): Boolean = store.containsAlias(alias)
+
+    /**
+     * The vault's AES-256-GCM key (ADR-039): like [secretKey] but only usable
+     * while the device is unlocked. Created once; use [has] to tell "never
+     * created" from "gone".
+     */
+    @Synchronized
+    fun vaultSecretKey(alias: String): SecretKey {
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
+        fun spec(strong: Boolean) = KeyGenParameterSpec.Builder(
+            alias,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+        )
+            .setKeySize(256)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true)
+            .setUnlockedDeviceRequired(true)
+            .setIsStrongBoxBacked(strong)
+            .build()
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, PROVIDER)
+        return try {
+            generator.init(spec(strongBox))
+            generator.generateKey()
+        } catch (e: StrongBoxUnavailableException) {
+            generator.init(spec(false))
+            generator.generateKey()
+        }
+    }
+
+    /**
+     * The vault's RSA-OAEP key pair (ADR-039 amendment 1): its private key
+     * needs a fresh **strong biometric** for every use and is invalidated when
+     * biometrics change. (With the device credential also allowed, Android 11+
+     * ignores that invalidation, so the vault key is fingerprint-only; the PIN
+     * path is ADR-040's.) Tries StrongBox with SHA-256 only, then the TEE;
+     * each attempt is checked with a public-key operation and replaced if the
+     * Keystore refuses it. The existing [authKeyPair] is left alone.
+     */
+    @Synchronized
+    fun vaultKeyPair(alias: String): Pair<PublicKey, PrivateKey> {
+        val existing = store.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
+        if (existing != null) return existing.certificate.publicKey to existing.privateKey
+        val attempts = buildList {
+            if (strongBox) add(true to arrayOf(KeyProperties.DIGEST_SHA256))
+            add(false to arrayOf(KeyProperties.DIGEST_SHA256))
+            // Older Keystores authorise the OAEP MGF1-SHA-1 digest through the digest list.
+            add(false to arrayOf(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1))
+        }
+        var last: Exception? = null
+        for ((strong, digests) in attempts) {
+            try {
+                val b = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_DECRYPT or KeyProperties.PURPOSE_ENCRYPT)
+                    .setKeySize(2048)
+                    .setDigests(*digests)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
+                    .setUserAuthenticationRequired(true)
+                    .setInvalidatedByBiometricEnrollment(true)
+                    .setUnlockedDeviceRequired(true)
+                    .setIsStrongBoxBacked(strong)
+                if (Build.VERSION.SDK_INT >= 30) b.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+                val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, PROVIDER)
+                generator.initialize(b.build())
+                val pair = generator.generateKeyPair()
+                checkOaepUsable(pair.public)
+                return pair.public to pair.private
+            } catch (e: StrongBoxUnavailableException) {
+                last = e
+            } catch (e: GeneralSecurityException) {
+                last = e
+                if (store.containsAlias(alias)) store.deleteEntry(alias)
+            } catch (e: ProviderException) {
+                last = e
+                if (store.containsAlias(alias)) store.deleteEntry(alias)
+            }
+        }
+        throw last ?: IllegalStateException("no vault key could be created")
+    }
+
+    /** A public-key OAEP operation inside the Keystore (needs no user): proves the digests are accepted. */
+    private fun checkOaepUsable(public: PublicKey) {
+        Cipher.getInstance(RSA_OAEP).apply { init(Cipher.ENCRYPT_MODE, public, OAEP) }.doFinal(ByteArray(1))
+    }
+
+    /** Whether the key lives in secure hardware (TEE or StrongBox), or null if the Keystore will not say. */
+    fun isInsideSecureHardware(key: java.security.Key): Boolean? = try {
+        val info = when (key) {
+            is SecretKey -> (SecretKeyFactory.getInstance(key.algorithm, PROVIDER).getKeySpec(key, KeyInfo::class.java)) as KeyInfo
+            else -> KeyFactory.getInstance(key.algorithm, PROVIDER).getKeySpec(key, KeyInfo::class.java)
+        }
+        info.isInsideSecureHardware
+    } catch (e: GeneralSecurityException) {
+        null
     }
 
     fun delete(alias: String) {

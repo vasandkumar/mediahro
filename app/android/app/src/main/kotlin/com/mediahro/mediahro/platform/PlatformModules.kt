@@ -242,7 +242,7 @@ object PlatformModules {
         // Managed configuration and kiosk (B2B-001/002).
         EnterpriseModules.register(context.applicationContext, host, messenger)
         // Vault crypto and the secure window (IMG-011, ADR-039).
-        VaultModules.register(context.applicationContext, host, messenger)
+        VaultModules.register(context.applicationContext, host, engine)
         debugHooks(host, engine)
     }
 
