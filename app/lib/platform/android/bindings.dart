@@ -3,6 +3,7 @@ import 'package:mediahro/features/video/text/open_text_services.dart';
 import 'package:mediahro/platform/android/android_caption_style.dart';
 import 'package:mediahro/platform/android/android_car.dart';
 import 'package:mediahro/platform/android/android_display.dart';
+import 'package:mediahro/platform/android/android_enterprise.dart';
 import 'package:mediahro/platform/android/android_home_widgets.dart';
 import 'package:mediahro/platform/android/android_imaging.dart';
 import 'package:mediahro/platform/android/android_input.dart';
@@ -49,4 +50,6 @@ List<Override> overrides() => [
   accessibilityPrefsProvider.overrideWithValue(AndroidAccessibilityPrefs()),
   gamepadProvider.overrideWithValue(AndroidGamepad()),
   imagingProvider.overrideWithValue(AndroidImaging()),
+  managedConfigProvider.overrideWithValue(AndroidManagedConfig()),
+  kioskProvider.overrideWithValue(AndroidKiosk()),
 ];

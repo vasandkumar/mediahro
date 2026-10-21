@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Managed configuration an MDM can set (B2B-001). Titles and descriptions are
+     native strings (Weblate with the ARB files); any other key an MDM sets is
+     passed through too. -->
+<restrictions xmlns:android="http://schemas.android.com/apk/res/android">
+    <restriction
+        android:key="allowed_sources"
+        android:title="@string/mediahro_mdm_allowed_sources"
+        android:description="@string/mediahro_mdm_allowed_sources_desc"
+        android:restrictionType="multi-select"
+        android:entries="@array/mediahro_mdm_source_names"
+        android:entryValues="@array/mediahro_mdm_source_values" />
+    <restriction
+        android:key="locked_settings"
+        android:title="@string/mediahro_mdm_locked_settings"
+        android:description="@string/mediahro_mdm_locked_settings_desc"
+        android:restrictionType="string" />
+    <restriction
+        android:key="kiosk"
+        android:title="@string/mediahro_mdm_kiosk"
+        android:description="@string/mediahro_mdm_kiosk_desc"
+        android:restrictionType="bool"
+        android:defaultValue="false" />
+    <restriction
+        android:key="branding_off"
+        android:title="@string/mediahro_mdm_branding_off"
+        android:description="@string/mediahro_mdm_branding_off_desc"
+        android:restrictionType="bool"
+        android:defaultValue="false" />
+    <restriction
+        android:key="telemetry_off"
+        android:title="@string/mediahro_mdm_telemetry_off"
+        android:description="@string/mediahro_mdm_telemetry_off_desc"
+        android:restrictionType="bool"
+        android:defaultValue="false" />
+    <restriction
+        android:key="playlist_url"
+        android:title="@string/mediahro_mdm_playlist_url"
+        android:description="@string/mediahro_mdm_playlist_url_desc"
+        android:restrictionType="string" />
+    <restriction
+        android:key="update_channel"
+        android:title="@string/mediahro_mdm_update_channel"
+        android:description="@string/mediahro_mdm_update_channel_desc"
+        android:restrictionType="choice"
+        android:entries="@array/mediahro_mdm_channel_names"
+        android:entryValues="@array/mediahro_mdm_channel_values"
+        android:defaultValue="stable" />
+</restrictions>

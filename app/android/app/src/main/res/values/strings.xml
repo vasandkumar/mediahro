@@ -17,4 +17,57 @@
     <!-- Static launcher shortcut (SYS-003): short label at most 10 characters. -->
     <string name="mediahro_shortcut_resume">Resume</string>
     <string name="mediahro_shortcut_resume_long">Resume playback</string>
+    <!-- Managed configuration an IT admin sees in the MDM console (B2B-001). -->
+    <string name="mediahro_mdm_allowed_sources">Allowed sources</string>
+    <string name="mediahro_mdm_allowed_sources_desc">Kinds of media source users may add. Leave empty to allow all.</string>
+    <string name="mediahro_mdm_locked_settings">Locked settings</string>
+    <string name="mediahro_mdm_locked_settings_desc">Setting ids users cannot change, separated by commas.</string>
+    <string name="mediahro_mdm_kiosk">Kiosk mode</string>
+    <string name="mediahro_mdm_kiosk_desc">Run full screen, locked to the app, and restart it if it stops.</string>
+    <string name="mediahro_mdm_branding_off">Hide branding</string>
+    <string name="mediahro_mdm_branding_off_desc">Hide the app name and supporter prompts (enterprise licence).</string>
+    <string name="mediahro_mdm_telemetry_off">Turn off telemetry</string>
+    <string name="mediahro_mdm_telemetry_off_desc">Force diagnostics and crash reports off.</string>
+    <string name="mediahro_mdm_playlist_url">Playlist URL</string>
+    <string name="mediahro_mdm_playlist_url_desc">A playlist to start automatically.</string>
+    <string name="mediahro_mdm_update_channel">Update channel</string>
+    <string name="mediahro_mdm_update_channel_desc">Informational: the release channel your own deployment tooling distributes. The app never checks for updates itself.</string>
+    <string name="mediahro_mdm_source_local">Device storage</string>
+    <string name="mediahro_mdm_source_smb">SMB</string>
+    <string name="mediahro_mdm_source_sftp">SFTP</string>
+    <string name="mediahro_mdm_source_ftp">FTP</string>
+    <string name="mediahro_mdm_source_webdav">WebDAV</string>
+    <string name="mediahro_mdm_source_nfs">NFS</string>
+    <string name="mediahro_mdm_source_upnp">UPnP / DLNA</string>
+    <string name="mediahro_mdm_source_servers">Media servers</string>
+    <string name="mediahro_mdm_channel_stable">Stable</string>
+    <string name="mediahro_mdm_channel_beta">Beta</string>
+    <string-array name="mediahro_mdm_source_names">
+        <item>@string/mediahro_mdm_source_local</item>
+        <item>@string/mediahro_mdm_source_smb</item>
+        <item>@string/mediahro_mdm_source_sftp</item>
+        <item>@string/mediahro_mdm_source_ftp</item>
+        <item>@string/mediahro_mdm_source_webdav</item>
+        <item>@string/mediahro_mdm_source_nfs</item>
+        <item>@string/mediahro_mdm_source_upnp</item>
+        <item>@string/mediahro_mdm_source_servers</item>
+    </string-array>
+    <string-array name="mediahro_mdm_source_values" translatable="false">
+        <item>local</item>
+        <item>smb</item>
+        <item>sftp</item>
+        <item>ftp</item>
+        <item>webdav</item>
+        <item>nfs</item>
+        <item>upnp</item>
+        <item>servers</item>
+    </string-array>
+    <string-array name="mediahro_mdm_channel_names">
+        <item>@string/mediahro_mdm_channel_stable</item>
+        <item>@string/mediahro_mdm_channel_beta</item>
+    </string-array>
+    <string-array name="mediahro_mdm_channel_values" translatable="false">
+        <item>stable</item>
+        <item>beta</item>
+    </string-array>
 </resources>
