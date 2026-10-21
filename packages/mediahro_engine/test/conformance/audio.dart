@@ -16,6 +16,50 @@ void audioSuite() {
   final skip = ffiSkipReason;
   prepareCorpus();
 
+  // The engine for the AUD-043 tests that need DoP to open. Where the engine
+  // asks the OS for a bit-perfect path (Android, iOS) a phone without a USB
+  // DAC cannot grant it and DoP is, correctly, refused; the engine's own
+  // logic is what these tests exercise, so the OS's answer is faked there
+  // (the refusal tests keep the real engine and still run on the phone).
+  // A real hang still fails: every wait below has a finite timeout and a
+  // reason.
+  MpvEngine dopEngine({
+    required Map<String, String> options,
+    EnginePlatform? platform,
+    AudioBridge? bridge,
+  }) {
+    final asksOs =
+        platform == null &&
+        (env.platformName == 'android' || env.platformName == 'ios');
+    return MpvEngine(
+      EngineRole.music,
+      config: MpvEngineConfig(
+        platform: platform,
+        video: VideoOutputMode.none,
+        libmpvPath: env.libmpvPath,
+        audioBridge:
+            bridge ??
+            (asksOs
+                ? AudioBridge(
+                    channel: MethodChannel(
+                      'mh/test/audio',
+                      const StandardMethodCodec(),
+                      _FakeMessenger({
+                        'prefer': {
+                          'applied': true,
+                          'bitPerfect': true,
+                          'sampleRate': 176400,
+                          'device': 'USB DAC',
+                        },
+                      }),
+                    ),
+                  )
+                : null),
+        extraOptions: options,
+      ),
+    );
+  }
+
   group('AUD-001 formats', () {
     for (final item in corpusItems(category: 'audio')) {
       test(
@@ -443,10 +487,8 @@ void audioSuite() {
         final dir = await Directory.systemTemp.createTemp('mh-dop');
         addTearDown(() => dir.delete(recursive: true));
         final out = '${dir.path}${Platform.pathSeparator}dop.pcm';
-        final e = headlessEngine(
-          role: EngineRole.music,
-          nullAudio: false,
-          extraOptions: {
+        final e = dopEngine(
+          options: {
             'ao': 'pcm',
             'ao-pcm-file': out,
             'ao-pcm-waveheader': 'no',
@@ -621,10 +663,8 @@ void audioSuite() {
       () async {
         final dir = await Directory.systemTemp.createTemp('mh-dopp');
         addTearDown(() => dir.delete(recursive: true));
-        final e = headlessEngine(
-          role: EngineRole.music,
-          nullAudio: false,
-          extraOptions: {
+        final e = dopEngine(
+          options: {
             'ao': 'pcm',
             'ao-pcm-file': '${dir.path}${Platform.pathSeparator}o.pcm',
             'ao-pcm-waveheader': 'no',
@@ -637,7 +677,11 @@ void audioSuite() {
           UriSource(Uri.file(corpusPath('dsd64.dsf'))),
           opts: const OpenOptions(autoplay: false),
         );
-        await waitFor(e, (s) => s.audio.path == AudioOutputPath.dop);
+        await waitFor(
+          e,
+          (s) => s.audio.path == AudioOutputPath.dop,
+          reason: 'DoP opened and verified',
+        );
         // If the DAC goes away mpv must open its silent null output, not the
         // speaker; and the device is the named one, not 'auto'.
         expect(await prop(e, 'audio-device'), 'pcm/dac');
@@ -662,10 +706,8 @@ void audioSuite() {
         final dir = await Directory.systemTemp.createTemp('mh-dopv');
         addTearDown(() => dir.delete(recursive: true));
         final file = File('${dir.path}${Platform.pathSeparator}o.pcm');
-        final e = headlessEngine(
-          role: EngineRole.music,
-          nullAudio: false,
-          extraOptions: {
+        final e = dopEngine(
+          options: {
             'ao': 'pcm',
             'ao-pcm-file': file.path,
             'ao-pcm-waveheader': 'no',
@@ -688,9 +730,16 @@ void audioSuite() {
         await e.debugSetMpvProperty('audio-device', 'nonexistent/dac');
         await waitFor(
           e,
+          // The item was reopened as PCM: its audio track is the DSD
+          // itself (DoP shows as 24-bit PCM) and it is loaded and paused.
           (s) =>
               s.audio.path != AudioOutputPath.dop &&
-              s.audio.path != AudioOutputPath.unknown,
+              s.status == PlaybackStatus.paused &&
+              s.tracks.any(
+                (t) =>
+                    t.type == TrackType.audio &&
+                    (t.codec ?? '').startsWith('dsd'),
+              ),
           reason: 'PCM after the device was lost',
         );
         expect(
@@ -745,15 +794,10 @@ void audioSuite() {
           'ao-pcm-append': 'yes',
           'audio-format': 's32',
         };
-        final e = MpvEngine(
-          EngineRole.music,
-          config: MpvEngineConfig(
-            platform: platform,
-            video: VideoOutputMode.none,
-            libmpvPath: env.libmpvPath,
-            audioBridge: bridge,
-            extraOptions: options,
-          ),
+        final e = dopEngine(
+          options: options,
+          platform: platform,
+          bridge: bridge,
         );
         addTearDown(e.dispose);
         await e.setAudioOutput(_dopOutput);
