@@ -56,6 +56,31 @@ class GamepadMathTest {
     }
 
     @Test
+    fun `SYS-009 repeating a whole reading sends nothing, an axis missing from an event reads as rest`() {
+        val c = GamepadMath.Changes()
+        val frame = mapOf(
+            GamepadAxisMsg.LEFT_X to GamepadMath.deadZone(1f),
+            GamepadAxisMsg.LEFT_Y to GamepadMath.deadZone(0.1f), // inside the dead zone: 0
+            GamepadAxisMsg.LEFT_TRIGGER to GamepadMath.trigger(0.575f),
+            GamepadAxisMsg.HAT_X to GamepadMath.hat(1f),
+        )
+        fun sent(values: Map<GamepadAxisMsg, Float>): Set<GamepadAxisMsg> =
+            GamepadAxisMsg.values().filter { c.changed(77, it, values[it] ?: 0f) }.toSet()
+        // First reading: the three axes that are away from rest.
+        assertEquals(
+            setOf(GamepadAxisMsg.LEFT_X, GamepadAxisMsg.LEFT_TRIGGER, GamepadAxisMsg.HAT_X),
+            sent(frame),
+        )
+        // The same reading again, however often: nothing.
+        assertEquals(emptySet<GamepadAxisMsg>(), sent(frame))
+        assertEquals(emptySet<GamepadAxisMsg>(), sent(frame))
+        // Only the stick moves: one event.
+        assertEquals(setOf(GamepadAxisMsg.LEFT_X), sent(frame + (GamepadAxisMsg.LEFT_X to 0f)))
+        // A reading that leaves the trigger and the hat out has them at rest: they are released.
+        assertEquals(setOf(GamepadAxisMsg.LEFT_TRIGGER, GamepadAxisMsg.HAT_X), sent(mapOf(GamepadAxisMsg.LEFT_X to 0f)))
+    }
+
+    @Test
     fun `SYS-009 repeated and tiny changes are dropped, return to rest is sent`() {
         val c = GamepadMath.Changes()
         assertTrue(c.changed(1, GamepadAxisMsg.LEFT_X, 0.5f))

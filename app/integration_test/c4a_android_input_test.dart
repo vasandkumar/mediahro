@@ -91,14 +91,41 @@ void main() {
     expect(of(GamepadAxis.leftTrigger)!.value, closeTo(0.5, 0.01));
     expect(of(GamepadAxis.hatX)!.value, 1);
 
-    // The same input again is not repeated; returning to rest is sent.
+    // A MotionEvent carries every axis, so repeating the same input means
+    // sending all of them again. An axis left out reads as rest (0): sending
+    // only X would also release the trigger and the hat, which is two events.
+    List<Object> held(double x) => <Object>[
+      77,
+      axisX,
+      x,
+      axisY,
+      0.1,
+      axisLTrigger,
+      0.575,
+      axisHatX,
+      1.0,
+    ];
+
+    // The same input again is not repeated.
     seen.clear();
-    await hook.send(<Object>[77, axisX, 1.0]);
+    await hook.send(held(1));
     await Future<void>.delayed(const Duration(milliseconds: 200));
     expect(seen, isEmpty);
-    await hook.send(<Object>[77, axisX, 0.0]);
+
+    // Only the stick moves: one event, for that axis.
+    await hook.send(held(0));
     await Future<void>.delayed(const Duration(milliseconds: 200));
     expect(seen.single.axis, GamepadAxis.leftX);
     expect(seen.single.value, 0);
+
+    // An event that leaves the trigger and the hat out releases them.
+    seen.clear();
+    await hook.send(<Object>[77, axisX, 0.0]);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(seen.map((e) => e.axis).toSet(), {
+      GamepadAxis.leftTrigger,
+      GamepadAxis.hatX,
+    });
+    expect(seen.every((e) => e.value == 0), isTrue);
   }, skip: !android);
 }
