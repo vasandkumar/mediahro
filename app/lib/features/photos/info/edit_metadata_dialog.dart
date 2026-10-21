@@ -286,7 +286,7 @@ class _EditMetadataDialogState extends State<EditMetadataDialog> {
             child: TextButton.icon(
               onPressed: _clearLocation ? null : _chooseOnMap,
               icon: const Icon(Icons.map_outlined),
-              label: Text(l10n.photosEditChooseOnMap),
+              label: Text(l10n.photosEditChooseLocation),
             ),
           ),
           if (_badCoordinates)

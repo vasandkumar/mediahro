@@ -14,7 +14,7 @@ import 'package:mediahro/features/photos/edit/edit_store.dart';
 import 'package:mediahro/features/photos/edit/photo_editor_service.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
-import 'package:mediahro/features/photos/map/map_providers.dart';
+import 'package:mediahro/features/photos/map/gazetteer_providers.dart';
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
 import 'package:mediahro/features/photos/organise/write_back.dart';
 import 'package:mediahro/features/photos/output/photo_output_service.dart';

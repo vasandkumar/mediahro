@@ -7,17 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/photos/info/metadata_edit_service.dart';
 import 'package:mediahro/features/photos/map/gazetteer.dart';
+import 'package:mediahro/features/photos/map/gazetteer_providers.dart';
+import 'package:mediahro/features/photos/map/geo_point.dart' show GeoPoint;
 import 'package:mediahro/features/photos/map/location_actions.dart';
 import 'package:mediahro/features/photos/map/location_picker.dart';
-import 'package:mediahro/features/photos/map/map_providers.dart';
-import 'package:mediahro/features/photos/map/web_mercator.dart' show GeoPoint;
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
-import 'map_surface_test.dart' show FakeTiles;
 import 'photos_harness.dart';
 
 final class _Edits implements MetadataEditor {
@@ -44,10 +43,8 @@ void main() {
     );
   });
 
-  List<Override> mapOverrides({bool tiles = true, bool search = true}) => [
+  List<Override> mapOverrides({bool search = true}) => [
     gazetteerProvider.overrideWith((ref) async => search ? gazetteer : null),
-    mapTileSourceProvider.overrideWithValue(FakeTiles()),
-    mapTilesEnabledProvider.overrideWith((ref) => Stream.value(tiles)),
   ];
 
   group('IMG-007 location picker', () {
@@ -92,7 +89,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('IMG-007 the pin starts where the photo already is', (
+    testWidgets('IMG-007 the position starts as the photo has it', (
       tester,
     ) async {
       await openPicker(tester, initial: (lat: 48.85, lon: 2.35));
@@ -113,9 +110,9 @@ void main() {
       expect(result, isNull);
     });
 
-    testWidgets('IMG-007 searching a city moves the pin there', (tester) async {
+    testWidgets('IMG-007 searching a city picks its position', (tester) async {
       await openPicker(tester, initial: (lat: 0, lon: 0));
-      await tester.enterText(find.byType(TextField), 'sao paulo');
+      await tester.enterText(find.byType(TextField).first, 'sao paulo');
       await tester.pump();
       expect(find.text('São Paulo'), findsOneWidget);
       expect(find.text('Brazil'), findsWidgets);
@@ -129,34 +126,58 @@ void main() {
 
     testWidgets('IMG-007 a search with no match says so', (tester) async {
       await openPicker(tester);
-      await tester.enterText(find.byType(TextField), 'qqqqzzzz');
+      await tester.enterText(find.byType(TextField).first, 'qqqqzzzz');
       await tester.pump();
       expect(find.text('No city matches.'), findsOneWidget);
     });
 
-    testWidgets('IMG-007 tapping the map brings that spot under the pin', (
+    testWidgets('IMG-007 a typed latitude and longitude is used as typed', (
       tester,
     ) async {
-      await openPicker(tester, initial: (lat: 48.85, lon: 2.35));
-      await tester.tapAt(const Offset(200, 250));
-      await tester.pump(const Duration(milliseconds: 400));
+      await openPicker(tester);
+      final use = find.widgetWithText(FilledButton, 'Use this location');
+      expect(tester.widget<FilledButton>(use).onPressed, isNull);
+      await tester.enterText(find.byType(TextField).last, '-33.8688, 151.2093');
+      await tester.pump();
+      await tester.tap(use);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Use this location'));
-      await tester.pumpAndSettle();
-      // Above the centre of the screen: further north.
-      expect(result!.lat, greaterThan(48.85));
-      expect(result!.lon, closeTo(2.35, 0.001));
+      expect(result!.lat, closeTo(-33.8688, 1e-6));
+      expect(result!.lon, closeTo(151.2093, 1e-6));
     });
 
-    testWidgets('IMG-007 without map pictures the picker says why', (
+    testWidgets('IMG-007 letters for the hemispheres are understood', (
       tester,
     ) async {
-      await openPicker(
-        tester,
-        initial: (lat: 48.85, lon: 2.35),
-        overrides: mapOverrides(tiles: false),
+      await openPicker(tester);
+      await tester.enterText(
+        find.byType(TextField).last,
+        '33.8688 S 151.2093 E',
       );
-      expect(find.textContaining('Map pictures are off'), findsOneWidget);
+      await tester.pump();
+      await tester.tap(find.text('Use this location'));
+      await tester.pumpAndSettle();
+      expect(result!.lat, closeTo(-33.8688, 1e-6));
+      expect(result!.lon, closeTo(151.2093, 1e-6));
+    });
+
+    testWidgets('IMG-007 text that is not a position says so', (tester) async {
+      await openPicker(tester);
+      await tester.enterText(find.byType(TextField).last, '95, 10');
+      await tester.pump();
+      expect(find.textContaining("isn't a position"), findsOneWidget);
+      final use = find.widgetWithText(FilledButton, 'Use this location');
+      expect(tester.widget<FilledButton>(use).onPressed, isNull);
+    });
+
+    testWidgets('IMG-007 a chosen city shows its name and country', (
+      tester,
+    ) async {
+      await openPicker(tester);
+      await tester.enterText(find.byType(TextField).first, 'tokyo');
+      await tester.pump();
+      await tester.tap(find.text('Tokyo').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Tokyo, Japan'), findsOneWidget);
     });
 
     testWidgets('IMG-007 a build without the gazetteer has no search box', (
@@ -167,7 +188,7 @@ void main() {
         initial: (lat: 48.85, lon: 2.35),
         overrides: mapOverrides(search: false),
       );
-      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
       await tester.tap(find.text('Use this location'));
       await tester.pumpAndSettle();
       expect(result, isNotNull);
@@ -215,7 +236,7 @@ void main() {
       final (_, edits, entries) = await open(tester);
       await select(tester, [0, 1, 2]);
       await choose(tester, 'Set location');
-      await tester.enterText(find.byType(TextField), 'paris');
+      await tester.enterText(find.byType(TextField).first, 'paris');
       await tester.pump();
       await tester.tap(find.text('Paris').first);
       await tester.pumpAndSettle();
@@ -241,6 +262,8 @@ void main() {
       final (_, edits, entries) = await open(tester, videos: {2});
       await select(tester, [0, 1]);
       await choose(tester, 'Set location');
+      await tester.enterText(find.byType(TextField).last, '48.85, 2.35');
+      await tester.pump();
       await tester.tap(find.text('Use this location'));
       await tester.pumpAndSettle();
       expect(edits.saved, hasLength(1));
@@ -307,7 +330,7 @@ void main() {
       );
     });
 
-    testWidgets('IMG-007 the edit dialog can choose its place on the map', (
+    testWidgets('IMG-007 the edit dialog can choose a location', (
       tester,
     ) async {
       final (_, edits, _) = await open(tester);
@@ -317,13 +340,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Edit details'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Choose on map'));
-      await tester.tap(find.text('Choose on map'));
+      await tester.ensureVisible(find.text('Search or type a location'));
+      await tester.tap(find.text('Search or type a location'));
       await tester.pumpAndSettle();
-      expect(find.text('Choose a location'), findsOneWidget);
+      expect(find.text('Latitude, longitude'), findsOneWidget);
       // Opens on the photo's own position.
       expect(find.text('12.97500, 77.59583'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), 'tokyo');
+      await tester.enterText(find.byType(TextField).first, 'tokyo');
       await tester.pump();
       await tester.tap(find.text('Tokyo').first);
       await tester.pumpAndSettle();

@@ -246,46 +246,31 @@
       }
     }
   },
-  "photosTabMap": "Map",
   "photosTabPlaces": "Places",
-  "photosMapLabel": "Photo map",
-  "photosMapZoomIn": "Zoom in",
-  "photosMapZoomOut": "Zoom out",
-  "photosMapShowAll": "Show all photos",
-  "photosMapAttribution": "© OpenStreetMap contributors",
-  "photosMapNoPhotosTitle": "No photos with a location",
-  "photosMapNoPhotosMessage": "Photos that carry a GPS position appear on this map. You can add a location to any photo from its details.",
-  "photosMapTilesOff": "Map pictures are off, so your photos are shown on a plain grid. Nothing is sent anywhere.",
-  "photosMapTilesTurnOn": "Turn on map pictures",
-  "photosMapTilesConfirmTitle": "Turn on map pictures?",
-  "photosMapTilesConfirmBody": "The map asks tiles.mediahro.com for the pictures of the area you look at. That sends which map tiles you view and your IP address, never your photos or where they were taken. You can turn this off again in Privacy.",
-  "photosMapTilesConfirmYes": "Turn on",
-  "photosMapMarkerLabel": "{count, plural, =1{1 photo} other{{count} photos}}, double tap to open",
-  "@photosMapMarkerLabel": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "photosMapHereTitle": "{count, plural, =1{1 photo here} other{{count} photos here}}",
-  "@photosMapHereTitle": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "photosPlacesEmptyTitle": "No places yet",
   "photosPlacesEmptyMessage": "Places are named on your device from the GPS position of your photos. Photos without a location are not listed.",
   "photosPlaceUnknownCountry": "Other places",
   "photosPickLocationTitle": "Choose a location",
-  "photosPickLocationHint": "Move the map so the pin is where the photo was taken.",
+  "photosPickLocationHint": "Search for a city, or type the position the photo was taken at. Nothing is sent anywhere.",
   "photosPickLocationUse": "Use this location",
   "photosPickLocationSearch": "Search for a city",
   "photosPickLocationNoMatch": "No city matches.",
   "photosPickLocationClose": "Close",
-  "photosEditChooseOnMap": "Choose on map",
+  "photosPickLocationCoordinates": "Latitude, longitude",
+  "photosPickLocationCoordinatesHelp": "Decimal degrees, for example 48.8566, 2.3522",
+  "photosPickLocationInvalid": "That isn't a position. Type latitude, then longitude, in decimal degrees.",
+  "photosPickLocationPlace": "{name}, {country}",
+  "@photosPickLocationPlace": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "photosEditChooseLocation": "Search or type a location",
   "photosSetLocationAction": "Set location",
   "photosClearLocationAction": "Remove location",
   "photosClearLocationTitle": "Remove the location?",
