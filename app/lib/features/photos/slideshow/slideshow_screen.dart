@@ -166,11 +166,23 @@ class _SlideshowScreenState extends ConsumerState<SlideshowScreen>
     setState(() {
       _external = found;
       if (gone) {
-        // The presentation closes by itself when its display goes.
         _presentation = null;
         _externalView = null;
       }
     });
+    if (gone) {
+      // The platform closes it with the display; closing it here as well
+      // frees what the app holds for it (a no-op for a closed handle).
+      unawaited(_closeQuietly(held));
+    }
+  }
+
+  Future<void> _closeQuietly(PresentationHandle handle) async {
+    try {
+      await _display?.closePresentation(handle);
+    } on Object {
+      // Closed with the display at the latest.
+    }
   }
 
   /// Starts or stops the show on the external display.

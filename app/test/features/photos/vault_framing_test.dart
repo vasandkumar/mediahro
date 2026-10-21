@@ -307,8 +307,8 @@ void main() {
       'IMG-011 a lost keystore key reaches the caller as the OS error',
       () async {
         final (file, _) = await sealed(bytesOf(300), embed: true);
-        crypto.loseKeys();
         final fresh = await crypto.openMasterKey(requireBiometry: false);
+        crypto.loseKeys();
         await expectLater(
           VaultReader.open(
             crypto: crypto,
