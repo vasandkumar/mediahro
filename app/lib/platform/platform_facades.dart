@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/platform/accessibility_prefs.dart';
 import 'package:mediahro/platform/audio_output.dart';
 import 'package:mediahro/platform/auth_browser.dart';
+import 'package:mediahro/platform/background_work.dart';
 import 'package:mediahro/platform/caption_style.dart';
 import 'package:mediahro/platform/car_and_alarms.dart';
 import 'package:mediahro/platform/cast.dart';
@@ -25,6 +26,7 @@ import 'package:mediahro/platform/vault_crypto.dart';
 export 'accessibility_prefs.dart';
 export 'audio_output.dart';
 export 'auth_browser.dart';
+export 'background_work.dart';
 export 'caption_style.dart';
 export 'car_and_alarms.dart';
 export 'cast.dart';
@@ -201,6 +203,10 @@ final gamepadProvider = Provider<GamepadFacade>(
 );
 final motionProvider = Provider<MotionFacade>(
   (ref) => const UnsupportedMotion(),
+  retry: _noRetry,
+);
+final backgroundWorkProvider = Provider<BackgroundWorkFacade>(
+  (ref) => const UnsupportedBackgroundWork(),
   retry: _noRetry,
 );
 
