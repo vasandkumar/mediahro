@@ -8,6 +8,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/smart_rule.dart';
 import 'package:mediahro/features/library/playlists_screen.dart'
     show SmartRuleEditor;
+import 'package:mediahro/features/photos/archive/comic_reader.dart';
 import 'package:mediahro/features/photos/duplicates/duplicates_screen.dart';
 import 'package:mediahro/features/photos/organise/photo_actions.dart';
 import 'package:mediahro/features/photos/organise/photo_collection_view.dart';
@@ -138,6 +139,12 @@ class _AlbumsTabState extends ConsumerState<AlbumsTab> {
             title: Text(l10n.photosVault),
             subtitle: Text(l10n.photosVaultSubtitle),
             onTap: () => unawaited(openVault(context)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.collections_bookmark_outlined),
+            title: Text(l10n.photosArchives),
+            subtitle: Text(l10n.photosArchivesSubtitle),
+            onTap: () => unawaited(pickAndOpenArchive(context, ref)),
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline),

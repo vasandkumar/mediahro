@@ -1062,5 +1062,51 @@
   "photosVaultPinNotAllowed": "Choose a different PIN.",
   "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type.",
   "photosVaultResetPending": "The reset will finish the next time the app starts.",
-  "photosVaultResetFailed": "The reset could not be finished. Try again."
+  "photosVaultResetFailed": "The reset could not be finished. Try again.",
+  "photosArchives": "Comics and archives",
+  "photosArchivesSubtitle": "Read ZIP, CBZ, RAR, CBR and 7z without unpacking",
+  "photosReaderNotArchive": "That is not an archive the reader opens (ZIP, CBZ, RAR, CBR, 7z).",
+  "photosReaderUnreadable": "This file can't be read as an archive.",
+  "photosReaderNoPages": "There are no pictures in this archive.",
+  "photosReaderPageFailed": "This page could not be opened",
+  "photosReaderPassphraseTitle": "Password needed",
+  "photosReaderPassphraseLabel": "Archive password",
+  "photosReaderPassphraseOpen": "Open",
+  "photosReaderSettings": "Reading settings",
+  "photosReaderPage": "Page {page} of {total}",
+  "@photosReaderPage": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosReaderPages": "Pages {first} and {last} of {total}",
+  "@photosReaderPages": {
+    "placeholders": {
+      "first": {
+        "type": "int"
+      },
+      "last": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosReaderDirection": "Reading direction",
+  "photosReaderLtr": "Left to right",
+  "photosReaderRtl": "Right to left",
+  "photosReaderPagesMode": "Pages",
+  "photosReaderOnePage": "One page",
+  "photosReaderTwoPages": "Two pages",
+  "photosReaderTwoPagesCover": "Two pages, cover alone",
+  "photosReaderFit": "Fit",
+  "photosReaderFitPage": "Whole page",
+  "photosReaderFitWidth": "Width",
+  "photosReaderFitHeight": "Height"
 }
