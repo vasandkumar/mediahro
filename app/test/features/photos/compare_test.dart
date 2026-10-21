@@ -22,12 +22,16 @@ import 'photos_harness.dart';
 final class _Edits implements MetadataEditor {
   final List<(int, ImageMetadataEdit)> saved = [];
 
+  /// The rating each file holds (what a write changes).
+  final Map<int, int> fileRatings = {};
+
   @override
   Future<MetadataWriteOutcome> save(
     PhotoEntry entry,
     ImageMetadataEdit edit,
   ) async {
     saved.add((entry.id, edit));
+    if (edit.rating != null) fileRatings[entry.id] = edit.rating!;
     return const MetadataWriteOutcome.file();
   }
 }
@@ -152,6 +156,7 @@ void main() {
   group('IMG-008 compare screen', () {
     late _Edits edits;
     late PhotosHarness h;
+    var writeBackOn = false;
 
     Future<void> open(
       WidgetTester tester,
@@ -160,6 +165,7 @@ void main() {
       ViewerImageLoader? loader,
     }) async {
       edits = _Edits();
+      writeBackOn = writeBack;
       h = await PhotosHarness.create(tester);
       final seed = Seed(h.db);
       await tester.runAsync(() async {
@@ -179,7 +185,8 @@ void main() {
               (ref) => OrganisationWriteBack(
                 editor: edits,
                 organiser: ref.watch(photoOrganiserProvider),
-                enabled: () => writeBack,
+                enabled: () => writeBackOn,
+                fileRating: (p) async => edits.fileRatings[p.id],
               ),
             ),
           ],
@@ -323,6 +330,87 @@ void main() {
       await settle(tester);
       expect(edits.saved.single.$1, 1);
       expect(edits.saved.single.$2.rating, -1);
+    });
+
+    group('un-rejecting', () {
+      Future<void> toggleReject(WidgetTester tester, String name) async {
+        await tester.tap(find.byTooltip('Reject $name'));
+        await settle(tester);
+      }
+
+      Future<int?> stars(WidgetTester tester, int id) async {
+        final r = await tester.runAsync(
+          () => (h.db.select(
+            h.db.ratings,
+          )..where((x) => x.itemId.equals(id))).getSingleOrNull(),
+        );
+        return r?.value;
+      }
+
+      testWidgets(
+        'IMG-008 un-rejecting with write-back on gives the file its stars back',
+        (tester) async {
+          await open(tester, two(), writeBack: true);
+          edits.fileRatings[1] = 3;
+          await tester.runAsync(
+            () => PhotoOrganiser(db: h.db).setRating([1], 3),
+          );
+          await toggleReject(tester, 'IMG_1.jpg');
+          expect(edits.fileRatings[1], -1);
+          await toggleReject(tester, 'IMG_1.jpg');
+          expect(edits.fileRatings[1], 3);
+          expect(edits.saved.last.$2.rating, 3);
+          expect(await stars(tester, 1), 6);
+        },
+      );
+
+      testWidgets(
+        'IMG-008 a rejection with no earlier stars un-rejects to no rating',
+        (tester) async {
+          await open(tester, two(), writeBack: true);
+          await toggleReject(tester, 'IMG_1.jpg');
+          await toggleReject(tester, 'IMG_1.jpg');
+          expect(edits.saved.map((e) => e.$2.rating), [-1, 0]);
+          expect(await stars(tester, 1), isNull);
+        },
+      );
+
+      testWidgets(
+        'IMG-008 a file the rejection never reached keeps its stars',
+        (tester) async {
+          await open(tester, two());
+          edits.fileRatings[1] = 4;
+          await toggleReject(tester, 'IMG_1.jpg');
+          // Write-back is switched on only after the rejection.
+          writeBackOn = true;
+          await toggleReject(tester, 'IMG_1.jpg');
+          expect(edits.saved, isEmpty);
+          expect(edits.fileRatings[1], 4);
+        },
+      );
+
+      testWidgets(
+        'IMG-008 with write-back off neither rejecting nor un-rejecting writes',
+        (tester) async {
+          await open(tester, two());
+          edits.fileRatings[1] = 3;
+          await toggleReject(tester, 'IMG_1.jpg');
+          await toggleReject(tester, 'IMG_1.jpg');
+          expect(edits.saved, isEmpty);
+          expect(edits.fileRatings[1], 3);
+        },
+      );
+
+      testWidgets('IMG-008 keeping a rejected photo clears the mark in its '
+          'file too', (tester) async {
+        await open(tester, two(), writeBack: true);
+        edits.fileRatings[1] = 2;
+        await tester.runAsync(() => PhotoOrganiser(db: h.db).setRating([1], 2));
+        await toggleReject(tester, 'IMG_1.jpg');
+        await tester.tap(find.byTooltip('Keep IMG_1.jpg'));
+        await settle(tester);
+        expect(edits.fileRatings[1], 2);
+      });
     });
 
     testWidgets('IMG-008 a photo that cannot be opened is marked, not fatal', (

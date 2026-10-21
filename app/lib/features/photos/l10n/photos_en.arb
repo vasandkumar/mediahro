@@ -718,5 +718,135 @@
   "photosSettingsStripOnShare": "Remove location and camera info when sharing",
   "photosSettingsStripOnShareHint": "Off: the share sheet starts with the original details. You can still switch it on for one share.",
   "photosHdrOn": "Show in HDR",
-  "photosHdrOff": "Show without HDR"
+  "photosHdrOff": "Show without HDR",
+  "photosMoveToTrash": "Delete",
+  "photosTrashTitle": "Recently deleted",
+  "photosTrashEmptyTitle": "Nothing deleted",
+  "photosTrashEmptyMessage": "Photos you delete wait here for 30 days, then they are removed for good.",
+  "photosTrashConfirmTitle": "{count, plural, =1{Delete this photo?} other{Delete {count} photos?}}",
+  "@photosTrashConfirmTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashConfirmBody": "They move to Recently deleted and stay there for 30 days. You can bring them back until then.",
+  "photosTrashConfirm": "Delete",
+  "photosTrashed": "{count, plural, =1{1 photo deleted.} other{{count} photos deleted.}}",
+  "@photosTrashed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashUndo": "Undo",
+  "photosTrashFailed": "{count, plural, =1{1 photo could not be deleted.} other{{count} photos could not be deleted.}}",
+  "@photosTrashFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashLarge": "{count, plural, =1{1 large file went to the system trash instead.} other{{count} large files went to the system trash instead.}}",
+  "@photosTrashLarge": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashRestore": "Restore",
+  "photosTrashRestored": "{count, plural, =1{1 photo restored.} other{{count} photos restored.}}",
+  "@photosTrashRestored": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashDeleteForever": "Delete for good",
+  "photosTrashDeleteForeverConfirm": "{count, plural, =1{Delete this photo for good? This can't be undone.} other{Delete these {count} photos for good? This can't be undone.}}",
+  "@photosTrashDeleteForeverConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashEmptyAll": "Empty",
+  "photosTrashEmptyAllConfirm": "Delete everything in Recently deleted for good? This can't be undone.",
+  "photosTrashDaysLeft": "{count, plural, =1{1 day left} other{{count} days left}}",
+  "@photosTrashDaysLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashTileLabel": "{name}, {count, plural, =1{1 day left} other{{count} days left}}",
+  "@photosTrashTileLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosTrashCount": "{count, plural, =0{Nothing here} =1{1 photo} other{{count} photos}}",
+  "@photosTrashCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosDuplicates": "Duplicates",
+  "photosDuplicatesSubtitle": "Find copies and photos that look the same",
+  "photosDuplicatesIntro": "Look for exact copies, and for photos that look the same even when they differ in size or quality. You decide what to keep; nothing is deleted on its own.",
+  "photosDuplicatesExact": "Exact copies",
+  "photosDuplicatesSimilar": "Look the same",
+  "photosDuplicatesFind": "Find duplicates",
+  "photosDuplicatesScanning": "Looking at photos: {done} of {total}",
+  "@photosDuplicatesScanning": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosDuplicatesComparing": "Comparing photos",
+  "photosDuplicatesNone": "No duplicates",
+  "photosDuplicatesNoneMessage": "Nothing in your library looks like a copy of something else.",
+  "photosDuplicatesKindExact": "identical files",
+  "photosDuplicatesKindSimilar": "look the same",
+  "photosDuplicatesGroup": "{count} photos, {kind}",
+  "@photosDuplicatesGroup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "kind": {
+        "type": "String"
+      }
+    }
+  },
+  "photosDuplicatesReview": "Review duplicates",
+  "photosDuplicatesKeep": "Keep",
+  "photosDuplicatesKeepOne": "Keep at least one",
+  "photosDuplicatesDelete": "{count, plural, =1{Delete 1 other} other{Delete {count} others}}",
+  "@photosDuplicatesDelete": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

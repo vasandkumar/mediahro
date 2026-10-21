@@ -65,32 +65,65 @@ final class PhotoOrganiser {
     });
   }
 
+  /// Half-star ratings the items had when they were rejected, so taking the
+  /// rejection back (in this session) gives the stars back.
+  final Map<int, int> _beforeReject = {};
+
   /// Marks the items as rejected (the XMP convention: rating -1) or clears
-  /// the mark; a rejected photo is no longer a favourite. Star ratings are
-  /// replaced by the mark.
-  Future<void> setRejected(Iterable<int> itemIds, {required bool value}) async {
+  /// the mark; a rejected photo is no longer a favourite. The mark replaces
+  /// star ratings; clearing it gives back the stars the photo had when it was
+  /// rejected. Returns, for clearing, the stars (1–5) that came back by item.
+  Future<Map<int, int>> setRejected(
+    Iterable<int> itemIds, {
+    required bool value,
+  }) async {
     final ids = itemIds.toList();
-    if (ids.isEmpty) return;
+    if (ids.isEmpty) return const {};
     if (value) {
       await setFavourite(ids, value: false);
+      final rows = await (db.select(
+        db.ratings,
+      )..where((r) => r.itemId.isIn(ids) & r.value.isBiggerThanValue(0))).get();
+      for (final r in rows) {
+        _beforeReject[r.itemId] = r.value;
+      }
       await db.batch((b) {
         b.insertAllOnConflictUpdate(db.ratings, [
           for (final id in ids)
             RatingsCompanion.insert(itemId: Value(id), value: -1),
         ]);
       });
-    } else {
-      await (db.delete(
-        db.ratings,
-      )..where((r) => r.itemId.isIn(ids) & r.value.isSmallerThanValue(0))).go();
+      return const {};
     }
+    final rejected = await (db.select(
+      db.ratings,
+    )..where((r) => r.itemId.isIn(ids) & r.value.isSmallerThanValue(0))).get();
+    await (db.delete(
+      db.ratings,
+    )..where((r) => r.itemId.isIn(ids) & r.value.isSmallerThanValue(0))).go();
+    final back = <int, int>{
+      for (final r in rejected)
+        if (_beforeReject.remove(r.itemId) case final int half)
+          r.itemId: (half / 2).ceil(),
+    };
+    if (back.isNotEmpty) {
+      await db.batch((b) {
+        b.insertAllOnConflictUpdate(db.ratings, [
+          for (final e in back.entries)
+            RatingsCompanion.insert(itemId: Value(e.key), value: e.value * 2),
+        ]);
+      });
+    }
+    return back;
   }
 
-  /// Keeps the items: a favourite, and not rejected.
-  Future<void> keep(Iterable<int> itemIds) async {
+  /// Keeps the items: a favourite, and not rejected. Returns the stars that
+  /// came back, as [setRejected] does.
+  Future<Map<int, int>> keep(Iterable<int> itemIds) async {
     final ids = itemIds.toList();
-    await setRejected(ids, value: false);
+    final back = await setRejected(ids, value: false);
     await setFavourite(ids, value: true);
+    return back;
   }
 
   /// Sets [stars] (0 clears) on every item.

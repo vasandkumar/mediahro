@@ -9,6 +9,7 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/batch/photo_batch_service.dart';
+import 'package:mediahro/features/photos/duplicates/photo_duplicates.dart';
 import 'package:mediahro/features/photos/edit/edit_store.dart';
 import 'package:mediahro/features/photos/edit/photo_editor_service.dart';
 import 'package:mediahro/features/photos/image_prober.dart';
@@ -21,6 +22,7 @@ import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/photos/trash/app_trash.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart'
     show settingsStoreProvider;
@@ -156,6 +158,8 @@ final organisationWriteBackProvider = Provider<OrganisationWriteBack>(
     organiser: ref.watch(photoOrganiserProvider),
     enabled: () =>
         ref.read(settingsStoreProvider).get(PhotoSettings.writeOrganisation),
+    fileRating: (p) async =>
+        (await ref.read(photoFactsProvider(p).future)).parsed.metadata.rating,
   ),
 );
 
@@ -246,6 +250,35 @@ final photoOutputSupportProvider = FutureProvider<ImagingSupport>((ref) async {
     return const ImagingSupport();
   }
 });
+
+/// Finds exact and similar photos (IMG-013).
+final photoDuplicateScannerProvider = Provider<DuplicateScanner>(
+  (ref) => PhotoDuplicateScanner(
+    db: ref.watch(libraryDatabaseProvider),
+    files: ref.watch(photoFilesProvider),
+    pipeline: ref.watch(imagePipelineProvider),
+  ),
+);
+
+/// The app's recycle bin for photos (IMG-014).
+final appTrashProvider = Provider<PhotoTrash>(
+  (ref) => AppTrash(
+    directory: Directory(
+      '${ref.watch(appDataDirectoryProvider).path}${Platform.pathSeparator}photo-trash',
+    ),
+    files: ref.watch(photoFilesProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+    db: ref.watch(libraryDatabaseProvider),
+  ),
+);
+
+/// What is in the recycle bin now; invalidate after a change.
+final FutureProvider<List<TrashedPhoto>> trashContentsProvider =
+    FutureProvider.autoDispose<List<TrashedPhoto>>((ref) async {
+      final trash = ref.watch(appTrashProvider);
+      await trash.purge();
+      return await trash.list();
+    });
 
 /// Batch rename, convert, upright and strip (IMG-010).
 final photoBatchProvider = Provider<PhotoBatch>(

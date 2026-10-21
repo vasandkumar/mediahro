@@ -4,8 +4,10 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="mediahro.secure.xml" />
+        <exclude domain="file" path="photo-trash" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="mediahro.secure.xml" />
+        <exclude domain="file" path="photo-trash" />
     </device-transfer>
 </data-extraction-rules>
