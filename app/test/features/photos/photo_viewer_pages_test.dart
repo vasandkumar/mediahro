@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/router.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/slideshow/slideshow_screen.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
@@ -156,6 +157,19 @@ void main() {
       await tester.drag(find.byType(PageView), const Offset(380, 0));
       await tester.pumpAndSettle();
       expect(find.text('Page 1 of 3'), findsOneWidget);
+    });
+  });
+
+  group('IMG-012 the slideshow from the viewer', () {
+    testWidgets('IMG-012 the viewer starts the slideshow at this photo', (
+      tester,
+    ) async {
+      await open(tester, first: (h) => h.take());
+      await tester.tap(find.byTooltip('Slideshow'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.byType(SlideshowScreen), findsOneWidget);
+      expect(find.text('1 of ${entries.length}'), findsOneWidget);
     });
   });
 
