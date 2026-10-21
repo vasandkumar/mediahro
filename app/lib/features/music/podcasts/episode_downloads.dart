@@ -9,17 +9,23 @@ import 'package:mediahro/core/sources/http/http_session.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
 import 'package:mediahro/features/music/podcasts/podcast_service.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
+import 'package:meta/meta.dart';
 
 /// Reads one http(s) address as a file (podcast enclosures), through the
 /// network gateway. Only `open` is supported: an episode is a single file,
 /// not a folder.
 final class HttpUrlFileSystem implements VirtualFileSystem {
-  HttpUrlFileSystem(this._session, this.http);
+  HttpUrlFileSystem(this._session, this.http, {this.openInner});
 
   final HttpSession Function() _session;
 
-  /// Allows the redirect chain of an address before it is opened, so a
-  /// download that resumes in a later session still gets through.
+  /// Opens the address the redirects ended at (tests).
+  @visibleForTesting
+  final Future<VirtualFile> Function(Uri uri)? openInner;
+
+  /// Follows the redirect chain of an address when it is opened, allowing
+  /// each host only while the file is open (and refusing a hop to the
+  /// listener's own network unless a subscription is on that host).
   final PodcastHttp http;
 
   @override
@@ -30,12 +36,25 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
 
   @override
   Future<VirtualFile> open(Uri uri) async {
+    final ({Uri uri, ChainAllowance chain}) opened;
     try {
-      await http.allowChain(uri);
-    } on Object {
-      // The open below reports what is wrong.
+      opened = await http.openChain(uri);
+    } on PodcastHttpException catch (e) {
+      throw VirtualFileException(
+        VirtualFileError.permissionDenied,
+        uri,
+        e.reason,
+      );
     }
-    return await HttpVirtualFile.open(uri, _session());
+    try {
+      final file =
+          await (openInner?.call(opened.uri) ??
+              HttpVirtualFile.open(opened.uri, _session()));
+      return _ScopedFile(uri, file, opened.chain.close);
+    } on Object {
+      opened.chain.close();
+      rethrow;
+    }
   }
 
   @override
@@ -53,6 +72,32 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
       'episodes are single files',
     ),
   );
+}
+
+/// A file whose network allowance ends when it is closed. It reports the
+/// address it was asked for; the reads go to where the redirects ended.
+final class _ScopedFile implements VirtualFile {
+  _ScopedFile(this.uri, this._inner, this._release);
+
+  @override
+  final Uri uri;
+  final VirtualFile _inner;
+  final void Function() _release;
+
+  @override
+  bool get isSeekable => _inner.isSeekable;
+
+  @override
+  Future<int?> length() => _inner.length();
+
+  @override
+  Future<Uint8List> read(int offset, int length) => _inner.read(offset, length);
+
+  @override
+  Future<void> close() async {
+    _release();
+    await _inner.close();
+  }
 }
 
 /// Offline copies of episodes on the app's download manager (NET-018):
