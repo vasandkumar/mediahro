@@ -7,6 +7,7 @@ import 'package:mediahro/images/metadata/bytes.dart';
 const _signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 const _xmpKeyword = 'XML:com.adobe.xmp';
 const _maxChunks = 100000;
+const _textChunks = {'tEXt', 'zTXt', 'iTXt', 'tIME'};
 
 final class PngChunk {
   const PngChunk(this.type, this.start, this.dataStart, this.dataLength);
@@ -142,8 +143,14 @@ final class PngFile {
   }
 
   /// A copy with the given blocks replaced or removed. New chunks go before
-  /// the first IDAT.
-  Uint8List rewrite({Patch<Uint8List>? exif, Patch<String>? xmp}) {
+  /// the first IDAT. [dropText] also removes every free-text and date chunk
+  /// (tEXt, zTXt, every iTXt including "Raw profile type" IPTC/EXIF dumps,
+  /// and tIME), which tools use for titles, comments, GPS and authorship.
+  Uint8List rewrite({
+    Patch<Uint8List>? exif,
+    Patch<String>? xmp,
+    bool dropText = false,
+  }) {
     final out = BytesBuilder(copy: false)..add(_signature);
     var emitted = false;
     void emitNew() {
@@ -171,6 +178,7 @@ final class PngFile {
       if (c.type == 'IDAT' || c.type == 'IEND') emitNew();
       if (exif != null && c.type == 'eXIf') continue;
       if (xmp != null && _isXmp(c)) continue;
+      if (dropText && _textChunks.contains(c.type)) continue;
       out.add(Uint8List.sublistView(bytes, c.start, c.end));
     }
     emitNew();

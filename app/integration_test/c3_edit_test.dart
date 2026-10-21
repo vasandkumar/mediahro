@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/files/file_systems.dart';
+import 'package:mediahro/features/photos/edit/photo_editor_service.dart'
+    show editPreviewEdge;
 import 'package:mediahro/images/edit/edit_recipe.dart';
 import 'package:mediahro/images/image_pipeline.dart';
 import 'package:mediahro/images/pipeline/image_io.dart';
@@ -128,7 +130,8 @@ void main() {
   testWidgets('IMG-009 the preview path is fast enough to follow a slider', (
     tester,
   ) async {
-    final src = await photo(1400, 1050);
+    // The editor computes previews on a proxy of this size (editPreviewEdge).
+    final src = await photo(editPreviewEdge, editPreviewEdge * 3 ~/ 4);
     final frame = await pipeline.decode(src);
     final proxy = PixelFrame(
       width: frame.width,
@@ -148,7 +151,10 @@ void main() {
     final each = sw.elapsedMilliseconds / 10;
     // A timing line for the device report.
     // ignore: avoid_print
-    print('IMG-009 preview render at 1400 px: ${each.toStringAsFixed(0)} ms');
+    print(
+      'IMG-009 preview render at $editPreviewEdge px: '
+      '${each.toStringAsFixed(0)} ms',
+    );
     expect(each, lessThan(400));
   });
 }

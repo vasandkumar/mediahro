@@ -779,10 +779,15 @@ Uint8List? stripMetadata(
           exif: exifPatch(j.exif),
           xmp: const Patch.remove(),
           photoshop: const Patch.remove(),
+          dropComments: true,
         );
       case ImageFormat.png:
         final p = PngFile.parse(bytes);
-        return p.rewrite(exif: exifPatch(p.exif), xmp: const Patch.remove());
+        return p.rewrite(
+          exif: exifPatch(p.exif),
+          xmp: const Patch.remove(),
+          dropText: true,
+        );
       case ImageFormat.webp:
         final w = WebpFile.parse(bytes);
         return w.rewrite(exif: exifPatch(w.exif), xmp: const Patch.remove());

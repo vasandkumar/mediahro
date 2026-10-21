@@ -13,12 +13,17 @@ import 'package:mediahro/images/pipeline/mediahro_image_pipeline.dart';
 import 'package:mediahro/images/pipeline/pixel_codec.dart';
 import 'package:mediahro/images/pipeline/pixel_ops.dart';
 
+/// Longest edge of the picture previews are computed on. A phone screen is
+/// about this wide, and the render time follows the pixel count (the preview
+/// budget is 400 ms on the reference phone).
+const int editPreviewEdge = 1080;
+
 /// What the editor needs from the library and the image pipeline; faked in
 /// widget tests.
 abstract interface class PhotoEditor {
   /// A reduced copy of [entry] (longest edge at most [edge]) that previews
   /// are computed on.
-  Future<PixelFrame> loadProxy(PhotoEntry entry, {int edge = 1400});
+  Future<PixelFrame> loadProxy(PhotoEntry entry, {int edge = editPreviewEdge});
 
   /// [proxy] with [recipe] applied.
   Future<PixelFrame> render(PixelFrame proxy, EditRecipe recipe);
@@ -81,7 +86,10 @@ final class PhotoEditService implements PhotoEditor {
   static const int quality = 92;
 
   @override
-  Future<PixelFrame> loadProxy(PhotoEntry entry, {int edge = 1400}) async {
+  Future<PixelFrame> loadProxy(
+    PhotoEntry entry, {
+    int edge = editPreviewEdge,
+  }) async {
     final src = await files.open(entry);
     try {
       final info = await pipeline.info(src);

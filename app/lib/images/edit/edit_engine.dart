@@ -371,6 +371,15 @@ PixelFrame _light(PixelFrame f, EditRecipe r, {required bool copy}) {
   final vibrance = r.amount(AdjustKind.vibrance);
   final tonal = shadows != 0 || highlights != 0;
   final colour = saturation != 0 || vibrance != 0;
+  if (!tonal && !colour) {
+    // Exposure, contrast, white balance and curves are all in the tables.
+    for (var o = 0; o < n * 4; o += 4) {
+      p[o] = lr[p[o]];
+      p[o + 1] = lg[p[o + 1]];
+      p[o + 2] = lb[p[o + 2]];
+    }
+    return out;
+  }
   for (var i = 0, o = 0; i < n; i++, o += 4) {
     var red = lr[p[o]].toDouble();
     var green = lg[p[o + 1]].toDouble();
@@ -396,9 +405,9 @@ PixelFrame _light(PixelFrame f, EditRecipe r, {required bool copy}) {
       green = l + (green - l) * factor;
       blue = l + (blue - l) * factor;
     }
-    p[o] = red < 0 ? 0 : (red > 255 ? 255 : red.round());
-    p[o + 1] = green < 0 ? 0 : (green > 255 ? 255 : green.round());
-    p[o + 2] = blue < 0 ? 0 : (blue > 255 ? 255 : blue.round());
+    p[o] = red < 0 ? 0 : (red > 255 ? 255 : (red + 0.5).toInt());
+    p[o + 1] = green < 0 ? 0 : (green > 255 ? 255 : (green + 0.5).toInt());
+    p[o + 2] = blue < 0 ? 0 : (blue > 255 ? 255 : (blue + 0.5).toInt());
   }
   return out;
 }
@@ -414,39 +423,65 @@ PixelFrame _sharpen(PixelFrame f, double amount) {
   final h = f.height;
   final step = math.max(1, (math.max(w, h) / 1800).round());
   final src = f.rgba;
+  final row = w * 4;
+  final s4 = step * 4;
   final tmp = Uint8List(src.length);
-  const k = [1, 4, 6, 4, 1];
-  // Horizontal pass.
+  // Taps 1 4 6 4 1 at spacing [step]. The blur runs over all four bytes of
+  // a pixel alike (the alpha result is thrown away), so the inner loops are
+  // flat walks over the rows with no per-pixel bounds handling in the
+  // interior.
+  final lo = math.min(2 * step, w);
+  final hi = math.max(w - 2 * step, lo);
   for (var y = 0; y < h; y++) {
+    final base = y * row;
+    // Edge pixels read clamped neighbours.
     for (var x = 0; x < w; x++) {
-      final o = (y * w + x) * 4;
+      if (x == lo && hi > lo) x = hi;
+      final o = base + x * 4;
       for (var c = 0; c < 3; c++) {
-        var sum = 0;
-        for (var t = -2; t <= 2; t++) {
-          final xx = (x + t * step).clamp(0, w - 1);
-          sum += src[(y * w + xx) * 4 + c] * k[t + 2];
-        }
-        tmp[o + c] = sum >> 4;
+        final a = base + _clampIndex(x - 2 * step, w) * 4 + c;
+        final b = base + _clampIndex(x - step, w) * 4 + c;
+        final d = base + _clampIndex(x + step, w) * 4 + c;
+        final e = base + _clampIndex(x + 2 * step, w) * 4 + c;
+        tmp[o + c] =
+            (src[a] + 4 * src[b] + 6 * src[o + c] + 4 * src[d] + src[e]) >> 4;
       }
+    }
+    final end = base + hi * 4;
+    for (var i = base + lo * 4; i < end; i++) {
+      tmp[i] =
+          (src[i - 2 * s4] +
+              4 * src[i - s4] +
+              6 * src[i] +
+              4 * src[i + s4] +
+              src[i + 2 * s4]) >>
+          4;
     }
   }
   final out = Uint8List(src.length);
   final gain = amount * 2;
   for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      final o = (y * w + x) * 4;
-      for (var c = 0; c < 3; c++) {
-        var sum = 0;
-        for (var t = -2; t <= 2; t++) {
-          final yy = (y + t * step).clamp(0, h - 1);
-          sum += tmp[(yy * w + x) * 4 + c] * k[t + 2];
-        }
-        final blur = sum >> 4;
-        final v = src[o + c] + (src[o + c] - blur) * gain;
-        out[o + c] = v < 0 ? 0 : (v > 255 ? 255 : v.round());
-      }
-      out[o + 3] = src[o + 3];
+    final o = y * row;
+    final r0 = _clampIndex(y - 2 * step, h) * row;
+    final r1 = _clampIndex(y - step, h) * row;
+    final r3 = _clampIndex(y + step, h) * row;
+    final r4 = _clampIndex(y + 2 * step, h) * row;
+    for (var i = 0; i < row; i++) {
+      final blur =
+          (tmp[r0 + i] +
+              4 * tmp[r1 + i] +
+              6 * tmp[o + i] +
+              4 * tmp[r3 + i] +
+              tmp[r4 + i]) >>
+          4;
+      final s = src[o + i];
+      final v = s + (s - blur) * gain;
+      out[o + i] = v < 0 ? 0 : (v > 255 ? 255 : v.round());
     }
+  }
+  // Alpha is carried over, not sharpened.
+  for (var i = 3; i < out.length; i += 4) {
+    out[i] = src[i];
   }
   return PixelFrame(
     width: w,
@@ -456,6 +491,8 @@ PixelFrame _sharpen(PixelFrame f, double amount) {
     sourceHeight: f.sourceHeight,
   );
 }
+
+int _clampIndex(int v, int n) => v < 0 ? 0 : (v >= n ? n - 1 : v);
 
 double _smoothstep(double a, double b, double x) {
   final t = ((x - a) / (b - a)).clamp(0.0, 1.0);

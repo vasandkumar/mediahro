@@ -193,11 +193,15 @@ final class JpegFile {
   /// A copy with the given blocks replaced or removed; the scan data and
   /// everything after it is copied untouched.
   ///
+  /// [dropComments] also removes the COM (comment) segments, where cameras
+  /// and editors leave free text.
+  ///
   /// Throws [MetadataFormatException] when a block does not fit one segment.
   Uint8List rewrite({
     Patch<Uint8List>? exif,
     Patch<String>? xmp,
     Patch<Uint8List>? photoshop,
+    bool dropComments = false,
   }) {
     final out = BytesBuilder(copy: false)..add(const [0xFF, 0xD8]);
 
@@ -215,6 +219,7 @@ final class JpegFile {
     }
 
     bool drop(JpegSegment s) =>
+        (dropComments && s.marker == 0xFE) ||
         (exif != null && s.marker == 0xE1 && _starts(s, _exifHeader)) ||
         (xmp != null &&
             s.marker == 0xE1 &&

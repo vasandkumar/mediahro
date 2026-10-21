@@ -49,7 +49,10 @@ final class FakeEditor implements PhotoEditor {
   }
 
   @override
-  Future<PixelFrame> loadProxy(PhotoEntry entry, {int edge = 1400}) async {
+  Future<PixelFrame> loadProxy(
+    PhotoEntry entry, {
+    int edge = editPreviewEdge,
+  }) async {
     if (failLoad) throw StateError('unreadable');
     return frame();
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -629,6 +630,71 @@ void main() {
       expect((out.width, out.height), (50, 50));
       expect(px(out, 25, 25)[0], 255);
     });
+  });
+
+  group('IMG-009 sharpen matches the plain definition', () {
+    // The straightforward version the fast one replaced: five taps each way
+    // with clamped neighbours.
+    Uint8List reference(PixelFrame f, double amount) {
+      final w = f.width;
+      final h = f.height;
+      final step = max(1, (max(w, h) / 1800).round());
+      int at(Uint8List b, int x, int y, int c) =>
+          b[(y.clamp(0, h - 1) * w + x.clamp(0, w - 1)) * 4 + c];
+      const k = [1, 4, 6, 4, 1];
+      final tmp = Uint8List(f.rgba.length);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          for (var c = 0; c < 3; c++) {
+            var sum = 0;
+            for (var t = -2; t <= 2; t++) {
+              sum += at(f.rgba, x + t * step, y, c) * k[t + 2];
+            }
+            tmp[(y * w + x) * 4 + c] = sum >> 4;
+          }
+        }
+      }
+      final out = Uint8List(f.rgba.length);
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          for (var c = 0; c < 3; c++) {
+            var sum = 0;
+            for (var t = -2; t <= 2; t++) {
+              sum += at(tmp, x, y + t * step, c) * k[t + 2];
+            }
+            final s = f.rgba[(y * w + x) * 4 + c];
+            final v = s + (s - (sum >> 4)) * amount * 2;
+            out[(y * w + x) * 4 + c] = v < 0 ? 0 : (v > 255 ? 255 : v.round());
+          }
+          out[(y * w + x) * 4 + 3] = f.rgba[(y * w + x) * 4 + 3];
+        }
+      }
+      return out;
+    }
+
+    PixelFrame noise(int w, int h, {int alpha = 255}) {
+      final r = Random(w * 31 + h);
+      final b = Uint8List(w * h * 4);
+      for (var i = 0; i < b.length; i++) {
+        b[i] = i % 4 == 3 ? alpha : r.nextInt(256);
+      }
+      return PixelFrame(width: w, height: h, rgba: b);
+    }
+
+    for (final (w, h) in [
+      (37, 23),
+      (3, 3),
+      (1, 9),
+      (9, 1),
+      (5, 4),
+      (3700, 6),
+    ]) {
+      test('IMG-009 sharpen on a $w x $h picture', () {
+        final f = noise(w, h, alpha: w == 37 ? 100 : 255);
+        const r = EditRecipe(adjust: {AdjustKind.sharpen: 0.6});
+        expect(applyRecipe(f, r).rgba, reference(f, 0.6));
+      });
+    }
   });
 
   group('IMG-009 speed', () {
