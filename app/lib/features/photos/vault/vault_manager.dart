@@ -130,14 +130,19 @@ final class VaultManager {
     required this.root,
     required this.crypto,
     required this.secure,
-    this.iterations = vaultKdfIterations,
-    this.minRounds = vaultKdfIterations,
+    int iterations = vaultKdfIterations,
+    int minRounds = vaultKdfIterations,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : minRounds = minRounds,
+       iterations = iterations.clamp(minRounds, maxRounds),
+       _clock = clock ?? DateTime.now;
 
   final Directory root;
   final VaultCryptoFacade crypto;
   final SecureStorageFacade secure;
+
+  /// The rounds new PINs are stretched with, kept within [minRounds] and
+  /// [maxRounds].
   final int iterations;
 
   /// The fewest rounds a salt file may name; a file that names fewer is read
@@ -165,36 +170,52 @@ final class VaultManager {
 
   static final RegExp _dirName = RegExp(r'^[0-9a-f]{16}$');
 
-  /// Present in a folder while set-up is still making it; a folder with it
-  /// is not a vault.
-  static const String _incomplete = '.incomplete';
+  /// In the vault root while set-up is making the folders. Deleting it is the
+  /// one step that makes them a vault: while it exists there is no vault, and
+  /// the next start removes whatever was made.
+  static const String _setupMarker = '.setup';
 
-  File _incompleteFile(Directory d) =>
-      File('${d.path}${Platform.pathSeparator}$_incomplete');
+  /// In the vault root while a reset is under way: it was confirmed, so a stop
+  /// in the middle is finished (rolled forward) at the next start.
+  static const String _resetJournal = '.reset';
+
+  static const String _trashPrefix = '.trash-';
+
+  File get _setupFile =>
+      File('${root.path}${Platform.pathSeparator}$_setupMarker');
+
+  File get _resetFile =>
+      File('${root.path}${Platform.pathSeparator}$_resetJournal');
+
+  bool get _pending => _setupFile.existsSync() || _resetFile.existsSync();
 
   List<Directory> _dirs() {
-    if (!root.existsSync()) return const [];
+    if (!root.existsSync() || _pending) return const [];
     return [
       for (final e in root.listSync(followLinks: false))
         if (e is Directory &&
-            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last) &&
-            !_incompleteFile(e).existsSync())
+            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last))
           e,
     ]..sort((a, b) => a.path.compareTo(b.path));
   }
 
-  /// Removes what a stopped set-up or a stopped reset left: folders still
-  /// marked incomplete, and folders renamed for deletion. Best effort.
-  void _sweepLeftovers() {
+  Future<void> _flag(File f) async {
+    await root.create(recursive: true);
+    final part = File('${f.path}.part');
+    await part.writeAsBytes(const [], flush: true);
+    await part.rename(f.path);
+  }
+
+  Future<void> _deleteTrash() async {
     if (!root.existsSync()) return;
     try {
-      for (final e in root.listSync(followLinks: false)) {
-        if (e is! Directory) continue;
-        final name = e.path.split(Platform.pathSeparator).last;
-        final unfinished =
-            _dirName.hasMatch(name) && _incompleteFile(e).existsSync();
-        if (unfinished || name.startsWith(_trashPrefix)) {
-          e.deleteSync(recursive: true);
+      await for (final e in root.list(followLinks: false)) {
+        if (e is Directory &&
+            e.path
+                .split(Platform.pathSeparator)
+                .last
+                .startsWith(_trashPrefix)) {
+          await e.delete(recursive: true);
         }
       }
     } on FileSystemException {
@@ -202,7 +223,55 @@ final class VaultManager {
     }
   }
 
-  static const String _trashPrefix = '.trash-';
+  /// Finishes what a stopped reset or set-up left, before anything else. A
+  /// reset that was confirmed is rolled forward (folders moved away, the
+  /// phone key deleted, folders and the fingerprint and back-off records
+  /// deleted); a set-up that did not reach its last step is rolled back (every
+  /// folder it made is removed). Throws the keystore's failure if the key
+  /// cannot be deleted; the journal then stays and the next start tries again.
+  Future<void> _recover() async {
+    if (!root.existsSync()) return;
+    if (_resetFile.existsSync()) {
+      await _moveAway();
+      await crypto.reset();
+      await _deleteTrash();
+      await secure.delete(_bioKey);
+      await secure.delete(_attemptsKey);
+      await _resetFile.delete();
+    }
+    if (_setupFile.existsSync()) {
+      for (final e in root.listSync(followLinks: false)) {
+        if (e is Directory &&
+            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last)) {
+          await e.delete(recursive: true);
+        }
+      }
+      await _setupFile.delete();
+    }
+    await _deleteTrash();
+  }
+
+  /// Renames every vault folder to a name that is not a vault; returns what
+  /// was moved, so it can be put back.
+  Future<List<(Directory, Directory)>> _moveAway({
+    List<(Directory, Directory)>? into,
+  }) async {
+    final moved = into ?? <(Directory, Directory)>[];
+    final dirs = [
+      for (final e in root.listSync(followLinks: false))
+        if (e is Directory &&
+            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last))
+          e,
+    ];
+    for (final d in dirs) {
+      final to = Directory(
+        '${root.path}${Platform.pathSeparator}$_trashPrefix${_folderName(d)}',
+      );
+      await d.rename(to.path);
+      moved.add((d, to));
+    }
+    return moved;
+  }
 
   /// Whether a vault has been set up.
   bool get exists => _dirs().isNotEmpty;
@@ -275,7 +344,13 @@ final class VaultManager {
     String? decoyPin,
     bool fingerprint = false,
   }) async {
-    _sweepLeftovers();
+    try {
+      await _recover();
+    } on VaultCryptoException catch (e) {
+      return VaultOpenResult(outcomeOf(e));
+    } on FileSystemException {
+      return const VaultOpenResult(VaultOutcome.unavailable);
+    }
     if (exists) return const VaultOpenResult(VaultOutcome.damaged);
     final decoy = decoyPin ?? randomPin();
     if (pin.length < minPinLength || decoy.length < minPinLength) {
@@ -296,6 +371,8 @@ final class VaultManager {
     final secrets = <Uint8List>[];
     final containers = <VaultContainer>[];
     try {
+      // Before any folder: until this is deleted at the end there is no vault.
+      await _flag(_setupFile);
       final pins = [pin, decoy];
       final order = [0, 1]..shuffle(Random.secure());
       final salts = [randomBytes(16), randomBytes(16)];
@@ -313,8 +390,6 @@ final class VaultManager {
           );
           made.add(dir);
           await dir.create(recursive: true);
-          // Not a vault until both are made.
-          await _incompleteFile(dir).writeAsBytes(const [], flush: true);
           await _writeSalt(dir, salts[i], iterations);
           final s = randomBytes(VaultSecretFile.length);
           secrets.add(s);
@@ -357,9 +432,8 @@ final class VaultManager {
           t.fillRange(0, t.length, 0);
         }
       }
-      for (final d in made) {
-        _incompleteFile(d).deleteSync();
-      }
+      // The commit: both folders are whole, and now they are the vault.
+      await _setupFile.delete();
       // The other vault's handle and secret are not needed any more.
       for (final h in handles) {
         if (h != realHandle) await crypto.close(h);
@@ -382,6 +456,7 @@ final class VaultManager {
       for (final d in made) {
         if (d.existsSync()) d.deleteSync(recursive: true);
       }
+      if (_setupFile.existsSync()) _setupFile.deleteSync();
       for (final h in handles) {
         try {
           await crypto.close(h);
@@ -628,7 +703,7 @@ final class VaultManager {
     if (wait != null) {
       return VaultOpenResult(VaultOutcome.waitToRetry, wait: wait);
     }
-    _sweepLeftovers();
+    unawaited(_deleteTrash());
     dirs.forEach(VaultContainer.sweepStaleParts);
     OpenVault? found;
     var lost = false;
@@ -926,6 +1001,14 @@ final class VaultManager {
     }
   }
 
+  static bool _sameBytes(Uint8List a, Uint8List b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   Future<VaultOutcome> _changePin(
     OpenVault vault,
     String newPin,
@@ -989,16 +1072,21 @@ final class VaultManager {
           pinHandle: pinHandle,
           folder: _folderName(here),
         );
-        var same = back.length == secret.length;
-        for (var i = 0; same && i < back.length; i++) {
-          same = back[i] == secret[i];
-        }
+        final same = _sameBytes(back, secret);
         back.fillRange(0, back.length, 0);
         if (!same) throw const VaultCorrupt('the new secret file differs');
       } finally {
         await crypto.close(pinHandle);
       }
       await _writeSalt(here, salt, iterations, next: true);
+      // The salt on disk must be the one the token was made from.
+      final written = await _readSalt(here, next: true);
+      if (written == null ||
+          written.rounds != iterations ||
+          written.salt.length != salt.length ||
+          !_sameBytes(written.salt, salt)) {
+        throw const VaultCorrupt('the new salt file differs');
+      }
       await _secretNextFile(here).rename(_secretFile(here).path);
       swapped = true;
       try {
@@ -1025,41 +1113,50 @@ final class VaultManager {
   /// Deletes both vaults and everything in them, the fingerprint entry and
   /// the OS key behind them (`VaultCryptoFacade.reset`, ADR-039 amendment 1).
   /// Used when the vault can no longer be opened, after the user confirmed.
-  /// The folders are first renamed out of the way (and put back if anything
-  /// fails), then the key goes; only when that worked is anything deleted. So
-  /// a failure at any step leaves a vault that can still be opened.
+  /// A journal file is written first; the folders are renamed out of the way
+  /// (and put back, journal removed, if anything fails), then the key goes;
+  /// only when that worked is anything deleted. A stop in the middle is
+  /// finished at the next start. Throws [VaultResetPending] when a failure
+  /// could not be undone (the reset then finishes at the next start).
   Future<void> reset() async {
+    await _flag(_resetFile);
     final moved = <(Directory, Directory)>[];
     try {
-      for (final d in _dirs()) {
-        final to = Directory(
-          '${root.path}${Platform.pathSeparator}$_trashPrefix${_folderName(d)}',
-        );
-        await d.rename(to.path);
-        moved.add((d, to));
-      }
+      await _moveAway(into: moved);
       await crypto.reset();
     } on Object {
+      var undone = true;
       for (final (from, to) in moved) {
         try {
           if (to.existsSync()) await to.rename(from.path);
         } on Object {
-          // Nothing more to do.
+          undone = false;
         }
       }
+      if (undone) {
+        try {
+          await _resetFile.delete();
+        } on Object {
+          undone = false;
+        }
+      }
+      if (!undone) throw const VaultResetPending();
       rethrow;
     }
-    for (final (_, to) in moved) {
-      try {
-        to.deleteSync(recursive: true);
-      } on FileSystemException {
-        // Swept at the next start.
-      }
-    }
-    _sweepLeftovers();
+    await _deleteTrash();
     await secure.delete(_bioKey);
     await secure.delete(_attemptsKey);
+    await _resetFile.delete();
   }
+}
+
+/// A reset could not be finished or undone right now; it finishes the next
+/// time the app starts.
+final class VaultResetPending implements Exception {
+  const VaultResetPending();
+
+  @override
+  String toString() => 'VaultResetPending';
 }
 
 /// How many wrong guesses are on record, when that was last worked out, and

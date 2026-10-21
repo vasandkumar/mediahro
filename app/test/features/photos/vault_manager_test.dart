@@ -161,7 +161,8 @@ void main() {
       final wrong = crypto.calls
           .where((c) => c.startsWith('openMaster'))
           .length;
-      // The check that the phone keys are still there opens two more handles.
+      // A right PIN opens the container handle; a wrong one opens the two probe
+      // handles instead: one more.
       expect(wrong, right + 1);
     });
 
@@ -858,27 +859,176 @@ void main() {
   });
 
   group('PRIV-007 set-up, Change PIN and reset that fail half way', () {
+    List<Directory> vaultDirs() =>
+        root.listSync().whereType<Directory>().where((d) {
+          final n = d.path.split(Platform.pathSeparator).last;
+          return RegExp(r'^[0-9a-f]{16}$').hasMatch(n);
+        }).toList();
+
+    test('PRIV-007 a stop before any folder was made is no vault', () async {
+      // The marker alone, as after a stop right after it was written.
+      root.createSync(recursive: true);
+      File('${root.path}/.setup').writeAsBytesSync(const []);
+      expect(manager.exists, isFalse);
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      await r.vault!.close();
+      expect(File('${root.path}/.setup').existsSync(), isFalse);
+      expect(vaultDirs(), hasLength(2));
+    });
+
     test(
-      'PRIV-007 a set-up that stopped half way is not a vault and is swept',
+      'PRIV-007 a stop with an empty folder is no vault and is swept',
       () async {
-        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
-        await r.vault!.close();
-        final dirs = root.listSync().whereType<Directory>().toList();
-        for (final d in dirs) {
-          File('${d.path}/.incomplete').writeAsBytesSync(const []);
-        }
+        root.createSync(recursive: true);
+        File('${root.path}/.setup').writeAsBytesSync(const []);
+        Directory('${root.path}/0123456789abcdef').createSync();
         expect(manager.exists, isFalse);
         expect(
           (await manager.openWithPin('246810')).outcome,
           VaultOutcome.needsSetup,
         );
-        final again = await manager.setUp(pin: '111111', decoyPin: '222222');
-        expect(again.isOpen, isTrue);
-        await again.vault!.close();
-        expect(root.listSync().whereType<Directory>(), hasLength(2));
-        for (final d in root.listSync().whereType<Directory>()) {
-          expect(File('${d.path}/.incomplete').existsSync(), isFalse);
-        }
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        expect(r.isOpen, isTrue);
+        await r.vault!.close();
+        expect(
+          Directory('${root.path}/0123456789abcdef').existsSync(),
+          isFalse,
+        );
+        expect(vaultDirs(), hasLength(2));
+      },
+    );
+
+    test('PRIV-007 a stop with only one finished folder never leaves a lone vault', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      final dirs = vaultDirs();
+      // Back to the moment before the commit, with the second folder not made.
+      File('${root.path}/.setup').writeAsBytesSync(const []);
+      dirs.last.deleteSync(recursive: true);
+      expect(manager.exists, isFalse);
+      final again = await manager.setUp(pin: '246810', decoyPin: '135790');
+      expect(again.isOpen, isTrue, reason: '${again.outcome}');
+      await again.vault!.close();
+      expect(vaultDirs(), hasLength(2));
+      // And both PINs open their own vault.
+      expect((await manager.openWithPin('135790')).isOpen, isTrue);
+    });
+
+    test(
+      'PRIV-007 deleting the marker is the commit: both folders are the vault',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        expect(File('${root.path}/.setup').existsSync(), isFalse);
+        expect(manager.exists, isTrue);
+        expect((await manager.openWithPin('246810')).isOpen, isTrue);
+      },
+    );
+
+    String last(FileSystemEntity e) =>
+        e.path.split(Platform.pathSeparator).last;
+
+    test('PRIV-007 a reset stopped after the folders were moved is finished at the next start', () async {
+      final r = await manager.setUp(
+        pin: '246810',
+        decoyPin: '135790',
+        fingerprint: true,
+      );
+      await r.vault!.close();
+      await manager.openWithPin('000001');
+      File('${root.path}/.reset').writeAsBytesSync(const []);
+      for (final d in vaultDirs()) {
+        d.renameSync('${root.path}/.trash-${last(d)}');
+      }
+      final before = crypto.resets;
+      expect(manager.exists, isFalse);
+      expect(
+        (await manager.openWithPin('246810')).outcome,
+        VaultOutcome.needsSetup,
+      );
+      final s = await manager.setUp(pin: '111111', decoyPin: '222222');
+      expect(s.isOpen, isTrue, reason: '${s.outcome}');
+      await s.vault!.close();
+      expect(crypto.resets, before + 1);
+      expect(File('${root.path}/.reset').existsSync(), isFalse);
+      expect(
+        root.listSync().where((e) => last(e).startsWith('.trash-')),
+        isEmpty,
+      );
+      expect(await manager.fingerprintOn, isFalse);
+      expect(vaultDirs(), hasLength(2));
+    });
+
+    test(
+      'PRIV-007 a reset stopped right after its journal is finished too',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        File('${root.path}/.reset').writeAsBytesSync(const []);
+        expect(manager.exists, isFalse);
+        final s = await manager.setUp(pin: '111111', decoyPin: '222222');
+        expect(s.isOpen, isTrue, reason: '${s.outcome}');
+        await s.vault!.close();
+        expect(vaultDirs(), hasLength(2));
+        expect((await manager.openWithPin('246810')).isOpen, isFalse);
+      },
+    );
+
+    test('PRIV-007 if the key cannot be deleted while finishing, the journal stays', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      File('${root.path}/.reset').writeAsBytesSync(const []);
+      crypto.failReset = VaultCryptoError.unavailable;
+      expect(
+        (await manager.setUp(pin: '111111', decoyPin: '222222')).outcome,
+        VaultOutcome.unavailable,
+      );
+      expect(File('${root.path}/.reset').existsSync(), isTrue);
+      crypto.failReset = null;
+      final s = await manager.setUp(pin: '111111', decoyPin: '222222');
+      expect(s.isOpen, isTrue, reason: '${s.outcome}');
+      await s.vault!.close();
+    });
+
+    test('PRIV-007 a reset that works leaves no journal', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      await manager.reset();
+      expect(File('${root.path}/.reset').existsSync(), isFalse);
+    });
+
+    test(
+      'PRIV-007 the rounds of new PINs are kept within the allowed range',
+      () {
+        final low = VaultManager(
+          root: root,
+          crypto: crypto,
+          secure: secure,
+          iterations: 1,
+          minRounds: 4,
+        );
+        expect(low.iterations, 4);
+        final high = VaultManager(
+          root: root,
+          crypto: crypto,
+          secure: secure,
+          iterations: 999999999,
+          minRounds: 4,
+        );
+        expect(high.iterations, VaultManager.maxRounds);
+      },
+    );
+    test(
+      'PRIV-007 a set-up that fails leaves no folder and no marker',
+      () async {
+        crypto.failChunks = VaultCryptoError.unavailable;
+        await manager.setUp(pin: '246810', decoyPin: '135790');
+        crypto.failChunks = null;
+        expect(
+          root.existsSync() ? root.listSync() : const <FileSystemEntity>[],
+          isEmpty,
+        );
       },
     );
 

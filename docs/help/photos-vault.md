@@ -34,7 +34,7 @@ This helps if someone makes you open the vault: open the second one. It does **n
 
 ## What can go wrong
 
-- **If the phone's key is lost** (the app data was restored on another phone, or the key store was reset), the vault can't be opened and **there is no way back**. Mediahro says so and offers **Reset the vault** after a clear question; it deletes both vaults. A wrong PIN is never mistaken for this: it is only reported when the phone's own key is gone. One damaged folder does not stop the other vault from opening. Take photos out first if you plan to restore or switch phones.
+- **If the phone's key is lost** (the app data was restored on another phone, or the key store was reset), the vault can't be opened and **there is no way back**. Mediahro says so and offers **Reset the vault** after a clear question; it deletes both vaults. If the app is stopped in the middle of a reset, the reset is finished the next time it starts. A wrong PIN is never mistaken for this: it is only reported when the phone's own key is gone. One damaged folder does not stop the other vault from opening. Take photos out first if you plan to restore or switch phones.
 - **Backups:** the vault folder is kept out of Android backups and out of transfers to a new phone. A copy of a photo already in a cloud backup or another app, made before you moved it, is not touched.
 - **Deleting is best effort** on a phone's flash memory: the original is deleted and its space is reused, but the phone does not promise to overwrite every trace.
 - Videos and music can't be put in the vault yet.

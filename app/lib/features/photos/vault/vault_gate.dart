@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show FileSystemException;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,6 +122,21 @@ class _VaultGateState extends ConsumerState<VaultGate> {
     final manager = await ref.read(vaultManagerProvider.future);
     try {
       await manager.reset();
+    } on VaultResetPending {
+      // The reset could not be undone; it finishes the next time the app starts.
+      if (mounted) {
+        setState(
+          () => _message = AppLocalizations.of(context).photosVaultResetPending,
+        );
+      }
+      return;
+    } on FileSystemException {
+      if (mounted) {
+        setState(
+          () => _message = AppLocalizations.of(context).photosVaultResetFailed,
+        );
+      }
+      return;
     } on VaultCryptoException catch (e) {
       // Nothing was deleted; the user can try again.
       if (mounted) {

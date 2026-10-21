@@ -1036,5 +1036,7 @@
   "photosVaultLocked": "The vault is locked.",
   "photosVaultFingerprintWarning": "Anyone can make you place your finger on the phone. The fingerprint opens the vault it was turned on in, so turn it on only in the vault you would not mind being made to open.",
   "photosVaultPinNotAllowed": "Choose a different PIN.",
-  "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type."
+  "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type.",
+  "photosVaultResetPending": "The reset will finish the next time the app starts.",
+  "photosVaultResetFailed": "The reset could not be finished. Try again."
 }
