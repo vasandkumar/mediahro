@@ -63,7 +63,8 @@ android {
         }
     }
 
-    signingConfigs {        if (hasUploadKey) {
+    signingConfigs {
+        if (hasUploadKey) {
             create("upload") {
                 storeFile = file(keyProperties.getProperty("storeFile"))
                 storePassword = keyProperties.getProperty("storePassword")
