@@ -490,9 +490,13 @@ final class VaultManager {
     }
   }
 
-  /// Deletes both vaults and everything in them, and the fingerprint entry.
-  /// Used when the vault can no longer be opened.
+  /// Deletes both vaults and everything in them, the fingerprint entry and
+  /// the OS key behind them (`VaultCryptoFacade.reset`, ADR-039 amendment 1).
+  /// Used when the vault can no longer be opened, after the user confirmed.
+  /// The key goes first: if that fails nothing else is touched and the user
+  /// can try again.
   Future<void> reset() async {
+    await crypto.reset();
     if (root.existsSync()) {
       for (final d in _dirs()) {
         d.deleteSync(recursive: true);

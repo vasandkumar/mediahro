@@ -406,6 +406,32 @@ void main() {
       },
     );
 
+    test('PRIV-007 reset also deletes the OS key, first', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      crypto.calls.clear();
+      await manager.reset();
+      expect(crypto.resets, 1);
+      expect(crypto.calls.first, 'reset');
+      expect(manager.exists, isFalse);
+      // A new vault can be made afterwards, with a new key.
+      final again = await manager.setUp(pin: '111111');
+      expect(again.isOpen, isTrue);
+      await again.vault!.close();
+    });
+
+    test('PRIV-007 if the OS key cannot be deleted nothing else is', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      crypto.failReset = VaultCryptoError.unavailable;
+      await expectLater(manager.reset(), throwsA(isA<VaultCryptoException>()));
+      expect(manager.exists, isTrue);
+      crypto.failReset = null;
+      final ok = await manager.openWithPin('246810');
+      expect(ok.isOpen, isTrue);
+      await ok.vault!.close();
+    });
+
     test('PRIV-007 reset deletes both vaults and the fingerprint', () async {
       final r = await manager.setUp(
         pin: '246810',

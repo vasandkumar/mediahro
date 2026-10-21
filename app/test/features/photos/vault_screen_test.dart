@@ -609,6 +609,23 @@ void main() {
     });
   });
 
+  testWidgets('IMG-011 if the key cannot be deleted nothing is deleted', (
+    tester,
+  ) async {
+    await seeded(tester, names: ['one.mp4']);
+    crypto.loseKeys();
+    await open(tester);
+    await typePin(tester, '246810');
+    crypto.failReset = VaultCryptoError.unavailable;
+    await tester.tap(find.text('Reset the vault'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
+    await settleReal(tester);
+    expect(manager.exists, isTrue);
+    expect(find.textContaining("isn't available"), findsOneWidget);
+    expect(find.text('Reset the vault'), findsOneWidget);
+  });
+
   testWidgets(
     'IMG-011 where the platform has no OS crypto the vault says it is not available',
     (tester) async {

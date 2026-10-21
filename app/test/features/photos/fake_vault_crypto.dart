@@ -153,6 +153,20 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     }
   }
 
+  /// Set to make [reset] fail.
+  VaultCryptoError? failReset;
+  int resets = 0;
+
+  @override
+  Future<void> reset() async {
+    calls.add('reset');
+    if (failReset != null) throw VaultCryptoException(failReset!);
+    resets++;
+    // New keys, as a new keystore entry would be; open handles are closed.
+    _open.clear();
+    loseKeys();
+  }
+
   @override
   Future<void> close(VaultKeyHandle handle) async {
     calls.add('close');

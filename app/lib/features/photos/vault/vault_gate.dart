@@ -6,6 +6,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/photos/vault/pin_pad.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
+import 'package:mediahro/platform/vault_crypto.dart';
 
 /// "Try again in 2 minutes": the wait rounded up to a unit people read.
 String vaultWaitText(AppLocalizations l10n, Duration d) {
@@ -114,7 +115,20 @@ class _VaultGateState extends ConsumerState<VaultGate> {
     );
     if (ok != true || !mounted) return;
     final manager = await ref.read(vaultManagerProvider.future);
-    await manager.reset();
+    try {
+      await manager.reset();
+    } on VaultCryptoException catch (e) {
+      // Nothing was deleted; the user can try again.
+      if (mounted) {
+        setState(
+          () => _message = vaultOutcomeText(
+            AppLocalizations.of(context),
+            VaultOpenResult(VaultManager.outcomeOf(e)),
+          ),
+        );
+      }
+      return;
+    }
     ref
       ..invalidate(vaultExistsProvider)
       ..invalidate(vaultFingerprintOnProvider);
