@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:mediahro/features/photos/vault/vault_bytes.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_framing.dart';
 import 'package:mediahro/features/photos/vault/vault_kdf.dart';
@@ -90,7 +91,7 @@ final class OpenVault {
     if (_closed) return;
     _closed = true;
     container.close();
-    _secret.fillRange(0, _secret.length, 0);
+    wipe(_secret);
     try {
       await _manager.crypto.close(_master);
     } on Object {
@@ -132,6 +133,7 @@ final class VaultManager {
     required this.secure,
     int iterations = vaultKdfIterations,
     int minRounds = vaultKdfIterations,
+    this.kdf = derivePinToken,
     DateTime Function()? clock,
   }) : minRounds = minRounds,
        iterations = iterations.clamp(minRounds, maxRounds),
@@ -140,6 +142,10 @@ final class VaultManager {
   final Directory root;
   final VaultCryptoFacade crypto;
   final SecureStorageFacade secure;
+
+  /// Turns a PIN into its token; tests pass one that runs in place, so the
+  /// result does not depend on how long an isolate takes to start.
+  final PinKdf kdf;
 
   /// The rounds new PINs are stretched with, kept within [minRounds] and
   /// [maxRounds].
@@ -393,8 +399,7 @@ final class VaultManager {
       final order = [0, 1]..shuffle(Random.secure());
       final salts = [randomBytes(16), randomBytes(16)];
       final tokens = await Future.wait([
-        for (var i = 0; i < 2; i++)
-          derivePinToken(pins[i], salts[i], iterations),
+        for (var i = 0; i < 2; i++) kdf(pins[i], salts[i], iterations),
       ]);
       VaultContainer? real;
       VaultKeyHandle? realHandle;
@@ -444,9 +449,7 @@ final class VaultManager {
           }
         }
       } finally {
-        for (final t in tokens) {
-          t.fillRange(0, t.length, 0);
-        }
+        tokens.forEach(wipe);
       }
       // The commit: both folders are whole, and now they are the vault.
       await _setupFile.delete();
@@ -463,7 +466,7 @@ final class VaultManager {
         }
       }
       for (final s in secrets) {
-        if (s != realSecret) s.fillRange(0, s.length, 0);
+        if (s != realSecret) wipe(s);
       }
       final vault = OpenVault._(real!, this, realHandle!, realSecret!);
       if (fingerprint) {
@@ -493,9 +496,7 @@ final class VaultManager {
           // Nothing to release.
         }
       }
-      for (final s in secrets) {
-        s.fillRange(0, s.length, 0);
-      }
+      secrets.forEach(wipe);
       if (e is VaultCryptoException) return VaultOpenResult(outcomeOf(e));
       return const VaultOpenResult(VaultOutcome.unavailable);
     }
@@ -670,9 +671,7 @@ final class VaultManager {
       }
       return _Unsealed(lost: lost);
     } finally {
-      for (final t in tokens) {
-        t?.fillRange(0, t.length, 0);
-      }
+      tokens.forEach(wipe);
     }
   }
 
@@ -743,8 +742,8 @@ final class VaultManager {
       for (final d in dirs) {
         final a = await _readSalt(d);
         final b = await _readSalt(d, next: true);
-        final ta = a == null ? null : derivePinToken(pin, a.salt, a.rounds);
-        final tb = b == null ? null : derivePinToken(pin, b.salt, b.rounds);
+        final ta = a == null ? null : kdf(pin, a.salt, a.rounds);
+        final tb = b == null ? null : kdf(pin, b.salt, b.rounds);
         cur.add(ta);
         nxt.add(tb);
         tokens
@@ -757,7 +756,7 @@ final class VaultManager {
         final secret = u.secret;
         if (secret == null) continue;
         if (found != null) {
-          secret.fillRange(0, secret.length, 0);
+          wipe(secret);
           continue;
         }
         final r = await _openWith(dirs[i], secret, u);
@@ -798,9 +797,7 @@ final class VaultManager {
   /// first.
   static void _zeroLater(Iterable<Future<Uint8List>> tokens) {
     for (final t in tokens) {
-      unawaited(
-        t.then((b) => b.fillRange(0, b.length, 0), onError: (Object _) {}),
-      );
+      unawaited(t.then(wipe, onError: (Object _) {}));
     }
   }
 
@@ -821,7 +818,7 @@ final class VaultManager {
           ? VaultOutcome.keyLost
           : o;
     } finally {
-      dummy.fillRange(0, dummy.length, 0);
+      wipe(dummy);
     }
   }
 
@@ -855,7 +852,7 @@ final class VaultManager {
       return (vault: OpenVault._(c, this, master, secret), keyLost: false);
     } on Object catch (e) {
       c?.close();
-      secret.fillRange(0, secret.length, 0);
+      wipe(secret);
       if (master != null) {
         try {
           await crypto.close(master);
@@ -902,11 +899,13 @@ final class VaultManager {
         bio,
         base64Decode(j['k']! as String),
       );
-      secret = await crypto.open(
-        wrapped,
-        base64Decode(j['n']! as String),
-        Uint8List.fromList(_bioAad),
-        base64Decode(j['s']! as String),
+      secret = ownedCopy(
+        await crypto.open(
+          wrapped,
+          base64Decode(j['n']! as String),
+          Uint8List.fromList(_bioAad),
+          base64Decode(j['s']! as String),
+        ),
       );
       await crypto.close(bio);
       bio = null;
@@ -939,7 +938,7 @@ final class VaultManager {
       await secure.delete(_bioKey);
       return const VaultOpenResult(VaultOutcome.damaged);
     } finally {
-      secret?.fillRange(0, secret.length, 0);
+      wipe(secret);
       if (bio != null) {
         try {
           await crypto.close(bio);
@@ -994,7 +993,7 @@ final class VaultManager {
     } on VaultCryptoException catch (e) {
       return outcomeOf(e);
     } finally {
-      secret.fillRange(0, secret.length, 0);
+      wipe(secret);
       if (bio != null) {
         try {
           await crypto.close(bio);
@@ -1026,7 +1025,7 @@ final class VaultManager {
     try {
       return await _changePin(vault, newPin, secret);
     } finally {
-      secret.fillRange(0, secret.length, 0);
+      wipe(secret);
     }
   }
 
@@ -1053,15 +1052,15 @@ final class VaultManager {
       try {
         final a = await _readSalt(d);
         final b = await _readSalt(d, next: true);
-        final ta = a == null ? null : derivePinToken(newPin, a.salt, a.rounds);
-        final tb = b == null ? null : derivePinToken(newPin, b.salt, b.rounds);
+        final ta = a == null ? null : kdf(newPin, a.salt, a.rounds);
+        final tb = b == null ? null : kdf(newPin, b.salt, b.rounds);
         tokens
           ..addAll([?ta])
           ..addAll([?tb]);
         final other = await _unseal(d, ta, tb);
         final s = other.secret;
         if (s != null) {
-          s.fillRange(0, s.length, 0);
+          wipe(s);
           return VaultOutcome.pinNotAllowed;
         }
       } on VaultCorrupt {
@@ -1078,7 +1077,7 @@ final class VaultManager {
       }
     }
     final salt = randomBytes(16);
-    final token = await derivePinToken(newPin, salt, iterations);
+    final token = await kdf(newPin, salt, iterations);
     var swapped = false;
     try {
       final pinHandle = await crypto.openMasterKey(
@@ -1102,7 +1101,7 @@ final class VaultManager {
           folder: _folderName(here),
         );
         final same = _sameBytes(back, secret);
-        back.fillRange(0, back.length, 0);
+        wipe(back);
         if (!same) throw const VaultCorrupt('the new secret file differs');
       } finally {
         await crypto.close(pinHandle);
@@ -1134,7 +1133,7 @@ final class VaultManager {
       }
       rethrow;
     } finally {
-      token.fillRange(0, token.length, 0);
+      wipe(token);
     }
     return VaultOutcome.opened;
   }

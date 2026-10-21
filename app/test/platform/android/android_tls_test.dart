@@ -61,6 +61,7 @@ TlsEventMsg _data(String id, List<int> bytes) => TlsEventMsg(
 );
 
 void main() {
+  _serverTests();
   late StreamController<TlsEventMsg> events;
   late _FakeSockets api;
   late AndroidTlsSocketFacade tls;
@@ -138,5 +139,126 @@ void main() {
     );
     await done.future;
     expect(errors.single, isA<SocketException>());
+  });
+}
+
+final class _FakeServer extends TlsServerHostApi {
+  final closedListeners = <String>[];
+  Duration? connectDelay;
+  PlatformException? failConnect;
+
+  @override
+  Future<TlsIdentityMsg> identity(String label) async =>
+      TlsIdentityMsg(label: label, certificateSha256: 'AA:BB');
+
+  @override
+  Future<TlsListenerMsg> listen(
+    String label,
+    List<String> trustedPeers,
+    int port,
+  ) async => TlsListenerMsg(id: 'l1', port: 4321);
+
+  @override
+  Future<void> setTrustedPeers(
+    String listenerId,
+    List<String> trustedPeers,
+  ) async {}
+
+  @override
+  Future<void> closeListener(String listenerId) async =>
+      closedListeners.add(listenerId);
+
+  @override
+  Future<TlsSocketInfoMsg> connectMutual(
+    String host,
+    int port,
+    String label,
+    String peerSha256,
+  ) async {
+    if (connectDelay case final d?) await Future<void>.delayed(d);
+    if (failConnect case final e?) throw e;
+    return TlsSocketInfoMsg(
+      id: 'm1',
+      isTls: true,
+      protocolVersion: 'TLSv1.2',
+      peerCertificateSha256: peerSha256,
+    );
+  }
+}
+
+void _serverTests() {
+  group('mutual TLS server facade', () {
+    late _FakeServer server;
+    late AndroidTlsServerFacade facade;
+    final events = StreamController<TlsEventMsg>.broadcast();
+
+    setUp(() {
+      server = _FakeServer();
+      facade = AndroidTlsServerFacade(
+        api: server,
+        sockets: _FakeSockets(),
+        events: () => events.stream,
+        mutualTimeout: const Duration(milliseconds: 100),
+      );
+    });
+
+    test(
+      'NET-017 closing a listener does not wait for a paused subscriber',
+      () async {
+        final identity = await facade.identity('a');
+        final listener = await facade.listen(identity, trustedPeers: {'CD:EF'});
+        // A StreamIterator pauses its subscription between moveNext calls: the
+        // controller's close() would never complete for it (the batch 3 hang).
+        final it = StreamIterator(listener.connections);
+        events.add(
+          TlsEventMsg(
+            kind: TlsEventKindMsg.accepted,
+            socketId: 's1',
+            listenerId: 'l1',
+            accepted: TlsSocketInfoMsg(
+              id: 's1',
+              isTls: true,
+              protocolVersion: 'TLSv1.2',
+              peerCertificateSha256: 'CD:EF',
+            ),
+          ),
+        );
+        expect(await it.moveNext(), isTrue);
+        await listener.close().timeout(const Duration(seconds: 2));
+        expect(server.closedListeners, ['l1']);
+      },
+    );
+
+    test('NET-017 a refused peer fails fast with the native error', () async {
+      server.failConnect = PlatformException(
+        code: 'handshakeFailed',
+        message: 'peer not paired',
+      );
+      final identity = await facade.identity('c');
+      await expectLater(
+        facade.connectMutual('h', 1, identity: identity, peerSha256: 'AA:BB'),
+        throwsA(
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            'handshakeFailed',
+          ),
+        ),
+      );
+    });
+
+    test(
+      'NET-017 a peer that never answers times out instead of hanging',
+      () async {
+        server.connectDelay = const Duration(seconds: 5);
+        final identity = await facade.identity('c');
+        await expectLater(
+          facade.connectMutual('h', 1, identity: identity, peerSha256: 'AA:BB'),
+          throwsA(
+            isA<PlatformException>().having((e) => e.code, 'code', 'timeout'),
+          ),
+        );
+      },
+    );
   });
 }

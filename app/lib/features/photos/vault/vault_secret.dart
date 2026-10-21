@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:mediahro/features/photos/vault/vault_bytes.dart';
 import 'package:mediahro/features/photos/vault/vault_framing.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
 
@@ -83,6 +84,9 @@ final class VaultSecretFile {
     );
     final s = await reader.readAll();
     if (s.length != length) throw const VaultCorrupt('secret has a wrong size');
-    return s;
+    // The chunk the facade handed back may be a read-only view of its buffer.
+    final copy = ownedCopy(s);
+    wipe(s);
+    return copy;
   }
 }

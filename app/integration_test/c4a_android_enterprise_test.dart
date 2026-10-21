@@ -47,10 +47,12 @@ void main() {
   testWidgets('B2B-002 start on boot works only in the enterprise build', (
     tester,
   ) async {
-    // store, direct and foss builds have no boot receiver.
-    await expectLater(
-      AndroidKiosk().setStartOnBoot(enabled: false),
-      anyOf(completes, throwsA(isA<UnsupportedError>())),
-    );
+    // store, direct and foss builds have no boot receiver and answer with an
+    // UnsupportedError; the enterprise build completes. (Not anyOf(completes, ...):
+    // an async matcher inside anyOf reports its failure after the test has ended.)
+    final outcome = await AndroidKiosk()
+        .setStartOnBoot(enabled: false)
+        .then<Object?>((_) => null, onError: (Object e) => e);
+    expect(outcome, anyOf(isNull, isA<UnsupportedError>()));
   }, skip: !android);
 }

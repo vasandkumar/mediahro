@@ -49,16 +49,18 @@ internal object GamepadMath {
 
     /**
      * Chooses the axes a controller really has: the right stick is RX/RY if
-     * present, else Z/RZ; the triggers are LTRIGGER/RTRIGGER if present, else
-     * BRAKE/GAS (values are `MotionEvent.AXIS_*`).
+     * present, else Z/RZ; the triggers are BRAKE/GAS only if the pad has those
+     * and no LTRIGGER/RTRIGGER, else LTRIGGER/RTRIGGER (values are `MotionEvent.AXIS_*`).
      */
     fun layout(has: (Int) -> Boolean): Layout = Layout(
         leftX = AXIS_X,
         leftY = AXIS_Y,
         rightX = if (has(AXIS_RX) && has(AXIS_RY)) AXIS_RX else AXIS_Z,
         rightY = if (has(AXIS_RX) && has(AXIS_RY)) AXIS_RY else AXIS_RZ,
-        leftTrigger = if (has(AXIS_LTRIGGER)) AXIS_LTRIGGER else AXIS_BRAKE,
-        rightTrigger = if (has(AXIS_RTRIGGER)) AXIS_RTRIGGER else AXIS_GAS,
+        // BRAKE/GAS only for a pad that reports them and not LTRIGGER/RTRIGGER; an
+        // unknown device (an injected event has none) gets the modern default.
+        leftTrigger = if (has(AXIS_BRAKE) && !has(AXIS_LTRIGGER)) AXIS_BRAKE else AXIS_LTRIGGER,
+        rightTrigger = if (has(AXIS_GAS) && !has(AXIS_RTRIGGER)) AXIS_GAS else AXIS_RTRIGGER,
         hatX = AXIS_HAT_X,
         hatY = AXIS_HAT_Y,
     )
