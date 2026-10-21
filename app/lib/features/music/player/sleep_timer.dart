@@ -112,6 +112,7 @@ final class SleepTimer {
     _reset();
     _lastItem = engine.current.item;
     _emit(SleepTimerState(mode: mode, tracksLeft: n));
+    player.holdAtEnd = n == 1;
     _sub = player.states.listen(_onPlayer);
     // The last track's tail fades too.
     _timer = Timer.periodic(tick, (_) => _onTrackTick());
@@ -125,12 +126,16 @@ final class SleepTimer {
     final advanced = s.playback.item != _lastItem;
     final ended = s.playback.status == PlaybackStatus.ended;
     if (!advanced && !ended) return;
+    // An item that ended with nothing prepared (DSD over DoP): the player
+    // opens the next one itself, and that start is what counts.
+    if (ended && !advanced && left > 1 && player.opensNextAfterEnd) return;
     _lastItem = s.playback.item;
     final now = left - 1;
     if (now <= 0 || ended) {
       unawaited(_finish());
     } else {
       _emit(SleepTimerState(mode: _state.mode, tracksLeft: now));
+      player.holdAtEnd = now == 1;
     }
   }
 
@@ -185,6 +190,7 @@ final class SleepTimer {
     unawaited(_sub?.cancel());
     _sub = null;
     _deadline = null;
+    player.holdAtEnd = false;
   }
 
   void _emit(SleepTimerState s) {

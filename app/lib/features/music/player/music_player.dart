@@ -116,6 +116,15 @@ final class MusicPlayer {
   int? _preparedIndex;
   int? _endedItem;
   bool _busy = false;
+
+  /// While set, a track that ends with nothing prepared (DSD over DoP) opens
+  /// the next one paused instead of playing it. Set by the sleep timer for
+  /// its last track.
+  bool holdAtEnd = false;
+
+  /// Whether an item that ends with nothing prepared is followed by the
+  /// next queue entry (see [holdAtEnd]).
+  bool get opensNextAfterEnd => !_state.live && _nextIndex() != null;
   Duration _lastPosition = Duration.zero;
   Timer? _saveTimer;
   bool _disposed = false;
@@ -556,9 +565,33 @@ final class MusicPlayer {
         s.status == PlaybackStatus.ended &&
         _endedItem != s.item) {
       _endedItem = s.item;
-      unawaited(_serial(() => _recordFinished(manual: false)));
+      // Read now: the sleep timer clears its hold when it reacts to this
+      // same event.
+      final hold = holdAtEnd;
+      unawaited(
+        _serial(() async {
+          await _recordFinished(manual: false);
+          await _advanceAfterEnd(s.item, hold: hold);
+        }),
+      );
     }
     _scheduleSave();
+  }
+
+  /// The engine ended an item with no next one prepared. A gapless join is
+  /// never possible for a DSD item played as DoP (AUD-043: the DoP stream
+  /// is pinned to the device, so nextPrepared stays false), and any other
+  /// item whose successor could not be prepared lands here too: open the
+  /// next queue entry ourselves. [hold] opens it paused (the sleep timer's
+  /// end of track), so the queue still moves on and play resumes from it.
+  Future<void> _advanceAfterEnd(int item, {required bool hold}) async {
+    if (_disposed || _state.live || _busy) return;
+    final cur = engine.current;
+    if (cur.item != item || cur.status != PlaybackStatus.ended) return;
+    final n = _nextIndex();
+    if (n == null) return;
+    _emit(_state.copyWith(index: n, restoredPosition: () => null));
+    await _openCurrent(autoplay: !hold);
   }
 
   /// The engine moved to the prepared track (gapless, crossfade or skip).

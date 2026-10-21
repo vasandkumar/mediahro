@@ -96,6 +96,10 @@ final class ScriptedMusicEngine implements PlaybackEngine {
   final opened = <MediaSource>[];
   MediaSource? next;
   bool nextSameAlbum = false;
+
+  /// False plays like a DSD item over DoP (AUD-043): the engine never joins
+  /// the next item gaplessly, so `nextPrepared` stays false.
+  bool joinsGapless = true;
   final _c = StreamController<PlaybackState>.broadcast();
   PlaybackState _state = const PlaybackState();
 
@@ -136,9 +140,10 @@ final class ScriptedMusicEngine implements PlaybackEngine {
   @override
   Future<void> setNext(MediaSource? next, {bool sameAlbum = false}) async {
     calls.add('setNext');
-    this.next = next;
+    final prepared = joinsGapless ? next : null;
+    this.next = prepared;
     nextSameAlbum = sameAlbum;
-    _emit(_state.copyWith(nextPrepared: next != null));
+    _emit(_state.copyWith(nextPrepared: prepared != null));
   }
 
   @override
@@ -225,6 +230,17 @@ final class ScriptedMusicEngine implements PlaybackEngine {
 
   @override
   Future<void> audioRouteChanged() async {}
+
+  /// Every [AudioOutputConfig] the app applied, and the devices mpv lists.
+  final audioOutputs = <AudioOutputConfig>[];
+  List<EngineAudioDevice> devices = const [];
+
+  @override
+  Future<void> setAudioOutput(AudioOutputConfig config) async =>
+      audioOutputs.add(config);
+
+  @override
+  Future<List<EngineAudioDevice>> audioDevices() async => devices;
 
   @override
   Future<void> setAudioDsp(AudioDspChain chain) async => dsp = chain;

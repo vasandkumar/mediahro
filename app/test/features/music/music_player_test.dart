@@ -136,6 +136,56 @@ void main() {
       expect(uriOf(engine.next!), endsWith('3.flac'));
     });
 
+    test('AUD-043 a DSD item has no gapless join: the player opens the next '
+        'queue entry itself when it ends', () async {
+      engine.joinsGapless = false;
+      await player.playTracks(album);
+      expect(engine.current.nextPrepared, isFalse);
+      engine
+        ..at(const Duration(minutes: 3))
+        ..finishTrack();
+      expect(engine.current.status, PlaybackStatus.ended);
+      await settle();
+      await settle();
+      await settle();
+      expect(player.state.index, 1);
+      expect(opened(engine.opened.length - 1), '2.flac');
+      expect(engine.current.status, PlaybackStatus.playing);
+      // The finished track still counts as played (LIB-015).
+      final row = await (db.select(
+        db.items,
+      )..where((i) => i.id.equals(album[0].itemId))).getSingle();
+      expect(row.playCount, 1);
+    });
+
+    test('AUD-043 the end of the queue still stops; repeat all wraps; hold '
+        'opens the next item paused', () async {
+      engine.joinsGapless = false;
+      await player.playTracks(album, start: 2);
+      engine.finishTrack();
+      await settle();
+      await settle();
+      expect(player.state.index, 2);
+      expect(engine.current.status, PlaybackStatus.ended);
+
+      await player.setRepeat(RepeatMode.all);
+      await player.playTracks(album, start: 2);
+      engine.finishTrack();
+      await settle();
+      await settle();
+      await settle();
+      expect(player.state.index, 0);
+      expect(engine.current.status, PlaybackStatus.playing);
+
+      player.holdAtEnd = true;
+      engine.finishTrack();
+      await settle();
+      await settle();
+      await settle();
+      expect(player.state.index, 1);
+      expect(engine.current.status, PlaybackStatus.paused);
+    });
+
     test('MUS-007 play next and add to queue; reorder and remove', () async {
       final other = (await lib.songs()).firstWhere((t) => t.title == 'X');
       await player.playTracks(album);

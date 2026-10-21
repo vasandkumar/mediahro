@@ -19,6 +19,7 @@ import 'package:mediahro/features/music/library/ratings.dart';
 import 'package:mediahro/features/music/lyrics/lrc.dart';
 import 'package:mediahro/features/music/lyrics/lyrics_service.dart';
 import 'package:mediahro/features/music/player/audio_focus.dart';
+import 'package:mediahro/features/music/player/dsd_output.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
 import 'package:mediahro/features/music/player/music_prefs.dart';
@@ -100,6 +101,15 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   unawaited(p.init());
   ref.onDispose(() => unawaited(p.dispose()));
   final output = _optional(() => ref.read(audioOutputProvider));
+  final dsd = ref.read(dsdOutputGateProvider);
+  if (dsd != null) {
+    // Native DSD (AUD-043) stays switched on for the DAC it was offered on.
+    unawaited(
+      dsd
+          .restore(ref.read(playbackEngineProvider(EngineRole.music)))
+          .catchError((Object _) {}),
+    );
+  }
   if (output != null) {
     final focus = MusicFocusBridge(
       player: p,
@@ -215,6 +225,14 @@ final radioStationsProvider = Provider<RadioStations>((ref) {
   final r = RadioStations(ref.watch(musicPrefsProvider));
   ref.onDispose(() => unawaited(r.dispose()));
   return r;
+});
+
+/// The native DSD gate (AUD-043); null where the platform has no audio
+/// output facade.
+final dsdOutputGateProvider = Provider<DsdOutputGate?>((ref) {
+  final output = _optional(() => ref.read(audioOutputProvider));
+  if (output == null) return null;
+  return DsdOutputGate(output: output, prefs: ref.watch(musicPrefsProvider));
 });
 
 final musicPrefsProvider = Provider<MusicPrefs>(

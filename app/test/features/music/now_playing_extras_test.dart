@@ -108,6 +108,31 @@ void main() {
     );
   });
 
+  test('AUD-043 sleep timer by tracks counts DSD items that end with no '
+      'gapless join, and the last one leaves the next paused', () async {
+    engine.joinsGapless = false;
+    final timer = SleepTimer(player: player, engine: engine);
+    await player.playTracks(album);
+    timer.startTracks(2);
+    engine.finishTrack();
+    for (var i = 0; i < 4; i++) {
+      await settle();
+    }
+    // The player opened track 2; that start counted as one.
+    expect(player.state.index, 1);
+    expect(timer.state.tracksLeft, 1);
+    expect(engine.current.status, PlaybackStatus.playing);
+    engine.finishTrack();
+    for (var i = 0; i < 4; i++) {
+      await settle();
+    }
+    expect(timer.state.active, isFalse);
+    expect(player.state.index, 2);
+    expect(engine.current.status, PlaybackStatus.paused);
+    expect(player.holdAtEnd, isFalse);
+    await timer.dispose();
+  });
+
   group('MUS-011 wake alarms', () {
     test('MUS-011 next firing honours weekdays and the time of day', () {
       final mon = DateTime(2026, 10, 19, 6, 59); // Monday
