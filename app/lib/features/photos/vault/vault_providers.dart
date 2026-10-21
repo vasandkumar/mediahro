@@ -155,6 +155,19 @@ final vaultMoverProvider = Provider<VaultMover>(
     io: MountedImageIo(ref.watch(mountsProvider)),
     db: ref.watch(libraryDatabaseProvider),
     pipeline: ref.watch(imagePipelineProvider),
+    listFolder: (file) async {
+      final mounts = ref.read(mountsProvider);
+      final dir = file.replace(
+        pathSegments: file.pathSegments.sublist(
+          0,
+          file.pathSegments.length - 1,
+        ),
+      );
+      return [
+        await for (final e in mounts.forUri(file).list(dir))
+          if (!e.isDirectory) e.uri,
+      ];
+    },
   ),
 );
 

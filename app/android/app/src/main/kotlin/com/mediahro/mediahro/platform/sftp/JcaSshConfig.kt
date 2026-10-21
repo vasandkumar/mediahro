@@ -13,6 +13,7 @@ import javax.crypto.KeyAgreement
 import net.schmizz.keepalive.KeepAliveProvider
 import net.schmizz.sshj.ConfigImpl
 import net.schmizz.sshj.common.Factory
+import net.schmizz.sshj.common.LoggerFactory
 import net.schmizz.sshj.transport.cipher.Cipher
 import net.schmizz.sshj.transport.compression.NoneCompression
 import net.schmizz.sshj.transport.kex.Curve25519SHA256
@@ -21,6 +22,8 @@ import net.schmizz.sshj.transport.kex.ECDHNistP
 import net.schmizz.sshj.transport.random.JCERandom
 import net.schmizz.sshj.transport.random.SingletonRandomFactory
 import net.schmizz.sshj.userauth.keyprovider.PuTTYKeyFile
+import org.slf4j.Logger
+import org.slf4j.helpers.NOPLogger
 
 /**
  * sshj on the platform JCA only (ADR-017): no BouncyCastle on the class
@@ -31,6 +34,10 @@ import net.schmizz.sshj.userauth.keyprovider.PuTTYKeyFile
  */
 internal class JcaSshConfig : ConfigImpl() {
     init {
+        // `DefaultConfig` sets sshj's logger factory; a bare `ConfigImpl` leaves it null
+        // and `SSHClient` fails with a NullPointerException. sshj must never log (host
+        // names, user names and key exchange details), so it gets loggers that drop everything.
+        loggerFactory = NoLogs
         version = "Mediahro"
         keepAliveProvider = KeepAliveProvider.KEEP_ALIVE
         randomFactory = SingletonRandomFactory(JCERandom.Factory())
@@ -112,4 +119,11 @@ internal class JcaSshConfig : ConfigImpl() {
         val hasX25519: Boolean by lazy { runCatching { KeyAgreement.getInstance("X25519") }.isSuccess }
         val hasEd25519: Boolean by lazy { runCatching { Signature.getInstance("Ed25519") }.isSuccess }
     }
+}
+
+/** Loggers that discard everything: sshj logs hosts, user names and algorithms, and the app logs none of it. */
+internal object NoLogs : LoggerFactory {
+    override fun getLogger(name: String?): Logger = NOPLogger.NOP_LOGGER
+
+    override fun getLogger(clazz: Class<*>?): Logger = NOPLogger.NOP_LOGGER
 }

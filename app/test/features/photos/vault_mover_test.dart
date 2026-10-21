@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show Value, Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/rules/rule_sql.dart' as rules;
 import 'package:mediahro/features/photos/organise/photo_organiser.dart';
+import 'package:mediahro/features/photos/photos_providers.dart'
+    show loadPhotoEntries, photoEntriesSql;
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_mover.dart';
@@ -110,6 +113,24 @@ void main() {
   Future<int> itemRows() async => (await db.select(db.items).get()).length;
 
   group('IMG-011 moving photos in', () {
+    test(
+      'ADR-043 nothing moved to the vault can be listed for a slideshow',
+      () async {
+        final keep = await photo('keep.jpg');
+        final gone = await photo('gone.jpg');
+        final film = await photo('gone.mp4', video: true);
+        await mover.moveIn(vault, [gone, film]);
+        // The slideshow takes library entries (PhotoEntry); this is the query
+        // every list of them comes from, with hidden items unlocked too.
+        final query = db.customSelect(
+          photoEntriesSql(const rules.Visibility(unlocked: true)),
+          readsFrom: {db.items, db.imageMeta, db.ratings, db.sources},
+        );
+        final listed = await loadPhotoEntries(query);
+        expect(listed.map((e) => e.id), [keep.id]);
+      },
+    );
+
     test('IMG-011 a moved photo is encrypted in, read back and gone from its folder', () async {
       final data = bytesOf(5000, 3);
       final p = await photo('trip/a.jpg', data: data);
@@ -372,5 +393,310 @@ void main() {
         expect(out.takeBytes(), data);
       },
     );
+  });
+
+  group('PRIV-007 a video leaves nothing behind', () {
+    Future<PhotoEntry> scraped() async {
+      final v = await photo('film/Movie (2020).mkv', video: true);
+      final folder = '${dir.path}/lib/film';
+      for (final side in [
+        'Movie (2020).srt',
+        'Movie (2020).en.srt',
+        'Movie (2020).nfo',
+        'Movie (2020)-poster.jpg',
+        'Movie (2020)-fanart.jpg',
+      ]) {
+        File('$folder/$side').writeAsBytesSync([1, 2, 3]);
+      }
+      // A neighbour that is not this video's: it stays.
+      File('$folder/Other (2019).srt').writeAsBytesSync([4]);
+      File('$folder/poster.jpg').writeAsBytesSync([5]);
+      return v;
+    }
+
+    test('PRIV-007 the files beside the video go with it', () async {
+      final v = await scraped();
+      final r = await mover.moveIn(vault, [v]);
+      expect(r.moved, 1);
+      final left = Directory('${dir.path}/lib/film')
+          .listSync()
+          .map((e) => e.path.split(Platform.pathSeparator).last)
+          .toSet();
+      expect(left, {'Other (2019).srt', 'poster.jpg'});
+      expect(vault.list().single.kind, 'video');
+    });
+
+    test(
+      'PRIV-007 artwork, downloaded subtitles and queue entries go too',
+      () async {
+        final v = await photo('Movie.mkv', video: true);
+        final art = File('${dir.path}/cache/poster.jpg')
+          ..createSync(recursive: true)
+          ..writeAsBytesSync([1]);
+        final sub = File('${dir.path}/cache/movie.en.srt')
+          ..writeAsBytesSync([2]);
+        await db
+            .into(db.artworks)
+            .insert(
+              ArtworksCompanion.insert(
+                ownerType: 'item',
+                ownerId: v.id,
+                role: 'poster',
+                uri: 'https://example.invalid/poster.jpg',
+                cachePath: Value(art.path),
+              ),
+            );
+        // Artwork of something else with the same number stays.
+        await db
+            .into(db.artworks)
+            .insert(
+              ArtworksCompanion.insert(
+                ownerType: 'album',
+                ownerId: v.id,
+                role: 'cover',
+                uri: 'https://example.invalid/cover.jpg',
+              ),
+            );
+        await db
+            .into(db.subtitleCache)
+            .insert(
+              SubtitleCacheCompanion.insert(
+                itemId: v.id,
+                provider: 'os',
+                language: 'en',
+                path: sub.path,
+                fetchedAt: DateTime(2026),
+              ),
+            );
+        final queue = await db
+            .into(db.queues)
+            .insert(
+              QueuesCompanion.insert(
+                name: 'Now',
+                mode: 'video',
+                updatedAt: DateTime(2026),
+              ),
+            );
+        await db
+            .into(db.queueItems)
+            .insert(
+              QueueItemsCompanion.insert(
+                queueId: queue,
+                position: 0,
+                itemId: Value(v.id),
+                uri: const Value('file:///x/Movie.mkv'),
+                title: const Value('Movie'),
+              ),
+            );
+        await db
+            .into(db.scrobbleQueue)
+            .insert(
+              ScrobbleQueueCompanion.insert(
+                itemId: Value(v.id),
+                service: 'x',
+                payload: '{"title":"Movie"}',
+                playedAt: DateTime(2026),
+              ),
+            );
+        final r = await mover.moveIn(vault, [v]);
+        expect(r.moved, 1);
+        expect(art.existsSync(), isFalse);
+        expect(sub.existsSync(), isFalse);
+        expect(
+          await (db.select(
+            db.artworks,
+          )..where((a) => a.ownerType.equals('item'))).get(),
+          isEmpty,
+        );
+        expect(await db.select(db.artworks).get(), hasLength(1));
+        expect(await db.select(db.subtitleCache).get(), isEmpty);
+        expect(await db.select(db.queueItems).get(), isEmpty);
+        expect(await db.select(db.scrobbleQueue).get(), isEmpty);
+      },
+    );
+
+    test('PRIV-007 a queue entry known only by its address goes too', () async {
+      final v = await photo('Movie.mkv', video: true);
+      final queue = await db
+          .into(db.queues)
+          .insert(
+            QueuesCompanion.insert(
+              name: 'Now',
+              mode: 'video',
+              updatedAt: DateTime(2026),
+            ),
+          );
+      final origin = await mover.files.uriOf(v);
+      await db
+          .into(db.queueItems)
+          .insert(
+            QueueItemsCompanion.insert(
+              queueId: queue,
+              position: 0,
+              uri: Value('$origin'),
+              title: const Value('Movie'),
+            ),
+          );
+      await mover.moveIn(vault, [v]);
+      expect(await db.select(db.queueItems).get(), isEmpty);
+    });
+  });
+
+  group('PRIV-007 beside a video, only its own files go', () {
+    late int listed;
+    late VaultMover listing;
+
+    setUp(() {
+      listed = 0;
+      listing = VaultMover(
+        files: mover.files,
+        io: io,
+        db: db,
+        pipeline: pipeline,
+        listFolder: (file) async {
+          listed++;
+          return [
+            for (final e in File.fromUri(file).parent.listSync())
+              if (e is File) e.uri,
+          ];
+        },
+      );
+    });
+
+    Set<String> names(String folder) =>
+        Directory('${dir.path}/lib/$folder')
+            .listSync()
+            .map((e) => e.path.split(Platform.pathSeparator).last)
+            .toSet();
+
+    test("PRIV-007 a photo with the video's name stays (Live Photo pair, screenshot)", () async {
+      final v = await photo('cam/IMG_1234.MOV', video: true);
+      for (final other in [
+        'IMG_1234.JPG',
+        'IMG_1234.jpeg',
+        'IMG_1234.png',
+        'IMG_1234.heic',
+      ]) {
+        File('${dir.path}/lib/cam/$other').writeAsBytesSync([1]);
+      }
+      File('${dir.path}/lib/cam/IMG_1234.srt').writeAsBytesSync([2]);
+      final r = await listing.moveIn(vault, [v]);
+      expect(r.moved, 1);
+      expect(names('cam'), {
+        'IMG_1234.JPG',
+        'IMG_1234.jpeg',
+        'IMG_1234.png',
+        'IMG_1234.heic',
+      });
+    });
+
+    test(
+      'PRIV-007 a file the library lists as its own is not a sidecar',
+      () async {
+        final v = await photo('film/Movie.mkv', video: true);
+        File('${dir.path}/lib/film/Movie.srt').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie.nfo').writeAsBytesSync([2]);
+        // The library indexed the .srt as an item of its own.
+        await seed.item('film/Movie.srt');
+        await listing.moveIn(vault, [v]);
+        expect(names('film'), {'Movie.srt'});
+      },
+    );
+
+    test(
+      'PRIV-007 the folder is listed once, and names match whatever their case',
+      () async {
+        final v = await photo('film/Movie.mkv', video: true);
+        File('${dir.path}/lib/film/MOVIE.SRT').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/movie.EN.srt').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie-Poster.JPG').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie 2.srt').writeAsBytesSync([1]);
+        await listing.moveIn(vault, [v]);
+        expect(listed, 1);
+        expect(names('film'), {'Movie 2.srt'});
+      },
+    );
+
+    test('PRIV-007 a name with a percent sign or a space is found, not decoded twice', () async {
+      final v = await photo('film/100% Cotton.mkv', video: true);
+      File('${dir.path}/lib/film/100% Cotton.srt').writeAsBytesSync([1]);
+      File('${dir.path}/lib/film/100%25 Cotton.srt').writeAsBytesSync([2]);
+      // Without a listing, each name is asked for.
+      await mover.moveIn(vault, [v]);
+      expect(names('film'), {'100%25 Cotton.srt'});
+    });
+
+    test('PRIV-007 playlist entries by address and downloads go too', () async {
+      final v = await photo('Movie.mkv', video: true);
+      final origin = await mover.files.uriOf(v);
+      final list = await db
+          .into(db.playlists)
+          .insert(
+            PlaylistsCompanion.insert(
+              name: 'Mine',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          );
+      // Linked by address only (the item was deleted and re-indexed once).
+      await db
+          .into(db.playlistItems)
+          .insert(
+            PlaylistItemsCompanion.insert(
+              playlistId: list,
+              position: 0,
+              uri: Value('$origin'),
+              title: const Value('Movie'),
+            ),
+          );
+      await db
+          .into(db.downloads)
+          .insert(
+            DownloadsCompanion.insert(
+              remoteUri: 'https://example.invalid/x',
+              title: 'Movie',
+              localPath: origin.toFilePath(),
+              createdAt: DateTime(2026),
+            ),
+          );
+      await mover.moveIn(vault, [v]);
+      expect(await db.select(db.playlistItems).get(), isEmpty);
+      expect(await db.select(db.downloads).get(), isEmpty);
+    });
+  });
+
+  group('PRIV-007 every chunk is checked before the original goes', () {
+    test(
+      'PRIV-007 a chunk that does not read back keeps the original',
+      () async {
+        final p = await photo('big.mp4', video: true, data: bytesOf(700000, 5));
+        // The add checks the first and last chunk (two reads); the full check
+        // then fails on its first.
+        crypto.failOpensAfter = crypto.openCalls + 2;
+        final r = await mover.moveIn(vault, [p]);
+        expect(r.failed, ['big.mp4']);
+        expect(File('${dir.path}/lib/big.mp4').existsSync(), isTrue);
+        expect(vault.list(), isEmpty);
+        expect(await itemRows(), 1);
+      },
+    );
+
+    test('PRIV-007 a file that reads back whole is moved', () async {
+      final p = await photo('ok.mp4', video: true, data: bytesOf(700000, 6));
+      final r = await mover.moveIn(vault, [p]);
+      expect(r.moved, 1);
+      expect(File('${dir.path}/lib/ok.mp4').existsSync(), isFalse);
+    });
+
+    test('PRIV-007 the progress of a big item is reported', () async {
+      final p = await photo('big.mp4', video: true, data: bytesOf(3 << 20, 7));
+      final fractions = <double>[];
+      await mover.moveIn(vault, [p], onItemProgress: fractions.add);
+      expect(fractions, isNotEmpty);
+      expect(fractions.last, closeTo(1, 1e-9));
+      expect(fractions.every((f) => f >= 0 && f <= 1.0000001), isTrue);
+      final sorted = [...fractions]..sort();
+      expect(fractions, sorted);
+    });
   });
 }

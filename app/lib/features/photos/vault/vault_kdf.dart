@@ -7,6 +7,13 @@ import 'package:crypto/crypto.dart';
 /// PBKDF2 rounds for a new vault (ADR-040: at least 600,000).
 const int vaultKdfIterations = 600000;
 
+/// Turns a PIN into a vault token (see [derivePinToken]).
+typedef PinKdf = Future<Uint8List> Function(
+  String pin,
+  Uint8List salt,
+  int iterations,
+);
+
 /// The PIN-derived token of a vault: PBKDF2-HMAC-SHA256 over the PIN with the
 /// vault's [salt], on a worker isolate so the screen stays alive. The token
 /// is the 32-byte secret every index is bound to; it is never stored.
