@@ -149,12 +149,43 @@ final class _Generator {
     });
   }
 
+  /// Samples made with tools FFmpeg does not have (APE, MPC, Dolby Vision,
+  /// HDR10+): small LFS files in test-media/corpus, listed in
+  /// tools/corpus/external/samples.json (recipe: README.md there). They are
+  /// copied next to the generated files so every harness finds them the same
+  /// way. A checkout without the LFS objects (pointer files) skips them.
+  void _prebuilt() {
+    final list = File('tools/corpus/external/samples.json');
+    if (!list.existsSync()) return;
+    final entries =
+        (jsonDecode(list.readAsStringSync()) as Map<String, Object?>)['items']!
+            as List<Object?>;
+    for (final e in entries.cast<Map<String, Object?>>()) {
+      final name = e['file']! as String;
+      if (_only != null && !_only!.hasMatch(name)) continue;
+      final src = File('test-media/corpus/$name');
+      // An LFS pointer is a few hundred bytes of text.
+      if (!src.existsSync() || src.lengthSync() < 1024) {
+        skipped.add({'file': name, 'reason': 'LFS object not fetched'});
+        continue;
+      }
+      src.copySync(p(name));
+      items.add({
+        'file': name,
+        'category': e['category'],
+        'ids': e['ids'],
+        'expect': e['expect'],
+      });
+    }
+  }
+
   Future<void> run({RegExp? only}) async {
     _only = only;
     _subtitleFiles();
     await _containers();
     await _videoCodecs();
     await _hdr();
+    _prebuilt();
     await _audio();
     await _subtitles();
     await _edgeCases();
@@ -708,6 +739,32 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
         expect: {'video': 1, 'videoCodec': 'h264'},
       );
     }
+    // VVC (VID-002): FFmpeg's native decoder reads it, vvenc makes it.
+    for (final (name, container) in [
+      ('mkv_vvc.mkv', 'matroska'),
+      ('mp4_vvc.mp4', 'mp4'),
+    ]) {
+      await item(
+        name,
+        [
+          ..._video,
+          '-t',
+          '3',
+          '-c:v',
+          'libvvenc',
+          '-preset',
+          'faster',
+          '-qp',
+          '32',
+          '-f',
+          container,
+        ],
+        needs: ['libvvenc'],
+        ids: ['VID-002'],
+        category: c,
+        expect: {'video': 1, 'videoCodec': 'vvc'},
+      );
+    }
     final av1 = _av1();
     await item(
       'mkv_av1_10bit.mkv',
@@ -1068,6 +1125,13 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
       ids: ['AUD-001'],
       expect: {'video': 0, 'audio': 1, 'container': 'libopenmpt'},
     );
+    written(
+      'midi_scale.mid',
+      _midiFile(),
+      category: c,
+      ids: ['AUD-001'],
+      expect: {'video': 0, 'audio': 1, 'container': 'midi'},
+    );
   }
 
   // ------------------------------------------------------------ subtitles --
@@ -1215,6 +1279,84 @@ Dialogue: 0,0:00:00.50,0:00:04.50,Top,,0,0,0,,{\move(100,40,540,40)}Moving sign
           'video': 1,
           'sub': 1,
           'subCodecs': [fmt],
+        },
+      );
+    }
+    // PGS as an embedded track (ADR-031 extractSubtitleImages).
+    await item(
+      'mkv_pgs.mkv',
+      [
+        ..._video,
+        '-i',
+        p('subs.sup'),
+        '-t',
+        '5',
+        '-map',
+        '0:v',
+        '-map',
+        '1:s',
+        '-c:v',
+        'mpeg2video',
+        '-b:v',
+        '1M',
+        '-c:s',
+        'copy',
+      ],
+      needs: ['mpeg2video'],
+      ids: ['SUB-011', 'SUB-051'],
+      category: c,
+      expect: {
+        'video': 1,
+        'sub': 1,
+        'subCodecs': ['hdmv_pgs_subtitle'],
+      },
+    );
+    // A richer bitmap (several colours, alpha, holes, long and short runs)
+    // as PGS, VobSub and DVB, to compare the decoders with the source
+    // (SUB-051). The pattern is _richIndex; the tests rebuild it.
+    written(
+      'subs_rich.sup',
+      _pgsRich(),
+      category: c,
+      ids: ['SUB-051'],
+      expect: {
+        'sub': 1,
+        'subCodecs': ['hdmv_pgs_subtitle'],
+      },
+    );
+    for (final (name, codec, fmt, extra) in [
+      ('mkv_pgs_rich.mkv', 'copy', 'hdmv_pgs_subtitle', <String>[]),
+      ('mkv_vobsub_rich.mkv', 'dvdsub', 'dvd_subtitle', <String>[]),
+      ('ts_dvbsub_rich.ts', 'dvbsub', 'dvb_subtitle', <String>[]),
+    ]) {
+      await item(
+        name,
+        [
+          ..._video,
+          '-i',
+          p('subs_rich.sup'),
+          '-t',
+          '5',
+          '-map',
+          '0:v',
+          '-map',
+          '1:s',
+          '-c:v',
+          'mpeg2video',
+          '-b:v',
+          '1M',
+          '-c:s',
+          codec,
+          ...extra,
+        ],
+        needs: [if (codec != 'copy') codec, 'mpeg2video'],
+        ids: ['SUB-051'],
+        category: c,
+        expect: {
+          'video': 1,
+          'sub': 1,
+          'subCodecs': [fmt],
+          'rich': {'x': 100, 'y': 280, 'width': 96, 'height': 24},
         },
       );
     }
@@ -1856,6 +1998,46 @@ List<int> _cp1251(String s) => [
 
 /// A minimal 4-channel ProTracker module: one sample (square wave), one
 /// pattern playing it on all channels (AUD-001, libopenmpt).
+/// A Standard MIDI File (format 0, 480 ticks per quarter note, 120 bpm): a
+/// C major scale on a piano, two seconds of notes (AUD-001 MIDI).
+List<int> _midiFile() {
+  final track = <int>[];
+  void delta(int ticks) {
+    final bytes = <int>[ticks & 0x7f];
+    var t = ticks >> 7;
+    while (t > 0) {
+      bytes.insert(0, (t & 0x7f) | 0x80);
+      t >>= 7;
+    }
+    track.addAll(bytes);
+  }
+
+  // Tempo 500000 us per quarter note, then program 0 on channel 0.
+  delta(0);
+  track.addAll([0xff, 0x51, 0x03, 0x07, 0xa1, 0x20]);
+  delta(0);
+  track.addAll([0xc0, 0x00]);
+  for (final note in [60, 62, 64, 65, 67, 69, 71, 72]) {
+    delta(0);
+    track.addAll([0x90, note, 0x64]);
+    // An eighth note sounds for 240 ticks, then the next one follows.
+    delta(240);
+    track.addAll([0x80, note, 0x40]);
+  }
+  delta(0);
+  track.addAll([0xff, 0x2f, 0x00]);
+  return [
+    ...ascii.encode('MThd'),
+    ..._u32(6),
+    ..._u16(0), // format 0
+    ..._u16(1), // one track
+    ..._u16(480),
+    ...ascii.encode('MTrk'),
+    ..._u32(track.length),
+    ...track,
+  ];
+}
+
 List<int> _modFile() {
   final b = BytesBuilder();
   List<int> pad(String s, int n) => [
@@ -1950,6 +2132,92 @@ List<int> _pgs() {
     255,
   ]); // palette again (ffmpeg needs it per set)
   seg(2000, 0x80, const []);
+  return out.takeBytes();
+}
+
+// The index (0 transparent, 1 white, 2 red, 3 yellow, 4 translucent black)
+// of pixel x,y of the 96x24 rich subtitle bitmap.
+int _richIndex(int x, int y) {
+  // A frame of translucent black around everything.
+  if (x < 2 || y < 2 || x >= 94 || y >= 22) return 4;
+  // A long solid bar (long run codes), then strokes with gaps.
+  if (y >= 18) return x < 60 ? 1 : 0;
+  final stroke = (x % 8 < 5 && y % 6 < 4) || (x + y) % 11 == 0;
+  if (!stroke) return y < 6 ? 4 : 0;
+  return 1 + (x ~/ 16) % 3;
+}
+
+List<int> _pgsRich() {
+  final out = BytesBuilder();
+  void seg(int ptsMs, int type, List<int> payload, int tick) {
+    out
+      ..add(ascii.encode('PG'))
+      ..add(_u32(ptsMs * 90 + tick))
+      ..add(_u32(0))
+      ..add([type])
+      ..add([payload.length >> 8, payload.length & 0xff])
+      ..add(payload);
+  }
+
+  const w = 96;
+  const h = 24;
+  final rle = <int>[];
+  for (var y = 0; y < h; y++) {
+    var x = 0;
+    while (x < w) {
+      final c = _richIndex(x, y);
+      var n = 1;
+      while (x + n < w && _richIndex(x + n, y) == c) {
+        n++;
+      }
+      if (c == 0) {
+        rle.addAll(n < 64 ? [0, n] : [0, 0x40 | (n >> 8), n & 0xff]);
+      } else if (n == 1) {
+        rle.add(c);
+      } else if (n < 64) {
+        rle.addAll([0, 0x80 | n, c]);
+      } else {
+        rle.addAll([0, 0xC0 | (n >> 8), n & 0xff, c]);
+      }
+      x += n;
+    }
+    rle.addAll([0, 0]);
+  }
+  // Palette: Y, Cr, Cb, alpha per entry.
+  List<int> palette() => [
+    0, 0, // palette id, version
+    1, 235, 128, 128, 255, // white
+    2, 81, 240, 90, 255, // red
+    3, 210, 146, 16, 255, // yellow
+    4, 16, 128, 128, 128, // translucent black
+  ];
+  List<int> pcs({required bool show, required int number}) => [
+    ..._u16(640), ..._u16(360), 0x10, //
+    ..._u16(number),
+    if (show) 0x80 else 0x00,
+    0x00, 0x00,
+    if (show) 1 else 0,
+    if (show) ...[..._u16(0), 0, 0x00, ..._u16(100), ..._u16(280)],
+  ];
+  seg(500, 0x16, pcs(show: true, number: 0), 0);
+  seg(500, 0x17, [1, 0, ..._u16(100), ..._u16(280), ..._u16(w), ..._u16(h)], 1);
+  seg(500, 0x14, palette(), 2);
+  seg(500, 0x15, [
+    ..._u16(0), 0, 0xC0, //
+    ..._u24(rle.length + 4), ..._u16(w), ..._u16(h), ...rle,
+  ], 3);
+  seg(500, 0x80, const [], 4);
+  seg(2000, 0x16, pcs(show: false, number: 1), 0);
+  seg(2000, 0x17, [
+    1,
+    0,
+    ..._u16(100),
+    ..._u16(280),
+    ..._u16(w),
+    ..._u16(h),
+  ], 1);
+  seg(2000, 0x14, palette(), 2);
+  seg(2000, 0x80, const [], 3);
   return out.takeBytes();
 }
 

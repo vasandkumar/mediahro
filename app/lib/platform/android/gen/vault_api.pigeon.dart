@@ -80,7 +80,8 @@ class VaultCryptoHostApi {
   final String pigeonVar_messageChannelSuffix;
 
   /// Opens (creating on first use) the master key; returns a handle id.
-  Future<int> openMasterKey(bool requireBiometry) async {
+  /// [secret], when given, is mixed into the wrapping key with HKDF-SHA-256.
+  Future<int> openMasterKey(bool requireBiometry, Uint8List? secret) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.mediahro.VaultCryptoHostApi.openMasterKey$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -89,7 +90,7 @@ class VaultCryptoHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[requireBiometry],
+      <Object?>[requireBiometry, secret],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 

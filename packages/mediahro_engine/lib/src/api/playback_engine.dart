@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
+import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// The playback contract (docs/05 §4.2). Implemented by `MpvEngine` on every
@@ -119,6 +120,17 @@ abstract interface class PlaybackEngine {
   /// bitmap tracks, `invalidArgument` for an unknown track, another
   /// extension or nothing open.
   Future<void> extractSubtitles(int trackId, Uri out);
+
+  /// Streams the bitmaps of embedded image subtitle track [trackId] of the
+  /// current item, each with its start and end time and its place in the
+  /// frame: PGS, VobSub and DVB, for OCR (ADR-031 part 2: SUB-051). Works
+  /// without disturbing playback, reads the track once, and decodes in an
+  /// isolate; the stream stays a few bitmaps ahead of its listener and
+  /// ends when the track has been read. Errors arrive on the stream as
+  /// [EngineException]: `notSupported` for text tracks (use
+  /// [extractSubtitles]), `invalidArgument` for an unknown or external
+  /// track or nothing open, `unsupportedFormat` for an undecodable one.
+  Stream<SubtitleImage> extractSubtitleImages(int trackId);
 
   /// Draws video into [target] (VID-031, ADR-022); [VideoTarget.texture] by
   /// default. Throws [EngineException] for an unregistered platform-view

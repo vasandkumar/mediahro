@@ -59,9 +59,11 @@ import com.mediahro.mediahro.platform.media.AudioOutputModule
 import com.mediahro.mediahro.platform.media.BrowseHub
 import com.mediahro.mediahro.platform.media.MediaBrowseModule
 import com.mediahro.mediahro.platform.media.MediaSessionModule
+import com.mediahro.mediahro.platform.motion.MotionModules
 import com.mediahro.mediahro.platform.network.AuthBrowserModule
 import com.mediahro.mediahro.platform.network.MulticastModule
 import com.mediahro.mediahro.platform.network.NetworkStatusModule
+import com.mediahro.mediahro.platform.purchases.PurchasesModules
 import com.mediahro.mediahro.platform.security.BiometricsModule
 import com.mediahro.mediahro.platform.security.SecureStorageModule
 import com.mediahro.mediahro.platform.sftp.SftpModule
@@ -243,6 +245,10 @@ object PlatformModules {
         EnterpriseModules.register(context.applicationContext, host, messenger)
         // Vault crypto and the secure window (IMG-011, ADR-039).
         VaultModules.register(context.applicationContext, host, engine)
+        // Tips and the supporter subscription (SUP-002): Play Billing in the store flavour only.
+        PurchasesModules.register(context.applicationContext, host, messenger)
+        // Device attitude for the 360 look-around (IMG-001, ADR-042).
+        MotionModules.register(context.applicationContext, host, engine)
         debugHooks(host, engine)
     }
 

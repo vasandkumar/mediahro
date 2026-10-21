@@ -14,6 +14,7 @@ import 'package:mediahro/features/photos/compare/compare_tray.dart';
 import 'package:mediahro/features/photos/edit/editor_screen.dart';
 import 'package:mediahro/features/photos/info/info_sheet.dart';
 import 'package:mediahro/features/photos/output/output_actions.dart';
+import 'package:mediahro/features/photos/pano/pano_screen.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
 import 'package:mediahro/features/photos/timeline/photo_thumbnail.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
@@ -119,13 +120,40 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
   bool _hdrOn = true;
   bool _paging = false;
 
+  // Page of a multi-page file (a TIFF) and how many there are (IMG-001).
+  int _page = 0;
+  int _pageCount = 1;
+
+  // The Live or Motion Photo clip is playing (IMG-001).
+  bool _clip = false;
+
+  // A panorama opens filling the height, so it can be panned along; the Fit
+  // button still brings the whole picture back.
+  bool _panorama = false;
+
+  // The photo is a 360° sphere that can be looked around in (IMG-001).
+  bool _sphere = false;
+
+  // What each loaded photo said about itself, so a photo that was kept alive
+  // beside the current one shows its page bar again when swiped back to.
+  final Map<int, ({int pages, bool wide, bool sphere})> _facts = {};
+
   /// The system's HDR picture replaces the tone-mapped one while the photo is
   /// at rest at fit size on an HDR display (IMG-002).
+  FitMode get _shownMode =>
+      _mode == FitMode.fit && _panorama ? FitMode.fill : _mode;
+
+  void _toggleMode() => setState(() {
+    final next = _shownMode == FitMode.fit ? FitMode.fill : FitMode.fit;
+    _panorama = false;
+    _mode = next;
+  });
+
   bool get _hdrVisible =>
       _hdrOn &&
       _entry.hdr &&
       _atFit &&
-      _mode == FitMode.fit &&
+      _shownMode == FitMode.fit &&
       _turns == 0 &&
       !_paging &&
       (ref.watch(hdrDisplayProvider).value ?? false);
@@ -191,6 +219,11 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
       _turns = 0;
       _percent = 0;
       _animated = false;
+      _page = 0;
+      _clip = false;
+      _pageCount = _facts[_entries[i].id]?.pages ?? 1;
+      _panorama = _facts[_entries[i].id]?.wide ?? false;
+      _sphere = _facts[_entries[i].id]?.sphere ?? false;
     });
     _centreStrip(i);
     _scheduleHide();
@@ -300,9 +333,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
           _info,
         ),
         const SingleActivator(LogicalKeyboardKey.keyF): VoidCallbackIntent(
-          () => setState(
-            () => _mode = _mode == FitMode.fit ? FitMode.fill : FitMode.fit,
-          ),
+          _toggleMode,
         ),
         const SingleActivator(LogicalKeyboardKey.keyR): VoidCallbackIntent(
           () => setState(() => _turns = (_turns + 1) % 4),
@@ -347,7 +378,7 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                         index: i,
                         thumbs: _thumbs,
                         active: i == _index,
-                        mode: _mode,
+                        mode: i == _index ? _shownMode : _mode,
                         quarterTurns: i == _index ? _turns : 0,
                         controller: _viewer,
                         onAtFitChanged: (v) {
@@ -359,10 +390,33 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                         onTap: _toggleChrome,
                         onPlayVideo: _play,
                         animationPlaying: _playing && i == _index,
+                        page: i == _index ? _page : 0,
+                        clipPlaying: i == _index && _clip,
+                        onClipDone: () {
+                          if (mounted && _clip) setState(() => _clip = false);
+                        },
                         onLoaded: (img) {
-                          if (i == _index &&
-                              (img.animation != null) != _animated) {
-                            setState(() => _animated = img.animation != null);
+                          final wide =
+                              img.info.isPanorama &&
+                              img.fullSize.width >= 2.2 * img.fullSize.height;
+                          final sphere =
+                              img.info.panorama?.isEquirectangular ?? false;
+                          _facts[_entries[i].id] = (
+                            pages: img.info.pages,
+                            wide: wide,
+                            sphere: sphere,
+                          );
+                          if (i != _index) return;
+                          if ((img.animation != null) != _animated ||
+                              img.info.pages != _pageCount ||
+                              wide != _panorama ||
+                              sphere != _sphere) {
+                            setState(() {
+                              _animated = img.animation != null;
+                              _pageCount = img.info.pages;
+                              _panorama = wide;
+                              _sphere = sphere;
+                            });
                           }
                         },
                       ),
@@ -535,21 +589,73 @@ class _PhotoViewerState extends ConsumerState<PhotoViewer> {
                                       onPressed: () =>
                                           setState(() => _hdrOn = !_hdrOn),
                                     ),
+                                  if (_entry.livePhoto || _entry.motionPhoto)
+                                    IconButton(
+                                      tooltip: _clip
+                                          ? l10n.photosStopClip
+                                          : (_entry.livePhoto
+                                                ? l10n.photosPlayLive
+                                                : l10n.photosPlayMotion),
+                                      color: Colors.white,
+                                      icon: Icon(
+                                        _clip
+                                            ? Icons.stop_circle_outlined
+                                            : Icons.motion_photos_on_outlined,
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => _clip = !_clip),
+                                    ),
+                                  if (_sphere)
+                                    IconButton(
+                                      tooltip: l10n.photosPanoLookAround,
+                                      color: Colors.white,
+                                      icon: const Icon(Icons.threesixty),
+                                      onPressed: () => unawaited(
+                                        openPanorama(context, _entry),
+                                      ),
+                                    ),
+                                  if (_pageCount > 1) ...[
+                                    IconButton(
+                                      tooltip: l10n.photosPagePrevious,
+                                      color: Colors.white,
+                                      icon: const Icon(Icons.chevron_left),
+                                      onPressed: _page > 0
+                                          ? () => setState(() => _page--)
+                                          : null,
+                                    ),
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        l10n.photosPageOf(
+                                          _page + 1,
+                                          _pageCount,
+                                        ),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelLarge
+                                            ?.copyWith(color: Colors.white),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: l10n.photosPageNext,
+                                      color: Colors.white,
+                                      icon: const Icon(Icons.chevron_right),
+                                      onPressed: _page < _pageCount - 1
+                                          ? () => setState(() => _page++)
+                                          : null,
+                                    ),
+                                  ],
                                   IconButton(
-                                    tooltip: _mode == FitMode.fit
+                                    tooltip: _shownMode == FitMode.fit
                                         ? l10n.photosFill
                                         : l10n.photosFit,
                                     color: Colors.white,
                                     icon: Icon(
-                                      _mode == FitMode.fit
+                                      _shownMode == FitMode.fit
                                           ? Icons.fit_screen_outlined
                                           : Icons.crop_free,
                                     ),
-                                    onPressed: () => setState(
-                                      () => _mode = _mode == FitMode.fit
-                                          ? FitMode.fill
-                                          : FitMode.fit,
-                                    ),
+                                    onPressed: _toggleMode,
                                   ),
                                   IconButton(
                                     tooltip: l10n.photosRotate,

@@ -61,8 +61,11 @@ val VaultApiPigeonMethodCodec = StandardMethodCodec(VaultApiPigeonCodec())
  * Generated interface from Pigeon that represents a handler of messages from Flutter.
  */
 interface VaultCryptoHostApi {
-  /** Opens (creating on first use) the master key; returns a handle id. */
-  suspend fun openMasterKey(requireBiometry: Boolean): Long
+  /**
+   * Opens (creating on first use) the master key; returns a handle id.
+   * [secret], when given, is mixed into the wrapping key with HKDF-SHA-256.
+   */
+  suspend fun openMasterKey(requireBiometry: Boolean, secret: ByteArray?): Long
   /** A fresh per-file key, wrapped under the master key. */
   suspend fun newFileKey(handle: Long): ByteArray
   /** Checks that the master key can unwrap [wrapped] and caches the key. */
@@ -89,9 +92,10 @@ interface VaultCryptoHostApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val requireBiometryArg = args[0] as Boolean
+            val secretArg = args[1] as ByteArray?
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
-                listOf(api.openMasterKey(requireBiometryArg))
+                listOf(api.openMasterKey(requireBiometryArg, secretArg))
               } catch (exception: Throwable) {
                 VaultApiPigeonUtils.wrapError(exception)
               }

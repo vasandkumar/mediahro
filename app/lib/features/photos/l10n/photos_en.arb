@@ -31,6 +31,22 @@
   "photosBack": "Back",
   "photosInfo": "Details",
   "photosFit": "Fit to screen",
+  "photosPlayLive": "Play Live Photo",
+  "photosPlayMotion": "Play Motion Photo",
+  "photosStopClip": "Stop playing",
+  "photosPageOf": "Page {page} of {total}",
+  "@photosPageOf": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPagePrevious": "Previous page",
+  "photosPageNext": "Next page",
   "photosFill": "Fill screen",
   "photosRotate": "Rotate",
   "photosPlayAnimation": "Play animation",
@@ -96,6 +112,30 @@
   "photosInfoMotionPhoto": "Motion Photo",
   "photosInfoLivePhoto": "Live Photo",
   "photosInfoPanorama": "Panorama",
+  "photosPanoLookAround": "Look around in 360°",
+  "photosPanoTitle": "360° photo",
+  "photosPanoHint": "360° photo. Drag to look around, pinch to zoom.",
+  "photosPanoFacing": "Facing {heading}° round, {tilt}° up",
+  "@photosPanoFacing": {
+    "placeholders": {
+      "heading": {
+        "type": "int"
+      },
+      "tilt": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPanoLeft": "Look left",
+  "photosPanoRight": "Look right",
+  "photosPanoUp": "Look up",
+  "photosPanoDown": "Look down",
+  "photosPanoZoomIn": "Zoom in",
+  "photosPanoZoomOut": "Zoom out",
+  "photosPanoReset": "Reset the view",
+  "photosPanoMotionOn": "Look around by moving the phone",
+  "photosPanoMotionOff": "Stop following the phone",
+  "photosPanoError": "This 360° photo can't be opened.",
   "photosInfoHdr": "HDR (gain map)",
   "photosEditMetadata": "Edit details",
   "photosEditDate": "Date and time",
@@ -834,6 +874,194 @@
       }
     }
   },
+  "photosVault": "Vault",
+  "photosVaultSubtitle": "Private photos, locked with a PIN",
+  "photosVaultIntro": "Keep private photos behind a PIN, and your fingerprint if you like. They are encrypted on this device, kept out of the gallery and out of backups, and hidden from screenshots and the app switcher.",
+  "photosVaultSetUpTitle": "Set up the vault",
+  "photosVaultPinLabel": "PIN, 4 to 12 digits",
+  "photosVaultPinRepeat": "Repeat the PIN",
+  "photosVaultPinShort": "Use 4 to 12 digits.",
+  "photosVaultPinMismatch": "The two PINs differ.",
+  "photosVaultSecondTitle": "Second vault (optional)",
+  "photosVaultSecondBody": "A second, separate vault that opens with another PIN. It looks exactly like this one and holds only what you put in it, so you can open it if someone makes you open the vault. Nothing in the app shows that it exists. Anyone who examines this phone's storage can still find that there are two vaults.",
+  "photosVaultSecondPin": "PIN of the second vault",
+  "photosVaultSecondSame": "The second PIN must differ from the first.",
+  "photosVaultUseFingerprint": "Open with fingerprint",
+  "photosVaultFingerprintNote": "Needs a fingerprint on this phone. If you add or remove a fingerprint on the phone later, this turns itself off; the PIN keeps working.",
+  "photosVaultSetUp": "Set up",
+  "photosVaultEnterPin": "Enter your PIN",
+  "photosVaultUnlock": "Unlock",
+  "photosVaultFingerprintAction": "Use fingerprint",
+  "photosVaultUnlockReason": "Open your vault",
+  "photosVaultDigit": "Digit {digit}",
+  "@photosVaultDigit": {
+    "placeholders": {
+      "digit": {
+        "type": "String"
+      }
+    }
+  },
+  "photosVaultBackspace": "Delete last digit",
+  "photosVaultDigitsEntered": "{count, plural, =0{No digits entered} =1{1 digit entered} other{{count} digits entered}}",
+  "@photosVaultDigitsEntered": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultWrongPin": "That PIN doesn't open the vault.",
+  "photosVaultWait": "Too many wrong PINs. Try again in {time}.",
+  "@photosVaultWait": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "photosVaultTimeSeconds": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@photosVaultTimeSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultTimeMinutes": "{count, plural, =1{1 minute} other{{count} minutes}}",
+  "@photosVaultTimeMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultTimeHours": "{count, plural, =1{1 hour} other{{count} hours}}",
+  "@photosVaultTimeHours": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultTimeDays": "{count, plural, =1{1 day} other{{count} days}}",
+  "@photosVaultTimeDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultCancelled": "The vault stayed locked.",
+  "photosVaultNotEnrolled": "Set a screen lock on this phone first. To open with a fingerprint, add one too.",
+  "photosVaultFingerprintInvalidated": "The fingerprints on this phone changed, so the fingerprint no longer opens the vault. Use your PIN; inside the vault you can turn the fingerprint on again.",
+  "photosVaultKeyLost": "This vault's key is gone from the phone (the data was restored on another device, or the key store was reset). The vault can't be opened any more.",
+  "photosVaultLockedOut": "Too many fingerprint attempts. Wait a little, or use your PIN.",
+  "photosVaultAuthFailed": "That fingerprint wasn't accepted.",
+  "photosVaultUnavailable": "The vault isn't available on this device.",
+  "photosVaultDamaged": "The vault's files are damaged and can't be read.",
+  "photosVaultReset": "Reset the vault",
+  "photosVaultResetTitle": "Delete the vault?",
+  "photosVaultResetBody": "This deletes the vault and everything in it for good. Photos inside can't be recovered.",
+  "photosVaultResetConfirm": "Delete the vault",
+  "photosVaultLock": "Lock",
+  "photosVaultAdd": "Add photos",
+  "photosVaultAddNote": "The photos you pick are copied in and stay where they are; delete the originals yourself. Files over 64 MB are skipped.",
+  "photosVaultAddContinue": "Choose photos",
+  "photosVaultEmptyTitle": "The vault is empty",
+  "photosVaultEmptyMessage": "Move photos here from the viewer menu or from a selection, or add them with the plus button.",
+  "photosVaultMenuFingerprint": "Fingerprint unlock",
+  "photosVaultFingerprintOn": "The fingerprint now opens this vault.",
+  "photosVaultFingerprintOff": "The fingerprint no longer opens a vault.",
+  "photosVaultChangePin": "Change PIN",
+  "photosVaultChangePinDone": "PIN changed.",
+  "photosVaultChangePinDoneFingerprintOff": "PIN changed. Fingerprint unlock is now off; turn it on again if you want it.",
+  "photosVaultNewPin": "New PIN",
+  "photosVaultMove": "Move to vault",
+  "photosVaultMoveTitle": "{count, plural, =1{Move this photo to the vault?} other{Move {count} photos to the vault?}}",
+  "@photosVaultMoveTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoveBody": "They are encrypted, then deleted from their folder and from this app's library. Deleting is best effort on a phone's flash memory, and copies already in a cloud backup or another app are not touched.",
+  "photosVaultMoveConfirm": "Move",
+  "photosVaultMoving": "Moving to the vault: {done} of {total}",
+  "@photosVaultMoving": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoved": "{count, plural, =1{1 photo is in the vault.} other{{count} photos are in the vault.}}",
+  "@photosVaultMoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoveFailed": "{count, plural, =1{1 photo could not be moved and stays where it was.} other{{count} photos could not be moved and stay where they were.}}",
+  "@photosVaultMoveFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultMoveCleanup": "{count, plural, =1{1 photo is in the vault but may still show in the library until the next scan.} other{{count} photos are in the vault but may still show in the library until the next scan.}}",
+  "@photosVaultMoveCleanup": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultNoVideos": "Videos can't go in the vault yet.",
+  "photosVaultAdded": "{count, plural, =1{1 photo added.} other{{count} photos added.}}",
+  "@photosVaultAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultSkipped": "{count, plural, =1{1 file was skipped (too big, or not readable).} other{{count} files were skipped (too big, or not readable).}}",
+  "@photosVaultSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultTakeOut": "Take out",
+  "photosVaultTakenOut": "{count, plural, =1{1 photo taken out of the vault.} other{{count} photos taken out of the vault.}}",
+  "@photosVaultTakenOut": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultDeleteForever": "Delete for good",
+  "photosVaultDeleteConfirm": "{count, plural, =1{Delete this photo for good? This can't be undone.} other{Delete these {count} photos for good? This can't be undone.}}",
+  "@photosVaultDeleteConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosVaultOpenFailed": "This photo can't be opened.",
+  "photosVaultLocked": "The vault is locked.",
+  "photosVaultFingerprintWarning": "Anyone can make you place your finger on the phone. The fingerprint opens the vault it was turned on in, so turn it on only in the vault you would not mind being made to open.",
+  "photosVaultPinNotAllowed": "Choose a different PIN.",
+  "photosVaultPinHelp": "The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type.",
   "photosSlideshow": "Slideshow",
   "photosSlideshowFailed": "None of these photos could be opened.",
   "photosSlideshowEnded": "End of the slideshow",

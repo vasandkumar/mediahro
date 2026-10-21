@@ -23,6 +23,7 @@ import 'package:mediahro/features/photos/photos_settings.dart';
 import 'package:mediahro/features/photos/timeline/thumbnail_controller.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/app_trash.dart';
+import 'package:mediahro/features/photos/viewer/photo_clips.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart'
     show settingsStoreProvider;
@@ -104,6 +105,42 @@ final ProviderFamily<ThumbnailSource, int> thumbnailSourceProvider =
         edge: edge,
       ),
     );
+
+/// The short video of Live Photos and Motion Photos (IMG-001).
+final photoClipsProvider = Provider<PhotoClips>(
+  (ref) => PhotoClipService(
+    files: ref.watch(photoFilesProvider),
+    io: MountedImageIo(ref.watch(mountsProvider)),
+    pipeline: ref.watch(imagePipelineProvider),
+    db: ref.watch(libraryDatabaseProvider),
+  ),
+);
+
+/// Opens page [page] (counting from 0) of a multi-page file, a TIFF, for the
+/// viewer; tests replace it.
+typedef ViewerPageLoader = Future<ViewerImage> Function(
+  PhotoEntry entry,
+  int page,
+);
+
+final viewerPageLoaderProvider = Provider<ViewerPageLoader>((ref) {
+  final files = ref.watch(photoFilesProvider);
+  final pipeline = ref.watch(imagePipelineProvider);
+  return (entry, page) async {
+    final src = await files.open(entry);
+    try {
+      return await loadViewerImage(
+        pipeline,
+        src,
+        page: page,
+        onDispose: src.file.close,
+      );
+    } on Object {
+      await src.file.close();
+      rethrow;
+    }
+  };
+});
 
 /// Opens one image for the viewer; the returned [ViewerImage] closes the
 /// file when disposed. Tests replace it.

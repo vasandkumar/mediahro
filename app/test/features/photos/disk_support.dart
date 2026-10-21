@@ -20,6 +20,13 @@ final class DiskIo implements ImageIo {
   /// Deleting always fails (a read-only source).
   bool failDelete;
 
+  /// The file is deleted and the call still reports a failure (a connection
+  /// that dropped after the work was done).
+  bool deleteThenFail = false;
+
+  /// Asking whether a file exists fails.
+  bool existsFails = false;
+
   @override
   String? localPath(Uri uri) => null;
 
@@ -43,7 +50,12 @@ final class DiskIo implements ImageIo {
   }
 
   @override
-  Future<bool> exists(Uri uri) async => File.fromUri(uri).existsSync();
+  Future<bool> exists(Uri uri) async {
+    if (existsFails) {
+      throw VirtualFileException(VirtualFileError.unreachable, uri);
+    }
+    return File.fromUri(uri).existsSync();
+  }
 
   @override
   Future<void> delete(Uri uri) async {
@@ -52,6 +64,9 @@ final class DiskIo implements ImageIo {
     }
     deletes.add(uri);
     File.fromUri(uri).deleteSync();
+    if (deleteThenFail) {
+      throw VirtualFileException(VirtualFileError.io, uri, 'dropped');
+    }
   }
 }
 

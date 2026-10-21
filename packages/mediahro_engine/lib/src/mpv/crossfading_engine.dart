@@ -6,6 +6,7 @@ import 'package:mediahro_engine/src/api/audio_tap.dart';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/api/playback_engine.dart';
+import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/api/video_target.dart';
 
 /// Music-role engine with crossfades (AUD-003) over two cores.
@@ -409,6 +410,10 @@ final class CrossfadingEngine implements PlaybackEngine {
   @override
   Future<void> extractSubtitles(int trackId, Uri out) =>
       _a.extractSubtitles(trackId, out);
+
+  @override
+  Stream<SubtitleImage> extractSubtitleImages(int trackId) =>
+      _a.extractSubtitleImages(trackId);
 
   @override
   Stream<Float32List> decodeAudio(

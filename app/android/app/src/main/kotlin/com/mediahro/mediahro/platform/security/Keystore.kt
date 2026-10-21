@@ -97,6 +97,34 @@ internal class Keystore(private val context: Context) {
         return pair.public to pair.private
     }
 
+    /**
+     * The vault's HMAC-SHA-256 key (ADR-039 amendment 2): non-exportable, used
+     * only to turn a fixed label into the 32 bytes of key material that
+     * [com.mediahro.mediahro.platform.vault.Hkdf] mixes with a caller secret
+     * when the Keystore AES master key (whose bytes can never be read) is the
+     * master. Same device-unlocked rule as the AES key.
+     */
+    @Synchronized
+    fun vaultHmacKey(alias: String): SecretKey {
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
+        fun spec(strong: Boolean) = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
+            .setUnlockedDeviceRequired(true)
+            .setIsStrongBoxBacked(strong)
+            .build()
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_HMAC_SHA256, PROVIDER)
+        return try {
+            generator.init(spec(strongBox))
+            generator.generateKey()
+        } catch (e: StrongBoxUnavailableException) {
+            generator.init(spec(false))
+            generator.generateKey()
+        }
+    }
+
+    /** HMAC-SHA-256 of [data] under a Keystore HMAC key. */
+    fun hmac(key: SecretKey, data: ByteArray): ByteArray =
+        javax.crypto.Mac.getInstance("HmacSHA256").apply { init(key) }.doFinal(data)
+
     fun has(alias: String): Boolean = store.containsAlias(alias)
 
     /**

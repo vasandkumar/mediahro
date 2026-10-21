@@ -15,10 +15,13 @@ final class AndroidVaultCrypto implements VaultCryptoFacade {
   final VaultCryptoHostApi _api;
 
   @override
-  Future<VaultKeyHandle> openMasterKey({required bool requireBiometry}) =>
-      _call(
-        () async => VaultKeyHandle(await _api.openMasterKey(requireBiometry)),
-      );
+  Future<VaultKeyHandle> openMasterKey({
+    required bool requireBiometry,
+    Uint8List? secret,
+  }) => _call(
+    () async =>
+        VaultKeyHandle(await _api.openMasterKey(requireBiometry, secret)),
+  );
 
   @override
   Future<WrappedKey> newFileKey(VaultKeyHandle master) => _call(
