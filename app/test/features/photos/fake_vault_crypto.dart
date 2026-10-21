@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/platform/security.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
 
@@ -38,6 +40,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   VaultCryptoError? failChunks;
 
   int sealCalls = 0;
+
+  /// Every `open` after this many calls fails (a chunk that does not read
+  /// back).
+  int? failOpensAfter;
   int openCalls = 0;
 
   Uint8List _bytes(int n) =>
@@ -164,6 +170,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   ) async {
     openCalls++;
     if (failChunks != null) throw VaultCryptoException(failChunks!);
+    final limit = failOpensAfter;
+    if (limit != null && openCalls > limit) {
+      throw const VaultCryptoException(VaultCryptoError.integrityFailure);
+    }
     final fileKey = await _unwrap(key.master, key.bytes);
     try {
       final box = SecretBox(
@@ -187,9 +197,13 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   Error? failResetWith;
   int resets = 0;
 
+  /// Runs inside [reset] before anything else (to change the disk then).
+  void Function()? beforeReset;
+
   @override
   Future<void> reset() async {
     calls.add('reset');
+    beforeReset?.call();
     if (failResetWith != null) throw failResetWith!;
     if (failReset != null) throw VaultCryptoException(failReset!);
     resets++;
@@ -235,3 +249,11 @@ final class MemorySecureStorage implements SecureStorageFacade {
   Future<List<int>> unwrapKey(List<int> wrapped, {required String reason}) =>
       throw UnimplementedError();
 }
+
+/// The PIN token worked out in place: tests do not wait for an isolate to
+/// start, so how busy the machine is does not change the outcome.
+Future<Uint8List> inlinePinToken(
+  String pin,
+  Uint8List salt,
+  int iterations,
+) async => pbkdf2Sha256(utf8.encode(pin), salt, iterations);

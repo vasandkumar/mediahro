@@ -7,10 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
+import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
+import 'package:mediahro/features/photos/vault/vault_player.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
 import 'package:mediahro/features/photos/vault/vault_screen.dart';
 import 'package:mediahro/platform/platform_facades.dart';
+import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_engine/testing.dart';
 
 import 'fake_vault_crypto.dart';
 
@@ -51,9 +55,26 @@ final class _Window implements SecureWindowFacade {
   Stream<bool> get captureActive => const Stream<bool>.empty();
 }
 
+final class _Display implements DisplayFacade {
+  final List<bool> awake = [];
+
+  /// Runs when the screen asks to be kept on.
+  void Function()? onHold;
+
+  @override
+  Future<void> keepScreenOn({required bool on}) async {
+    awake.add(on);
+    if (on) onHold?.call();
+  }
+
+  @override
+  Object? noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 final class _Storage implements StorageFacade {
   final List<PickedFile> picks = [];
   final List<String> saved = [];
+  bool failSave = false;
 
   @override
   Future<List<PickedFile>> pickFiles({
@@ -67,6 +88,7 @@ final class _Storage implements StorageFacade {
     required String mimeType,
     required Stream<List<int>> content,
   }) async {
+    if (failSave) throw StateError('no room');
     await content.drain<void>();
     saved.add(suggestedName);
     return Uri.parse('content://saved/$suggestedName');
@@ -82,6 +104,7 @@ void main() {
   late MemorySecureStorage secure;
   late _Window window;
   late _Storage storage;
+  late _Display display;
   late LibraryDatabase db;
   late VaultManager manager;
   late DateTime now;
@@ -92,6 +115,7 @@ void main() {
     secure = MemorySecureStorage();
     window = _Window();
     storage = _Storage();
+    display = _Display();
     db = LibraryDatabase.memory();
     now = DateTime(2026, 10, 21, 12);
     manager = VaultManager(
@@ -100,6 +124,7 @@ void main() {
       secure: secure,
       iterations: 4,
       minRounds: 1,
+      kdf: inlinePinToken,
       clock: () => now,
     );
   });
@@ -113,7 +138,12 @@ void main() {
     }
   });
 
-  Future<void> open(WidgetTester tester, {double height = 900}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    double height = 900,
+    FakePlaybackEngine? engine,
+    FakePlaybackEngine? music,
+  }) async {
     tester.view
       ..physicalSize = Size(400, height)
       ..devicePixelRatio = 1;
@@ -122,6 +152,13 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          if (engine != null) ...[
+            playbackEngineProvider(EngineRole.video).overrideWithValue(engine),
+            playbackEngineProvider(EngineRole.music).overrideWithValue(
+              music ?? FakePlaybackEngine(role: EngineRole.music),
+            ),
+          ],
+          displayProvider.overrideWithValue(display),
           vaultManagerProvider.overrideWith((ref) async => manager),
           secureWindowProvider.overrideWithValue(window),
           storageProvider.overrideWithValue(storage),
@@ -148,13 +185,13 @@ void main() {
     await settleReal(tester);
   }
 
-  Future<void> typePin(WidgetTester tester, String pin) async {
+  Future<void> typePin(WidgetTester tester, String pin, {Finder? until}) async {
     for (final d in pin.split('')) {
       await tester.tap(find.text(d));
       await tester.pump();
     }
     await tester.tap(find.byIcon(Icons.check));
-    await settleReal(tester);
+    await settleReal(tester, until: until);
   }
 
   /// A made vault with [names] (as videos, so no picture is decoded) in the
@@ -188,6 +225,22 @@ void main() {
         await o.vault!.close();
       }
     });
+  }
+
+  /// Taps the item and waits until the player has handed the file to the
+  /// engine. The player's spinner never rests, so there is no settling.
+  Future<void> openPlayer(
+    WidgetTester tester,
+    FakePlaybackEngine engine,
+    String name,
+  ) async {
+    await tester.tap(find.bySemanticsLabel(name));
+    for (var i = 0; i < 400 && !engine.calls.contains('play'); i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
   }
 
   Set<String> everyText(WidgetTester tester) => {
@@ -544,10 +597,10 @@ void main() {
         await tester.tap(find.byTooltip('Take out'));
         await settleReal(
           tester,
-          until: find.text('1 photo taken out of the vault.'),
+          until: find.text('1 item taken out of the vault.'),
         );
         expect(storage.saved, ['one.mp4']);
-        expect(find.text('1 photo taken out of the vault.'), findsOneWidget);
+        expect(find.text('1 item taken out of the vault.'), findsOneWidget);
         expect(find.bySemanticsLabel('one.mp4'), findsNothing);
       },
     );
@@ -564,11 +617,10 @@ void main() {
             name: 'a.jpg',
           ),
         );
-        await tester.tap(find.byTooltip('Add photos'));
+        await tester.tap(find.byTooltip('Add to the vault'));
         await tester.pumpAndSettle();
         expect(find.textContaining('stay where they are'), findsOneWidget);
-        expect(find.textContaining('64 MB'), findsOneWidget);
-        await tester.tap(find.text('Choose photos'));
+        await tester.tap(find.text('Choose files'));
         await settleReal(tester);
         expect(find.textContaining('1 file was skipped'), findsOneWidget);
       },
@@ -701,7 +753,11 @@ void main() {
       await seeded(tester, names: ['one.mp4']);
       crypto.loseKeys();
       await open(tester);
-      await typePin(tester, '246810');
+      await typePin(
+        tester,
+        '246810',
+        until: find.textContaining('key is gone'),
+      );
       expect(find.textContaining('key is gone'), findsOneWidget);
       await tester.tap(find.text('Reset the vault'));
       await tester.pumpAndSettle();
@@ -712,9 +768,37 @@ void main() {
       await tester.tap(find.text('Reset the vault'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
-      await settleReal(tester);
+      await settleReal(tester, until: find.text('Set up the vault'));
       expect(manager.exists, isFalse);
       expect(find.text('Set up the vault'), findsOneWidget);
+    });
+
+    testWidgets('PRIV-007 a reset that fails for another reason says so', (
+      tester,
+    ) async {
+      await seeded(tester, names: ['one.mp4']);
+      crypto.loseKeys();
+      await open(tester);
+      await typePin(
+        tester,
+        '246810',
+        until: find.textContaining('key is gone'),
+      );
+      // Not the keystore own kind of failure (a platform error).
+      crypto.failResetWith = StateError('platform');
+      await tester.tap(find.text('Reset the vault'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
+      await settleReal(
+        tester,
+        until: find.text('The reset could not be finished. Try again.'),
+      );
+      expect(
+        find.text('The reset could not be finished. Try again.'),
+        findsOneWidget,
+      );
+      // The form is not stuck: Reset can be tried again.
+      expect(find.text('Reset the vault'), findsOneWidget);
     });
   });
 
@@ -724,12 +808,12 @@ void main() {
     await seeded(tester, names: ['one.mp4']);
     crypto.loseKeys();
     await open(tester);
-    await typePin(tester, '246810');
+    await typePin(tester, '246810', until: find.textContaining('key is gone'));
     crypto.failReset = VaultCryptoError.unavailable;
     await tester.tap(find.text('Reset the vault'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete the vault'));
-    await settleReal(tester);
+    await settleReal(tester, until: find.textContaining("isn't available"));
     expect(manager.exists, isTrue);
     expect(find.textContaining("isn't available"), findsOneWidget);
     expect(find.text('Reset the vault'), findsOneWidget);
@@ -767,4 +851,323 @@ void main() {
       );
     },
   );
+
+  group('PRIV-007 video and audio in the vault', () {
+    testWidgets('PRIV-007 a video opens in the player as a sensitive source', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      final source = engine.openedSource;
+      expect(source, isA<VirtualFileSource>());
+      expect(source!.sensitive, isTrue);
+      // Nothing that names the file is handed to the engine.
+      expect(source.title, isNull);
+      expect(engine.calls, containsAllInOrder(['open', 'play']));
+      expect(find.byTooltip('Pause'), findsOneWidget);
+      expect(find.byTooltip('Back 10 seconds'), findsOneWidget);
+      expect(find.byTooltip('Forward 10 seconds'), findsOneWidget);
+    });
+
+    testWidgets('PRIV-007 the player stops the engine when it is left', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      Navigator.of(tester.element(find.byType(VaultPlayerScreen))).pop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump();
+      expect(engine.calls.last, 'stop');
+    });
+
+    testWidgets('PRIV-007 locking the vault closes the player and stops it', (
+      tester,
+    ) async {
+      final engine = FakePlaybackEngine();
+      await seeded(tester, names: ['holiday.mp4']);
+      await open(tester, engine: engine);
+      await typePin(tester, '246810');
+      await openPlayer(tester, engine, 'holiday.mp4');
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).last),
+      );
+      container.read(vaultSessionProvider.notifier).lock();
+      await settleReal(tester);
+      expect(find.text('Enter your PIN'), findsOneWidget);
+      expect(engine.calls.last, 'stop');
+    });
+
+    testWidgets(
+      'PRIV-007 the player has no visualiser, subtitles or screenshots',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        for (final tip in [
+          'Screenshot',
+          'Subtitles',
+          'Picture in picture',
+          'Cast',
+          'Visualiser',
+        ]) {
+          expect(find.byTooltip(tip), findsNothing, reason: tip);
+        }
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 files picked for the vault are kept by kind, in pieces',
+      (tester) async {
+        await seeded(tester);
+        final dir = Directory.systemTemp.createTempSync('mediahro-vault-pick');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final video = File('${dir.path}/film.mkv')
+          ..writeAsBytesSync(bytesOf((2 << 20) + 5, 3));
+        final song = File('${dir.path}/song.flac')
+          ..writeAsBytesSync(bytesOf(1000, 4));
+        final odd = File('${dir.path}/notes.txt')..writeAsBytesSync([1, 2, 3]);
+        storage.picks.addAll([
+          PickedFile(uri: video.uri, name: 'film.mkv'),
+          PickedFile(uri: song.uri, name: 'song.flac'),
+          PickedFile(uri: odd.uri, name: 'notes.txt'),
+        ]);
+        await open(tester);
+        await typePin(tester, '246810');
+        await tester.tap(find.byTooltip('Add to the vault'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Choose files'));
+        await settleReal(tester, until: find.textContaining('skipped'));
+        expect(find.textContaining('2 files added'), findsOneWidget);
+        expect(find.textContaining('1 file was skipped'), findsOneWidget);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).last),
+        );
+        final vault = container.read(vaultSessionProvider).vault!;
+        final items = {for (final i in vault.container.list()) i.name: i};
+        expect(items['film.mkv']!.kind, 'video');
+        expect(items['film.mkv']!.size, (2 << 20) + 5);
+        expect(items['song.flac']!.kind, 'audio');
+        expect(
+          await tester.runAsync(
+            () => vault.container.readAll(items['film.mkv']!.id),
+          ),
+          bytesOf((2 << 20) + 5, 3),
+        );
+      },
+    );
+  });
+
+  group('PRIV-007 the player does not outlive the screen', () {
+    testWidgets(
+      'PRIV-007 leaving the app stops the engine before anything else',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        final calls = engine.calls.length;
+        tester.binding
+          ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        // No frame has been pumped: the stop was asked for in the callback.
+        expect(engine.calls.skip(calls), contains('stop'));
+        expect(engine.openedSource, isNull);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+        await tester.pump();
+        tester.binding
+          ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 locking the vault stops the engine before the screen is gone',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(VaultPlayerScreen)),
+        );
+        final calls = engine.calls.length;
+        container.read(vaultSessionProvider.notifier).lock();
+        // The provider tells the screen at once; nothing has been pumped.
+        expect(engine.calls.skip(calls), contains('stop'));
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 music that was playing is paused for a private video',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        final music = FakePlaybackEngine(role: EngineRole.music);
+        await music.open(UriSource(Uri.parse('file:///song.mp3')));
+        await music.play();
+        expect(music.current.status, PlaybackStatus.playing);
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine, music: music);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        expect(music.current.status, PlaybackStatus.paused);
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 locked just after the file opens, the engine is never opened',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        final music = FakePlaybackEngine(role: EngineRole.music);
+        await music.open(UriSource(Uri.parse('file:///song.mp3')));
+        await music.play();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine, music: music);
+        await typePin(tester, '246810');
+        final scope = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).last),
+        );
+        // The lock arrives as the screen is taken for the player: after the
+        // file is open, before the engine is.
+        display.onHold = () => scope.read(vaultSessionProvider.notifier).lock();
+        await tester.tap(find.bySemanticsLabel('holiday.mp4'));
+        for (var i = 0; i < 20; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(engine.calls, isNot(contains('open')));
+        expect(engine.openedSource, isNull);
+        expect(display.awake, [true, false]);
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 the screen stays on while it plays and may sleep after',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await openPlayer(tester, engine, 'holiday.mp4');
+        expect(display.awake, [true]);
+        Navigator.of(tester.element(find.byType(VaultPlayerScreen))).pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+        expect(display.awake, [true, false]);
+      },
+    );
+
+    testWidgets(
+      'PRIV-007 leaving while it is still opening stops what started',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine);
+        await typePin(tester, '246810');
+        await tester.tap(find.bySemanticsLabel('holiday.mp4'));
+        // Left again at once, before the file and the engine are ready.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        Navigator.of(tester.element(find.byType(VaultPlayerScreen))).pop();
+        for (var i = 0; i < 20; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(engine.openedSource, isNull);
+        expect(engine.current.status, isNot(PlaybackStatus.playing));
+      },
+    );
+  });
+
+  group('PRIV-007 adding and taking out are looked after', () {
+    testWidgets('PRIV-007 the screen is held on while files go in', (
+      tester,
+    ) async {
+      await seeded(tester);
+      final dir = Directory.systemTemp.createTempSync('mediahro-vault-pick');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final song = File('${dir.path}/song.flac')
+        ..writeAsBytesSync(bytesOf(1000, 4));
+      storage.picks.add(PickedFile(uri: song.uri, name: 'song.flac'));
+      await open(tester);
+      await typePin(tester, '246810');
+      await tester.tap(find.byTooltip('Add to the vault'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose files'));
+      await settleReal(tester, until: find.textContaining('1 file added'));
+      expect(display.awake, [true, false]);
+    });
+
+    testWidgets('PRIV-007 an add cut short by the lock says how far it got', (
+      tester,
+    ) async {
+      await seeded(tester);
+      final dir = Directory.systemTemp.createTempSync('mediahro-vault-pick');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      for (final n in ['a.flac', 'b.flac']) {
+        final f = File('${dir.path}/$n')..writeAsBytesSync(bytesOf(1000, 4));
+        storage.picks.add(PickedFile(uri: f.uri, name: n));
+      }
+      await open(tester);
+      await typePin(tester, '246810');
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(Scaffold).last),
+      );
+      // The vault locks the moment the add starts.
+      display.onHold = () =>
+          container.read(vaultSessionProvider.notifier).lock();
+      await tester.tap(find.byTooltip('Add to the vault'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose files'));
+      await settleReal(
+        tester,
+        until: find.textContaining('Adding was interrupted'),
+      );
+      expect(
+        find.text(
+          'Adding was interrupted when the vault locked: 0 of 2 added.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'PRIV-007 a take out that fails is counted and the item stays',
+      (tester) async {
+        await seeded(tester, names: ['one.mp4', 'two.mp4']);
+        await open(tester);
+        await typePin(tester, '246810');
+        storage.failSave = true;
+        await tester.longPress(find.bySemanticsLabel('one.mp4'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Take out'));
+        await settleReal(
+          tester,
+          until: find.textContaining('could not be taken out'),
+        );
+        expect(
+          find.text('1 item could not be taken out and is still in the vault.'),
+          findsOneWidget,
+        );
+        expect(find.bySemanticsLabel('one.mp4'), findsOneWidget);
+        expect(display.awake, [true, false]);
+      },
+    );
+  });
 }
