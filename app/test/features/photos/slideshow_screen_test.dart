@@ -67,6 +67,9 @@ final class _Display implements DisplayFacade {
   Future<void> closePresentation(PresentationHandle h) async => closed.add(h);
 
   @override
+  Future<void> present(PresentationHandle h, PresentationFrame f) async {}
+
+  @override
   Future<void> keepScreenOn({required bool on}) async => awake.add(on);
 
   @override

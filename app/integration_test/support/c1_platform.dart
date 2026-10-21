@@ -58,6 +58,12 @@ final class FakeDisplay implements DisplayFacade {
 
   @override
   Future<void> closePresentation(PresentationHandle handle) async {}
+
+  @override
+  Future<void> present(
+    PresentationHandle handle,
+    PresentationFrame frame,
+  ) async {}
 }
 
 final class FakePip implements PipFacade {

@@ -48,6 +48,7 @@ import com.mediahro.mediahro.platform.display.DisplayModule
 import com.mediahro.mediahro.platform.enterprise.EnterpriseModules
 import com.mediahro.mediahro.platform.display.HdrVideoViewFactory
 import com.mediahro.mediahro.platform.display.PipModule
+import com.mediahro.mediahro.platform.display.PresentationModules
 import com.mediahro.mediahro.platform.display.PowerStatusModule
 import com.mediahro.mediahro.platform.imaging.HdrImageViewFactory
 import com.mediahro.mediahro.platform.imaging.ImagingModule
@@ -249,6 +250,8 @@ object PlatformModules {
         PurchasesModules.register(context.applicationContext, host, messenger)
         // Device attitude for the 360 look-around (IMG-001, ADR-042).
         MotionModules.register(context.applicationContext, host, engine)
+        // External-display presentations (ADR-044 amendment 1, IMG-012, CAST-004).
+        PresentationModules.register(context.applicationContext, host, engine)
         debugHooks(host, engine)
     }
 
