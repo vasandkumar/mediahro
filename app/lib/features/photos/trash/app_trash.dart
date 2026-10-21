@@ -219,18 +219,43 @@ final class AppTrash implements PhotoTrash {
     return TrashOutcome(moved: moved, tooBig: tooBig, failed: failed);
   }
 
+  /// Copies the original into the bin, forces it to disk and reads it back
+  /// (length and last megabyte) before the caller removes the original.
   Future<void> _copyIn(PhotoEntry p, File to) async {
     final src = await files.open(p);
     try {
-      final sink = to.openWrite();
+      final length = await src.file.length() ?? 0;
+      final out = await to.open(mode: FileMode.write);
       try {
-        final length = await src.file.length() ?? 0;
         for (var at = 0; at < length; at += 1 << 20) {
           final n = (length - at).clamp(0, 1 << 20);
-          sink.add(await src.file.read(at, n));
+          await out.writeFrom(await src.file.read(at, n));
         }
+        await out.flush();
       } finally {
-        await sink.close();
+        await out.close();
+      }
+      if (to.lengthSync() != length) {
+        throw FileSystemException('short copy', to.path);
+      }
+      if (length > 0) {
+        final at = length > (1 << 20) ? length - (1 << 20) : 0;
+        final want = await src.file.read(at, length - at);
+        final raf = await to.open();
+        try {
+          await raf.setPosition(at);
+          final got = await raf.read(length - at);
+          if (got.length != want.length) {
+            throw FileSystemException('short copy', to.path);
+          }
+          for (var k = 0; k < got.length; k++) {
+            if (got[k] != want[k]) {
+              throw FileSystemException('copy differs', to.path);
+            }
+          }
+        } finally {
+          await raf.close();
+        }
       }
     } finally {
       await src.file.close();
@@ -280,7 +305,9 @@ final class AppTrash implements PhotoTrash {
     }
   }
 
-  /// Deletes [items] for good.
+  /// Deletes [items] for good, with their library rows (tags, ratings,
+  /// places and the search entry go with them), so nothing about a photo that
+  /// is gone stays in the library database.
   @override
   Future<void> deleteForever(List<TrashedPhoto> items) async {
     final all = await list();
@@ -290,6 +317,12 @@ final class AppTrash implements PhotoTrash {
       all.removeWhere((x) => x.id == t.id);
     }
     await _save(all);
+    final ids = [for (final t in items) t.itemId];
+    if (ids.isNotEmpty) {
+      await (db.delete(
+        db.items,
+      )..where((i) => i.id.isIn(ids) & i.missing.equals(true))).go();
+    }
   }
 
   @override

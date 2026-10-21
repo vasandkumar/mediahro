@@ -3,4 +3,7 @@
      keys that never leave the device, so they are not backed up. -->
 <full-backup-content>
     <exclude domain="sharedpref" path="mediahro.secure.xml" />
+    <!-- Deleted photos wait here for 30 days (IMG-014); a backup would keep
+         them past their deletion. -->
+    <exclude domain="file" path="photo-trash" />
 </full-backup-content>

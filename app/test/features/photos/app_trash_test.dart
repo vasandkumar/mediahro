@@ -2,10 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/features/photos/photo_files.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
 import 'package:mediahro/features/photos/trash/app_trash.dart';
+import 'package:mediahro/images/image_pipeline.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart';
 
 import '../../core/seed.dart';
 import 'disk_support.dart';
@@ -164,6 +168,49 @@ void main() {
     expect(await trash.list(), isEmpty);
   });
 
+  test(
+    'IMG-014 deleting for good removes the photo from the library',
+    () async {
+      final a = await photo('a.jpg');
+      final b = await photo('b.jpg');
+      await seed.tag(a.id, 'holiday');
+      final moved = (await trash.moveToTrash([a, b])).moved;
+      // Restoring keeps the row; deleting for good removes it and what hangs on it.
+      await trash.deleteForever([moved.first]);
+      final left = await db.select(db.items).get();
+      expect(left.map((i) => i.id), [b.id]);
+      expect(await db.select(db.itemTags).get(), isEmpty);
+      final fts = await db
+          .customSelect(
+            'SELECT rowid FROM item_fts WHERE rowid = ?',
+            variables: [Variable.withInt(a.id)],
+          )
+          .get();
+      expect(fts, isEmpty);
+    },
+  );
+
+  test(
+    'IMG-014 a photo is only removed from its folder once the copy is whole',
+    () async {
+      final a = await photo('a.jpg', size: 3000);
+      // A disk that loses the end of the file.
+      final lossy = AppTrash(
+        directory: Directory('${dir.path}/bin2'),
+        files: _TruncatingFiles(DiskFiles(dir, io)),
+        io: io,
+        db: db,
+        capBytes: 100000,
+        clock: () => now,
+      );
+      final out = await lossy.moveToTrash([a]);
+      expect(out.moved, isEmpty);
+      expect(out.failed, ['a.jpg']);
+      expect(File('${dir.path}/a.jpg').existsSync(), isTrue);
+      expect(await missing(a.id), isFalse);
+    },
+  );
+
   test('IMG-014 emptying clears everything', () async {
     await trash.moveToTrash([await photo('a.jpg'), await photo('b.jpg')]);
     await trash.empty();
@@ -195,4 +242,48 @@ void main() {
     expect(out.moved, hasLength(3));
     expect(await trash.list(), hasLength(3));
   });
+}
+
+/// Opens photos whose last byte differs when read a second time.
+final class _TruncatingFiles implements PhotoFileOpener {
+  _TruncatingFiles(this.inner);
+
+  final PhotoFileOpener inner;
+
+  @override
+  Future<Uri> uriOf(PhotoEntry e) => inner.uriOf(e);
+
+  @override
+  Future<ImageSource> open(PhotoEntry e) async {
+    final src = await inner.open(e);
+    return ImageSource(_Flipped(src.file), mtime: e.mtime);
+  }
+}
+
+final class _Flipped implements VirtualFile {
+  _Flipped(this.inner);
+
+  final VirtualFile inner;
+  var _reads = 0;
+
+  @override
+  Uri get uri => inner.uri;
+
+  @override
+  bool get isSeekable => true;
+
+  @override
+  Future<int?> length() => inner.length();
+
+  @override
+  Future<Uint8List> read(int offset, int length) async {
+    final b = Uint8List.fromList(await inner.read(offset, length));
+    // The copy is the first read; reading the end again for the check sees
+    // what the disk would now give back.
+    if (_reads++ > 0 && b.isNotEmpty) b[b.length - 1] ^= 0xFF;
+    return b;
+  }
+
+  @override
+  Future<void> close() => inner.close();
 }
