@@ -145,9 +145,64 @@ void main() {
       await radio.dispose();
     });
 
+    test(
+      'PRIV-004 an imported station list asks before adding streams on '
+      "the listener's own network, and records only what was added",
+      () async {
+        final radio = RadioStations(
+          MusicPrefs(db),
+          hosts: hosts,
+          nonPublic: (h) async => h == 'inside.example' || h == '10.0.0.4',
+        );
+        const list = ParsedPlaylist([
+          PlaylistEntry('http://one.example/stream', title: 'One'),
+          PlaylistEntry('http://10.0.0.4:8000/live', title: 'Box'),
+          PlaylistEntry('https://inside.example/hls.m3u8', title: 'Inside'),
+        ]);
+        var asked = <String>[];
+        expect(
+          await radio.importPlaylist(
+            list,
+            confirmLocal: (urls) async {
+              asked = urls;
+              return false;
+            },
+          ),
+          1,
+        );
+        expect(asked, [
+          'http://10.0.0.4:8000/live',
+          'https://inside.example/hls.m3u8',
+        ]);
+        expect(hosts.entries.map((e) => e.$1), ['http://one.example/stream']);
+        // No way to ask: only the public one, as before.
+        expect(await radio.importPlaylist(list), 0);
+        expect((await radio.all()).map((s) => s.name), ['One']);
+        // A yes adds them and their hosts are recorded as the listener's own.
+        expect(
+          await radio.importPlaylist(list, confirmLocal: (_) async => true),
+          2,
+        );
+        expect(hosts.entries.map((e) => e.$2).toSet().length, 3);
+        // A file with nothing inside never asks.
+        expect(
+          await radio.importPlaylist(
+            const ParsedPlaylist([PlaylistEntry('http://new.example/x')]),
+            confirmLocal: (_) async => fail('asked about a public stream'),
+          ),
+          1,
+        );
+        await radio.dispose();
+      },
+    );
+
     test('PRIV-004 an imported station list records the stations that '
         'were added', () async {
-      final radio = RadioStations(MusicPrefs(db), hosts: hosts);
+      final radio = RadioStations(
+        MusicPrefs(db),
+        hosts: hosts,
+        nonPublic: (_) async => false,
+      );
       final added = await radio.importPlaylist(
         const ParsedPlaylist([
           PlaylistEntry('http://one.example/stream', title: 'One'),

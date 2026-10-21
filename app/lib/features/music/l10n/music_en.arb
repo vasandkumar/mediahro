@@ -613,6 +613,16 @@
       }
     }
   },
+  "musicStationsLocalTitle": "Add stations on your own network?",
+  "musicStationsLocalBody": "This file lists streams on this device or your own network:\n\n{urls}\n\nOnly add them if you know what they are.",
+  "@musicStationsLocalBody": {
+    "placeholders": {
+      "urls": {
+        "type": "String"
+      }
+    }
+  },
+  "musicStationsLocalAdd": "Add them",
   "musicLive": "Live",
   "musicRadio": "Radio",
   "musicStationFavourite": "Favourite station",

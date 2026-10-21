@@ -44,7 +44,7 @@ void main() {
       expect(isStreamUrl(Uri.parse('http://a.b/x')), isTrue);
       expect(isStreamUrl(Uri.parse('file:///x.mp3')), isFalse);
       expect(isStreamUrl(Uri.parse('javascript:alert(1)')), isFalse);
-      final r = RadioStations(MusicPrefs(db));
+      final r = RadioStations(MusicPrefs(db), nonPublic: (_) async => false);
       final m3u = parsePlaylist(
         '#EXTM3U\n#EXTINF:-1,One\nhttp://one.example/live\n'
         '#EXTINF:-1,Local file\n/sdcard/song.mp3\n'
