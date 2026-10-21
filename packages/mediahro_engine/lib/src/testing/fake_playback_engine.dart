@@ -401,6 +401,11 @@ final class FakePlaybackEngine implements PlaybackEngine {
     _emit(_state.copyWith(ducked: gain < 1));
   }
 
+  @override
+  Future<void> audioRouteChanged() async {
+    _check('audioRouteChanged');
+  }
+
   final _tap = StreamController<AudioTapFrame>.broadcast();
 
   /// Emits [frame] to [audioTap] listeners (tests drive visualisers).

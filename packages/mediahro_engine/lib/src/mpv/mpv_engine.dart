@@ -567,7 +567,7 @@ final class MpvEngine implements PlaybackEngine {
   /// The OS changed the audio route (a DAC unplugged, a new default device).
   /// Called by the platform module on such events; checked at once, not on
   /// the next sample.
-  @visibleForTesting
+  @override
   Future<void> audioRouteChanged() => _dopRecheck(refreshOs: true);
 
   /// Per-file mpv options that keep the DoP stream bit-exact: any gain,

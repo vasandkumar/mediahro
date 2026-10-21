@@ -117,6 +117,8 @@ final class UnavailableEngine implements PlaybackEngine {
   @override
   Future<void> setDucking(double gain) async {}
   @override
+  Future<void> audioRouteChanged() async {}
+  @override
   Future<List<EngineAudioDevice>> audioDevices() async => const [];
   @override
   Stream<AudioTapFrame> audioTap({int frames = 1024}) => const Stream.empty();
