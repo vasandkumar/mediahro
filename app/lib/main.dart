@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
 import 'package:mediahro/app/background_work_dispatcher.dart';
+import 'package:mediahro/app/debug/debug_background_job.dart';
 import 'package:mediahro/app/incoming/app_incoming_handler.dart';
 import 'package:mediahro/app/incoming/incoming_router.dart';
 import 'package:mediahro/app/media_wiring.dart';
@@ -50,6 +52,13 @@ Future<void> main() async {
       ]),
     ],
   )..read(backgroundWorkDispatcherProvider);
+  // QA only: answers the job the debug receiver leaves scheduled for the
+  // cold-start check (ADR-049). Debug builds only.
+  if (kDebugMode) {
+    registerDebugBackgroundJob(
+      container.read(backgroundWorkDispatcherProvider),
+    );
+  }
   // CORE-003, SYS-003, SYS-004: what other apps hand over (Open with, Share,
   // shortcuts) is received from the first moment and held until the app shows.
   startIncoming(container, handlerFor: AppIncomingHandler.new);
