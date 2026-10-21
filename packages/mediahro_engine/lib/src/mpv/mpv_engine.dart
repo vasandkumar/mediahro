@@ -17,6 +17,7 @@ import 'package:mediahro_engine/src/mpv/audio_decoder.dart';
 import 'package:mediahro_engine/src/mpv/audio_dsp.dart';
 import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
 import 'package:mediahro_engine/src/mpv/display_icc.dart';
+import 'package:mediahro_engine/src/mpv/dsd_dop.dart';
 import 'package:mediahro_engine/src/mpv/exporter.dart';
 import 'package:mediahro_engine/src/mpv/mp4_gapless.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
@@ -145,6 +146,10 @@ final class MpvEngine implements PlaybackEngine {
   var _cacheByBitrate = false;
   // Local files the engine opened as VirtualFiles; closed on the next open.
   final _ownedFiles = <VirtualFile>[];
+
+  // DSD played as DoP (AUD-043): the item in play, and the queued one.
+  var _dop = false;
+  var _nextDop = false;
   // Visualiser taps by window size (AUD-046), started on first listen.
   final _taps = <int, AnalysisTap>{};
   // Audio-focus ducking gain (AUD-045): mpv's volume-gain where it exists
@@ -377,6 +382,47 @@ final class MpvEngine implements PlaybackEngine {
     );
   }
 
+  /// AUD-043, ADR-023: with native DSD on, a DSF or DFF file (mono or stereo,
+  /// DSD64 to DSD256, not DST) opens as its DoP stream. Anything else is
+  /// returned as null and opens as usual (DSD→PCM with the selectable
+  /// low-pass).
+  Future<MediaSource?> _dopSource(MediaSource src) async {
+    if (!_output.nativeDsd || _protocol == null) return null;
+    final VirtualFile file;
+    var owned = false;
+    switch (src) {
+      case UriSource(:final uri) when uri.scheme == 'file':
+        file = LocalVirtualFile(File(uri.toFilePath()));
+        owned = true;
+      case VirtualFileSource(file: final f):
+        file = f;
+      default:
+        return null;
+    }
+    final info = await inspectDsd(file);
+    if (info == null) {
+      if (owned) await file.close();
+      return null;
+    }
+    if (owned) _ownedFiles.add(file);
+    return VirtualFileSource(
+      DopVirtualFile(file, info),
+      title: src.title,
+      sensitive: src.sensitive,
+    );
+  }
+
+  /// Per-file mpv options that keep the DoP stream bit-exact: any gain,
+  /// filter, speed change or pitch correction would corrupt the markers
+  /// the DAC looks for. File-local, so the next item gets its own back.
+  static const Map<String, String> _dopOptions = {
+    'volume': '100',
+    'af': '',
+    'speed': '1',
+    'replaygain': 'no',
+    'audio-pitch-correction': 'no',
+  };
+
   Future<void> _quiet(Future<Object?> f) async {
     try {
       await f;
@@ -410,7 +456,10 @@ final class MpvEngine implements PlaybackEngine {
           // keeps flowing; drop the finished entry and keep the status.
           _source = _next;
           _next = null;
+          _dop = _nextDop;
+          _nextDop = false;
           _state = _state.copyWith(nextPrepared: false, item: _itemSerial);
+          _refreshAudioInfo();
           final c = _client;
           if (c != null) unawaited(_quiet(c.command(['playlist-remove', '0'])));
         } else {
@@ -548,6 +597,7 @@ final class MpvEngine implements PlaybackEngine {
         dspActive: dspFilters(_dsp).isNotEmpty || _state.rate != 1,
         device: os?.device ?? _audioDevice,
         ao: _ao,
+        dop: _dop,
       ),
     );
   }
@@ -759,8 +809,13 @@ final class MpvEngine implements PlaybackEngine {
         }
       }),
     );
-    final (played, gaplessEnd) = await _oneGaplessTrim(src);
+    final dopSource = await _dopSource(src);
+    final (played, gaplessEnd) = dopSource != null
+        ? (dopSource, null)
+        : await _oneGaplessTrim(src);
     if (gen != _generation) return;
+    _dop = dopSource != null;
+    _refreshAudioInfo();
     String url;
     var rest = const <String>[];
     switch (played) {
@@ -790,6 +845,7 @@ final class MpvEngine implements PlaybackEngine {
       'pause': o.autoplay ? 'no' : 'yes',
       if (o.start != null) 'start': secondsValue(o.start!),
       'end': ?gaplessEnd,
+      if (_dop) ..._dopOptions,
       if (o.audioOnly || role == EngineRole.music) 'vid': 'no',
       if (o.preferredAudioLanguages.isNotEmpty)
         'alang': o.preferredAudioLanguages.join(','),
@@ -947,6 +1003,8 @@ final class MpvEngine implements PlaybackEngine {
     }
     final c = await _live();
     if (c == null) return;
+    // A DoP stream plays at its own speed only.
+    if (_dop) return;
     await _quiet(c.setProperty('speed', '$rate'));
   }
 
@@ -1157,11 +1215,14 @@ final class MpvEngine implements PlaybackEngine {
     final c = await _live();
     if (c == null) return;
     _dsp = chain;
+    // The chain applies from the next item when a DoP stream is playing.
+    if (_dop) return;
     await _applyAudioFilters(c);
     await _setAll(c, dspProperties(chain));
   }
 
   Future<void> _applyAudioFilters(MpvClient c) async {
+    if (_dop) return;
     final codec = _state.tracks
         .where((t) => t.type == TrackType.audio && t.id == _state.audioTrackId)
         .firstOrNull
@@ -1198,6 +1259,8 @@ final class MpvEngine implements PlaybackEngine {
   /// mpv `volume`: the user's volume, times the ducking gain when ducking
   /// cannot use `volume-gain` (AUD-045).
   Future<void> _applyVolume(MpvClient c) async {
+    // Any gain would alter the DoP samples; the device's volume applies.
+    if (_dop) return;
     final v = _userVolume * (_duckViaVolume ? _duck : 1) * 100;
     await _quiet(c.setProperty('volume', v.toStringAsFixed(2)));
   }
@@ -1540,8 +1603,13 @@ final class MpvEngine implements PlaybackEngine {
     // it and joins the two sample-accurately (gapless-audio, AUD-002).
     if (_next != null) await _quiet(c.command(['playlist-clear']));
     _next = next;
+    _nextDop = false;
     if (next != null) {
-      final (played, gaplessEnd) = await _oneGaplessTrim(next);
+      final dopSource = await _dopSource(next);
+      _nextDop = dopSource != null;
+      final (played, gaplessEnd) = dopSource != null
+          ? (dopSource, null)
+          : await _oneGaplessTrim(next);
       final url = switch (played) {
         UriSource(:final uri) =>
           uri.scheme == 'file' ? uri.toFilePath() : uri.toString(),
@@ -1551,9 +1619,12 @@ final class MpvEngine implements PlaybackEngine {
         c.loadfile(
           url,
           flags: 'append',
-          options: gaplessEnd == null
+          options: gaplessEnd == null && !_nextDop
               ? null
-              : encodeOptions({'end': gaplessEnd}),
+              : encodeOptions({
+                  'end': ?gaplessEnd,
+                  if (_nextDop) ..._dopOptions,
+                }),
         ),
       );
     }
@@ -1567,6 +1638,8 @@ final class MpvEngine implements PlaybackEngine {
     if (c == null || _next == null) return;
     _source = _next;
     _next = null;
+    _dop = _nextDop;
+    _nextDop = false;
     _state = _state.copyWith(nextPrepared: false);
     await _quiet(c.command(['playlist-next', 'force']));
   }

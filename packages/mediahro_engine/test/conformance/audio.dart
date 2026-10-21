@@ -400,6 +400,90 @@ void audioSuite() {
     }, skip: skip);
 
     test(
+      'AUD-043 native DSD plays as DoP, bit-exact under volume and speed',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('mh-dop');
+        addTearDown(() => dir.delete(recursive: true));
+        final out = '${dir.path}${Platform.pathSeparator}dop.pcm';
+        final e = headlessEngine(
+          role: EngineRole.music,
+          nullAudio: false,
+          extraOptions: {
+            'ao': 'pcm',
+            'ao-pcm-file': out,
+            'ao-pcm-waveheader': 'no',
+            'ao-pcm-append': 'yes',
+            'audio-format': 's32',
+          },
+        );
+        addTearDown(e.dispose);
+        await e.setAudioOutput(const AudioOutputConfig(nativeDsd: true));
+        // Gain, speed and a DSP chain would corrupt DoP; the engine ignores
+        // them for the item.
+        await e.setVolume(0.5);
+        await e.setRate(1.5);
+        await e.setAudioDsp(
+          const AudioDspChain(loudness: LoudnessMode.ebuR128),
+        );
+        await e.open(UriSource(Uri.file(corpusPath('dsd64.dsf'))));
+        final playing = await waitFor(
+          e,
+          (s) =>
+              s.audio.path == AudioOutputPath.dop && s.audio.sampleRate != null,
+          reason: 'DoP output path',
+        );
+        expect(playing.audio.sampleRate, 176400, reason: 'DSD64 / 16');
+        expect(playing.audio.bitDepth, anyOf(24, 32));
+        await waitFor(
+          e,
+          (s) => s.status == PlaybackStatus.ended,
+          timeout: const Duration(seconds: 30),
+          reason: 'DSD played to the end',
+        );
+        var last = -1;
+        for (var i = 0; i < 30; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          final size = File(out).lengthSync();
+          if (size == last) break;
+          last = size;
+        }
+        final pcm = ByteData.sublistView(File(out).readAsBytesSync());
+        final frames = pcm.lengthInBytes ~/ 8;
+        // 2 s of DSD64 is 352,800 DoP frames.
+        expect(frames, closeTo(352800, 2000));
+        // The source: the first block of each channel, bits oldest-first.
+        final src = File(corpusPath('dsd64.dsf')).readAsBytesSync();
+        int rev(int b) {
+          var r = 0;
+          for (var i = 0; i < 8; i++) {
+            if (b & (1 << i) != 0) r |= 1 << (7 - i);
+          }
+          return r;
+        }
+
+        const dataAt = 92;
+        const block = 4096;
+        for (var f = 0; f < block ~/ 2; f++) {
+          for (var c = 0; c < 2; c++) {
+            final v = pcm.getInt32((f * 2 + c) * 4, Endian.little);
+            final marker = (v >> 24) & 0xFF;
+            expect(marker, f.isEven ? 0x05 : 0xFA, reason: 'marker at $f');
+            final older = rev(src[dataAt + c * block + 2 * f]);
+            final newer = rev(src[dataAt + c * block + 2 * f + 1]);
+            expect((v >> 16) & 0xFF, older, reason: 'older byte at $f/$c');
+            expect((v >> 8) & 0xFF, newer, reason: 'newer byte at $f/$c');
+          }
+        }
+        // The markers alternate for the whole stream, with no gap or repeat.
+        for (var f = 0; f < frames; f += 97) {
+          final marker = (pcm.getInt32(f * 8, Endian.little) >> 24) & 0xFF;
+          expect(marker, f.isEven ? 0x05 : 0xFA, reason: 'marker at $f');
+        }
+      },
+      skip: skip,
+    );
+
+    test(
       'AUD-044 latency offset shifts audio for Bluetooth A/V sync',
       () async {
         final e = await openItem('mkv_multitrack.mkv');
