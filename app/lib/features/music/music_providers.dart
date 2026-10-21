@@ -349,7 +349,9 @@ final podcastStoreProvider = Provider<PodcastStore>(
 );
 
 /// The way podcasts reach the network: through the gateway, one allowed hop
-/// at a time.
+/// at a time, each request chain allowed only while it runs (a feed cannot
+/// widen the allow-list, and a private-network hop is refused unless a
+/// subscription is on that host).
 final podcastHttpProvider = Provider<PodcastHttp>((ref) {
   // Looked up when a request is made, so a podcast screen costs nothing
   // until the network is used.
@@ -357,7 +359,14 @@ final podcastHttpProvider = Provider<PodcastHttp>((ref) {
     send: (r, {maxRedirects = 5}) => ref
         .read(networkGatewayProvider)
         .sendStreamed(r, maxRedirects: maxRedirects),
-    allowHost: (host) => ref.read(networkPolicyProvider).allowForSession(host),
+    beginChain: () {
+      final scope = ref.read(networkPolicyProvider).beginAllowScope();
+      return ChainAllowance(allow: scope.allow, close: scope.close);
+    },
+    localAllowed: (host) async => [
+      for (final s in await ref.read(podcastStoreProvider).shows())
+        Uri.tryParse(s.url)?.host.toLowerCase(),
+    ].contains(host),
   );
 });
 
