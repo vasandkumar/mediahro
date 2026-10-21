@@ -8,6 +8,8 @@
 //
 // Reports (binding.reportData): vault_kdf_ms (one PIN check at the shipped
 // 600,000 rounds, two vaults in parallel), vault_seal_ms_per_mib.
+import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -18,11 +20,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/engine/engine_pool.dart';
+import 'package:mediahro/features/photos/vault/vault_import.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/features/photos/vault/vault_player.dart';
 import 'package:mediahro/platform/platform_bindings.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
+import 'package:mediahro_ffi/mediahro_ffi.dart' show PosixFdIo;
 
 /// A short 16-bit stereo WAV tone (a song small enough to keep in memory).
 Uint8List wavTone({double seconds = 3}) {
@@ -459,4 +463,75 @@ void main() {
     },
     skip: !Platform.isAndroid,
   );
+
+  // The pick of a content document is read through its detached fd, never by
+  // opening /proc/self/fd/N (Android 16 refuses that with EACCES).
+  testWidgets('PRIV-007 a detached fd is read in pieces on a worker isolate', (
+    tester,
+  ) async {
+    final bytes = Uint8List.fromList(
+      List.generate((2 << 20) + 5, (i) => (i * 7) % 251),
+    );
+    final file = File('${dir.path}/picked.bin')..writeAsBytesSync(bytes);
+    final libc = DynamicLibrary.process();
+    final cMalloc = libc
+        .lookupFunction<
+          Pointer<Uint8> Function(IntPtr),
+          Pointer<Uint8> Function(int)
+        >('malloc');
+    final cFree = libc
+        .lookupFunction<
+          Void Function(Pointer<Uint8>),
+          void Function(Pointer<Uint8>)
+        >('free');
+    final open = libc
+        .lookupFunction<
+          Int32 Function(Pointer<Uint8>, Int32),
+          int Function(Pointer<Uint8>, int)
+        >('open');
+    final name = utf8.encode(file.path);
+    final path = cMalloc(name.length + 1);
+    path.asTypedList(name.length + 1)
+      ..setAll(0, name)
+      ..[name.length] = 0;
+    final opened = <int>[];
+    final storage = _FdStorage(() {
+      final fd = open(path, 0); // O_RDONLY
+      expect(fd, greaterThanOrEqualTo(0));
+      opened.add(fd);
+      return fd;
+    });
+    try {
+      final r = await openPickedStream(
+        storage,
+        Uri.parse('content://media/external/file/7'),
+      );
+      expect(r.size, bytes.length);
+      final got = BytesBuilder(copy: false);
+      await r.content.forEach(got.add);
+      expect(got.takeBytes(), bytes);
+      // Every fd was closed: reading one again fails with EBADF.
+      for (final fd in opened) {
+        expect(() => PosixFdIo().size(fd), throwsA(anything));
+      }
+    } finally {
+      cFree(path);
+    }
+  }, skip: !Platform.isAndroid);
+}
+
+/// Hands out a fresh detached fd for any document.
+final class _FdStorage implements StorageFacade {
+  _FdStorage(this._open);
+
+  final int Function() _open;
+
+  @override
+  Future<int> openDocumentFd(
+    Uri uri, {
+    DocumentMode mode = DocumentMode.read,
+  }) async => _open();
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

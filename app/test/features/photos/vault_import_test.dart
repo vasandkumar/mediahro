@@ -23,13 +23,48 @@ final class _Storage implements StorageFacade {
 }
 
 final class _Closes implements FdIo {
+  _Closes(this.length);
+
+  final int length;
   final List<int> closed = [];
+
+  @override
+  int size(int fd) => length;
 
   @override
   void close(int fd) => closed.add(fd);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Reads a real file as if it were the detached fd, and notes when it is
+/// let go.
+final class _FileReader implements FdReader {
+  _FileReader(this.file, this.closes, this.fd);
+
+  final File file;
+  final List<int> closes;
+  final int fd;
+  var _closed = false;
+
+  @override
+  Future<Uint8List> read(int at, int length) async {
+    final f = await file.open();
+    try {
+      await f.setPosition(at);
+      return await f.read(length);
+    } finally {
+      await f.close();
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    closes.add(fd);
+  }
 }
 
 void main() {
@@ -98,24 +133,39 @@ void main() {
       },
     );
 
-    test('PRIV-007 a content document is read through its fd path and the fd is closed at once', () async {
+    test('PRIV-007 a content document is read by pread on its fd, never by a path, and the fd is closed', () async {
       final f = File('${dir.path}/doc.bin')
         ..writeAsBytesSync(bytes((2 << 20) + 3));
       final storage = _Storage();
-      final io = _Closes();
+      final io = _Closes((2 << 20) + 3);
+      final closes = <int>[];
       final r = await openPickedStream(
         storage,
         Uri.parse('content://media/doc/1'),
         io: io,
-        pathOfFd: (fd) => f.path,
+        openReader: (fd) async => _FileReader(f, closes, fd),
       );
       expect(r.size, (2 << 20) + 3);
       // The probe's fd is closed already; the read opens and closes its own.
       expect(io.closed, [100]);
+      expect(closes, isEmpty);
       final all = BytesBuilder();
       await r.content.forEach(all.add);
       expect(all.takeBytes(), bytes((2 << 20) + 3));
-      expect(io.closed, [100, 101]);
+      expect(closes, [101]);
+    });
+
+    test('PRIV-007 cancelling a content stream lets go of its fd', () async {
+      final f = File('${dir.path}/c2.bin')..writeAsBytesSync(bytes(3 << 20));
+      final closes = <int>[];
+      final r = await openPickedStream(
+        _Storage(),
+        Uri.parse('content://media/doc/2'),
+        io: _Closes(3 << 20),
+        openReader: (fd) async => _FileReader(f, closes, fd),
+      );
+      await r.content.first;
+      expect(closes, [101]);
     });
 
     test('PRIV-007 a file that shrinks while being read is an error, not a short copy', () async {
