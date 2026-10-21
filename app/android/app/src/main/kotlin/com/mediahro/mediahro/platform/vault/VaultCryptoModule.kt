@@ -72,7 +72,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
 
     private suspend fun openDevice(secret: ByteArray?): KeyWrapper = withContext(Dispatchers.IO) {
         createMutex.withLock {
-            val exists = keystore.has(DEVICE_KEY)
+            val exists = hasKey(DEVICE_KEY)
             if (!exists && prefs.getBoolean(DEVICE_MARK, false)) {
                 // It was created before and is gone (device restore, cleared credentials): never replace it silently.
                 throw FlutterError("keyLost", "The device key for this vault is gone")
@@ -107,7 +107,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
      * with [createMutex] held.
      */
     private fun secretMaterial(label: ByteArray, secret: ByteArray): ByteArray {
-        val exists = keystore.has(DEVICE_HMAC_KEY)
+        val exists = hasKey(DEVICE_HMAC_KEY)
         if (!exists && prefs.getBoolean(DEVICE_HMAC_MARK, false)) {
             throw FlutterError("keyLost", "The device key for this vault is gone")
         }
@@ -152,6 +152,13 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
         }
     }
 
+    /** Whether a Keystore alias exists; a Keystore that cannot answer is `unavailable`, never "missing". */
+    private fun hasKey(alias: String): Boolean = try {
+        keystore.has(alias)
+    } catch (e: Exception) {
+        throw FlutterError("unavailable", "The Keystore cannot be read: ${e.message}")
+    }
+
     private class DeviceWrapper(private val key: SecretKey, private val keystore: Keystore) : KeyWrapper {
         override fun wrap(dataKey: ByteArray): ByteArray =
             VaultCipher.header(VaultCipher.MODE_DEVICE) +
@@ -159,6 +166,10 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
 
         override fun unwrap(wrapped: ByteArray): ByteArray {
             VaultCipher.checkHeader(wrapped, VaultCipher.MODE_DEVICE)
+            // IV, at least a tag: anything shorter is a damaged key, not a Keystore fault.
+            if (wrapped.size < VaultCipher.HEADER + VaultCipher.NONCE_BYTES + VaultCipher.TAG_BITS / 8) {
+                throw VaultFailure("keyLost", "Damaged wrapped key")
+            }
             try {
                 return keystore.open(key, wrapped.copyOfRange(VaultCipher.HEADER, wrapped.size), VaultCipher.wrapAad(VaultCipher.MODE_DEVICE))
             } catch (e: KeyPermanentlyInvalidatedException) {
@@ -166,10 +177,8 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
             } catch (e: UserNotAuthenticatedException) {
                 // A locked device is not a lost key.
                 throw VaultFailure("authFailed", "Unlock the device to open the vault")
-            } catch (e: GeneralSecurityException) {
-                throw VaultFailure("keyLost", "The device key cannot open this file key")
-            } catch (e: IllegalArgumentException) {
-                throw VaultFailure("keyLost", "Damaged wrapped key")
+            } catch (e: Exception) {
+                throw KeystoreErrors.opening(e)
             }
         }
 
@@ -213,7 +222,7 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
         val cipher = try {
             withContext(Dispatchers.IO) {
                 // The blob is there: a missing key is lost, never re-created.
-                if (!keystore.has(USER_KEY)) throw FlutterError("keyLost", "The vault's biometric key is gone")
+                if (!hasKey(USER_KEY)) throw FlutterError("keyLost", "The biometric key of the vault is gone")
                 keystore.rsaDecryptCipher(keystore.vaultKeyPair(USER_KEY).second)
             }
         } catch (e: KeyPermanentlyInvalidatedException) {
@@ -228,8 +237,13 @@ class VaultCryptoModule(private val context: Context, private val host: Activity
                 val c = outcome.result.cryptoObject?.cipher ?: throw FlutterError("authFailed", "No cipher")
                 try {
                     c.doFinal(stored)
-                } catch (e: GeneralSecurityException) {
-                    throw FlutterError("keyLost", "The device key for this vault cannot open it: ${e.message}")
+                } catch (e: KeyPermanentlyInvalidatedException) {
+                    throw FlutterError("keyInvalidated", "Biometric enrolment changed")
+                } catch (e: UserNotAuthenticatedException) {
+                    throw FlutterError("authFailed", e.message)
+                } catch (e: Exception) {
+                    val failure = KeystoreErrors.opening(e)
+                    throw FlutterError(failure.code, failure.message)
                 }
             }
             BiometricAuth.Outcome.Cancelled -> throw FlutterError("cancelled", "Unlock cancelled")
