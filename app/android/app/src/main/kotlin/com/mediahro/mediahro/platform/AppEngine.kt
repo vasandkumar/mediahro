@@ -29,6 +29,7 @@ object AppEngine {
 
     @Volatile private var serviceAlive = false
     @Volatile private var activityAttached = false
+    @Volatile private var workers = 0
 
     /** The headless engine, if one is running. */
     fun cached(): FlutterEngine? = FlutterEngineCache.getInstance().get(CACHE_ID)
@@ -63,10 +64,20 @@ object AppEngine {
         if (!attached && finishing) releaseIfUnused()
     }
 
+    /**
+     * A background job (ADR-049) started or finished using the engine. The
+     * engine a job started is released once no job, service or activity needs it.
+     */
+    @Synchronized
+    fun onWork(active: Boolean) {
+        workers = if (active) workers + 1 else maxOf(0, workers - 1)
+        if (!active) releaseIfUnused()
+    }
+
     private fun releaseIfUnused() {
         // After the current callbacks: the service may be restarting.
         Handler(Looper.getMainLooper()).post {
-            if (serviceAlive || activityAttached) return@post
+            if (serviceAlive || activityAttached || workers > 0) return@post
             val engine = cached() ?: return@post
             FlutterEngineCache.getInstance().remove(CACHE_ID)
             Log.i(TAG, "headless engine released")

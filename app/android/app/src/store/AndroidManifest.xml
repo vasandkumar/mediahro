@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- WorkManager (ADR-049) declares a boot permission and receiver; only the
+         enterprise flavour may hold RECEIVE_BOOT_COMPLETED (docs/07, B2B-002).
+         Scheduled jobs resume when the app next starts and schedules them again.
+         Its foreground service is never used, so it is not declared either. -->
+    <uses-permission
+        android:name="android.permission.RECEIVE_BOOT_COMPLETED"
+        tools:node="remove" />
+    <application>
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            tools:node="remove" />
+    </application>
+</manifest>

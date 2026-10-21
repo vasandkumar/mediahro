@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:mediahro/features/video/text/open_text_services.dart';
+import 'package:mediahro/platform/android/android_background_work.dart';
 import 'package:mediahro/platform/android/android_caption_style.dart';
 import 'package:mediahro/platform/android/android_car.dart';
 import 'package:mediahro/platform/android/android_display.dart';
@@ -65,4 +66,5 @@ List<Override> overrides() => [
   managedConfigProvider.overrideWithValue(AndroidManagedConfig()),
   kioskProvider.overrideWithValue(AndroidKiosk()),
   purchasesProvider.overrideWithValue(AndroidPurchases()),
+  backgroundWorkProvider.overrideWithValue(AndroidBackgroundWork()),
 ];
