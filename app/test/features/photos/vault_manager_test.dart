@@ -150,7 +150,7 @@ void main() {
       expect(crypto.openHandles, 0);
     });
 
-    test('PRIV-007 the PIN is run through the same work either way', () async {
+    test('PRIV-007 a wrong PIN does the PIN work of a right one, plus one check of the keys', () async {
       crypto.calls.clear();
       await (await manager.openWithPin('246810')).vault!.close();
       final right = crypto.calls
@@ -161,7 +161,8 @@ void main() {
       final wrong = crypto.calls
           .where((c) => c.startsWith('openMaster'))
           .length;
-      expect(wrong, right);
+      // The check that the phone keys are still there opens two more handles.
+      expect(wrong, right + 1);
     });
 
     test('PRIV-007 closing a vault releases the key handle', () async {
@@ -751,14 +752,15 @@ void main() {
       expect((await manager.openWithPin('246810')).isOpen, isFalse);
     });
 
-    test('PRIV-007 the fingerprint opens when both new files were written, not damaged', () async {
+    test('PRIV-007 the fingerprint opens when both new files were written and drops the change', () async {
       state(secretNext: true, saltNext: true);
       final r = await manager.openWithFingerprint();
       expect(r.isOpen, isTrue, reason: '${r.outcome}');
       await r.vault!.close();
       expect(File('${dir.path}/salt.next').existsSync(), isFalse);
       expect(File('${dir.path}/secret.mv.next').existsSync(), isFalse);
-      expect((await manager.openWithPin('555555')).isOpen, isTrue);
+      // Dropped, not finished: the old PIN is the one that opens.
+      expect((await manager.openWithPin('246810')).isOpen, isTrue);
     });
 
     test('PRIV-007 half-written files are swept at the next open', () async {
@@ -768,6 +770,199 @@ void main() {
       await r.vault!.close();
       expect(File('${dir.path}/abc.tm.part').existsSync(), isFalse);
     });
+  });
+
+  group('PRIV-007 locking while the vault is being changed', () {
+    test(
+      'PRIV-007 a lock during Change PIN does not seal a zero secret',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
+        final change = manager.changePin(r.vault!, '555555');
+        // The vault locks while the new PIN is still being worked out.
+        await r.vault!.close();
+        expect(await change, VaultOutcome.opened);
+        final again = await manager.openWithPin('555555');
+        expect(again.isOpen, isTrue, reason: '${again.outcome}');
+        expect(again.vault!.container.list().single.name, 'real.jpg');
+        await again.vault!.close();
+      },
+    );
+
+    test(
+      'PRIV-007 a lock during the fingerprint prompt seals the real secret',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
+        final on = manager.setFingerprint(r.vault!, enabled: true);
+        await r.vault!.close();
+        expect(await on, VaultOutcome.opened);
+        final f = await manager.openWithFingerprint();
+        expect(f.isOpen, isTrue, reason: '${f.outcome}');
+        expect(f.vault!.container.list().single.name, 'real.jpg');
+        await f.vault!.close();
+      },
+    );
+
+    test('PRIV-007 a locked vault cannot turn the fingerprint on', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await r.vault!.close();
+      expect(
+        await manager.setFingerprint(r.vault!, enabled: true),
+        VaultOutcome.unavailable,
+      );
+      expect(await manager.fingerprintOn, isFalse);
+    });
+  });
+
+  group('PRIV-007 the fingerprint key and the phone keys', () {
+    test(
+      'PRIV-007 a lost fingerprint key only turns the fingerprint off',
+      () async {
+        final r = await manager.setUp(
+          pin: '246810',
+          decoyPin: '135790',
+          fingerprint: true,
+        );
+        await r.vault!.close();
+        crypto.invalidateBiometricKey();
+        final f = await manager.openWithFingerprint();
+        expect(f.outcome, VaultOutcome.fingerprintInvalidated);
+        expect(await manager.fingerprintOn, isFalse);
+        expect((await manager.openWithPin('246810')).isOpen, isTrue);
+      },
+    );
+
+    test(
+      'PRIV-007 a keystore that lost every key is a fingerprint problem first',
+      () async {
+        final r = await manager.setUp(
+          pin: '246810',
+          decoyPin: '135790',
+          fingerprint: true,
+        );
+        await r.vault!.close();
+        crypto.loseKeys();
+        // Not "the vault is lost": that is what the PIN says, after asking the
+        // keystore.
+        expect(
+          (await manager.openWithFingerprint()).outcome,
+          VaultOutcome.fingerprintInvalidated,
+        );
+        expect(
+          (await manager.openWithPin('246810')).outcome,
+          VaultOutcome.keyLost,
+        );
+      },
+    );
+  });
+
+  group('PRIV-007 set-up, Change PIN and reset that fail half way', () {
+    test(
+      'PRIV-007 a set-up that stopped half way is not a vault and is swept',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        final dirs = root.listSync().whereType<Directory>().toList();
+        for (final d in dirs) {
+          File('${d.path}/.incomplete').writeAsBytesSync(const []);
+        }
+        expect(manager.exists, isFalse);
+        expect(
+          (await manager.openWithPin('246810')).outcome,
+          VaultOutcome.needsSetup,
+        );
+        final again = await manager.setUp(pin: '111111', decoyPin: '222222');
+        expect(again.isOpen, isTrue);
+        await again.vault!.close();
+        expect(root.listSync().whereType<Directory>(), hasLength(2));
+        for (final d in root.listSync().whereType<Directory>()) {
+          expect(File('${d.path}/.incomplete').existsSync(), isFalse);
+        }
+      },
+    );
+
+    test(
+      'PRIV-007 a failing set-up leaves no folder behind, marked or not',
+      () async {
+        crypto.failChunks = VaultCryptoError.unavailable;
+        expect(
+          (await manager.setUp(pin: '246810', decoyPin: '135790')).isOpen,
+          isFalse,
+        );
+        expect(
+          root.existsSync() ? root.listSync() : const <FileSystemEntity>[],
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'PRIV-007 a Change PIN whose last rename fails still succeeds',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
+        final dir = r.vault!.container.directory;
+        final oldSalt = File('${dir.path}/salt').readAsBytesSync();
+        File('${dir.path}/salt').deleteSync();
+        Directory('${dir.path}/salt').createSync();
+        expect(
+          await manager.changePin(r.vault!, '555555'),
+          VaultOutcome.opened,
+        );
+        expect(File('${dir.path}/salt.next').existsSync(), isTrue);
+        await r.vault!.close();
+        Directory('${dir.path}/salt').deleteSync();
+        File('${dir.path}/salt').writeAsBytesSync(oldSalt);
+        final again = await manager.openWithPin('555555');
+        expect(again.isOpen, isTrue, reason: '${again.outcome}');
+        await again.vault!.close();
+      },
+    );
+
+    test(
+      'PRIV-007 a keystore failure while checking the other vault is reported',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        crypto.failPlainOpen = VaultCryptoError.unavailable;
+        expect(
+          await manager.changePin(r.vault!, '555555'),
+          VaultOutcome.unavailable,
+        );
+        crypto.failPlainOpen = null;
+        await r.vault!.close();
+        expect((await manager.openWithPin('246810')).isOpen, isTrue);
+      },
+    );
+
+    test('PRIV-007 a reset that fails puts the folders back', () async {
+      final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+      await addTo(r.vault!, 'real.jpg');
+      await r.vault!.close();
+      crypto.failReset = VaultCryptoError.unavailable;
+      await expectLater(manager.reset(), throwsA(isA<VaultCryptoException>()));
+      crypto.failReset = null;
+      expect(root.listSync().whereType<Directory>(), hasLength(2));
+      for (final d in root.listSync().whereType<Directory>()) {
+        expect(
+          d.path.split(Platform.pathSeparator).last,
+          matches(r'^[0-9a-f]{16}$'),
+        );
+      }
+      final ok = await manager.openWithPin('246810');
+      expect(ok.vault!.container.list().single.name, 'real.jpg');
+      await ok.vault!.close();
+    });
+
+    test(
+      'PRIV-007 a reset that worked leaves nothing, trash included',
+      () async {
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await r.vault!.close();
+        await manager.reset();
+        expect(root.listSync(), isEmpty);
+      },
+    );
   });
 
   group('PRIV-007 Change PIN with a damaged or closed vault', () {

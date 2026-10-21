@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -74,6 +75,16 @@ final class OpenVault {
   bool _closed = false;
 
   bool get isClosed => _closed;
+
+  /// A copy of the container secret for work that takes a while (a Change
+  /// PIN waits for the KDF): the vault locking in the middle zeroes the
+  /// original and must not turn this into zeros. Throws [VaultLocked] when the
+  /// vault is locked or the secret is already zeroed; the caller zeroes the
+  /// copy.
+  Uint8List secretCopy() {
+    if (_closed || _secret.every((b) => b == 0)) throw const VaultLocked();
+    return Uint8List.fromList(_secret);
+  }
 
   Future<void> close() async {
     if (_closed) return;
@@ -154,15 +165,44 @@ final class VaultManager {
 
   static final RegExp _dirName = RegExp(r'^[0-9a-f]{16}$');
 
+  /// Present in a folder while set-up is still making it; a folder with it
+  /// is not a vault.
+  static const String _incomplete = '.incomplete';
+
+  File _incompleteFile(Directory d) =>
+      File('${d.path}${Platform.pathSeparator}$_incomplete');
+
   List<Directory> _dirs() {
     if (!root.existsSync()) return const [];
     return [
       for (final e in root.listSync(followLinks: false))
         if (e is Directory &&
-            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last))
+            _dirName.hasMatch(e.path.split(Platform.pathSeparator).last) &&
+            !_incompleteFile(e).existsSync())
           e,
     ]..sort((a, b) => a.path.compareTo(b.path));
   }
+
+  /// Removes what a stopped set-up or a stopped reset left: folders still
+  /// marked incomplete, and folders renamed for deletion. Best effort.
+  void _sweepLeftovers() {
+    if (!root.existsSync()) return;
+    try {
+      for (final e in root.listSync(followLinks: false)) {
+        if (e is! Directory) continue;
+        final name = e.path.split(Platform.pathSeparator).last;
+        final unfinished =
+            _dirName.hasMatch(name) && _incompleteFile(e).existsSync();
+        if (unfinished || name.startsWith(_trashPrefix)) {
+          e.deleteSync(recursive: true);
+        }
+      }
+    } on FileSystemException {
+      // Left for the next time.
+    }
+  }
+
+  static const String _trashPrefix = '.trash-';
 
   /// Whether a vault has been set up.
   bool get exists => _dirs().isNotEmpty;
@@ -235,6 +275,7 @@ final class VaultManager {
     String? decoyPin,
     bool fingerprint = false,
   }) async {
+    _sweepLeftovers();
     if (exists) return const VaultOpenResult(VaultOutcome.damaged);
     final decoy = decoyPin ?? randomPin();
     if (pin.length < minPinLength || decoy.length < minPinLength) {
@@ -272,6 +313,8 @@ final class VaultManager {
           );
           made.add(dir);
           await dir.create(recursive: true);
+          // Not a vault until both are made.
+          await _incompleteFile(dir).writeAsBytes(const [], flush: true);
           await _writeSalt(dir, salts[i], iterations);
           final s = randomBytes(VaultSecretFile.length);
           secrets.add(s);
@@ -313,6 +356,9 @@ final class VaultManager {
         for (final t in tokens) {
           t.fillRange(0, t.length, 0);
         }
+      }
+      for (final d in made) {
+        _incompleteFile(d).deleteSync();
       }
       // The other vault's handle and secret are not needed any more.
       for (final h in handles) {
@@ -549,19 +595,20 @@ final class VaultManager {
   }
 
   /// After an open that did not say which pair of files the PIN fits (the
-  /// fingerprint): a Change PIN that was cut short is finished if the new
-  /// salt is there (the secret is the same in both pairs, the new salt is the
-  /// one that opens the new secret file), and dropped if only the new secret
-  /// file was written.
+  /// fingerprint, which gives the secret itself): a Change PIN that was cut
+  /// short is finished only when it had got as far as swapping the secret
+  /// file (the new salt without a new secret file: that salt is then the one
+  /// that opens the folder's secret file). In every other state the change
+  /// is dropped and the old PIN keeps working.
   Future<void> _finishChange(Directory d) async {
     try {
-      if (_saltNextFile(d).existsSync()) {
-        if (_secretNextFile(d).existsSync()) {
-          await _secretNextFile(d).rename(_secretFile(d).path);
-        }
-        await _saltNextFile(d).rename(_saltFile(d).path);
-      } else if (_secretNextFile(d).existsSync()) {
-        _secretNextFile(d).deleteSync();
+      final saltNext = _saltNextFile(d);
+      final secretNext = _secretNextFile(d);
+      if (saltNext.existsSync() && !secretNext.existsSync()) {
+        await saltNext.rename(_saltFile(d).path);
+      } else {
+        if (saltNext.existsSync()) saltNext.deleteSync();
+        if (secretNext.existsSync()) secretNext.deleteSync();
       }
     } on FileSystemException {
       // The next open tries again.
@@ -572,8 +619,8 @@ final class VaultManager {
   /// a right PIN of either costs the same as a wrong one, and the attempt is
   /// counted before the work starts. A PIN that fits no vault is a wrong PIN
   /// even when the handles say "key lost" (that is what a wrong token looks
-  /// like); the vault is reported lost only when the plain key itself is
-  /// gone.
+  /// like); the vault is reported lost only when the phone's own keys are
+  /// gone, which is asked of the keystore directly.
   Future<VaultOpenResult> openWithPin(String pin) async {
     final dirs = _dirs();
     if (dirs.isEmpty) return const VaultOpenResult(VaultOutcome.needsSetup);
@@ -581,17 +628,24 @@ final class VaultManager {
     if (wait != null) {
       return VaultOpenResult(VaultOutcome.waitToRetry, wait: wait);
     }
+    _sweepLeftovers();
     dirs.forEach(VaultContainer.sweepStaleParts);
     OpenVault? found;
     var lost = false;
+    final tokens = <Future<Uint8List>>[];
     try {
       final cur = <Future<Uint8List>?>[];
       final nxt = <Future<Uint8List>?>[];
       for (final d in dirs) {
         final a = await _readSalt(d);
         final b = await _readSalt(d, next: true);
-        cur.add(a == null ? null : derivePinToken(pin, a.salt, a.rounds));
-        nxt.add(b == null ? null : derivePinToken(pin, b.salt, b.rounds));
+        final ta = a == null ? null : derivePinToken(pin, a.salt, a.rounds);
+        final tb = b == null ? null : derivePinToken(pin, b.salt, b.rounds);
+        cur.add(ta);
+        nxt.add(tb);
+        tokens
+          ..addAll([?ta])
+          ..addAll([?tb]);
       }
       for (var i = 0; i < dirs.length; i++) {
         final u = await _unseal(dirs[i], cur[i], nxt[i]);
@@ -602,30 +656,33 @@ final class VaultManager {
           secret.fillRange(0, secret.length, 0);
           continue;
         }
-        found = await _openWith(dirs[i], secret, u);
-        if (found == null) lost = true;
+        final r = await _openWith(dirs[i], secret, u);
+        if (r.keyLost) lost = true;
+        found = r.vault;
       }
     } on VaultCryptoException catch (e) {
-      found?.close().ignore();
-      final o = outcomeOf(e);
-      return VaultOpenResult(
-        o == VaultOutcome.fingerprintInvalidated ? VaultOutcome.keyLost : o,
-      );
+      await found?.close();
+      found = null;
+      if (e.error == VaultCryptoError.keyLost ||
+          e.error == VaultCryptoError.keyInvalidated) {
+        // Asked of the keystore below.
+        lost = true;
+      } else {
+        return VaultOpenResult(outcomeOf(e));
+      }
     } on Object {
-      found?.close().ignore();
+      await found?.close();
       return const VaultOpenResult(VaultOutcome.damaged);
+    } finally {
+      _zeroLater(tokens);
     }
     if (found != null) {
       await _refundAttempt();
       return VaultOpenResult(VaultOutcome.opened, vault: found);
     }
     if (lost) {
-      // Is it the PIN, or is the key itself gone?
-      try {
-        await crypto.close(await crypto.openMasterKey(requireBiometry: false));
-      } on VaultCryptoException catch (e) {
-        return VaultOpenResult(outcomeOf(e));
-      }
+      final gone = await _probeDeviceKeys();
+      if (gone != null) return VaultOpenResult(gone);
     }
     final left = await _waitLeft();
     return left == null
@@ -633,22 +690,55 @@ final class VaultManager {
         : VaultOpenResult(VaultOutcome.waitToRetry, wait: left);
   }
 
+  /// Zeroes tokens that were derived but never used because something failed
+  /// first.
+  static void _zeroLater(Iterable<Future<Uint8List>> tokens) {
+    for (final t in tokens) {
+      unawaited(
+        t.then((b) => b.fillRange(0, b.length, 0), onError: (Object _) {}),
+      );
+    }
+  }
+
+  /// Whether the phone's own keys are there: opens the plain key and the
+  /// device-bound one (with a throwaway secret). Null when both open;
+  /// otherwise the answer to give, [VaultOutcome.keyLost] when a key is gone.
+  Future<VaultOutcome?> _probeDeviceKeys() async {
+    final dummy = randomBytes(VaultSecretFile.length);
+    try {
+      await crypto.close(await crypto.openMasterKey(requireBiometry: false));
+      await crypto.close(
+        await crypto.openMasterKey(requireBiometry: false, secret: dummy),
+      );
+      return null;
+    } on VaultCryptoException catch (e) {
+      final o = outcomeOf(e);
+      return o == VaultOutcome.fingerprintInvalidated
+          ? VaultOutcome.keyLost
+          : o;
+    } finally {
+      dummy.fillRange(0, dummy.length, 0);
+    }
+  }
+
   /// Opens the container of [d] with its secret; the vault takes over the
-  /// secret. Null when the container cannot be read (damaged), in which case
-  /// the secret is zeroed.
-  Future<OpenVault?> _openWith(
+  /// secret. No vault when the container cannot be read (damaged, or the
+  /// secret does not fit it), in which case the secret is zeroed and the
+  /// handle closed; `keyLost` says the handles reported the key as lost.
+  Future<({OpenVault? vault, bool keyLost})> _openWith(
     Directory d,
     Uint8List secret,
     _Unsealed u, {
     bool viaPin = true,
   }) async {
     VaultKeyHandle? master;
+    VaultContainer? c;
     try {
       master = await crypto.openMasterKey(
         requireBiometry: false,
         secret: secret,
       );
-      final c = await VaultContainer.open(
+      c = await VaultContainer.open(
         directory: d,
         crypto: crypto,
         master: master,
@@ -658,17 +748,26 @@ final class VaultManager {
       } else {
         await _finishChange(d);
       }
-      return OpenVault._(c, this, master, secret);
-    } on VaultCorrupt {
+      return (vault: OpenVault._(c, this, master, secret), keyLost: false);
+    } on Object catch (e) {
+      c?.close();
       secret.fillRange(0, secret.length, 0);
-      if (master != null) await crypto.close(master);
-      return null;
-    } on VaultCryptoException catch (e) {
-      secret.fillRange(0, secret.length, 0);
-      if (master != null) await crypto.close(master);
-      if (e.error == VaultCryptoError.keyLost ||
-          e.error == VaultCryptoError.integrityFailure) {
-        return null;
+      if (master != null) {
+        try {
+          await crypto.close(master);
+        } on Object {
+          // Released with the process.
+        }
+      }
+      if (e is VaultCorrupt) return (vault: null, keyLost: false);
+      if (e is VaultCryptoException) {
+        if (e.error == VaultCryptoError.keyLost ||
+            e.error == VaultCryptoError.keyInvalidated) {
+          return (vault: null, keyLost: true);
+        }
+        if (e.error == VaultCryptoError.integrityFailure) {
+          return (vault: null, keyLost: false);
+        }
       }
       rethrow;
     }
@@ -681,7 +780,9 @@ final class VaultManager {
 
   /// Opens the vault the fingerprint was turned on in. The fingerprint gives
   /// the container's secret straight, so it does not touch the wrong-PIN
-  /// count.
+  /// count. A fingerprint key that is gone or invalidated means only that the
+  /// fingerprint no longer works (the entry is removed, the PIN still opens
+  /// the vault); the vault is called lost only when the phone's own keys are.
   Future<VaultOpenResult> openWithFingerprint() async {
     final raw = await secure.read(_bioKey);
     if (raw == null) return const VaultOpenResult(VaultOutcome.noFingerprint);
@@ -705,25 +806,30 @@ final class VaultManager {
       );
       await crypto.close(bio);
       bio = null;
-      final vault = await _openWith(
-        dir,
-        secret,
-        const _Unsealed(),
-        viaPin: false,
-      );
+      final r = await _openWith(dir, secret, const _Unsealed(), viaPin: false);
       secret = null;
-      if (vault == null) {
-        await secure.delete(_bioKey);
-        return const VaultOpenResult(VaultOutcome.damaged);
+      final vault = r.vault;
+      if (vault != null) {
+        return VaultOpenResult(VaultOutcome.opened, vault: vault);
       }
-      return VaultOpenResult(VaultOutcome.opened, vault: vault);
+      if (r.keyLost) {
+        final gone = await _probeDeviceKeys();
+        if (gone != null) return VaultOpenResult(gone);
+      }
+      // The entry does not fit the folder any more, or the folder is damaged.
+      await secure.delete(_bioKey);
+      return VaultOpenResult(
+        r.keyLost ? VaultOutcome.fingerprintInvalidated : VaultOutcome.damaged,
+      );
     } on VaultCryptoException catch (e) {
-      final outcome = outcomeOf(e);
-      if (outcome == VaultOutcome.fingerprintInvalidated ||
-          outcome == VaultOutcome.damaged) {
+      if (e.error == VaultCryptoError.keyLost ||
+          e.error == VaultCryptoError.keyInvalidated) {
         // The fingerprint key cannot open anything again; the PIN can.
         await secure.delete(_bioKey);
+        return const VaultOpenResult(VaultOutcome.fingerprintInvalidated);
       }
+      final outcome = outcomeOf(e);
+      if (outcome == VaultOutcome.damaged) await secure.delete(_bioKey);
       return VaultOpenResult(outcome);
     } on Object {
       await secure.delete(_bioKey);
@@ -752,6 +858,14 @@ final class VaultManager {
       await secure.delete(_bioKey);
       return VaultOutcome.opened;
     }
+    // A copy: the prompt can take long, and the vault locking meanwhile
+    // zeroes the original.
+    final Uint8List secret;
+    try {
+      secret = vault.secretCopy();
+    } on VaultLocked {
+      return VaultOutcome.unavailable;
+    }
     VaultKeyHandle? bio;
     try {
       bio = await crypto.openMasterKey(requireBiometry: true);
@@ -761,7 +875,7 @@ final class VaultManager {
         wrapped,
         nonce,
         Uint8List.fromList(_bioAad),
-        vault._secret,
+        secret,
       );
       await secure.write(
         _bioKey,
@@ -776,6 +890,7 @@ final class VaultManager {
     } on VaultCryptoException catch (e) {
       return outcomeOf(e);
     } finally {
+      secret.fillRange(0, secret.length, 0);
       if (bio != null) {
         try {
           await crypto.close(bio);
@@ -789,40 +904,65 @@ final class VaultManager {
   // ---- changing and ending ---------------------------------------------
 
   /// Gives the open vault a new PIN, safely: the container's secret is
-  /// sealed again under the new PIN's token, written beside the old file with
-  /// the new salt, then both are swapped in. Opening takes whichever pair the
-  /// PIN fits, so a stop at any moment leaves a vault that opens. No file is
-  /// touched and the fingerprint keeps working. The new PIN is first tried on
-  /// the other vaults (counted like any attempt): one of theirs is refused,
-  /// because the two would collide. Returns [VaultOutcome.opened] when it
-  /// worked, [VaultOutcome.pinNotAllowed] for a PIN another vault uses and
-  /// [VaultOutcome.pinTooShort] for one under [minPinLength] digits.
+  /// sealed again under the new PIN's token, read back and compared, written
+  /// beside the old file with the new salt, then both are swapped in. Opening
+  /// takes whichever pair the PIN fits, so a stop at any moment leaves a
+  /// vault that opens. No file is touched and the fingerprint keeps working.
+  /// The new PIN is first tried on the other vaults (counted like any
+  /// attempt): one of theirs is refused, because the two would collide.
+  /// Returns [VaultOutcome.opened] when it worked (also when only the last
+  /// rename failed: the next open finishes it), [VaultOutcome.pinNotAllowed]
+  /// for a PIN another vault uses and [VaultOutcome.pinTooShort] for one
+  /// under [minPinLength] digits. Throws [VaultLocked] for a locked vault.
   Future<VaultOutcome> changePin(OpenVault vault, String newPin) async {
     if (newPin.length < minPinLength) return VaultOutcome.pinTooShort;
-    if (vault.isClosed) throw const VaultLocked();
+    // A copy of S taken now: the KDF below takes seconds, and the vault
+    // locking meanwhile zeroes the original.
+    final secret = vault.secretCopy();
+    try {
+      return await _changePin(vault, newPin, secret);
+    } finally {
+      secret.fillRange(0, secret.length, 0);
+    }
+  }
+
+  Future<VaultOutcome> _changePin(
+    OpenVault vault,
+    String newPin,
+    Uint8List secret,
+  ) async {
     final here = vault.container.directory;
     final wait = await _countAttempt();
     if (wait != null) return VaultOutcome.waitToRetry;
     // Does the new PIN already open another vault?
     for (final d in _dirs()) {
       if (d.path == here.path) continue;
-      final a = await _readSalt(d);
-      final b = await _readSalt(d, next: true);
-      _Unsealed other;
+      final tokens = <Future<Uint8List>>[];
       try {
-        other = await _unseal(
-          d,
-          a == null ? null : derivePinToken(newPin, a.salt, a.rounds),
-          b == null ? null : derivePinToken(newPin, b.salt, b.rounds),
-        );
-      } on Object {
+        final a = await _readSalt(d);
+        final b = await _readSalt(d, next: true);
+        final ta = a == null ? null : derivePinToken(newPin, a.salt, a.rounds);
+        final tb = b == null ? null : derivePinToken(newPin, b.salt, b.rounds);
+        tokens
+          ..addAll([?ta])
+          ..addAll([?tb]);
+        final other = await _unseal(d, ta, tb);
+        final s = other.secret;
+        if (s != null) {
+          s.fillRange(0, s.length, 0);
+          return VaultOutcome.pinNotAllowed;
+        }
+      } on VaultCorrupt {
         // A damaged other vault cannot be opened by this PIN either.
         continue;
-      }
-      final s = other.secret;
-      if (s != null) {
-        s.fillRange(0, s.length, 0);
-        return VaultOutcome.pinNotAllowed;
+      } on FileSystemException {
+        continue;
+      } on FormatException {
+        continue;
+      } on VaultCryptoException catch (e) {
+        return outcomeOf(e);
+      } finally {
+        _zeroLater(tokens);
       }
     }
     final salt = randomBytes(16);
@@ -838,20 +978,38 @@ final class VaultManager {
           target: _secretNextFile(here),
           crypto: crypto,
           pinHandle: pinHandle,
-          secret: vault._secret,
+          secret: secret,
           folder: _folderName(here),
         );
+        // Before anything is swapped: the new file must give S back. A secret
+        // that does not come back would lock the vault for good.
+        final back = await VaultSecretFile.read(
+          file: _secretNextFile(here),
+          crypto: crypto,
+          pinHandle: pinHandle,
+          folder: _folderName(here),
+        );
+        var same = back.length == secret.length;
+        for (var i = 0; same && i < back.length; i++) {
+          same = back[i] == secret[i];
+        }
+        back.fillRange(0, back.length, 0);
+        if (!same) throw const VaultCorrupt('the new secret file differs');
       } finally {
         await crypto.close(pinHandle);
       }
       await _writeSalt(here, salt, iterations, next: true);
       await _secretNextFile(here).rename(_secretFile(here).path);
       swapped = true;
-      await _saltNextFile(here).rename(_saltFile(here).path);
+      try {
+        await _saltNextFile(here).rename(_saltFile(here).path);
+      } on FileSystemException {
+        // The new salt is what opens the new secret file; it stays, and the
+        // next open finishes the rename.
+      }
     } on Object {
       // Before the swap the old pair is still whole and the new files are
-      // dropped; after it the new salt is what opens the new secret file, so
-      // it stays and the next open finishes the job.
+      // dropped.
       if (!swapped) {
         for (final f in [_secretNextFile(here), _saltNextFile(here)]) {
           if (f.existsSync()) f.deleteSync();
@@ -867,15 +1025,38 @@ final class VaultManager {
   /// Deletes both vaults and everything in them, the fingerprint entry and
   /// the OS key behind them (`VaultCryptoFacade.reset`, ADR-039 amendment 1).
   /// Used when the vault can no longer be opened, after the user confirmed.
-  /// The key goes first: if that fails nothing else is touched and the user
-  /// can try again.
+  /// The folders are first renamed out of the way (and put back if anything
+  /// fails), then the key goes; only when that worked is anything deleted. So
+  /// a failure at any step leaves a vault that can still be opened.
   Future<void> reset() async {
-    await crypto.reset();
-    if (root.existsSync()) {
+    final moved = <(Directory, Directory)>[];
+    try {
       for (final d in _dirs()) {
-        d.deleteSync(recursive: true);
+        final to = Directory(
+          '${root.path}${Platform.pathSeparator}$_trashPrefix${_folderName(d)}',
+        );
+        await d.rename(to.path);
+        moved.add((d, to));
+      }
+      await crypto.reset();
+    } on Object {
+      for (final (from, to) in moved) {
+        try {
+          if (to.existsSync()) await to.rename(from.path);
+        } on Object {
+          // Nothing more to do.
+        }
+      }
+      rethrow;
+    }
+    for (final (_, to) in moved) {
+      try {
+        to.deleteSync(recursive: true);
+      } on FileSystemException {
+        // Swept at the next start.
       }
     }
+    _sweepLeftovers();
     await secure.delete(_bioKey);
     await secure.delete(_attemptsKey);
   }
