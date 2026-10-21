@@ -378,8 +378,8 @@ final episodeDownloadsProvider = Provider<ManagerEpisodeDownloads>((ref) {
   return d;
 });
 
-/// The registry where subscriptions and stations record their host (PRIV-004);
-/// null where the network policy is not in play (some tests).
+/// The network policy that keeps the hosts of feeds and stations (PRIV-004);
+/// null where it is not in play (some tests).
 PersistentNetworkPolicy? _feedPolicy(Ref ref) {
   try {
     return ref.read(networkPolicyProvider);
@@ -388,6 +388,7 @@ PersistentNetworkPolicy? _feedPolicy(Ref ref) {
   }
 }
 
+/// The same, as the registry subscriptions and stations record into.
 FeedHostRegistry? _feedHosts(Ref ref) {
   try {
     return ref.read(networkPolicyProvider);
