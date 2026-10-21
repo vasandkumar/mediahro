@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/incoming/app_incoming_handler.dart';
+import 'package:mediahro/app/incoming/incoming_seams.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart';
 import 'package:mediahro/core/providers.dart';
+import 'package:mediahro/features/photos/viewer/external_image_viewer.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
 import 'package:mediahro/features/video/player/play_request.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
+import '../../core/seed.dart';
 import '../../helpers.dart';
 
 /// A storage facade that knows documents by URI; everything else is unused.
@@ -49,9 +53,14 @@ void main() {
   late PersistentNetworkPolicy policy;
   late AppIncomingHandler handler;
   final plays = <PlayRequest>[];
+  final viewed = <ExternalImageArgs>[];
 
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<void> pumpApp(
+    WidgetTester tester, {
+    List<Override> overrides = const [],
+  }) async {
     plays.clear();
+    viewed.clear();
     storage = _Storage();
     final store = await tester.runAsync(memoryStore);
     db = LibraryDatabase.memory();
@@ -62,6 +71,7 @@ void main() {
         libraryDatabaseProvider.overrideWithValue(db),
         networkPolicyProvider.overrideWithValue(policy),
         settingsStoreProvider.overrideWithValue(store!),
+        ...overrides,
       ],
     );
     addTearDown(() async {
@@ -75,6 +85,13 @@ void main() {
         for (final p in ['video', 'music', 'photos', 'search', 'vault'])
           GoRoute(path: '/$p', builder: (_, _) => page(p)),
         GoRoute(
+          path: ExternalImageRoutes.view,
+          builder: (_, state) {
+            viewed.add(state.extra! as ExternalImageArgs);
+            return page('view-external');
+          },
+        ),
+        GoRoute(
           path: '/play',
           builder: (_, state) {
             plays.add(state.extra! as PlayRequest);
@@ -85,10 +102,13 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      MaterialApp.router(
-        routerConfig: router,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -225,18 +245,155 @@ void main() {
     },
   );
 
-  testWidgets('CORE-003 an image says it cannot be opened yet', (tester) async {
+  testWidgets('CORE-003 a picture opens in the external viewer', (
+    tester,
+  ) async {
     await pumpApp(tester);
     doc('content://media/9', 'IMG_1.jpg', 'image/jpeg');
 
     await open(tester, ['content://media/9']);
 
-    expect(where(), '/video');
+    expect(find.text('view-external'), findsOneWidget);
     expect(find.text('play'), findsNothing);
+    final args = viewed.single;
+    expect(args.images.single.uri.toString(), 'content://media/9');
+    expect(args.images.single.name, 'IMG_1.jpg');
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('SYS-004 several shared pictures open as one swipeable set', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    doc('content://media/1', 'a.jpg');
+    doc('content://media/2', 'b.png');
+    doc('content://media/3', 'c.heic');
+
+    await open(tester, [
+      'content://media/1',
+      'content://media/2',
+      'content://media/3',
+    ]);
+
     expect(
-      find.textContaining("Photos from other apps can't be opened yet"),
-      findsOneWidget,
+      [for (final i in viewed.single.images) i.name],
+      ['a.jpg', 'b.png', 'c.heic'],
     );
+    expect(viewed.single.index, 0);
+  });
+
+  testWidgets('SYS-004 a mix opens what the first item is', (tester) async {
+    await pumpApp(tester);
+    doc('content://media/1', 'a.jpg');
+    doc('content://media/2', 'b.mp4');
+
+    await open(tester, ['content://media/1', 'content://media/2']);
+    expect(find.text('view-external'), findsOneWidget);
+    expect(plays, isEmpty);
+
+    router.go('/video');
+    await tester.pumpAndSettle();
+    await open(tester, ['content://media/2', 'content://media/1']);
+    expect(plays.single.title, 'b.mp4');
+  });
+
+  testWidgets('CORE-003 audio goes to Music when Music offers to play it', (
+    tester,
+  ) async {
+    final offered = <Uri>[];
+    await pumpApp(
+      tester,
+      overrides: [
+        playExternalAudioProvider.overrideWithValue((uri) async {
+          offered.add(uri);
+          return true;
+        }),
+      ],
+    );
+    doc('content://media/2', 'song.flac', 'audio/flac');
+
+    await open(tester, ['content://media/2']);
+
+    expect(offered.single.toString(), 'content://media/2');
+    expect(plays, isEmpty);
+    expect(find.text('play'), findsNothing);
+  });
+
+  testWidgets('CORE-003 audio Music declines plays in the player', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      overrides: [
+        playExternalAudioProvider.overrideWithValue((_) async => false),
+      ],
+    );
+    doc('content://media/2', 'song.flac', 'audio/flac');
+
+    await open(tester, ['content://media/2']);
+
+    expect(plays.single.title, 'song.flac');
+  });
+
+  testWidgets('SYS-003 a playlist by name goes to Music, which starts it', (
+    tester,
+  ) async {
+    final asked = <String>[];
+    await pumpApp(
+      tester,
+      overrides: [
+        playPlaylistByNameProvider.overrideWithValue((name) async {
+          asked.add(name);
+          return true;
+        }),
+      ],
+    );
+
+    handler.runIntent(
+      const AppIntent(AppIntentKind.playPlaylist, argument: ' Road trip '),
+    );
+    await tester.pumpAndSettle();
+
+    expect(asked, ['Road trip']);
+    expect(where(), '/music');
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('SYS-003 without Music support a playlist says not yet', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    handler.runIntent(
+      const AppIntent(AppIntentKind.playPlaylist, argument: 'Road trip'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(where(), '/music');
+    expect(find.textContaining("isn't available yet"), findsOneWidget);
+  });
+
+  testWidgets('SYS-003 a playlist that names the vault is never looked up', (
+    tester,
+  ) async {
+    final asked = <String>[];
+    await pumpApp(
+      tester,
+      overrides: [
+        playPlaylistByNameProvider.overrideWithValue((name) async {
+          asked.add(name);
+          return true;
+        }),
+      ],
+    );
+
+    handler.runIntent(
+      const AppIntent(AppIntentKind.playPlaylist, argument: 'Vault mix'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(asked, isEmpty);
+    expect(where(), '/music');
   });
 
   testWidgets(
@@ -320,11 +477,35 @@ void main() {
     },
   );
 
-  testWidgets('SYS-003 resume returns to the last mode', (tester) async {
+  testWidgets('SYS-003 resume plays the video played last', (tester) async {
+    await pumpApp(tester);
+    await tester.runAsync(() async {
+      final seed = Seed(db);
+      await seed.item('old.mkv', lastPlayedAt: DateTime.utc(2026));
+      await seed.item('last.mkv', lastPlayedAt: DateTime.utc(2026, 2));
+    });
+
+    handler.runIntent(const AppIntent(AppIntentKind.resumeLast));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('play'), findsOneWidget);
+    expect(plays.single.title, 'last');
+    expect(plays.single.memoryKey, startsWith('item:'));
+  });
+
+  testWidgets('SYS-003 resume with nothing played returns to the last mode', (
+    tester,
+  ) async {
     await pumpApp(tester);
     container.read(settingsStoreProvider).set(CoreSettings.lastMode, 'photos');
 
     handler.runIntent(const AppIntent(AppIntentKind.resumeLast));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
     await tester.pumpAndSettle();
 
     expect(where(), '/photos');

@@ -424,12 +424,12 @@
   "@appIncomingUnsupported": {
     "description": "Snackbar when another app hands Mediahro a file type it cannot open yet."
   },
-  "appIncomingImage": "Photos from other apps can't be opened yet. Open it from the Photos tab instead.",
-  "@appIncomingImage": {
-    "description": "Snackbar when another app hands Mediahro an image."
-  },
   "appIncomingFailed": "Couldn't open this file. It may be corrupt or on a disconnected drive.",
   "@appIncomingFailed": {
     "description": "Snackbar when a file handed over by another app cannot be read."
+  },
+  "appIncomingPlaylistLater": "Starting a playlist by name isn't available yet. Open Music to choose one.",
+  "@appIncomingPlaylistLater": {
+    "description": "Snackbar when a shortcut or voice command asks to play a playlist and Music cannot start it yet."
   }
 }

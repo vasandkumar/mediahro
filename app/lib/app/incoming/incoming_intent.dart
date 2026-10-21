@@ -16,6 +16,13 @@ final class IncomingGo extends IncomingAction {
   final String location;
 }
 
+/// Start the playlist called [name] in Music.
+final class IncomingPlaylist extends IncomingAction {
+  const IncomingPlaylist(this.name);
+
+  final String name;
+}
+
 /// Show the mode the app was last used in.
 final class IncomingResume extends IncomingAction {
   const IncomingResume();
@@ -57,9 +64,13 @@ IncomingAction actionForIntent(AppIntent intent) {
         _ => const IncomingIgnore(),
       };
     case AppIntentKind.playPlaylist:
-      // Playlists live in Music; starting one by name waits for a music entry
-      // point. A playlist that names the vault is never looked up.
-      return const IncomingGo('/music');
+      // A playlist that names the vault, hidden albums or private mode is never
+      // looked up: Music opens and nothing starts.
+      final name = cleanText(arg);
+      if (name.isEmpty || namesSensitiveArea(name)) {
+        return const IncomingGo('/music');
+      }
+      return IncomingPlaylist(name);
     case AppIntentKind.search:
       return IncomingGo(searchLocation(arg));
   }
@@ -68,12 +79,18 @@ IncomingAction actionForIntent(AppIntent intent) {
 /// The search route for [text] (shared text, a voice search): trimmed, cut to
 /// [incomingQueryLimit] and stripped of control characters. Never fetched.
 String searchLocation(String? text) {
-  final query = (text ?? '')
+  final query = cleanText(text);
+  if (query.isEmpty) return '/search';
+  return Uri(path: '/search', queryParameters: {'q': query}).toString();
+}
+
+/// [text] from outside made safe to show or look up: control characters turned
+/// into spaces, trimmed, cut to [incomingQueryLimit].
+String cleanText(String? text) {
+  final clean = (text ?? '')
       .replaceAll(RegExp(r'[\u0000-\u001F\u007F]'), ' ')
       .trim();
-  if (query.isEmpty) return '/search';
-  final cut = query.length > incomingQueryLimit
-      ? query.substring(0, incomingQueryLimit)
-      : query;
-  return Uri(path: '/search', queryParameters: {'q': cut}).toString();
+  return clean.length > incomingQueryLimit
+      ? clean.substring(0, incomingQueryLimit)
+      : clean;
 }

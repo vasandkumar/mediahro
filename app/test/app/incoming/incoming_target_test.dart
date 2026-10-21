@@ -186,6 +186,16 @@ void main() {
       }
     });
 
+    test('a playlist is asked for by its cleaned name', () {
+      final a = action(AppIntentKind.playPlaylist, ' Road trip\n');
+      expect(a, isA<IncomingPlaylist>());
+      expect((a as IncomingPlaylist).name, 'Road trip');
+      expect(go(action(AppIntentKind.playPlaylist, '  ')), '/music');
+      expect(go(action(AppIntentKind.playPlaylist)), '/music');
+      final long = action(AppIntentKind.playPlaylist, 'x' * 500);
+      expect((long as IncomingPlaylist).name, hasLength(incomingQueryLimit));
+    });
+
     test('resume last returns to the last mode', () {
       expect(action(AppIntentKind.resumeLast), isA<IncomingResume>());
     });
