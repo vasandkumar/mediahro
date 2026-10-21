@@ -280,13 +280,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
   @override
   void initState() {
     super.initState();
-    DisplayFacade? display;
-    try {
-      display = ref.read(displayProvider);
-    } on Object {
-      display = null;
-    }
-    _awake = ScreenAwake(display);
+    _awake = ref.read(screenAwakeProvider);
     unawaited(_readFingerprint());
   }
 
@@ -336,7 +330,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     var added = 0;
     var skipped = 0;
     var interrupted = false;
-    await _awake.hold();
+    final hold = _awake.hold();
     try {
       for (var n = 0; n < picked.length; n++) {
         final f = picked[n];
@@ -382,7 +376,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
         }
       }
     } finally {
-      await _awake.release();
+      hold.release();
       if (mounted) setState(() => _progress = null);
     }
     final text = [
@@ -405,7 +399,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
     final storage = ref.read(storageProvider);
     var n = 0;
     var failed = 0;
-    await _awake.hold();
+    final hold = _awake.hold();
     try {
       for (final i in items) {
         if (!_live) return;
@@ -427,7 +421,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
         }
       }
     } finally {
-      await _awake.release();
+      hold.release();
     }
     if (!_live) return;
     setState(_chosen.clear);

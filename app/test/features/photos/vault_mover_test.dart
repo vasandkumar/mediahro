@@ -542,6 +542,129 @@ void main() {
     });
   });
 
+  group('PRIV-007 beside a video, only its own files go', () {
+    late int listed;
+    late VaultMover listing;
+
+    setUp(() {
+      listed = 0;
+      listing = VaultMover(
+        files: mover.files,
+        io: io,
+        db: db,
+        pipeline: pipeline,
+        listFolder: (file) async {
+          listed++;
+          return [
+            for (final e in File.fromUri(file).parent.listSync())
+              if (e is File) e.uri,
+          ];
+        },
+      );
+    });
+
+    Set<String> names(String folder) =>
+        Directory('${dir.path}/lib/$folder')
+            .listSync()
+            .map((e) => e.path.split(Platform.pathSeparator).last)
+            .toSet();
+
+    test("PRIV-007 a photo with the video's name stays (Live Photo pair, screenshot)", () async {
+      final v = await photo('cam/IMG_1234.MOV', video: true);
+      for (final other in [
+        'IMG_1234.JPG',
+        'IMG_1234.jpeg',
+        'IMG_1234.png',
+        'IMG_1234.heic',
+      ]) {
+        File('${dir.path}/lib/cam/$other').writeAsBytesSync([1]);
+      }
+      File('${dir.path}/lib/cam/IMG_1234.srt').writeAsBytesSync([2]);
+      final r = await listing.moveIn(vault, [v]);
+      expect(r.moved, 1);
+      expect(names('cam'), {
+        'IMG_1234.JPG',
+        'IMG_1234.jpeg',
+        'IMG_1234.png',
+        'IMG_1234.heic',
+      });
+    });
+
+    test(
+      'PRIV-007 a file the library lists as its own is not a sidecar',
+      () async {
+        final v = await photo('film/Movie.mkv', video: true);
+        File('${dir.path}/lib/film/Movie.srt').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie.nfo').writeAsBytesSync([2]);
+        // The library indexed the .srt as an item of its own.
+        await seed.item('film/Movie.srt');
+        await listing.moveIn(vault, [v]);
+        expect(names('film'), {'Movie.srt'});
+      },
+    );
+
+    test(
+      'PRIV-007 the folder is listed once, and names match whatever their case',
+      () async {
+        final v = await photo('film/Movie.mkv', video: true);
+        File('${dir.path}/lib/film/MOVIE.SRT').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/movie.EN.srt').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie-Poster.JPG').writeAsBytesSync([1]);
+        File('${dir.path}/lib/film/Movie 2.srt').writeAsBytesSync([1]);
+        await listing.moveIn(vault, [v]);
+        expect(listed, 1);
+        expect(names('film'), {'Movie 2.srt'});
+      },
+    );
+
+    test('PRIV-007 a name with a percent sign or a space is found, not decoded twice', () async {
+      final v = await photo('film/100% Cotton.mkv', video: true);
+      File('${dir.path}/lib/film/100% Cotton.srt').writeAsBytesSync([1]);
+      File('${dir.path}/lib/film/100%25 Cotton.srt').writeAsBytesSync([2]);
+      // Without a listing, each name is asked for.
+      await mover.moveIn(vault, [v]);
+      expect(names('film'), {'100%25 Cotton.srt'});
+    });
+
+    test('PRIV-007 playlist entries by address and downloads go too', () async {
+      final v = await photo('Movie.mkv', video: true);
+      final origin = await mover.files.uriOf(v);
+      final list = await db
+          .into(db.playlists)
+          .insert(
+            PlaylistsCompanion.insert(
+              name: 'Mine',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          );
+      // Linked by address only (the item was deleted and re-indexed once).
+      await db
+          .into(db.playlistItems)
+          .insert(
+            PlaylistItemsCompanion.insert(
+              playlistId: list,
+              position: 0,
+              uri: Value('$origin'),
+              title: const Value('Movie'),
+            ),
+          );
+      await db
+          .into(db.downloads)
+          .insert(
+            DownloadsCompanion.insert(
+              remoteUri: 'https://example.invalid/x',
+              title: 'Movie',
+              localPath: origin.toFilePath(),
+              createdAt: DateTime(2026),
+            ),
+          );
+      await mover.moveIn(vault, [v]);
+      expect(await db.select(db.playlistItems).get(), isEmpty);
+      expect(await db.select(db.downloads).get(), isEmpty);
+    });
+  });
+
   group('PRIV-007 every chunk is checked before the original goes', () {
     test(
       'PRIV-007 a chunk that does not read back keeps the original',

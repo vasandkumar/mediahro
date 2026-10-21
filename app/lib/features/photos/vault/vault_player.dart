@@ -7,7 +7,6 @@ import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/photos/vault/screen_awake.dart';
 import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
-import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
 /// Plays a video or audio file from the vault (PRIV-007). The file is
@@ -40,6 +39,7 @@ class _VaultPlayerScreenState extends ConsumerState<VaultPlayerScreen>
     playbackEngineProvider(EngineRole.music),
   );
   late final ScreenAwake _awake;
+  ScreenHold? _hold;
   VaultFile? _file;
   StreamSubscription<PlaybackState>? _sub;
   ProviderSubscription<VaultState>? _lock;
@@ -58,13 +58,7 @@ class _VaultPlayerScreenState extends ConsumerState<VaultPlayerScreen>
   @override
   void initState() {
     super.initState();
-    DisplayFacade? display;
-    try {
-      display = ref.read(displayProvider);
-    } on Object {
-      display = null;
-    }
-    _awake = ScreenAwake(display);
+    _awake = ref.read(screenAwakeProvider);
     WidgetsBinding.instance.addObserver(this);
     // Locking the vault ends playback at once, whether or not this screen
     // is taken off the stack yet.
@@ -92,7 +86,7 @@ class _VaultPlayerScreenState extends ConsumerState<VaultPlayerScreen>
   Future<void> _endNow() async {
     _ended = true;
     // The screen may sleep again at once; the rest takes the time it takes.
-    unawaited(_awake.release());
+    _hold?.release();
     final hadFile = _file;
     _file = null;
     try {
@@ -118,10 +112,16 @@ class _VaultPlayerScreenState extends ConsumerState<VaultPlayerScreen>
         return;
       }
       _file = file;
-      await _awake.hold();
+      _hold = _awake.hold();
       // Music does not play under a private video.
       if (_music.current.status == PlaybackStatus.playing) {
         await _music.pause();
+      }
+      // Left or locked while that was going on: the file is closed already,
+      // and the hold was taken after the end gave its own back.
+      if (_disposed || _ended) {
+        _hold?.release();
+        return;
       }
       _sub = _engine.state.listen((s) {
         if (_disposed || !mounted) return;

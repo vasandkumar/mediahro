@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart' show FdIo, PosixFdIo;
+import 'package:meta/meta.dart';
 
 /// What a picked file is, by its name: the kinds the vault keeps.
 enum VaultKind { image, video, audio }
@@ -57,31 +58,103 @@ typedef FdReaderOpener = Future<FdReader> Function(int fd);
 
 /// An [FdReader] whose `pread` calls run on one worker isolate, so nothing
 /// is read on the UI isolate. Bytes come back as transferred memory, not a
-/// copy.
+/// copy. If the worker dies, every read waiting on it fails (the add stops
+/// instead of hanging) and the fd is closed from here.
 final class IsolateFdReader implements FdReader {
-  IsolateFdReader._(this._fd, this._isolate, this._commands);
+  IsolateFdReader._(this._fd, this._isolate, this._commands, this._guards);
 
-  /// Starts the worker for [fd], which it closes with [close].
+  /// Starts the worker for [fd], which it closes with [close]. When the
+  /// worker cannot be started the fd is left to the caller.
   static Future<IsolateFdReader> open(int fd) async {
     final ready = ReceivePort();
-    final isolate = await Isolate.spawn(_serve, ready.sendPort);
-    final commands = await ready.first as SendPort;
-    ready.close();
-    return IsolateFdReader._(fd, isolate, commands);
+    final exit = ReceivePort();
+    final errors = ReceivePort();
+    final started = Completer<SendPort>();
+    IsolateFdReader? reader;
+    void gone(Object? _) {
+      if (!started.isCompleted) {
+        started.completeError(
+          const FileSystemException('the reader did not start'),
+        );
+      }
+      reader?._died();
+    }
+
+    ready.listen((m) {
+      if (m is SendPort && !started.isCompleted) started.complete(m);
+    });
+    exit.listen(gone);
+    errors.listen(gone);
+    try {
+      final isolate = await Isolate.spawn(
+        _serve,
+        ready.sendPort,
+        onExit: exit.sendPort,
+        onError: errors.sendPort,
+      );
+      try {
+        final commands = await started.future;
+        return reader = IsolateFdReader._(fd, isolate, commands, [
+          exit,
+          errors,
+        ]);
+      } on Object {
+        isolate.kill();
+        rethrow;
+      }
+    } on Object {
+      exit.close();
+      errors.close();
+      rethrow;
+    } finally {
+      ready.close();
+    }
   }
 
   final int _fd;
   final Isolate _isolate;
   final SendPort _commands;
+  final List<ReceivePort> _guards;
+  final Set<Completer<Object?>> _waiting = {};
   bool _closed = false;
+  bool _dead = false;
+
+  /// Stops the worker as a crash would (for tests).
+  @visibleForTesting
+  void killWorker() => _isolate.kill(priority: Isolate.immediate);
+
+  void _died() {
+    if (_dead) return;
+    _dead = true;
+    for (final c in _waiting.toList()) {
+      if (!c.isCompleted) {
+        c.completeError(const FileSystemException('the reader stopped'));
+      }
+    }
+    _waiting.clear();
+  }
+
+  Future<Object?> _ask(List<Object?> body) async {
+    if (_dead) throw const FileSystemException('the reader stopped');
+    final reply = ReceivePort();
+    final done = Completer<Object?>();
+    _waiting.add(done);
+    reply.listen((m) {
+      if (!done.isCompleted) done.complete(m);
+    });
+    try {
+      _commands.send([reply.sendPort, ...body]);
+      return await done.future;
+    } finally {
+      _waiting.remove(done);
+      reply.close();
+    }
+  }
 
   @override
   Future<Uint8List> read(int at, int length) async {
     if (_closed) throw const FileSystemException('the file is closed');
-    final reply = ReceivePort();
-    _commands.send([reply.sendPort, _fd, at, length]);
-    final answer = await reply.first;
-    reply.close();
+    final answer = await _ask([_fd, at, length]);
     if (answer is TransferableTypedData) {
       return answer.materialize().asUint8List();
     }
@@ -92,11 +165,28 @@ final class IsolateFdReader implements FdReader {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    final reply = ReceivePort();
-    _commands.send([reply.sendPort, _fd, -1, 0]);
-    await reply.first;
-    reply.close();
-    _isolate.kill();
+    var closedByWorker = false;
+    try {
+      if (!_dead) {
+        await _ask([_fd, -1, 0]);
+        closedByWorker = true;
+      }
+    } on Object {
+      // The worker went while closing.
+    } finally {
+      // A worker that is gone cannot close the fd.
+      if (!closedByWorker) {
+        try {
+          PosixFdIo().close(_fd);
+        } on Object {
+          // Nothing more can be done for it.
+        }
+      }
+      _isolate.kill();
+      for (final g in _guards) {
+        g.close();
+      }
+    }
   }
 
   static void _serve(SendPort ready) {
@@ -151,7 +241,15 @@ Future<({int size, Stream<List<int>> content})> openPickedStream(
   }
 
   Stream<List<int>> fromFd() async* {
-    final reader = await openReader(await storage.openDocumentFd(uri));
+    final fd = await storage.openDocumentFd(uri);
+    final FdReader reader;
+    try {
+      reader = await openReader(fd);
+    } on Object {
+      // The reader never took the fd over: it is closed here.
+      fdIo.close(fd);
+      rethrow;
+    }
     try {
       for (var at = 0; at < size; at += _piece) {
         final n = size - at < _piece ? size - at : _piece;

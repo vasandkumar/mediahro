@@ -51,7 +51,12 @@ final class VaultMover {
     required this.io,
     required this.db,
     required this.pipeline,
+    this.listFolder,
   });
+
+  /// The files in the folder of `file`, as their own URIs (one listing). Null
+  /// where the source cannot list; the sidecars are then probed by name.
+  final Future<List<Uri>> Function(Uri file)? listFolder;
 
   final PhotoFileOpener files;
   final ImageIo io;
@@ -149,10 +154,19 @@ final class VaultMover {
       }
     }
     final uri = '$origin';
+    final local = origin.scheme == 'file' ? origin.toFilePath() : uri;
     await db.transaction(() async {
       await (db.delete(
         db.playlistItems,
-      )..where((r) => r.itemId.equals(p.id))).go();
+      )..where((r) => r.itemId.equals(p.id) | r.uri.equals(uri))).go();
+      // A download keeps a title and the place it was saved.
+      await (db.delete(db.downloads)..where(
+            (d) =>
+                d.itemId.equals(p.id) |
+                d.remoteUri.equals(uri) |
+                d.localPath.equals(local),
+          ))
+          .go();
       await (db.delete(db.artworks)
             ..where((a) => a.ownerType.equals('item') & a.ownerId.equals(p.id)))
           .go();
@@ -189,20 +203,63 @@ final class VaultMover {
         'backdrop', 'cover',
       ])
         for (final e in ['jpg', 'jpeg', 'png', 'webp']) '$base-$k.$e',
-      for (final e in ['jpg', 'jpeg', 'png', 'tbn']) '$base.$e',
+      // Not '$base.jpg' or '.png': a picture with the video's name is as
+      // likely a photo of its own (a Live Photo pair, a screenshot of it).
+      '$base.tbn',
     ];
   }
 
   /// Deletes the sidecars of a video that has just moved in (the flow told
-  /// the user it would). Returns how many could not be deleted.
-  Future<int> _deleteSidecars(Uri origin) async {
+  /// the user it would). A sidecar that is itself in the library is left
+  /// alone. Returns how many could not be deleted.
+  Future<int> _deleteSidecars(PhotoEntry p, Uri origin) async {
+    final wanted = {for (final n in sidecarNames(p.name)) n.toLowerCase()};
+    final lister = listFolder;
+    final List<Uri> found;
+    if (lister != null) {
+      final listed = await lister(origin);
+      found = [
+        for (final u in listed)
+          if (u != origin &&
+              u.pathSegments.isNotEmpty &&
+              wanted.contains(u.pathSegments.last.toLowerCase()))
+            u,
+      ];
+    } else {
+      // No listing: ask for each name, with the URI built from segments
+      // (not from a decoded string).
+      final dir = origin.pathSegments.sublist(
+        0,
+        origin.pathSegments.length - 1,
+      );
+      found = [];
+      for (final n in sidecarNames(p.name)) {
+        final u = origin.replace(pathSegments: [...dir, n]);
+        try {
+          if (await io.exists(u)) found.add(u);
+        } on Object {
+          // Cannot tell: leave it.
+        }
+      }
+    }
+    if (found.isEmpty) return 0;
+    // What the library lists as a file of its own is not a sidecar.
+    final slash = p.relPath.lastIndexOf('/');
+    final parent = slash < 0 ? '' : p.relPath.substring(0, slash);
+    final own = {
+      for (final i
+          in await (db.select(db.items)..where(
+                (i) =>
+                    i.sourceId.equals(p.sourceId) & i.parentPath.equals(parent),
+              ))
+              .get())
+        i.name.toLowerCase(),
+    };
     var failed = 0;
-    final dir = origin.resolve('.');
-    final name = origin.pathSegments.last;
-    for (final side in sidecarNames(Uri.decodeComponent(name))) {
-      final uri = dir.resolve(Uri.encodeComponent(side));
+    for (final u in found) {
+      if (own.contains(u.pathSegments.last.toLowerCase())) continue;
       try {
-        if (await io.exists(uri)) await io.delete(uri);
+        await io.delete(u);
       } on Object {
         failed++;
       }
@@ -272,7 +329,7 @@ final class VaultMover {
         // From here the vault holds the only copy: nothing below may touch it.
         if (p.isVideo) {
           try {
-            await _deleteSidecars(origin);
+            await _deleteSidecars(p, origin);
           } on Object {
             // Beside the video, not in the vault: not worth failing for.
           }

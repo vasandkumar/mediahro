@@ -436,21 +436,42 @@ void main() {
           engine.extractSubtitles(1, tmp.uri.resolve('subs.srt')),
           refused(),
         );
-        await expectLater(
-          CastTranscoder.start(
-            VirtualFileSource(await vault.openFile(item.id), sensitive: true),
-            const CastPlan(
-              kind: CastPlanKind.transcode,
-              container: CastContainer.mp4,
-              video: StreamAction.encode,
-              audio: StreamAction.encode,
+        final castFile = await vault.openFile(item.id);
+        try {
+          await expectLater(
+            CastTranscoder.start(
+              VirtualFileSource(castFile, sensitive: true),
+              const CastPlan(
+                kind: CastPlanKind.transcode,
+                container: CastContainer.mp4,
+                video: StreamAction.encode,
+                audio: StreamAction.encode,
+              ),
             ),
-          ),
-          refused(),
-        );
+            refused(),
+          );
+        } finally {
+          await castFile.close();
+        }
         // Nothing was left on disk by trying.
         expect(tmp.listSync(), isEmpty);
 
+        if (item == video) {
+          // The app goes to the background (or the phone locks): the real
+          // engine stops at once, with the screen still up.
+          tester.binding
+            ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+            ..handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 500)),
+          );
+          expect(engine.current.status, isNot(PlaybackStatus.playing));
+          tester.binding
+            ..handleAppLifecycleStateChanged(AppLifecycleState.paused)
+            ..handleAppLifecycleStateChanged(AppLifecycleState.hidden)
+            ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+            ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        }
         // Leaving stops it.
         await tester.pumpWidget(const SizedBox());
         await tester.pump();

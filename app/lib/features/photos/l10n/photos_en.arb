@@ -1078,7 +1078,7 @@
       }
     }
   },
-  "photosVaultMoveSidecars": "Subtitle, artwork and info files next to a video, with its name, are deleted with it.",
+  "photosVaultMoveSidecars": "Subtitle files, and poster or info files named after a video (its .srt, .nfo, -poster.jpg), are deleted with it. Pictures with the same name are kept.",
   "photosVaultMoveStopped": "Stopped: {moved} of {total} moved.",
   "@photosVaultMoveStopped": {
     "placeholders": {

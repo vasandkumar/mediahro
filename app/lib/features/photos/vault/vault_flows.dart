@@ -8,7 +8,6 @@ import 'package:mediahro/features/photos/vault/screen_awake.dart';
 import 'package:mediahro/features/photos/vault/vault_gate.dart';
 import 'package:mediahro/features/photos/vault/vault_mover.dart';
 import 'package:mediahro/features/photos/vault/vault_providers.dart';
-import 'package:mediahro/platform/platform_facades.dart';
 
 /// The lock screen as a route of its own, for moving photos in from outside
 /// the vault: pops with true once the vault is open.
@@ -176,13 +175,7 @@ Future<bool> _moveToVault(
   final fraction = ValueNotifier<double>(0);
   final navigator = Navigator.of(context, rootNavigator: true);
   // The screen stays on for the move: it going off would lock the vault.
-  DisplayFacade? display;
-  try {
-    display = container.read(displayProvider);
-  } on Object {
-    display = null;
-  }
-  final awake = ScreenAwake(display);
+  final awake = container.read(screenAwakeProvider);
   unawaited(
     showDialog<void>(
       context: context,
@@ -214,7 +207,7 @@ Future<bool> _moveToVault(
       ),
     ),
   );
-  await awake.hold();
+  final hold = awake.hold();
   final VaultMoveReport report;
   try {
     report = await container
@@ -233,7 +226,7 @@ Future<bool> _moveToVault(
     navigator.pop();
     done.dispose();
     fraction.dispose();
-    await awake.release();
+    hold.release();
     if (!wasOpen) session.lock();
   }
   messenger?.showSnackBar(

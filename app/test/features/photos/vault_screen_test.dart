@@ -1026,6 +1026,35 @@ void main() {
     );
 
     testWidgets(
+      'PRIV-007 locked just after the file opens, the engine is never opened',
+      (tester) async {
+        final engine = FakePlaybackEngine();
+        final music = FakePlaybackEngine(role: EngineRole.music);
+        await music.open(UriSource(Uri.parse('file:///song.mp3')));
+        await music.play();
+        await seeded(tester, names: ['holiday.mp4']);
+        await open(tester, engine: engine, music: music);
+        await typePin(tester, '246810');
+        final scope = ProviderScope.containerOf(
+          tester.element(find.byType(Scaffold).last),
+        );
+        // The lock arrives as the screen is taken for the player: after the
+        // file is open, before the engine is.
+        display.onHold = () => scope.read(vaultSessionProvider.notifier).lock();
+        await tester.tap(find.bySemanticsLabel('holiday.mp4'));
+        for (var i = 0; i < 20; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(engine.calls, isNot(contains('open')));
+        expect(engine.openedSource, isNull);
+        expect(display.awake, [true, false]);
+      },
+    );
+
+    testWidgets(
       'PRIV-007 the screen stays on while it plays and may sleep after',
       (tester) async {
         final engine = FakePlaybackEngine();

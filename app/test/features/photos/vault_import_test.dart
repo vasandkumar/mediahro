@@ -178,6 +178,40 @@ void main() {
       );
     });
 
+    test('PRIV-007 an fd the reader never took over is closed', () async {
+      final io = _Closes(100);
+      final r = await openPickedStream(
+        _Storage(),
+        Uri.parse('content://media/doc/3'),
+        io: io,
+        openReader: (fd) async => throw const FileSystemException('no worker'),
+      );
+      await expectLater(
+        r.content.toList(),
+        throwsA(isA<FileSystemException>()),
+      );
+      // The probe's fd, then the one the reader would have owned.
+      expect(io.closed, [100, 101]);
+    });
+
+    test(
+      'PRIV-007 a reader whose worker dies fails the read instead of hanging',
+      () async {
+        final reader = await IsolateFdReader.open(-1);
+        reader.killWorker();
+        await expectLater(
+          reader.read(0, 10).timeout(const Duration(seconds: 10)),
+          throwsA(isA<FileSystemException>()),
+        );
+        await reader.close().timeout(const Duration(seconds: 10));
+        // Later reads fail at once.
+        await expectLater(
+          reader.read(0, 10),
+          throwsA(isA<FileSystemException>()),
+        );
+      },
+    );
+
     test('PRIV-007 cancelling the stream closes the file', () async {
       final f = File('${dir.path}/c.bin')..writeAsBytesSync(bytes(3 << 20));
       final r = await openPickedStream(_Storage(), f.uri);
