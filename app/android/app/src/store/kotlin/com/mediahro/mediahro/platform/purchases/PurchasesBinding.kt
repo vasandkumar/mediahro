@@ -185,6 +185,8 @@ internal class PlayBillingModule(
             return outcome.await()
         } finally {
             waiting = null
+            // The sheet is closed: the idle disconnect counts from now (it skips while a purchase is open).
+            touch()
         }
     }
 
