@@ -163,6 +163,16 @@ final class ThumbnailCache {
     if (_total != null) _total = _total! - bytes;
   }
 
+  /// Removes the entries for [keys] (a photo that left the library).
+  Future<void> forget(Iterable<String> keys) async {
+    for (final key in keys) {
+      final row = await (db.select(
+        db.thumbCache,
+      )..where((t) => t.key.equals(key))).getSingleOrNull();
+      if (row != null) await _drop(row.key, row.bytes);
+    }
+  }
+
   /// Removes everything (Settings → clear thumbnail cache).
   Future<void> clear() async {
     _touched.clear();
