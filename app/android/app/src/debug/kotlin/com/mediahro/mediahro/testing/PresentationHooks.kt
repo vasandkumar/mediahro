@@ -58,8 +58,11 @@ internal object PresentationHooks {
         return virtual.display.displayId.toString()
     }
 
+    /** The middle pixel of the newest image; the one before it when no new image has arrived since. */
+    private var lastPixel: Int? = null
+
     private fun pixel(): Int? {
-        val image = reader?.acquireLatestImage() ?: return null
+        val image = reader?.acquireLatestImage() ?: return lastPixel
         image.use {
             val plane = it.planes[0]
             val x = WIDTH / 2
@@ -69,7 +72,7 @@ internal object PresentationHooks {
             val r = b.get(at).toInt() and 0xff
             val g = b.get(at + 1).toInt() and 0xff
             val bl = b.get(at + 2).toInt() and 0xff
-            return (0xff shl 24) or (r shl 16) or (g shl 8) or bl
+            return ((0xff shl 24) or (r shl 16) or (g shl 8) or bl).also { lastPixel = it }
         }
     }
 
@@ -77,6 +80,7 @@ internal object PresentationHooks {
         display?.release()
         reader?.close()
         display = null
+        lastPixel = null
         reader = null
     }
 

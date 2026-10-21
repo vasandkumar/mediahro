@@ -14,6 +14,10 @@ import 'package:mediahro/platform/platform_facades.dart';
 /// amendment 1). The phone has no second screen, so a debug-only hook
 /// (`mediahro.test/vdisplay`) makes a virtual presentation display drawn into
 /// an ImageReader; the test shows frames on it and reads the middle pixel back.
+///
+/// Every step that talks to the native side has a timeout, and the
+/// presentation and the virtual display are always released in a `finally`,
+/// so a failing test cannot leave a window on a display or hang the run.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   final android = Platform.isAndroid;
@@ -22,6 +26,12 @@ void main() {
     'mediahro.test/vdisplay',
     StandardMessageCodec(),
   );
+  const step = Duration(seconds: 15);
+
+  /// Runs [f] on the real event loop, failing instead of hanging.
+  Future<T?> real<T>(WidgetTester tester, Future<T> Function() f) =>
+      tester.runAsync(() => f().timeout(step));
+
   Future<String> createDisplay() async =>
       (await hook.send(['create']))! as String;
   Future<int?> pixel() async => (await hook.send(['pixel'])) as int?;
@@ -49,7 +59,7 @@ void main() {
     (int, int, int)? last;
     final end = DateTime.now().add(Duration(seconds: seconds));
     while (DateTime.now().isBefore(end)) {
-      final p = await tester.runAsync(pixel);
+      final p = await real(tester, pixel);
       if (p != null) {
         last = ((p >> 16) & 0xff, (p >> 8) & 0xff, p & 0xff);
         if (test(last.$1, last.$2, last.$3)) return last;
@@ -59,6 +69,39 @@ void main() {
       );
     }
     fail('the display never showed the expected colour; last pixel: $last');
+  }
+
+  /// A virtual external display with a presentation on it, released at the
+  /// end whatever happens: the presentation first, then the display.
+  Future<void> withPresentation(
+    WidgetTester tester,
+    AndroidDisplay display,
+    Future<void> Function(String id, PresentationHandle handle) body,
+  ) async {
+    final id = await real(tester, createDisplay);
+    expect(id, isNotNull);
+    PresentationHandle? handle;
+    try {
+      handle = await real<PresentationHandle?>(
+        tester,
+        () => display.openPresentation(id!),
+      );
+      expect(handle, isNotNull, reason: 'no presentation on display $id');
+      await body(id!, handle!);
+    } finally {
+      if (handle != null) {
+        try {
+          await real(tester, () => display.closePresentation(handle!));
+        } on Object {
+          // Already closed (the display went away) or the native side is slow.
+        }
+      }
+      try {
+        await real(tester, () => hook.send(['release']));
+      } on Object {
+        // Nothing more can be done from here; the next test creates its own.
+      }
+    }
   }
 
   testWidgets('ADR-044 Android bindings provide the display facade', (
@@ -78,87 +121,92 @@ void main() {
     'IMG-012 frames appear on the external display, a clear goes black, and removal closes it',
     (tester) async {
       final display = AndroidDisplay();
-      final id = await tester.runAsync(createDisplay);
-      addTearDown(() => hook.send(['release']));
-      expect(id, isNotNull);
-      final listed = await tester.runAsync(display.displays);
-      expect(listed!.where((d) => d.id == id && d.isExternal), hasLength(1));
+      await withPresentation(tester, display, (id, handle) async {
+        final listed = await real(tester, display.displays);
+        expect(listed!.where((d) => d.id == id && d.isExternal), hasLength(1));
+        expect(handle.displayId, id);
 
-      final handle = await tester.runAsync(() => display.openPresentation(id!));
-      expect(handle, isNotNull);
-      expect(handle!.displayId, id);
-
-      // Red, then green with a crossfade, then clear (black).
-      final red = await solid(tester, const ui.Color(0xFFFF0000));
-      final green = await solid(tester, const ui.Color(0xFF00FF00));
-      await tester.runAsync(
-        () => display.present(
-          handle,
-          PresentationFrame(image: red, fit: BoxFit.fill),
-        ),
-      );
-      await pixelWhere(tester, (r, g, b) => r > 200 && g < 60 && b < 60);
-
-      await tester.runAsync(
-        () => display.present(
-          handle,
-          PresentationFrame(
-            image: green,
-            fit: BoxFit.fill,
-            transition: PresentationTransition.crossfade,
-            transitionDuration: const Duration(milliseconds: 300),
+        // Red, then green with a crossfade, then clear (black).
+        final red = await solid(tester, const ui.Color(0xFFFF0000));
+        final green = await solid(tester, const ui.Color(0xFF00FF00));
+        await real(
+          tester,
+          () => display.present(
+            handle,
+            PresentationFrame(image: red, fit: BoxFit.fill),
           ),
-        ),
-      );
-      await pixelWhere(tester, (r, g, b) => g > 200 && r < 60 && b < 60);
+        );
+        await pixelWhere(tester, (r, g, b) => r > 200 && g < 60 && b < 60);
 
-      await tester.runAsync(
-        () => display.present(handle, PresentationFrame.clear),
-      );
-      await pixelWhere(tester, (r, g, b) => r < 30 && g < 30 && b < 30);
+        await real(
+          tester,
+          () => display.present(
+            handle,
+            PresentationFrame(
+              image: green,
+              fit: BoxFit.fill,
+              transition: PresentationTransition.crossfade,
+              transitionDuration: const Duration(milliseconds: 300),
+            ),
+          ),
+        );
+        await pixelWhere(tester, (r, g, b) => g > 200 && r < 60 && b < 60);
 
-      // The display goes away: the presentation closes by itself.
-      await tester.runAsync(() => hook.send(['release']));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 1)),
-      );
-      await tester.runAsync(
-        () => display.present(handle, PresentationFrame(image: red)),
-      );
-      await tester.runAsync(() => display.closePresentation(handle));
-      expect(
-        await tester.runAsync(() => display.openPresentation(id!)),
-        isNull,
-      );
+        await real(
+          tester,
+          () => display.present(handle, PresentationFrame.clear),
+        );
+        await pixelWhere(tester, (r, g, b) => r < 30 && g < 30 && b < 30);
+
+        // The display goes away: the presentation closes by itself.
+        await real(tester, () => hook.send(['release']));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(seconds: 1)),
+        );
+        await real(
+          tester,
+          () => display.present(handle, PresentationFrame(image: red)),
+        );
+        await real(tester, () => display.closePresentation(handle));
+        expect(
+          await real<PresentationHandle?>(
+            tester,
+            () => display.openPresentation(id),
+          ),
+          isNull,
+        );
+      });
     },
     skip: !android,
+    timeout: const Timeout(Duration(minutes: 3)),
   );
 
-  testWidgets('IMG-012 a caption and a pan-and-zoom frame are accepted', (
-    tester,
-  ) async {
-    final display = AndroidDisplay();
-    final id = await tester.runAsync(createDisplay);
-    addTearDown(() => hook.send(['release']));
-    final handle = await tester.runAsync(() => display.openPresentation(id!));
-    expect(handle, isNotNull);
-    final blue = await solid(tester, const ui.Color(0xFF0000FF));
-    await tester.runAsync(
-      () => display.present(
-        handle!,
-        PresentationFrame(
-          image: blue,
-          fit: BoxFit.cover,
-          caption: 'Test',
-          motion: const PresentationMotion(
-            from: ui.Rect.fromLTRB(0, 0, 1, 1),
-            to: ui.Rect.fromLTRB(0.25, 0.25, 0.75, 0.75),
-            duration: Duration(seconds: 4),
+  testWidgets(
+    'IMG-012 a caption and a pan-and-zoom frame are accepted',
+    (tester) async {
+      final display = AndroidDisplay();
+      await withPresentation(tester, display, (id, handle) async {
+        final blue = await solid(tester, const ui.Color(0xFF0000FF));
+        await real(
+          tester,
+          () => display.present(
+            handle,
+            PresentationFrame(
+              image: blue,
+              fit: BoxFit.cover,
+              caption: 'Test',
+              motion: const PresentationMotion(
+                from: ui.Rect.fromLTRB(0, 0, 1, 1),
+                to: ui.Rect.fromLTRB(0.25, 0.25, 0.75, 0.75),
+                duration: Duration(seconds: 4),
+              ),
+            ),
           ),
-        ),
-      ),
-    );
-    await pixelWhere(tester, (r, g, b) => b > 150 && r < 100 && g < 100);
-    await tester.runAsync(() => display.closePresentation(handle!));
-  }, skip: !android);
+        );
+        await pixelWhere(tester, (r, g, b) => b > 150 && r < 100 && g < 100);
+      });
+    },
+    skip: !android,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }
