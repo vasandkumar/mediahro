@@ -12,8 +12,7 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/platform/android/gen/purchases_api.pigeon.dart',
-    kotlinOut:
-        'android/app/src/main/kotlin/com/mediahro/mediahro/pigeon/PurchasesApi.g.kt',
+    kotlinOut: 'android/app/src/main/kotlin/com/mediahro/mediahro/pigeon/PurchasesApi.g.kt',
     kotlinOptions: KotlinOptions(
       // Shares FlutterError and the event-channel classes of StorageApi.g.kt.
       package: 'com.mediahro.mediahro.pigeon',

@@ -3,6 +3,8 @@ package com.mediahro.mediahro.platform.purchases
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -57,11 +59,29 @@ internal class PlayBillingModule(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val connecting = Mutex()
 
-    private val client: BillingClient = BillingClient.newBuilder(context)
+    private val main = Handler(Looper.getMainLooper())
+
+    private fun newClient(): BillingClient = BillingClient.newBuilder(context)
         .setListener(this)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .enableAutoServiceReconnection()
         .build()
+
+    /** Built on the first call and rebuilt after an idle disconnect; nothing connects at app start. */
+    private var client: BillingClient = newClient()
+
+    /** Ends the connection once the tip screen has been quiet for [IDLE_MS] and no purchase is open. */
+    private val idle = Runnable {
+        if (waiting == null && client.isReady) {
+            client.endConnection()
+            client = newClient()
+        }
+    }
+
+    private fun touch() {
+        main.removeCallbacks(idle)
+        main.postDelayed(idle, IDLE_MS)
+    }
 
     /** Product id to `ProductType`, learned from product queries. */
     private val kinds = ConcurrentHashMap<String, String>()
@@ -70,6 +90,7 @@ internal class PlayBillingModule(
     @Volatile private var waiting: Pair<String, CompletableDeferred<PurchaseResultMsg>>? = null
 
     private suspend fun ready(): Boolean {
+        touch()
         if (client.isReady) return true
         return connecting.withLock {
             if (client.isReady) return@withLock true
@@ -243,12 +264,16 @@ internal class PlayBillingModule(
     }
 
     override fun close() {
+        main.removeCallbacks(idle)
         scope.cancel()
         waiting?.second?.cancel()
         if (client.isReady) client.endConnection()
     }
 
     companion object {
+        /** The connection ends this long after the last call (the user left the tip screen). */
+        const val IDLE_MS = 60_000L
+
         fun stateOf(code: Int): PurchaseStateMsg = when (code) {
             BillingClient.BillingResponseCode.OK -> PurchaseStateMsg.PURCHASED
             BillingClient.BillingResponseCode.USER_CANCELED -> PurchaseStateMsg.CANCELLED
