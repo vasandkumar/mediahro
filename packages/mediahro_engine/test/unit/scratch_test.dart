@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_engine/src/mpv/audio_decoder.dart';
+import 'package:mediahro_engine/src/mpv/audio_tapper.dart';
 import 'package:mediahro_engine/src/mpv/pcm_storage.dart';
 import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
@@ -89,6 +90,37 @@ void main() {
             ),
           ),
         );
+      },
+    );
+
+    test(
+      'PRIV-007 the visualiser tap of a protected source writes no file',
+      () async {
+        if (Platform.isAndroid || Platform.isLinux) {
+          return; // memfd exists there: the tap works from RAM
+        }
+        Set<String> folders() => scratchParent.existsSync()
+            ? scratchParent.listSync().map((e) => e.path).toSet()
+            : <String>{};
+        final before = folders();
+        final tap = AnalysisTap(
+          frames: 256,
+          source: () => UriSource(Uri.file('/m/a.mkv'), sensitive: true),
+          item: () => 1,
+          position: () => const Duration(seconds: 3),
+          playing: () => true,
+          isLocal: () => true,
+          dumpCache: (a, b, path) async => false,
+          period: const Duration(milliseconds: 10),
+        );
+        final frames = <AudioTapFrame>[];
+        final sub = tap.stream.listen(frames.add);
+        // Several ticks: each would make PCM storage and start a core.
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(tap.active, isFalse, reason: 'no analysis core was started');
+        expect(frames, isEmpty);
+        expect(folders(), before, reason: 'no scratch folder was made');
+        await sub.cancel();
       },
     );
 
@@ -284,20 +316,42 @@ void main() {
             .writeAsBytesSync([1]);
         _age(active, const Duration(hours: 3));
         // The folders earlier versions made directly in the temp directory.
-        final legacy = Directory.systemTemp.createTempSync('mediahro-pcm');
-        File('${legacy.path}${Platform.pathSeparator}audio.pcm')
-            .writeAsBytesSync([2]);
-        _age(legacy, const Duration(hours: 3));
+        final legacies = [
+          for (final name in [
+            'mediahro-pcm',
+            'mediahro-subx',
+            'mediahro-subimg',
+            'mediahro-cast',
+            'mediahro-shot',
+            'mediahro-disc',
+            'mh-subs',
+          ])
+            Directory.systemTemp.createTempSync(name),
+        ];
+        for (final legacy in legacies) {
+          File('${legacy.path}${Platform.pathSeparator}data')
+              .writeAsBytesSync([2]);
+          _age(legacy, const Duration(hours: 3));
+        }
+        // A recent one of another process is left alone.
+        final recent = Directory.systemTemp.createTempSync('mediahro-cast');
+        File('${recent.path}${Platform.pathSeparator}data')
+            .writeAsBytesSync([3]);
         addTearDown(() async {
           await deleteScratch(fresh);
           await deleteScratch(active);
-          if (legacy.existsSync()) legacy.deleteSync(recursive: true);
+          for (final d in [...legacies, recent]) {
+            if (d.existsSync()) d.deleteSync(recursive: true);
+          }
         });
 
         await sweepStaleScratch();
 
         expect(old.existsSync(), isFalse, reason: 'stale folder swept');
-        expect(legacy.existsSync(), isFalse, reason: 'legacy folder swept');
+        for (final legacy in legacies) {
+          expect(legacy.existsSync(), isFalse, reason: 'legacy $legacy swept');
+        }
+        expect(recent.existsSync(), isTrue, reason: 'recent one kept');
         expect(fresh.existsSync(), isTrue, reason: 'recent work kept');
         expect(active.existsSync(), isTrue, reason: 'in use by this process');
       },

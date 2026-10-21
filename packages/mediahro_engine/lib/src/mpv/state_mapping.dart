@@ -337,9 +337,13 @@ AudioOutputInfo audioOutputInfo({
   required bool dspActive,
   String? device,
   String? ao,
+  bool dop = false,
 }) {
   if (output == null) {
-    return AudioOutputInfo(device: device);
+    return AudioOutputInfo(
+      device: device,
+      path: dop ? AudioOutputPath.dop : AudioOutputPath.unknown,
+    );
   }
   final outFormat = output['format'] as String?;
   final outRate = _int(output['samplerate']);
@@ -348,7 +352,10 @@ AudioOutputInfo audioOutputInfo({
   final inFormat = decoded?['format'] as String?;
   final inChannels = _int(decoded?['channel-count']);
   final AudioOutputPath path;
-  if (outFormat != null && outFormat.startsWith('spdif')) {
+  if (dop) {
+    // DSD over PCM: bit-exact 24-bit samples, whatever the mixer does.
+    path = AudioOutputPath.dop;
+  } else if (outFormat != null && outFormat.startsWith('spdif')) {
     path = AudioOutputPath.passthrough;
   } else if (inRate != null && outRate != null && inRate != outRate ||
       inChannels != null && outChannels != null && inChannels != outChannels) {

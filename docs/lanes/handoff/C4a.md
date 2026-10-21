@@ -38,3 +38,9 @@ The Opus session for this lane is retired. You continue its work from the same f
   - Android builds need `GRADLE_OPTS=-Dorg.gradle.project.kotlin.incremental=false` (also in gradle.properties).
   - Delete `packages/mediahro_engine/android/.cxx` if CMake complains after a crash.
   - Check that no other heavy build is running before each APK build.
+
+## Queue (orchestrator, 2026-10-21)
+
+- **ADR-044 on Android:** DisplayFacade.openPresentation/closePresentation via android.app.Presentation hosting a FlutterView (or a texture from the same engine), closed on display disconnect. C3's slideshow is already wired to it.
+- **AUD-043 safety:** wire Android audio route changes (AudioDeviceCallback add/remove, ACTION_AUDIO_BECOMING_NOISY, headset plug) to the engine's audioRouteChanged() (B1 #102). The UI must not offer native DSD until this is in.
+- **Privacy (PR #104 review M4):** PhotoLibraryModule.kt pairedVideo (around lines 118-138) writes the motion-photo video to cacheDir/motion/<id>.mp4 in plaintext, and nothing removes it when the photo moves to the vault. Prefer not writing the file at all (serve the range from the original, as C3's RangeFile does in Dart); otherwise delete it on vault move-in or item delete, and sweep the folder at start-up. If it needs a facade change, file an ADR request.

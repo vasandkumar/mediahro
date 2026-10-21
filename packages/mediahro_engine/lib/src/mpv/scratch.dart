@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
@@ -33,6 +34,17 @@ const EngineException sensitiveNeedsMemory = EngineException(
 );
 
 const String _parentName = 'mediahro-scratch';
+
+// Folders earlier versions made directly in the temporary directory.
+const List<String> _legacyPrefixes = [
+  'mediahro-pcm',
+  'mediahro-subx',
+  'mediahro-subimg',
+  'mediahro-cast',
+  'mediahro-shot',
+  'mediahro-disc',
+  'mh-subs',
+];
 
 // Folders of this process that are in use (never swept).
 final Set<String> _active = {};
@@ -81,32 +93,53 @@ Future<void> sweepOnce() async {
 /// Deletes scratch folders of earlier runs (crash or kill before cleanup),
 /// and the older per-feature folders that sat directly in the temporary
 /// directory. A folder counts as stale when nothing in it changed for
-/// [olderThan] and this process is not using it.
+/// [olderThan] and this process is not using it. The scan runs in an
+/// isolate: it happens at start-up and a temporary directory can hold
+/// thousands of entries.
 Future<void> sweepStaleScratch({
   Duration olderThan = const Duration(hours: 1),
 }) async {
+  // Read here: the isolate has globals of its own.
+  final parent = scratchParent.path;
+  final temp = Directory.systemTemp.path;
+  final active = _active.toList();
+  try {
+    await Isolate.run(() => _sweepNow(parent, temp, olderThan, active));
+  } on Object {
+    // A sweep that cannot run is not an error for the app.
+  }
+}
+
+void _sweepNow(
+  String parentPath,
+  String tempPath,
+  Duration olderThan,
+  List<String> active,
+) {
   final now = DateTime.now();
   final candidates = <Directory>[];
   try {
-    final parent = scratchParent;
+    final parent = Directory(parentPath);
     if (parent.existsSync()) {
       candidates.addAll(parent.listSync().whereType<Directory>());
     }
     candidates.addAll(
-      Directory.systemTemp.listSync().whereType<Directory>().where((d) {
+      Directory(tempPath).listSync().whereType<Directory>().where((d) {
         final name = d.uri.pathSegments.where((s) => s.isNotEmpty).last;
-        return name.startsWith('mediahro-pcm') ||
-            name.startsWith('mediahro-subx') ||
-            name.startsWith('mediahro-subimg');
+        return _legacyPrefixes.any(name.startsWith);
       }),
     );
   } on FileSystemException {
     return;
   }
   for (final dir in candidates) {
-    if (_active.contains(dir.path)) continue;
+    if (active.contains(dir.path)) continue;
     if (now.difference(_newestChange(dir)) < olderThan) continue;
-    await deleteScratch(dir);
+    try {
+      dir.deleteSync(recursive: true);
+    } on FileSystemException {
+      // In use elsewhere; the next start tries again.
+    }
   }
 }
 

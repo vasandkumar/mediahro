@@ -387,6 +387,9 @@ final class CrossfadingEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> audioRouteChanged() => _both((e) => e.audioRouteChanged());
+
+  @override
   Stream<AudioTapFrame> audioTap({int frames = 1024}) => Stream.multi((out) {
     // Follows the core that is playing, across crossfades (AUD-046).
     StreamSubscription<AudioTapFrame>? sub;
