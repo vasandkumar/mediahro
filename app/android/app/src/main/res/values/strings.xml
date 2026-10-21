@@ -70,4 +70,6 @@
         <item>stable</item>
         <item>beta</item>
     </string-array>
+    <!-- Shown by the system prompt that unlocks the photo vault (IMG-011). -->
+    <string name="mediahro_vault_unlock">Unlock your photo vault</string>
 </resources>

@@ -72,6 +72,10 @@ void main() {
     expect(manifest.contains('RECEIVE_BOOT_COMPLETED'), isFalse);
   });
 
+  test('IMG-011 the vault may detect screen recording (Android 15+)', () {
+    expect(has('DETECT_SCREEN_RECORDING'), isTrue);
+  });
+
   test('SYS-007 legacy storage permission stops at API 32', () {
     expect(
       RegExp(r'READ_EXTERNAL_STORAGE"\s+android:maxSdkVersion="32"')

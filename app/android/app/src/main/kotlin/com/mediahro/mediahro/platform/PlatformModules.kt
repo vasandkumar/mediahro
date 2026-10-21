@@ -71,6 +71,7 @@ import com.mediahro.mediahro.platform.system.IncomingIntents
 import com.mediahro.mediahro.platform.system.IntentsModule
 import com.mediahro.mediahro.platform.system.SystemModule
 import com.mediahro.mediahro.platform.tls.TlsHub
+import com.mediahro.mediahro.platform.vault.VaultModules
 import com.mediahro.mediahro.platform.widgets.HomeWidgetsModule
 import com.mediahro.mediahro.platform.tls.TlsServerModule
 import com.mediahro.mediahro.platform.tls.TlsSocketModule
@@ -240,6 +241,8 @@ object PlatformModules {
         GamepadAxesStreamHandler.register(messenger, gamepadModule.axesHandler)
         // Managed configuration and kiosk (B2B-001/002).
         EnterpriseModules.register(context.applicationContext, host, messenger)
+        // Vault crypto and the secure window (IMG-011, ADR-039).
+        VaultModules.register(context.applicationContext, host, messenger)
         debugHooks(host, engine)
     }
 

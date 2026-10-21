@@ -26,6 +26,7 @@ internal object WindowHooks {
                 reply.reply(
                     mapOf(
                         "keepScreenOn" to ((attrs.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0),
+                        "secure" to ((attrs.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0),
                         "brightness" to attrs.screenBrightness.toDouble(),
                         "orientation" to activity.requestedOrientation,
                         "preferredModeId" to attrs.preferredDisplayModeId,

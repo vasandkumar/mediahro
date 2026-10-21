@@ -16,6 +16,7 @@ import 'package:mediahro/platform/android/android_storage.dart';
 import 'package:mediahro/platform/android/android_system.dart';
 import 'package:mediahro/platform/android/android_text.dart';
 import 'package:mediahro/platform/android/android_tls.dart';
+import 'package:mediahro/platform/android/android_vault.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 
 /// Facade implementations for Android (Kotlin, Media3) through Pigeon files in app/pigeons/android/
@@ -49,6 +50,8 @@ List<Override> overrides() => [
   sftpProvider.overrideWithValue(AndroidSftp()),
   accessibilityPrefsProvider.overrideWithValue(AndroidAccessibilityPrefs()),
   gamepadProvider.overrideWithValue(AndroidGamepad()),
+  vaultCryptoProvider.overrideWithValue(AndroidVaultCrypto()),
+  secureWindowProvider.overrideWithValue(AndroidSecureWindow()),
   imagingProvider.overrideWithValue(AndroidImaging()),
   managedConfigProvider.overrideWithValue(AndroidManagedConfig()),
   kioskProvider.overrideWithValue(AndroidKiosk()),
