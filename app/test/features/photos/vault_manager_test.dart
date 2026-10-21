@@ -751,6 +751,16 @@ void main() {
       expect((await manager.openWithPin('246810')).isOpen, isFalse);
     });
 
+    test('PRIV-007 the fingerprint opens when both new files were written, not damaged', () async {
+      state(secretNext: true, saltNext: true);
+      final r = await manager.openWithFingerprint();
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      await r.vault!.close();
+      expect(File('${dir.path}/salt.next').existsSync(), isFalse);
+      expect(File('${dir.path}/secret.mv.next').existsSync(), isFalse);
+      expect((await manager.openWithPin('555555')).isOpen, isTrue);
+    });
+
     test('PRIV-007 half-written files are swept at the next open', () async {
       File('${dir.path}/abc.tm.part').writeAsBytesSync([1, 2, 3]);
       File('${dir.path}/salt.part').writeAsBytesSync([1, 2, 3]);
