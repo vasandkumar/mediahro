@@ -24,6 +24,7 @@ import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/mpv_options.dart';
 import 'package:mediahro_engine/src/mpv/playlist_files.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_engine/src/mpv/software_renderer.dart';
 import 'package:mediahro_engine/src/mpv/stall_guard.dart';
 import 'package:mediahro_engine/src/mpv/state_mapping.dart';
@@ -97,7 +98,10 @@ final class MpvEngineConfig {
 /// on a separate isolate.
 final class MpvEngine implements PlaybackEngine {
   MpvEngine(this.role, {this.config = const MpvEngineConfig()})
-    : platform = config.platform ?? EnginePlatform.current;
+    : platform = config.platform ?? EnginePlatform.current {
+    // Leftovers of a crashed run (decoded PCM, subtitle dumps) go at start-up.
+    unawaited(sweepOnce());
+  }
 
   /// Whether libmpv can be loaded in this process (feature detection).
   static bool get isAvailable => Libmpv.isAvailable();
@@ -1057,8 +1061,9 @@ final class MpvEngine implements PlaybackEngine {
     } on FileSystemException {
       return null;
     }
-    if (kind == null) return null;
-    final dir = _tempDir ??= await Directory.systemTemp.createTemp('mh-subs');
+    // The converted copy would be plaintext on disk.
+    if (kind == null || isSensitiveSource(_source)) return null;
+    final dir = _tempDir ??= await createScratch('subs');
     final out = File(
       '${dir.path}${Platform.pathSeparator}${dir.listSync().length}.srt',
     );
@@ -1385,6 +1390,8 @@ final class MpvEngine implements PlaybackEngine {
     bool subtitles = false,
   }) async {
     final src = _source;
+    // The clip is a file written for the caller; protected media is not.
+    if (isSensitiveSource(src)) throw sensitiveNeedsMemory;
     if (src == null || end <= start || out.scheme != 'file') {
       throw EngineException(
         EngineError(
@@ -1424,6 +1431,8 @@ final class MpvEngine implements PlaybackEngine {
   // The open source and its embedded subtitle track [trackId].
   (MediaSource, Track) _embeddedSubtitle(int trackId) {
     final src = _source;
+    // The dump is a disk file; protected media never goes to disk.
+    if (isSensitiveSource(src)) throw sensitiveNeedsMemory;
     final track = _state.tracks
         .where((t) => t.type == TrackType.subtitle && t.id == trackId)
         .firstOrNull;
@@ -1579,6 +1588,8 @@ final class MpvEngine implements PlaybackEngine {
     ScreenshotFormat format = ScreenshotFormat.png,
   }) async {
     final c = await _live();
+    // mpv writes the frame to a file first; protected media never is.
+    if (isSensitiveSource(_source)) throw sensitiveNeedsMemory;
     if (c == null || _source == null) {
       throw const EngineException(
         EngineError(
@@ -1638,7 +1649,8 @@ final class MpvEngine implements PlaybackEngine {
     _software?.dispose();
     await client?.destroy();
     await _protocol?.dispose();
-    await _tempDir?.delete(recursive: true).catchError((Object _) => _tempDir!);
+    final subs = _tempDir;
+    if (subs != null) await deleteScratch(subs);
     await _controller.close();
   }
 }

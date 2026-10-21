@@ -2,6 +2,7 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:meta/meta.dart';
 
 /// Where analysis PCM lives (AUD-046 tap, ADR-032 decode), kept off flash
@@ -42,7 +43,16 @@ final class PcmStorage {
   @visibleForTesting
   static void Function(int fd)? fdCloser;
 
-  static Future<PcmStorage> create({bool slice = true}) async {
+  /// Storage for [slice]d or plain PCM. With [memoryOnly] (protected media)
+  /// the PCM is never written to disk: where no RAM-backed file is usable
+  /// this throws [sensitiveNeedsMemory] instead of falling back to a
+  /// temporary file. Files of the fallback live in a private scratch folder
+  /// (see `createScratch`), are deleted on [dispose], and a crash's leftovers
+  /// are swept at the next start.
+  static Future<PcmStorage> create({
+    bool slice = true,
+    bool memoryOnly = false,
+  }) async {
     final opener = memfdOpener;
     if (opener != null || Platform.isAndroid || Platform.isLinux) {
       final fds = <int>[];
@@ -61,7 +71,8 @@ final class PcmStorage {
       }
       fds.forEach(fdCloser ?? _close);
     }
-    final dir = await Directory.systemTemp.createTemp('mediahro-pcm');
+    if (memoryOnly) throw sensitiveNeedsMemory;
+    final dir = await createScratch('pcm');
     String file(String name) {
       final f = File('${dir.path}${Platform.pathSeparator}$name')
         ..writeAsBytesSync(const []);
@@ -102,8 +113,35 @@ final class PcmStorage {
     }
   }
 
+  late RandomAccessFile _reader;
+  bool _unlinked = false;
+
+  /// Whether the fallback file's name has been removed (see
+  /// [unlinkWhileOpen]).
+  bool get unlinked => _unlinked;
+
+  /// Removes the fallback file's name once mpv (which has written to it)
+  /// and [reader] both hold it open, so a crash cannot leave decoded audio
+  /// behind and nothing else can open it. The length is then read through
+  /// [reader]; [release] keeps working through the descriptor opened at
+  /// creation. POSIX file fallbacks only (Windows cannot delete an open
+  /// file; memfd has no name to remove): returns false there. Only for a
+  /// writer that keeps its file open, such as one decode; a writer that
+  /// reopens by path (the tap's slices) must not call it.
+  bool unlinkWhileOpen(RandomAccessFile reader) {
+    if (_dir == null || _unlinked || Platform.isWindows) return false;
+    try {
+      File(pcmPath).deleteSync();
+    } on FileSystemException {
+      return false;
+    }
+    _reader = reader;
+    _unlinked = true;
+    return true;
+  }
+
   /// Bytes of PCM written so far (released bytes included).
-  int get pcmLength => _length(pcmPath);
+  int get pcmLength => _unlinked ? _reader.lengthSync() : _length(pcmPath);
 
   /// Bytes of the current slice.
   int get sliceLength => slicePath == null ? 0 : _length(slicePath!);
@@ -132,9 +170,7 @@ final class PcmStorage {
     _puncher = null;
     _fds.forEach(fdCloser ?? _close);
     final dir = _dir;
-    if (dir != null) {
-      await dir.delete(recursive: true).catchError((Object _) => dir);
-    }
+    if (dir != null) await deleteScratch(dir);
   }
 }
 
@@ -158,8 +194,10 @@ final class _FdPuncher implements _Puncher {
             Int Function(Pointer<Utf8>, Int),
             int Function(Pointer<Utf8>, int)
           >('open');
-      // O_RDWR.
-      final fd = using((arena) => open(path.toNativeUtf8(allocator: arena), 2));
+      // O_RDWR | O_CLOEXEC: no child process inherits the descriptor.
+      final fd = using(
+        (arena) => open(path.toNativeUtf8(allocator: arena), 2 | 0x80000),
+      );
       return fd < 0 ? null : _FdPuncher(fd, ownsFd: true);
     } on Object {
       return null;

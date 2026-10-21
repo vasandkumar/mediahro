@@ -7,6 +7,7 @@ import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/mpv_options.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
@@ -77,6 +78,8 @@ final class CastTranscoder {
     String? libmpvPath,
     void Function(MpvLogMessage message)? onLog,
   }) async {
+    // The encoder writes the stream to a temporary directory.
+    if (isSensitiveSource(source)) throw sensitiveNeedsMemory;
     final candidates =
         encoders ?? castVideoEncoders(platform ?? EnginePlatform.current);
     Object? lastError;

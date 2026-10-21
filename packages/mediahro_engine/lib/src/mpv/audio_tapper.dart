@@ -8,6 +8,7 @@ import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/pcm_storage.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
 import 'package:mediahro_ffi/src/mpv/mpv.dart' show Libmpv;
@@ -197,7 +198,9 @@ final class AnalysisTap {
   Future<void> _restart(Duration from, {required bool local}) async {
     await _destroy();
     if (source() == null) return;
-    final storage = _storage = await PcmStorage.create();
+    final storage = _storage = await PcmStorage.create(
+      memoryOnly: isSensitiveSource(source()),
+    );
     final client = await MpvClient.create(
       options: {
         'config': 'no',
