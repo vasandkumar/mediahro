@@ -1,7 +1,6 @@
 package com.mediahro.mediahro.platform.display
 
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
@@ -58,7 +57,7 @@ private class HdrVideoPlatformView(
     private val waiting = mutableListOf<MethodChannel.Result>()
     private var created = false
     private var disposed = false
-    private val previousColorMode: Int? = host.activity?.window?.colorMode
+    private val window = host.activity?.window
 
     private val view = SurfaceView(context).apply {
         // 10-bit buffers let HDR10 and HLG keep their precision.
@@ -68,7 +67,7 @@ private class HdrVideoPlatformView(
     }
 
     init {
-        host.activity?.window?.colorMode = ActivityInfo.COLOR_MODE_HDR
+        window?.let(HdrWindowMode::acquire)
         channel.setMethodCallHandler(::onCall)
     }
 
@@ -109,6 +108,6 @@ private class HdrVideoPlatformView(
         waiting.clear()
         channel.setMethodCallHandler(null)
         view.holder.removeCallback(this)
-        previousColorMode?.let { mode -> main.post { host.activity?.window?.colorMode = mode } }
+        window?.let { w -> main.post { HdrWindowMode.release(w) } }
     }
 }
