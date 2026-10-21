@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import 'package:mediahro_engine/src/api/media_source.dart';
 import 'package:mediahro_engine/src/api/models.dart';
 import 'package:mediahro_engine/src/disc/udf.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 import 'package:meta/meta.dart';
 
@@ -437,7 +438,7 @@ abstract final class DiscReader {
   static Directory? _edlTemp;
 
   static Future<Directory> _edlDir() async =>
-      _edlTemp ??= await Directory.systemTemp.createTemp('mediahro-disc');
+      _edlTemp ??= await createScratch('disc');
 
   static int? _clipStart(Uint8List clpi) {
     if (clpi.length < 0x20 || String.fromCharCodes(clpi, 0, 4) != 'HDMV') {

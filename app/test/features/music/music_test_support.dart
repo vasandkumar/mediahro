@@ -224,6 +224,9 @@ final class ScriptedMusicEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> audioRouteChanged() async {}
+
+  @override
   Future<void> setAudioDsp(AudioDspChain chain) async => dsp = chain;
 
   @override

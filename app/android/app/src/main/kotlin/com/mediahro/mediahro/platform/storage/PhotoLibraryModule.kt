@@ -27,6 +27,14 @@ class PhotoLibraryModule(private val context: Context, private val host: Activit
     private val resolver: ContentResolver = context.contentResolver
     private val prefs = context.getSharedPreferences("mediahro.photos", Context.MODE_PRIVATE)
 
+    init {
+        // Earlier builds copied Motion Photo videos to cache/motion in plaintext (PR #104 review M4); remove them once.
+        if (!swept) {
+            swept = true
+            Thread({ File(context.cacheDir, "motion").deleteRecursively() }, "mediahro-motion-sweep").start()
+        }
+    }
+
     private val fullPermissions: List<String> =
         if (Build.VERSION.SDK_INT >= 33) {
             listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
@@ -116,29 +124,30 @@ class PhotoLibraryModule(private val context: Context, private val host: Activit
         out
     }
 
+    /**
+     * The Motion Photo's video as a URI served from the photo itself
+     * ([MotionVideoProvider]): nothing is copied to the cache, so no plaintext
+     * video can outlive the photo or be left behind when it moves into the
+     * vault (PR #104 review M4). Null when the photo has no video. Open the
+     * URI with `ContentResolver.openAssetFileDescriptor`.
+     */
     override suspend fun pairedVideo(assetId: String): String? = withContext(Dispatchers.IO) {
-        val uri = Uri.parse(assetId)
+        if (!MotionVideoUri.isServable(assetId)) throw FlutterError("invalidArgument", "Not a library photo", assetId)
         val pfd = try {
-            resolver.openFileDescriptor(uri, "r")
+            resolver.openFileDescriptor(Uri.parse(assetId), "r")
         } catch (e: SecurityException) {
             throw FlutterError("permissionDenied", e.message)
         } ?: return@withContext null
-        pfd.use {
-            FileInputStream(it.fileDescriptor).use { input ->
-                val range = MotionPhoto.videoRange(input.channel) ?: return@withContext null
-                val dir = File(context.cacheDir, "motion").apply { mkdirs() }
-                val out = File(dir, "${uri.lastPathSegment}.mp4")
-                if (!out.exists() || out.length() != range.last - range.first + 1) {
-                    out.outputStream().channel.use { dest ->
-                        input.channel.transferTo(range.first, range.last - range.first + 1, dest)
-                    }
-                }
-                Uri.fromFile(out).toString()
-            }
+        val hasVideo = pfd.use {
+            FileInputStream(it.fileDescriptor).use { input -> MotionPhoto.videoRange(input.channel) != null }
         }
+        if (hasVideo) MotionVideoUri.build("${context.packageName}.motion", assetId) else null
     }
 
     companion object {
         private const val KEY_ASKED = "asked"
+
+        @Volatile private var swept = false
+
     }
 }

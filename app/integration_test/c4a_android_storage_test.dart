@@ -362,7 +362,20 @@ void main() {
       expect(asset.uri.scheme, 'content');
       final video = await photos.pairedVideo(asset.id);
       expect(video, isNotNull);
-      expect(File.fromUri(video!).readAsBytesSync(), mp4);
+      // Served in place from the photo: a content URI, not a copy on disk.
+      expect(video!.scheme, 'content');
+      expect(video.authority, endsWith('.motion'));
+      const hook = BasicMessageChannel<Object?>(
+        'mediahro.test/motionvideo',
+        StandardMessageCodec(),
+      );
+      final served = (await hook.send('$video'))! as List<int>;
+      expect(served, mp4);
+      // Nothing was written to the cache (the old plaintext copy is gone).
+      expect(
+        Directory('${Directory.systemTemp.path}/motion').existsSync(),
+        isFalse,
+      );
       expect(await photos.access(), isIn(PhotoAccess.values));
     },
     skip: !android,

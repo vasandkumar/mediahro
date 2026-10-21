@@ -1063,6 +1063,63 @@
   "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type.",
   "photosVaultResetPending": "The reset will finish the next time the app starts.",
   "photosVaultResetFailed": "The reset could not be finished. Try again.",
+  "photosSlideshow": "Slideshow",
+  "photosSlideshowFailed": "None of these photos could be opened.",
+  "photosSlideshowEnded": "End of the slideshow",
+  "photosSlideshowAgain": "Play again",
+  "photosSlideshowClose": "Close slideshow",
+  "photosSlideshowPosition": "{place} of {total}",
+  "@photosSlideshowPosition": {
+    "placeholders": {
+      "place": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photosSlideshowMusicOn": "Music is playing",
+  "photosSlideshowOptions": "Slideshow options",
+  "photosSlideshowSlower": "Slower",
+  "photosSlideshowFaster": "Faster",
+  "photosSlideshowPrevious": "Previous photo",
+  "photosSlideshowNext": "Next photo",
+  "photosSlideshowPause": "Pause",
+  "photosSlideshowPlay": "Play",
+  "photosSlideshowSpeed": "Speed {speed}×",
+  "@photosSlideshowSpeed": {
+    "placeholders": {
+      "speed": {
+        "type": "String"
+      }
+    }
+  },
+  "photosSlideshowInterval": "{seconds, plural, =1{1 second per photo} other{{seconds} seconds per photo}}",
+  "@photosSlideshowInterval": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "photosSlideshowTransition": "Transition",
+  "photosSlideshowTransitionNone": "None",
+  "photosSlideshowTransitionFade": "Fade",
+  "photosSlideshowTransitionSlide": "Slide",
+  "photosSlideshowTransitionZoom": "Zoom",
+  "photosSlideshowKenBurns": "Slow zoom (Ken Burns)",
+  "photosSlideshowKenBurnsHint": "Each photo drifts and zooms gently. Off when your phone asks for reduced motion.",
+  "photosSlideshowRandom": "Random order",
+  "photosSlideshowLoop": "Loop",
+  "photosSlideshowMusic": "Music",
+  "photosSlideshowMusicNone": "None",
+  "photosSlideshowMusicLibrary": "Music library",
+  "photosSlideshowMusicPlaylist": "Playlist",
+  "photosSlideshowDone": "Done",
+  "photosSlideshowExternal": "Show on the external display",
+  "photosSlideshowExternalStop": "Show on this screen only",
+  "photosSlideshowExternalFailed": "That display cannot show the slideshow. It stays on this screen.",
   "photosArchives": "Comics and archives",
   "photosArchivesSubtitle": "Read ZIP, CBZ, RAR, CBR and 7z without unpacking",
   "photosReaderNotArchive": "That is not an archive the reader opens (ZIP, CBZ, RAR, CBR, 7z).",

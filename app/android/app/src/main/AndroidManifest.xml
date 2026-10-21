@@ -183,6 +183,11 @@
             </intent-filter>
         </activity>
         <!-- Shares app-private files as content URIs (FILE-002 share / open in). -->
+        <!-- Motion Photo videos served in place from the photo (IMG-016); read only by this app. -->
+        <provider
+            android:name="com.mediahro.mediahro.platform.storage.MotionVideoProvider"
+            android:authorities="${applicationId}.motion"
+            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

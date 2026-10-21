@@ -308,5 +308,60 @@ void adr031Suite() {
       skip: skip,
       timeout: const Timeout(Duration(minutes: 1)),
     );
+
+    test(
+      'PRIV-007 a sensitive source gets no converted subtitle copy on disk',
+      () async {
+        // External subtitles in a format mpv does not read are converted to
+        // an SRT file; for protected media that copy would be plaintext.
+        Future<List<String>> subsFolders({required bool sensitive}) async {
+          final e = headlessEngine();
+          addTearDown(e.dispose);
+          await e.open(
+            UriSource(
+              Uri.file(corpusPath('mkv_multitrack.mkv')),
+              sensitive: sensitive,
+            ),
+          );
+          await waitFor(e, (s) => s.tracks.isNotEmpty, reason: 'tracks');
+          try {
+            await e.addExternalTrack(
+              TrackType.subtitle,
+              Uri.file(corpusPath('subs.ttml')),
+            );
+          } on EngineException {
+            // Not converted, so mpv cannot read it: the safe outcome for a
+            // protected item.
+            expect(sensitive, isTrue, reason: 'only a protected item fails');
+          }
+          final parent = Directory(
+            '${Directory.systemTemp.path}${Platform.pathSeparator}'
+            'mediahro-scratch',
+          );
+          return [
+            if (parent.existsSync())
+              for (final d in parent.listSync().whereType<Directory>())
+                if (d.uri.pathSegments
+                    .where((s) => s.isNotEmpty)
+                    .last
+                    .startsWith('subs-'))
+                  d.path,
+          ];
+        }
+
+        expect(
+          await subsFolders(sensitive: true),
+          isEmpty,
+          reason: 'protected',
+        );
+        expect(
+          await subsFolders(sensitive: false),
+          isNotEmpty,
+          reason: 'ordinary item',
+        );
+      },
+      skip: skip,
+      timeout: const Timeout(Duration(minutes: 1)),
+    );
   });
 }
