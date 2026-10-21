@@ -11,7 +11,7 @@ Mediahro plays podcasts from the feeds you give it. There is no directory to bro
 - **⋮ → Import OPML** adds every podcast listed in an OPML file exported from another podcast app. Podcasts you already follow are skipped, and Mediahro tells you what could not be added.
 - **⋮ → Export OPML** saves your subscriptions as an OPML file to move to another app.
 
-Mediahro only contacts the feed address you gave it, the hosts that feed points to for episodes and artwork, and nothing else. Nothing is sent about you.
+Mediahro only contacts the feed address you gave it, the hosts that feed points to for episodes and artwork, and nothing else. Nothing is sent about you. The feed's own host is listed in **Settings → Privacy → Your feeds and stations** for as long as you are subscribed; removing it there unsubscribes too.
 
 ## Episodes
 

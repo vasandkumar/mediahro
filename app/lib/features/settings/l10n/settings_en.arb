@@ -622,5 +622,33 @@
   "settingsPrivacyServiceTrakt": "Trakt",
   "@settingsPrivacyServiceTrakt": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  }
+  },
+  "settingsPrivacyFeedHostsHeader": "Your feeds and stations",
+  "settingsPrivacyFeedHostsExplainer": "Podcasts you subscribed to and radio stations you added. Subscribing or adding a station allows that site's host, and nothing else. Removing a host here also unsubscribes or deletes what added it.",
+  "settingsPrivacyNoFeedHosts": "You haven't subscribed to a podcast or added a station.",
+  "settingsPrivacyFeedHostRemove": "Remove {host}",
+  "@settingsPrivacyFeedHostRemove": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPrivacyFeedHostRemoveTitle": "Remove {host}?",
+  "@settingsPrivacyFeedHostRemoveTitle": {
+    "placeholders": {
+      "host": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPrivacyFeedHostRemoveBody": "This unsubscribes from or deletes: {names}.",
+  "@settingsPrivacyFeedHostRemoveBody": {
+    "placeholders": {
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsPrivacyFeedHostRemoveAction": "Remove and unsubscribe"
 }

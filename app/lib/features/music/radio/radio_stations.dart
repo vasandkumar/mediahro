@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:mediahro/core/net/persistent_network_policy.dart'
+    show FeedHostRegistry;
 import 'package:mediahro/core/parsers/playlist_parser.dart';
 import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:meta/meta.dart';
@@ -83,10 +85,14 @@ bool isStreamUrl(Uri u) =>
 
 /// The user's stations, stored as `music.radio` in the library settings.
 final class RadioStations {
-  RadioStations(this.prefs, {math.Random? random})
+  RadioStations(this.prefs, {this.hosts, math.Random? random})
     : _random = random ?? math.Random();
 
   final MusicPrefs prefs;
+
+  /// Where a station's host is recorded as the user's own choice (PRIV-004),
+  /// listed in the privacy dashboard and removed with the station.
+  final FeedHostRegistry? hosts;
   final math.Random _random;
   final _changes = StreamController<List<RadioStation>>.broadcast();
   List<RadioStation>? _cache;
@@ -157,10 +163,31 @@ final class RadioStations {
   }
 
   Future<void> _store(List<RadioStation> list) async {
+    final before = _cache ?? const <RadioStation>[];
     _cache = list;
     await prefs.write('radio', [for (final s in list) s.toJson()]);
+    final kept = {for (final s in list) s.id};
+    for (final s in before) {
+      if (!kept.contains(s.id)) await hosts?.removeFeedOwner(owner(s.id));
+    }
+    await _recordHosts(list);
     if (!_changes.isClosed) _changes.add(list);
   }
+
+  /// The owner name a station's host is recorded under.
+  static String owner(String id) => 'radio:$id';
+
+  Future<void> _recordHosts(List<RadioStation> list) async {
+    final h = hosts;
+    if (h == null) return;
+    for (final s in list) {
+      await h.addFeedHost(s.url, owner: owner(s.id), label: s.name);
+    }
+  }
+
+  /// Records the hosts of the stations the user added before hosts were
+  /// recorded (they were added by the user, so this is their choice).
+  Future<void> syncHosts() async => _recordHosts(await all());
 
   Future<void> dispose() => _changes.close();
 }

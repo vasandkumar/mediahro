@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
@@ -19,6 +20,62 @@ final class EndpointState {
   final DateTime? lastUsed;
 }
 
+/// One host the user's own action allowed: a podcast subscription or a radio
+/// station (PRIV-004). Listed in the privacy dashboard with what added it.
+@immutable
+final class FeedHostEntry {
+  const FeedHostEntry({
+    required this.origin,
+    required this.owner,
+    required this.label,
+  });
+
+  /// `scheme://host[:port]`, normalised: lower case, default port dropped.
+  final String origin;
+
+  /// What added it, `podcast:<id>` or `radio:<id>`.
+  final String owner;
+
+  /// The feed's or station's name, for the dashboard.
+  final String label;
+
+  String get host => Uri.parse(origin).host;
+
+  Map<String, Object?> toJson() => {
+    'origin': origin,
+    'owner': owner,
+    'label': label,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is FeedHostEntry &&
+      other.origin == origin &&
+      other.owner == owner &&
+      other.label == label;
+
+  @override
+  int get hashCode => Object.hash(origin, owner, label);
+}
+
+/// Where subscriptions and stations record that the user asked for their
+/// host. Only an explicit user action calls [addFeedHost] (subscribing,
+/// adding a station, importing a file the user picked); [removeFeedOwner]
+/// takes the host away again unless another entry still uses it.
+abstract interface class FeedHostRegistry {
+  Future<void> addFeedHost(
+    Uri url, {
+    required String owner,
+    required String label,
+  });
+
+  Future<void> removeFeedOwner(String owner);
+}
+
+/// Unsubscribes or deletes what an owner names (the part after the prefix),
+/// when the user removes a host in the privacy dashboard.
+typedef FeedOwnerRemover = Future<void> Function(String id);
+
 /// [NetworkPolicy] backed by the profile database (`setting` table):
 ///
 /// * every allow-list endpoint is **off** until the user turns it on, in
@@ -31,7 +88,8 @@ final class EndpointState {
 /// The toggles may live elsewhere: pass `isToggledOn` to [load] (the B3 settings
 /// store's `privacy.endpoint.<id>` keys, wired in main.dart) and call
 /// [notifyTogglesChanged] when they change; [setEnabled] is then unused.
-final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
+final class PersistentNetworkPolicy
+    implements NetworkPolicy, HostUseRecorder, FeedHostRegistry {
   PersistentNetworkPolicy._(
     this._db,
     this._toggles,
@@ -48,6 +106,7 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
     )..where((s) => s.key.like('privacy.%'))).get();
     final toggles = <String, bool>{};
     final used = <String, DateTime>{};
+    final feeds = <FeedHostEntry>[];
     var lan = true;
     for (final r in rows) {
       if (r.key.startsWith(_toggle)) {
@@ -57,10 +116,13 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
         if (at != null) used[r.key.substring(_used.length)] = at;
       } else if (r.key == _lanKey) {
         lan = r.value == 'on';
+      } else if (r.key == _feedHostsKey) {
+        feeds.addAll(_decodeFeedHosts(r.value));
       }
     }
     final p = PersistentNetworkPolicy._(db, toggles, used, isToggledOn)
-      .._lan = lan;
+      .._lan = lan
+      .._feedHosts.addAll(feeds);
     await p.refreshUserHosts();
     return p;
   }
@@ -68,6 +130,7 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   static const _toggle = 'privacy.endpoint.';
   static const _used = 'privacy.lastUsed.';
   static const _lanKey = 'privacy.lanDiscovery';
+  static const _feedHostsKey = 'privacy.feedHosts';
 
   final LibraryDatabase _db;
   final Map<String, bool> _toggles;
@@ -76,6 +139,8 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   final Map<String, DateTime> _hostLastUsed = {};
   final Set<String> _userHosts = {};
   final Set<String> _sessionHosts = {};
+  final List<FeedHostEntry> _feedHosts = [];
+  final Map<String, FeedOwnerRemover> _ownerRemovers = {};
 
   /// Cloud drives with a connected account (or signing in now).
   final Set<CloudProvider> _providers = {};
@@ -150,8 +215,112 @@ final class PersistentNetworkPolicy implements NetworkPolicy, HostUseRecorder {
   bool isUserConfiguredHost(String host) {
     final h = host.toLowerCase();
     if (_userHosts.contains(h) || _sessionHosts.contains(h)) return true;
+    if (_feedHosts.any((e) => e.host == h)) return true;
     if (_providers.any((p) => cloudHostMatches(p, h))) return true;
     return _lan && isLocalNetworkHost(h);
+  }
+
+  /// The hosts podcasts and stations asked for, with what added each one,
+  /// sorted by host.
+  List<FeedHostEntry> get feedHostEntries =>
+      List.of(_feedHosts)..sort((a, b) => a.origin.compareTo(b.origin));
+
+  /// `scheme://host[:port]` for [url], or null when it is not a plain
+  /// http(s) address: no wildcards, no address ranges, no other scheme.
+  static String? normalizeOrigin(Uri url) {
+    final scheme = url.scheme.toLowerCase();
+    final host = url.host.toLowerCase();
+    if ((scheme != 'http' && scheme != 'https') || host.isEmpty) return null;
+    if (host.contains('*') || host.contains('/') || host.contains(' ')) {
+      return null;
+    }
+    final defaultPort = scheme == 'https' ? 443 : 80;
+    final port = url.hasPort && url.port != defaultPort ? ':${url.port}' : '';
+    return '$scheme://${host.contains(':') ? '[$host]' : host}$port';
+  }
+
+  @override
+  Future<void> addFeedHost(
+    Uri url, {
+    required String owner,
+    required String label,
+  }) async {
+    final origin = normalizeOrigin(url);
+    if (origin == null) return;
+    final entry = FeedHostEntry(origin: origin, owner: owner, label: label);
+    final i = _feedHosts.indexWhere(
+      (e) => e.origin == origin && e.owner == owner,
+    );
+    if (i >= 0) {
+      if (_feedHosts[i] == entry) return;
+      _feedHosts[i] = entry;
+    } else {
+      _feedHosts.add(entry);
+    }
+    await _saveFeedHosts();
+  }
+
+  @override
+  Future<void> removeFeedOwner(String owner) => _removeOwners([owner]);
+
+  /// Registers what removing an owner with [prefix] (`podcast`, `radio`)
+  /// means: unsubscribing or deleting the station.
+  void registerOwnerRemover(String prefix, FeedOwnerRemover remover) =>
+      _ownerRemovers[prefix] = remover;
+
+  /// The user removes [origin] in the privacy dashboard: everything that
+  /// added it is unsubscribed or deleted, and the host goes. Returns the
+  /// owners removed.
+  Future<List<String>> removeFeedHost(String origin) async {
+    final owners = [
+      for (final e in _feedHosts)
+        if (e.origin == origin) e.owner,
+    ];
+    for (final owner in owners) {
+      final colon = owner.indexOf(':');
+      final remover = colon < 0
+          ? null
+          : _ownerRemovers[owner.substring(0, colon)];
+      if (remover != null) await remover(owner.substring(colon + 1));
+    }
+    // Whatever no remover took care of goes too.
+    await _removeOwners(owners);
+    return owners;
+  }
+
+  Future<void> _removeOwners(List<String> owners) async {
+    final before = _feedHosts.length;
+    _feedHosts.removeWhere((e) => owners.contains(e.owner));
+    if (_feedHosts.length != before) await _saveFeedHosts();
+  }
+
+  Future<void> _saveFeedHosts() async {
+    await _put(
+      _feedHostsKey,
+      jsonEncode([for (final e in _feedHosts) e.toJson()]),
+    );
+    _changes.add(null);
+  }
+
+  static List<FeedHostEntry> _decodeFeedHosts(String json) {
+    try {
+      final j = jsonDecode(json);
+      if (j is! List<Object?>) return const [];
+      return [
+        for (final e in j)
+          if (e is Map<String, Object?> &&
+              e['origin'] is String &&
+              e['owner'] is String &&
+              normalizeOrigin(Uri.parse(e['origin']! as String)) == e['origin'])
+            FeedHostEntry(
+              origin: e['origin']! as String,
+              owner: e['owner']! as String,
+              label: e['label'] is String ? e['label']! as String : '',
+            ),
+      ];
+    } on FormatException {
+      return const [];
+    }
   }
 
   /// Allows [host] for this session: a URL the user typed or pasted

@@ -14,6 +14,20 @@ final class UserConfiguredHost {
   final DateTime? lastUsed;
 }
 
+/// A host a podcast subscription or a radio station asked for, with the
+/// names of what added it (POD-002, MUS-014). Removing it unsubscribes or
+/// deletes all of them.
+@immutable
+final class FeedHostRow {
+  const FeedHostRow({required this.origin, required this.labels});
+
+  /// `scheme://host[:port]`.
+  final String origin;
+  final List<String> labels;
+
+  String get host => Uri.parse(origin).host;
+}
+
 /// What the privacy dashboard (CORE-015) reads besides the toggles: last
 /// use per endpoint, the user-configured hosts, endpoints that managed
 /// configuration forces off, and LAN discovery. In the app this is
@@ -21,6 +35,12 @@ final class UserConfiguredHost {
 abstract interface class PrivacyUsage implements Listenable {
   DateTime? lastUsed(NetworkEndpoint endpoint);
   List<UserConfiguredHost> userConfiguredHosts();
+
+  /// Hosts the user's podcasts and stations asked for, by host.
+  List<FeedHostRow> feedHosts();
+
+  /// Removes [origin], unsubscribing or deleting whatever added it.
+  Future<void> removeFeedHost(String origin);
 
   /// Managed configuration (B2B-001) forces [endpoint] off.
   bool isForcedOff(NetworkEndpoint endpoint);
@@ -40,6 +60,12 @@ final class NoPrivacyUsage extends ChangeNotifier implements PrivacyUsage {
   List<UserConfiguredHost> userConfiguredHosts() => const [];
 
   @override
+  List<FeedHostRow> feedHosts() => const [];
+
+  @override
+  Future<void> removeFeedHost(String origin) async {}
+
+  @override
   bool isForcedOff(NetworkEndpoint endpoint) => false;
 
   @override
@@ -56,6 +82,7 @@ final class RecordingPrivacyUsage extends ChangeNotifier
   final Map<String, DateTime> _endpoints = {};
   final Map<String, DateTime?> _hosts = {};
   final Set<String> forcedOff = {};
+  final Map<String, List<String>> _feeds = {};
   bool? _lan;
 
   @override
@@ -88,6 +115,22 @@ final class RecordingPrivacyUsage extends ChangeNotifier
     for (final e in _hosts.entries)
       UserConfiguredHost(host: e.key, lastUsed: e.value),
   ]..sort((a, b) => a.host.compareTo(b.host));
+
+  void addFeedHost(String origin, String label) {
+    (_feeds[origin] ??= []).add(label);
+    notifyListeners();
+  }
+
+  @override
+  List<FeedHostRow> feedHosts() => [
+    for (final e in _feeds.entries) FeedHostRow(origin: e.key, labels: e.value),
+  ]..sort((a, b) => a.origin.compareTo(b.origin));
+
+  @override
+  Future<void> removeFeedHost(String origin) async {
+    _feeds.remove(origin);
+    notifyListeners();
+  }
 }
 
 final privacyUsageProvider = Provider<PrivacyUsage>((ref) {

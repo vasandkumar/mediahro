@@ -143,10 +143,67 @@ class PrivacyDashboard extends ConsumerWidget {
                 subtitle: lastUsed(h.lastUsed),
                 leading: Icon(KIcon.server.resolve(theme.family)),
               ),
+          KSettingsHeader(title: l10n.settingsPrivacyFeedHostsHeader),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: KSpacing.s16),
+            child: Text(
+              l10n.settingsPrivacyFeedHostsExplainer,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (usage.feedHosts().isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(KSpacing.s16),
+              child: Text(l10n.settingsPrivacyNoFeedHosts),
+            )
+          else
+            for (final h in usage.feedHosts())
+              KRow(
+                key: ValueKey('privacy.feed.${h.origin}'),
+                title: h.host,
+                subtitle: h.labels.join(', '),
+                leading: Icon(KIcon.server.resolve(theme.family)),
+                trailing: IconButton(
+                  tooltip: l10n.settingsPrivacyFeedHostRemove(h.host),
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _removeFeedHost(context, usage, h),
+                ),
+              ),
           const SizedBox(height: KSpacing.s24),
         ],
       ),
     );
+  }
+
+  /// Asks first: the host goes with what added it.
+  Future<void> _removeFeedHost(
+    BuildContext context,
+    PrivacyUsage usage,
+    FeedHostRow h,
+  ) async {
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(l10n.settingsPrivacyFeedHostRemoveTitle(h.host)),
+        content: Text(
+          l10n.settingsPrivacyFeedHostRemoveBody(h.labels.join(', ')),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(false),
+            child: Text(l10n.settingsCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(true),
+            child: Text(l10n.settingsPrivacyFeedHostRemoveAction),
+          ),
+        ],
+      ),
+    );
+    if (ok ?? false) await usage.removeFeedHost(h.origin);
   }
 }
 
