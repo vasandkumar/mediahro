@@ -82,7 +82,7 @@ object IncomingIntents {
         if (uris.isEmpty()) {
             // A shared text that is not a link is a search, never a fetch (SYS-004).
             val query = sharedSearchText(intent.action, intent.getStringExtra(Intent.EXTRA_TEXT)) ?: return false
-            emit(AppIntentMsg(AppIntentKindMsg.search, query))
+            emit(AppIntentMsg(AppIntentKindMsg.SEARCH, query))
             return true
         }
         emit(OpenRequestMsg(uris.map(Uri::toString)))
