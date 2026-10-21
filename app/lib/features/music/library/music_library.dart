@@ -321,6 +321,19 @@ final class MusicLibrary {
     [Variable.withInt(sourceId), Variable.withString(path)],
   );
 
+  /// Audio files that look like audiobooks (POD-001): M4B files and anything
+  /// tagged with a spoken-word genre, in folder order.
+  Future<List<MusicTrack>> audiobookCandidates({
+    Visibility visibility = Visibility.standard,
+  }) => _tracks(
+    "WHERE ${_where(visibility)} AND (i.ext = 'm4b' OR lower(a.genre) LIKE "
+    "'%audiobook%' OR lower(a.genre) LIKE '%audio book%' OR "
+    "lower(a.genre) LIKE '%spoken%' OR lower(a.genre) = 'speech') "
+    'ORDER BY i.source_id, i.parent_path, coalesce(a.disc_number, 1), '
+    'a.track_number NULLS LAST, i.sort_title',
+    const [],
+  );
+
   /// Recently played songs, newest first (MUS-007 history, LIB-015 events).
   Future<List<(MusicTrack, DateTime)>> history({
     int limit = 100,

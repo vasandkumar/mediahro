@@ -233,6 +233,15 @@ final class ScriptedMusicEngine implements PlaybackEngine {
   Future<void> setTransition(TransitionConfig config) async =>
       transition = config;
 
+  /// Every speed the app set (POD-001).
+  final rates = <double>[];
+
+  @override
+  Future<void> setRate(double rate) async {
+    rates.add(rate);
+    _emit(_state.copyWith(rate: rate));
+  }
+
   @override
   Future<void> dispose() => _c.close();
 

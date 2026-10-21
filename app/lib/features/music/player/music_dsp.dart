@@ -213,8 +213,20 @@ final class MusicDsp {
 
   Future<void> dispose() => _changes.close();
 
+  bool _skipSilence = false;
+
+  /// Whether silences are skipped (audiobooks, POD-001). Not part of the
+  /// saved sound: the book remembers it, and the music chain never has it.
+  bool get skipSilence => _skipSilence;
+
+  Future<void> setSkipSilence({required bool enabled}) async {
+    if (_skipSilence == enabled) return;
+    _skipSilence = enabled;
+    await _apply();
+  }
+
   Future<void> _apply() async {
-    await engine.setAudioDsp(_sound.chain);
+    await engine.setAudioDsp(_sound.chain.copyWith(skipSilence: _skipSilence));
     await engine.setTransition(_sound.transition);
   }
 

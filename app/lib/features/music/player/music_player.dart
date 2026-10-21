@@ -157,10 +157,15 @@ final class MusicPlayer {
   // ---------------------------------------------------------------- queue --
 
   /// Replaces the queue with [tracks] and plays from [start].
+  ///
+  /// [startPosition] opens the start track at that time (an audiobook's
+  /// resume point, POD-001); [autoplay] false opens it paused.
   Future<void> playTracks(
     List<MusicTrack> tracks, {
     int start = 0,
     bool shuffle = false,
+    Duration? startPosition,
+    bool autoplay = true,
   }) => _serial(() async {
     if (tracks.isEmpty) return;
     final id = await _queueId();
@@ -169,7 +174,7 @@ final class MusicPlayer {
     ], startIndex: start);
     await queues.shuffle(id, enabled: shuffle);
     await _reload(id);
-    await _openCurrent();
+    await _openCurrent(start: startPosition, autoplay: autoplay);
   });
 
   /// "Play next": after the current track.
