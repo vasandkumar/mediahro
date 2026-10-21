@@ -8,6 +8,7 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
+import 'package:mediahro/features/music/player/dsd_output.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
 import 'package:mediahro/features/music/ui/now_playing.dart' show askName;
@@ -394,6 +395,12 @@ class _OutputSheetState extends ConsumerState<_OutputSheet> {
   List<EngineAudioDevice> _devices = const [];
   String? _selected;
 
+  /// Native DSD (AUD-043): offered only once the OS has granted a
+  /// bit-perfect path at the DoP rate on the selected DAC.
+  bool _dsdOffered = false;
+  bool _dsdOn = false;
+  int _probe = 0;
+
   @override
   void initState() {
     super.initState();
@@ -404,7 +411,48 @@ class _OutputSheetState extends ConsumerState<_OutputSheet> {
     final d = await ref
         .read(playbackEngineProvider(EngineRole.music))
         .audioDevices();
-    if (mounted) setState(() => _devices = d);
+    final saved = await ref.read(dsdOutputGateProvider)?.savedDevice();
+    if (!mounted) return;
+    setState(() {
+      _devices = d;
+      if (saved != null) {
+        _selected = saved;
+        _dsdOffered = true;
+        _dsdOn = true;
+      }
+    });
+  }
+
+  /// Applies the selection. A plain device switches native DSD off; the
+  /// offer for the new device waits for the OS grant.
+  Future<void> _select(String? device) async {
+    final probe = ++_probe;
+    final gate = ref.read(dsdOutputGateProvider);
+    setState(() {
+      _selected = device;
+      _dsdOffered = false;
+      _dsdOn = false;
+    });
+    await ref
+        .read(playbackEngineProvider(EngineRole.music))
+        .setAudioOutput(DsdOutputGate.config(device, nativeDsd: false));
+    await gate?.save(null);
+    if (gate == null || device == null) return;
+    final dac = _devices.where((d) => d.id == device).firstOrNull;
+    final offered = dac != null && await gate.offerFor(dac) != null;
+    if (mounted && probe == _probe && offered) {
+      setState(() => _dsdOffered = true);
+    }
+  }
+
+  Future<void> _setDsd({required bool on}) async {
+    final device = _selected;
+    if (device == null) return;
+    setState(() => _dsdOn = on);
+    await ref
+        .read(playbackEngineProvider(EngineRole.music))
+        .setAudioOutput(DsdOutputGate.config(device, nativeDsd: on));
+    await ref.read(dsdOutputGateProvider)?.save(on ? device : null);
   }
 
   @override
@@ -414,7 +462,6 @@ class _OutputSheetState extends ConsumerState<_OutputSheet> {
     final info =
         ref.watch(musicPlayerStateProvider).value?.playback.audio ??
         const AudioOutputInfo();
-    final engine = ref.read(playbackEngineProvider(EngineRole.music));
     return SafeArea(
       child: ListView(
         shrinkWrap: true,
@@ -438,13 +485,8 @@ class _OutputSheetState extends ConsumerState<_OutputSheet> {
           Text(l10n.musicOutputDevice, style: theme.textTheme.titleSmall),
           RadioGroup<String>(
             groupValue: _selected ?? '',
-            onChanged: (id) {
-              final device = id == null || id.isEmpty ? null : id;
-              setState(() => _selected = device);
-              unawaited(
-                engine.setAudioOutput(AudioOutputConfig(deviceId: device)),
-              );
-            },
+            onChanged: (id) =>
+                unawaited(_select(id == null || id.isEmpty ? null : id)),
             child: Column(
               children: [
                 RadioListTile<String>(
@@ -461,6 +503,14 @@ class _OutputSheetState extends ConsumerState<_OutputSheet> {
               ],
             ),
           ),
+          if (_dsdOffered)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l10n.musicDsdNative),
+              subtitle: Text(l10n.musicDsdNativeHint),
+              value: _dsdOn,
+              onChanged: (on) => unawaited(_setDsd(on: on)),
+            ),
         ],
       ),
     );

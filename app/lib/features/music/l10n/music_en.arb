@@ -278,6 +278,8 @@
   "musicOutput": "Output",
   "musicOutputDevice": "Device",
   "musicOutputSystemDefault": "System default",
+  "musicDsdNative": "Native DSD",
+  "musicDsdNativeHint": "Sends DSD files untouched to this DAC and holds it exclusively, so other sounds can't mix in. A file the DAC can't take plays as standard audio instead.",
   "musicOutputFormat": "{rate} kHz · {bits}-bit · {channels} ch",
   "@musicOutputFormat": {
     "placeholders": {
