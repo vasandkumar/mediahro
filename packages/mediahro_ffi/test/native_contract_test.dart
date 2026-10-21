@@ -94,6 +94,52 @@ void main() {
     expect(normaliseEntryPath('/'), isNull);
   });
 
+  test('PRIV-005 absolute entry names are ignored, not made relative', () {
+    expect(normaliseEntryPath('/etc/passwd'), isNull);
+    expect(normaliseEntryPath(r'\windows\system32\x.dll'), isNull);
+    expect(normaliseEntryPath(r'C:\Users\me\x.png'), isNull);
+    expect(normaliseEntryPath('c:/x.png'), isNull);
+    expect(normaliseEntryPath('~/.ssh/id_rsa'), isNull);
+    // Only a name that starts that way: a colon deeper in is just a name.
+    expect(normaliseEntryPath('a/c:/x.png'), 'a/c:/x.png');
+    expect(normaliseEntryPath('page.png'), 'page.png');
+  });
+
+  group('PRIV-005 zip-bomb limits', () {
+    const limits = ArchiveLimits();
+
+    test('an archive within its limits is accepted', () {
+      expect(archiveBombReason(50 << 20, 40 << 20, limits), isNull);
+      // Small files may compress very well: below the floor it is not a bomb.
+      expect(archiveBombReason(200 << 20, 1 << 10, limits), isNull);
+      expect(archiveBombReason(1 << 30, null, limits), isNull);
+    });
+
+    test('too much in total is refused, whatever the ratio', () {
+      expect(archiveBombReason((64 << 30) + 1, 1 << 40, limits), isNotNull);
+      expect(archiveBombReason(64 << 30, 1 << 40, limits), isNull);
+    });
+
+    test('a huge ratio above the floor is refused', () {
+      // 1 GiB out of 100 KiB is 10 000 times.
+      expect(archiveBombReason(1 << 30, 100 << 10, limits), isNotNull);
+      // Just inside the ratio.
+      expect(archiveBombReason(1000 << 20, 1 << 20, limits), isNull);
+      expect(archiveBombReason((1000 << 20) + 1, 1 << 20, limits), isNotNull);
+    });
+
+    test('the limits can be tightened', () {
+      const tight = ArchiveLimits(
+        maxTotalBytes: 1 << 20,
+        maxRatio: 10,
+        ratioFloorBytes: 1 << 10,
+      );
+      expect(archiveBombReason((1 << 20) + 1, null, tight), isNotNull);
+      expect(archiveBombReason(10 << 10, 1 << 10, tight), isNull);
+      expect(archiveBombReason((10 << 10) + 1, 1 << 10, tight), isNotNull);
+    });
+  });
+
   group('FILE-004 libarchive', () {
     late Directory tmp;
     setUp(

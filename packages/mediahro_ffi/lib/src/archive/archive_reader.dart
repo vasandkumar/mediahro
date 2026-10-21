@@ -1,4 +1,5 @@
 import 'dart:ffi' as ffi;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -38,6 +39,9 @@ final class ArchiveLimits {
     this.maxPathLength = 4096,
     this.maxEntryBytes = 64 << 30,
     this.memoryEntryBytes = 32 << 20,
+    this.maxTotalBytes = 64 << 30,
+    this.maxRatio = 1000,
+    this.ratioFloorBytes = 256 << 20,
   });
 
   final int maxEntries;
@@ -49,6 +53,37 @@ final class ArchiveLimits {
   /// Entries up to this size are decompressed once into memory on open;
   /// larger ones stream (forward reads; a backward seek restarts).
   final int memoryEntryBytes;
+
+  /// All entries together may not unpack to more than this (the sizes the
+  /// archive declares).
+  final int maxTotalBytes;
+
+  /// An archive may not unpack to more than this many times its own size...
+  final int maxRatio;
+
+  /// ...unless it unpacks to less than this in total (small files compress
+  /// very well without being a bomb).
+  final int ratioFloorBytes;
+}
+
+/// Why an archive that declares [unpackedBytes] in total and is
+/// [packedBytes] long (null when unknown) is refused as a zip bomb, or null
+/// when it is within [limits].
+@visibleForTesting
+String? archiveBombReason(
+  int unpackedBytes,
+  int? packedBytes,
+  ArchiveLimits limits,
+) {
+  if (unpackedBytes > limits.maxTotalBytes) {
+    return 'unpacks to more than the limit';
+  }
+  if (packedBytes != null &&
+      unpackedBytes > limits.ratioFloorBytes &&
+      unpackedBytes > packedBytes * limits.maxRatio) {
+    return 'unpacks to far more than its size (compression ratio)';
+  }
+  return null;
 }
 
 final class _Entry {
@@ -219,6 +254,7 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
     final entry = calloc<ffi.Pointer<archive_entry>>();
     try {
       var i = 0;
+      var declared = 0;
       while (true) {
         final rc = _b.archive_read_next_header(a, entry);
         if (rc == ARCHIVE_EOF) break;
@@ -232,9 +268,25 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
             'too many entries',
           );
         }
-        _record(entry.value, i);
+        declared += _record(entry.value, i);
+        final early = archiveBombReason(declared, null, limits);
+        if (early != null) {
+          throw VirtualFileException(
+            VirtualFileError.unsupported,
+            _uri(''),
+            early,
+          );
+        }
         _b.archive_read_data_skip(a);
         i++;
+      }
+      final bomb = archiveBombReason(declared, _packedBytes(), limits);
+      if (bomb != null) {
+        throw VirtualFileException(
+          VirtualFileError.unsupported,
+          _uri(''),
+          bomb,
+        );
       }
     } finally {
       calloc.free(entry);
@@ -242,30 +294,48 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
     }
   }
 
-  void _record(ffi.Pointer<archive_entry> e, int index) {
+  /// Notes one entry; returns the bytes it declares (0 for anything that is
+  /// not a regular file: folders, links, devices are never followed).
+  int _record(ffi.Pointer<archive_entry> e, int index) {
     final raw = _b.archive_entry_pathname_utf8(e);
     final name = (raw == ffi.nullptr ? _b.archive_entry_pathname(e) : raw)
         .cast<Utf8>()
         .toDartString();
     final path = normaliseEntryPath(name);
-    if (path == null || path.length > limits.maxPathLength) return;
+    if (path == null || path.length > limits.maxPathLength) return 0;
     // Mask: mode_t is 16-bit on some ABIs; the type bits fit either way.
     final type = _b.archive_entry_filetype(e) & AE_IFMT;
     if (type == AE_IFDIR || name.endsWith('/')) {
       _addDirs(path, includeSelf: true);
-      return;
+      return 0;
     }
-    if (type != AE_IFREG && type != 0) return;
+    if (type != AE_IFREG && type != 0) return 0;
     _addDirs(path, includeSelf: false);
+    final size = _b.archive_entry_size_is_set(e) != 0
+        ? _b.archive_entry_size(e)
+        : null;
     _entries[path] = _Entry(
       path,
-      size: _b.archive_entry_size_is_set(e) != 0
-          ? _b.archive_entry_size(e)
-          : null,
+      size: size,
       mtime: _b.archive_entry_mtime(e),
       index: index,
       encrypted: _b.archive_entry_is_encrypted(e) != 0,
     );
+    return size ?? 0;
+  }
+
+  /// The length of the archive file itself, when known.
+  int? _packedBytes() {
+    switch (source) {
+      case LocalArchiveSource(:final path):
+        try {
+          return File(path).lengthSync();
+        } on Object {
+          return null;
+        }
+      case SyncArchiveSource():
+        return _outerSize;
+    }
   }
 
   void _addDirs(String path, {required bool includeSelf}) {
@@ -439,6 +509,14 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
       );
     }
     h.cursor += n;
+    final declared = h.entry.size;
+    if (declared != null && h.cursor > declared + _bufSize) {
+      throw VirtualFileException(
+        VirtualFileError.unsupported,
+        _uri(h.entry.path),
+        'entry larger than declared',
+      );
+    }
     if (h.cursor > limits.maxEntryBytes) {
       throw VirtualFileException(
         VirtualFileError.unsupported,
@@ -520,11 +598,20 @@ final class _OpenEntry {
   int cursor = 0;
 }
 
-/// Normalises an archive entry name: `/`-separated, no leading `/` or
-/// `./`, no `..` escapes (returns null for unsafe names).
+final RegExp _drive = RegExp('^[A-Za-z]:');
+
+/// Normalises an archive entry name: `/`-separated, no leading `./`, no
+/// `..` escapes, no absolute names (returns null for unsafe names).
 String? normaliseEntryPath(String name) {
+  final slashed = name.replaceAll(r'\', '/');
+  // Absolute names (a root, a drive, a home) are ignored, not made relative.
+  if (slashed.startsWith('/') ||
+      slashed.startsWith('~') ||
+      _drive.hasMatch(slashed)) {
+    return null;
+  }
   final parts = <String>[];
-  for (final p in name.replaceAll(r'\', '/').split('/')) {
+  for (final p in slashed.split('/')) {
     if (p.isEmpty || p == '.') continue;
     if (p == '..') return null;
     parts.add(p);
