@@ -8,18 +8,14 @@ import 'support.dart';
 /// ADR-033 on real libmpv: crop (VID-037), ICC/LUT (VID-040), stereo 3D
 /// and 360° views (VID-041), checked by pixels of the software renderer on
 /// `quad_colors.mkv` (red | green over blue | white).
-/// The STATUS §3 row behind Android skips of anaglyph and 360° tests.
-const androidLavfiBlocker =
-    'Android FFmpeg lacks lutrgb, blend and v360 filters (B4a)';
 
 void adr033Suite() {
   final skip = ffiSkipReason;
   // Crop and one-eye stereo use lavfi crop/setsar, which every mediahro-deps
   // build has; the Apple bootstrap libmpv lacks lavfi filters.
   final lavfi = blockedOn(appleBootstrap, appleBootstrapBlocker);
-  // Anaglyph and 360° need lutrgb, blend and v360, not yet in the Android
-  // component list (request to B4a in the notes).
-  final moreLavfi = lavfi ?? blockedOn({'android'}, androidLavfiBlocker);
+  // Anaglyph and 360° need lutrgb, blend and v360, which mediahro-deps
+  // v2026.10.5 builds on every platform.
   prepareCorpus();
 
   const red = (255, 0, 0);
@@ -150,7 +146,7 @@ void adr033Suite() {
           reason: 'TAB anaglyph',
         );
       },
-      skip: moreLavfi,
+      skip: lavfi,
       timeout: const Timeout(Duration(minutes: 1)),
     );
 
@@ -188,7 +184,7 @@ void adr033Suite() {
         ]);
         await expectCorners(e, green, green, green, green, reason: 'burst');
       },
-      skip: moreLavfi,
+      skip: lavfi,
       timeout: const Timeout(Duration(minutes: 1)),
     );
   });

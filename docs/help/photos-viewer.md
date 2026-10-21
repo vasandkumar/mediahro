@@ -27,6 +27,17 @@ A **panorama** (a photo marked as one, at least about twice as wide as it is tal
 
 A **multi-page TIFF** (a scan, a fax) shows **Page 1 of 5** at the bottom with previous and next buttons.
 
+## 360° photos
+
+A photo that is marked as a 360° sphere (Google's Photo Sphere tags, or a whole sphere twice as wide as it is tall) has a **Look around in 360°** button at the bottom of the viewer. It opens the photo as if you stood inside it:
+
+- **Drag** to look around; a quick flick keeps turning and slows down (not with reduced motion). **Pinch** or use the mouse wheel to zoom between 20° and 100°.
+- The buttons at the bottom do the same without a gesture: look left, right, up and down, zoom in and out, and **Reset the view**. With a keyboard use the arrows, **+** and **−**, and **0** (or Home) to reset. A screen reader says it is a 360° photo, which way it faces, and offers the same moves as actions.
+- Where the app can read the phone's motion sensors, the camera can follow the phone: turn around and the view turns with you, from wherever you were looking. Use the phone button to stop or to start it again. It is off to begin with when the system asks for reduced motion, and the sensors are released when you leave the screen or the app goes away.
+- A **cropped panorama** (a sweep that covers only part of the sphere) can be looked around in too, but never past its edges.
+
+The picture is drawn on the graphics chip from the photo at up to 8192 pixels wide; nothing is uploaded.
+
 ## Camera RAW photos
 
 A RAW photo is shown from the full-size preview your camera stored in the file. A note on screen says so.

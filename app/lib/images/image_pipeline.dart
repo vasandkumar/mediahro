@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:mediahro/images/metadata/pano_meta.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 import 'package:meta/meta.dart';
 
@@ -103,6 +104,7 @@ final class ImageInfo {
     this.isLivePhoto = false,
     this.isMotionPhoto = false,
     this.isPanorama = false,
+    this.panorama,
   });
 
   final int width;
@@ -116,6 +118,9 @@ final class ImageInfo {
   final bool isLivePhoto;
   final bool isMotionPhoto;
   final bool isPanorama;
+
+  /// The sphere a panorama was cut from (GPano XMP), when stated.
+  final PanoramaMeta? panorama;
 }
 
 @immutable

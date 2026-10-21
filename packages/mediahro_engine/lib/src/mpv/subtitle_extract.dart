@@ -4,11 +4,14 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro_engine/src/api/models.dart';
+import 'package:mediahro_engine/src/api/subtitle_image.dart';
 import 'package:mediahro_engine/src/mpv/mpv_client.dart';
 import 'package:mediahro_engine/src/mpv/mpv_node.dart';
 import 'package:mediahro_engine/src/mpv/render_mapping.dart';
+import 'package:mediahro_engine/src/mpv/scratch.dart';
 import 'package:mediahro_engine/src/mpv/stream_protocol.dart';
 import 'package:mediahro_engine/src/mpv/subtitle_convert.dart';
+import 'package:mediahro_engine/src/mpv/subtitle_image/subtitle_images.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart' show VirtualFile;
 // The mpv bindings are an engine-private part of mediahro_ffi (lane B1).
 // ignore: implementation_imports
@@ -67,10 +70,107 @@ Future<void> extractSubtitleTrack({
       ),
     );
   }
-  final dir = await Directory.systemTemp.createTemp('mediahro-subx');
+  await _withDump(
+    url: url,
+    trackId: trackId,
+    audioTracks: audioTracks,
+    dumpName: 'track.$kind',
+    virtualFile: virtualFile,
+    headers: headers,
+    libmpvPath: libmpvPath,
+    timeout: timeout,
+    use: (dump, first) async {
+      var cues = const <_Event>[];
+      String? assHeader;
+      if (dump != null && dump.existsSync() && dump.lengthSync() > 0) {
+        final (events, header) = _read(kind, dump);
+        assHeader = header;
+        cues = _rebaseEvents(events, _us(first!));
+      }
+      await out.writeAsString(_write(target, cues, assHeader));
+    },
+  );
+}
+
+/// Streams the bitmaps of embedded image subtitle track [trackId] of a
+/// source (ADR-031 part 2: PGS, VobSub and DVB for OCR, SUB-051).
+///
+/// The track is dumped like [extractSubtitleTrack] does, as a Matroska
+/// stream copy, and decoded in an isolate. The stream ends when the track
+/// has been read. Nothing is decoded by libmpv, so every platform's build
+/// reads every bitmap codec the same way.
+Stream<SubtitleImage> extractSubtitleImageTrack({
+  required String url,
+  required int trackId,
+  required String codec,
+  required int audioTracks,
+  VirtualFile? virtualFile,
+  Map<String, String> headers = const {},
+  String? libmpvPath,
+  Duration timeout = const Duration(minutes: 5),
+}) async* {
+  if (!imageSubtitleCodecs.containsKey(codec)) {
+    throw EngineException(
+      EngineError(
+        code: EngineErrorCode.notSupported,
+        detail: 'subtitle track $trackId is $codec, not a bitmap codec',
+      ),
+    );
+  }
+  final dir = await createScratch('subimg');
+  try {
+    File? dumped;
+    double? firstAt;
+    await _withDump(
+      url: url,
+      trackId: trackId,
+      audioTracks: audioTracks,
+      dumpName: 'track.mkv',
+      virtualFile: virtualFile,
+      headers: headers,
+      libmpvPath: libmpvPath,
+      timeout: timeout,
+      use: (dump, first) async {
+        // The scratch folder of the dump goes away with the core, so keep
+        // a copy for the decoder.
+        if (dump != null && dump.existsSync() && dump.lengthSync() > 0) {
+          dumped = await dump.copy('${dir.path}${Platform.pathSeparator}t.mkv');
+          firstAt = first;
+        }
+      },
+    );
+    final file = dumped;
+    if (file == null) return;
+    yield* streamSubtitleImages(
+      file,
+      codec,
+      firstAt: firstAt == null ? null : Duration(microseconds: _us(firstAt!)),
+    );
+  } finally {
+    await deleteScratch(dir);
+  }
+}
+
+/// Runs a headless libmpv core that reads only subtitle track [trackId] of
+/// the source into its demuxer cache, dumps the cache as a stream copy to
+/// [dumpName] (the extension picks the container) and hands the dump to
+/// [use] with the time of its first packet, in seconds. The dump is null
+/// and the time absent when the track has no packets.
+Future<void> _withDump({
+  required String url,
+  required int trackId,
+  required int audioTracks,
+  required String dumpName,
+  required Future<void> Function(File? dump, double? firstSeconds) use,
+  VirtualFile? virtualFile,
+  Map<String, String> headers = const {},
+  String? libmpvPath,
+  Duration timeout = const Duration(minutes: 5),
+}) async {
+  final dir = await createScratch('subx');
   final silence = File('${dir.path}${Platform.pathSeparator}silence.wav')
     ..writeAsBytesSync(_silentWav());
-  final dump = File('${dir.path}${Platform.pathSeparator}track.$kind');
+  final dump = File('${dir.path}${Platform.pathSeparator}$dumpName');
   final client = await MpvClient.create(
     options: {
       'config': 'no',
@@ -150,8 +250,6 @@ Future<void> extractSubtitleTrack({
     final last = ranges is List && ranges.isNotEmpty && ranges.last is Map
         ? (ranges.last as Map)['end']
         : null;
-    var cues = const <_Event>[];
-    String? assHeader;
     if (first is num && last is num) {
       await client.command([
         'dump-cache',
@@ -161,13 +259,10 @@ Future<void> extractSubtitleTrack({
         _n(last.toDouble() + 1),
         dump.path,
       ]);
-      if (dump.existsSync() && dump.lengthSync() > 0) {
-        final (events, header) = _read(kind, dump);
-        assHeader = header;
-        cues = _rebaseEvents(events, _us(first.toDouble()));
-      }
+      await use(dump, first.toDouble());
+    } else {
+      await use(null, null);
     }
-    await out.writeAsString(_write(target, cues, assHeader));
   } on MpvException catch (e) {
     throw EngineException(
       EngineError(code: EngineErrorCode.unsupportedFormat, detail: '$e'),
@@ -177,7 +272,7 @@ Future<void> extractSubtitleTrack({
     protocol?.shutdown();
     await client.destroy();
     await protocol?.dispose();
-    await dir.delete(recursive: true).catchError((Object _) => dir);
+    await deleteScratch(dir);
   }
 }
 

@@ -534,6 +534,7 @@ final class MediahroImagePipeline implements ImagePipeline {
       isLivePhoto: parsed.livePhotoId != null,
       isMotionPhoto: parsed.motionVideoLength != null,
       isPanorama: parsed.isPanorama,
+      panorama: parsed.panorama,
     );
     return (info: info, parsed: parsed);
   }

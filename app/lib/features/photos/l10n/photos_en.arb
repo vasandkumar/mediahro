@@ -112,6 +112,30 @@
   "photosInfoMotionPhoto": "Motion Photo",
   "photosInfoLivePhoto": "Live Photo",
   "photosInfoPanorama": "Panorama",
+  "photosPanoLookAround": "Look around in 360°",
+  "photosPanoTitle": "360° photo",
+  "photosPanoHint": "360° photo. Drag to look around, pinch to zoom.",
+  "photosPanoFacing": "Facing {heading}° round, {tilt}° up",
+  "@photosPanoFacing": {
+    "placeholders": {
+      "heading": {
+        "type": "int"
+      },
+      "tilt": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPanoLeft": "Look left",
+  "photosPanoRight": "Look right",
+  "photosPanoUp": "Look up",
+  "photosPanoDown": "Look down",
+  "photosPanoZoomIn": "Zoom in",
+  "photosPanoZoomOut": "Zoom out",
+  "photosPanoReset": "Reset the view",
+  "photosPanoMotionOn": "Look around by moving the phone",
+  "photosPanoMotionOff": "Stop following the phone",
+  "photosPanoError": "This 360° photo can't be opened.",
   "photosInfoHdr": "HDR (gain map)",
   "photosEditMetadata": "Edit details",
   "photosEditDate": "Date and time",

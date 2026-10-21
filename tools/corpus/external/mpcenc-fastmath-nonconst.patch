@@ -1,0 +1,34 @@
+--- ../../musepack/musepack_src_r475/common/fastmath.c	2007-06-09 20:13:34.000000000 +0530
++++ common/fastmath.c	2026-10-21 16:25:42.197264300 +0530
+@@ -21,10 +21,10 @@
+ 
+ #ifdef FAST_MATH
+ 
+-const float  tabatan2   [ 2*TABSTEP+1] [2];
+-const float  tabcos     [26*TABSTEP+1] [2];
+-const float  tabsqrt_ex [256];
+-const float  tabsqrt_m  [   TABSTEP+1] [2];
++float  tabatan2   [ 2*TABSTEP+1] [2];
++float  tabcos     [26*TABSTEP+1] [2];
++float  tabsqrt_ex [256];
++float  tabsqrt_m  [   TABSTEP+1] [2];
+ 
+ 
+ void   Init_FastMath ( void )
+--- ../../musepack/musepack_src_r475/include/mpc/mpcmath.h	2009-07-31 18:07:44.000000000 +0530
++++ include/mpc/mpcmath.h	2026-10-21 16:25:47.727030700 +0530
+@@ -87,10 +87,10 @@
+ # define IFLOORF(x)   my_ifloor ((float)(x))
+ 
+ void   Init_FastMath ( void );
+-extern const float  tabatan2   [] [2];
+-extern const float  tabcos     [] [2];
+-extern const float  tabsqrt_ex [];
+-extern const float  tabsqrt_m  [] [2];
++extern float  tabatan2   [] [2];
++extern float  tabcos     [] [2];
++extern float  tabsqrt_ex [];
++extern float  tabsqrt_m  [] [2];
+ 
+ static mpc_inline float my_atan2 ( float x, float y )
+ {

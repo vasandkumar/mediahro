@@ -99,7 +99,11 @@ void vidHdrSuite() {
           expect(hdr.notices, contains(EngineNotice.enhancementLayerIgnored));
         }
         // Never a black screen.
-        final frame = await e.softwareRenderer!.frames.first;
+        // The clip is short: take the frame already drawn, not a new one.
+        await e.softwareRenderer!.firstFrame.timeout(
+          const Duration(seconds: 10),
+        );
+        final frame = e.softwareRenderer!.latest!;
         expect(frame.pixels.any((b) => b > 16), isTrue);
       }, skip: skip);
     }

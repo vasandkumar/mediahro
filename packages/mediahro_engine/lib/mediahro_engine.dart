@@ -6,6 +6,7 @@ export 'src/api/audio_tap.dart';
 export 'src/api/media_source.dart';
 export 'src/api/models.dart';
 export 'src/api/playback_engine.dart';
+export 'src/api/subtitle_image.dart';
 export 'src/api/video_target.dart';
 export 'src/bridge/audio_bridge.dart';
 export 'src/bridge/render_bridge.dart' show RenderBridge, RenderSurface;

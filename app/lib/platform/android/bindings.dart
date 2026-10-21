@@ -8,6 +8,7 @@ import 'package:mediahro/platform/android/android_home_widgets.dart';
 import 'package:mediahro/platform/android/android_imaging.dart';
 import 'package:mediahro/platform/android/android_input.dart';
 import 'package:mediahro/platform/android/android_media.dart';
+import 'package:mediahro/platform/android/android_motion.dart';
 import 'package:mediahro/platform/android/android_network.dart';
 import 'package:mediahro/platform/android/android_power_status.dart';
 import 'package:mediahro/platform/android/android_purchases.dart';
@@ -52,6 +53,7 @@ List<Override> overrides() => [
   accessibilityPrefsProvider.overrideWithValue(AndroidAccessibilityPrefs()),
   gamepadProvider.overrideWithValue(AndroidGamepad()),
   vaultCryptoProvider.overrideWithValue(AndroidVaultCrypto()),
+  motionProvider.overrideWithValue(AndroidMotion()),
   secureWindowProvider.overrideWithValue(AndroidSecureWindow()),
   imagingProvider.overrideWithValue(AndroidImaging()),
   managedConfigProvider.overrideWithValue(AndroidManagedConfig()),
