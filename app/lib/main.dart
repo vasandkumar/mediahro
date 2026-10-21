@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:mediahro/app/background_work_dispatcher.dart';
 import 'package:mediahro/app/media_wiring.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/router.dart';
@@ -25,17 +26,21 @@ Future<void> main() async {
   unawaited(registerShaderLicences());
   // Licence notices for the photo map data (IMG-007, CORE-013).
   registerMapLicences();
-  runApp(
-    mediahroRoot(
-      services.settings,
-      overrides: [
-        ...services.overrides,
-        ...platformOverrides(),
-        ...musicOverrides,
-        ...videoOverrides,
-        openItemActionProvider.overrideWithValue(openItemByKind),
-        appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
-      ],
-    ),
-  );
+  // The app's one container, made before any widget so work that must not wait
+  // for a screen can start from it. ADR-049: it listens for scheduled jobs at
+  // once; when the OS wakes a closed app the engine starts without a screen
+  // (ADR-036) and the job waits for this listener, whether or not a widget
+  // tree is ever built there.
+  final container = mediahroContainer(
+    services.settings,
+    overrides: [
+      ...services.overrides,
+      ...platformOverrides(),
+      ...musicOverrides,
+      ...videoOverrides,
+      openItemActionProvider.overrideWithValue(openItemByKind),
+      appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
+    ],
+  )..read(backgroundWorkDispatcherProvider);
+  showApp(container);
 }

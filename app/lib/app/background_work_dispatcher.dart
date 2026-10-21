@@ -77,9 +77,9 @@ final class BackgroundWorkDispatcher {
   }
 }
 
-/// The app's dispatcher. Read once at app start
-/// (`ref.read(backgroundWorkDispatcherProvider)`) so it listens at once, in the
-/// normal start and in the engine the OS starts without a screen (ADR-036).
+/// The app's dispatcher. `main` reads it from the app's container before
+/// `runApp`, so it listens at once, in the normal start and in the engine the
+/// OS starts without a screen (ADR-036), whether or not a widget tree is built.
 final backgroundWorkDispatcherProvider = Provider<BackgroundWorkDispatcher>((
   ref,
 ) {
