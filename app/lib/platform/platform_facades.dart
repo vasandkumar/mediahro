@@ -10,6 +10,7 @@ import 'package:mediahro/platform/enterprise.dart';
 import 'package:mediahro/platform/gamepad.dart';
 import 'package:mediahro/platform/imaging.dart';
 import 'package:mediahro/platform/media_session.dart';
+import 'package:mediahro/platform/motion.dart';
 import 'package:mediahro/platform/network_status.dart';
 import 'package:mediahro/platform/power_status.dart';
 import 'package:mediahro/platform/purchases.dart';
@@ -32,6 +33,7 @@ export 'enterprise.dart';
 export 'gamepad.dart';
 export 'imaging.dart';
 export 'media_session.dart';
+export 'motion.dart';
 export 'network_status.dart';
 export 'power_status.dart';
 export 'purchases.dart';
@@ -195,6 +197,10 @@ final secureWindowProvider = Provider<SecureWindowFacade>(
 );
 final gamepadProvider = Provider<GamepadFacade>(
   (ref) => const UnsupportedGamepad(),
+  retry: _noRetry,
+);
+final motionProvider = Provider<MotionFacade>(
+  (ref) => const UnsupportedMotion(),
   retry: _noRetry,
 );
 
