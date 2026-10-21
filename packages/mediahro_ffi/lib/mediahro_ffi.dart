@@ -12,6 +12,7 @@ export 'src/archive/archive_reader.dart'
         ArchiveSyncFileSystem,
         LocalArchiveSource,
         SyncArchiveSource,
+        archiveBombReason,
         archiveFileSystem,
         normaliseEntryPath;
 export 'src/avif/avif_codec.dart';

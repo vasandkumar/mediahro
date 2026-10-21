@@ -15,7 +15,11 @@ String? _skip(NativeLibrary lib) => NativeLibraries.isAvailable(lib)
           'platform (B4)';
 
 /// Minimal ZIP writer (stored entries) for archive tests.
-Uint8List zipStored(Map<String, List<int>> files) {
+Uint8List zipStored(
+  Map<String, List<int>> files, {
+  Map<String, int> unixModes = const {},
+  Map<String, int> declared = const {},
+}) {
   final out = BytesBuilder();
   final central = BytesBuilder();
   var count = 0;
@@ -45,14 +49,15 @@ Uint8List zipStored(Map<String, List<int>> files) {
     u16(out, 0x5821);
     u32(out, crc);
     u32(out, data.length);
-    u32(out, data.length);
+    u32(out, declared[name] ?? data.length);
     u16(out, n.length);
     u16(out, 0);
     out
       ..add(n)
       ..add(data);
     u32(central, 0x02014b50);
-    u16(central, 20);
+    // Made by Unix when a file mode is given (links need it).
+    u16(central, unixModes.containsKey(name) ? (3 << 8) | 20 : 20);
     u16(central, 20);
     u16(central, 0x0800);
     u16(central, 0);
@@ -60,13 +65,13 @@ Uint8List zipStored(Map<String, List<int>> files) {
     u16(central, 0x5821);
     u32(central, crc);
     u32(central, data.length);
-    u32(central, data.length);
+    u32(central, declared[name] ?? data.length);
     u16(central, n.length);
     u16(central, 0);
     u16(central, 0);
     u16(central, 0);
     u16(central, 0);
-    u32(central, 0);
+    u32(central, (unixModes[name] ?? 0) << 16);
     u32(central, offset);
     central.add(n);
     count++;
@@ -92,6 +97,52 @@ void main() {
     expect(normaliseEntryPath('../../etc/passwd'), isNull);
     expect(normaliseEntryPath('a/../../x'), isNull);
     expect(normaliseEntryPath('/'), isNull);
+  });
+
+  test('PRIV-005 absolute entry names are ignored, not made relative', () {
+    expect(normaliseEntryPath('/etc/passwd'), isNull);
+    expect(normaliseEntryPath(r'\windows\system32\x.dll'), isNull);
+    expect(normaliseEntryPath(r'C:\Users\me\x.png'), isNull);
+    expect(normaliseEntryPath('c:/x.png'), isNull);
+    expect(normaliseEntryPath('~/.ssh/id_rsa'), isNull);
+    // Only a name that starts that way: a colon deeper in is just a name.
+    expect(normaliseEntryPath('a/c:/x.png'), 'a/c:/x.png');
+    expect(normaliseEntryPath('page.png'), 'page.png');
+  });
+
+  group('PRIV-005 zip-bomb limits', () {
+    const limits = ArchiveLimits();
+
+    test('an archive within its limits is accepted', () {
+      expect(archiveBombReason(50 << 20, 40 << 20, limits), isNull);
+      // Small files may compress very well: below the floor it is not a bomb.
+      expect(archiveBombReason(200 << 20, 1 << 10, limits), isNull);
+      expect(archiveBombReason(1 << 30, null, limits), isNull);
+    });
+
+    test('too much in total is refused, whatever the ratio', () {
+      expect(archiveBombReason((64 << 30) + 1, 1 << 40, limits), isNotNull);
+      expect(archiveBombReason(64 << 30, 1 << 40, limits), isNull);
+    });
+
+    test('a huge ratio above the floor is refused', () {
+      // 1 GiB out of 100 KiB is 10 000 times.
+      expect(archiveBombReason(1 << 30, 100 << 10, limits), isNotNull);
+      // Just inside the ratio.
+      expect(archiveBombReason(1000 << 20, 1 << 20, limits), isNull);
+      expect(archiveBombReason((1000 << 20) + 1, 1 << 20, limits), isNotNull);
+    });
+
+    test('the limits can be tightened', () {
+      const tight = ArchiveLimits(
+        maxTotalBytes: 1 << 20,
+        maxRatio: 10,
+        ratioFloorBytes: 1 << 10,
+      );
+      expect(archiveBombReason((1 << 20) + 1, null, tight), isNotNull);
+      expect(archiveBombReason(10 << 10, 1 << 10, tight), isNull);
+      expect(archiveBombReason((10 << 10) + 1, 1 << 10, tight), isNotNull);
+    });
   });
 
   group('FILE-004 libarchive', () {
@@ -125,6 +176,72 @@ void main() {
       fs.close(h);
       expect(() => fs.mkdir('x'), throwsA(isA<VirtualFileException>()));
       fs.dispose();
+    }, skip: _skip(NativeLibrary.archive));
+
+    test(
+      'PRIV-005 a crafted ZIP: links, escapes, absolute names, depth and sizes',
+      () {
+        final deep = List.filled(80, 'd').join('/');
+        final zip = zipStored(
+          {
+            'ok/page1.jpg': [1, 2, 3],
+            '../x': [9],
+            '/abs.jpg': [9],
+            'link.jpg': utf8.encode('/etc/passwd'),
+            '$deep/too-deep.jpg': [9],
+          },
+          unixModes: {'link.jpg': 0xA1FF, 'ok/page1.jpg': 0x81A4},
+        );
+        final f = File('${tmp.path}/crafted.zip')..writeAsBytesSync(zip);
+        final fs = ArchiveSyncFileSystem(LocalArchiveSource(f.path));
+        // Only the one honest page: no escape, no absolute name, no symlink, no
+        // entry past the depth limit.
+        expect(fs.entryCount, 1);
+        expect(fs.list('').map((e) => e.name), ['ok']);
+        fs.dispose();
+      },
+      skip: _skip(NativeLibrary.archive),
+    );
+
+    test(
+      'PRIV-005 an entry that declares far more than the limit is refused',
+      () {
+        final zip = zipStored(
+          {
+            'big.bin': [1, 2, 3],
+          },
+          declared: {'big.bin': 3 << 30},
+        );
+        final f = File('${tmp.path}/bomb.zip')..writeAsBytesSync(zip);
+        expect(
+          () => ArchiveSyncFileSystem(
+            LocalArchiveSource(f.path),
+            limits: const ArchiveLimits(maxTotalBytes: 1 << 30),
+          ),
+          throwsA(
+            isA<VirtualFileException>().having(
+              (e) => e.error,
+              'error',
+              VirtualFileError.unsupported,
+            ),
+          ),
+        );
+      },
+      skip: _skip(NativeLibrary.archive),
+    );
+
+    test('PRIV-005 a ratio far above the limit is refused', () {
+      final zip = zipStored(
+        {
+          'a.bin': [1, 2, 3],
+        },
+        declared: {'a.bin': 400 << 20},
+      );
+      final f = File('${tmp.path}/ratio.zip')..writeAsBytesSync(zip);
+      expect(
+        () => ArchiveSyncFileSystem(LocalArchiveSource(f.path)),
+        throwsA(isA<VirtualFileException>()),
+      );
     }, skip: _skip(NativeLibrary.archive));
 
     test('reads an archive from a blocking source without copying it', () {
