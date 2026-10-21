@@ -359,8 +359,10 @@ final class _RecordingEditor implements PhotoEditor {
   }
 
   @override
-  Future<PixelFrame> loadProxy(PhotoEntry entry, {int edge = 1400}) =>
-      throw UnimplementedError();
+  Future<PixelFrame> loadProxy(
+    PhotoEntry entry, {
+    int edge = editPreviewEdge,
+  }) => throw UnimplementedError();
 
   @override
   Future<PixelFrame> render(PixelFrame proxy, EditRecipe recipe) =>
