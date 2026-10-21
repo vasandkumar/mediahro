@@ -15,7 +15,11 @@ String? _skip(NativeLibrary lib) => NativeLibraries.isAvailable(lib)
           'platform (B4)';
 
 /// Minimal ZIP writer (stored entries) for archive tests.
-Uint8List zipStored(Map<String, List<int>> files) {
+Uint8List zipStored(
+  Map<String, List<int>> files, {
+  Map<String, int> unixModes = const {},
+  Map<String, int> declared = const {},
+}) {
   final out = BytesBuilder();
   final central = BytesBuilder();
   var count = 0;
@@ -45,14 +49,15 @@ Uint8List zipStored(Map<String, List<int>> files) {
     u16(out, 0x5821);
     u32(out, crc);
     u32(out, data.length);
-    u32(out, data.length);
+    u32(out, declared[name] ?? data.length);
     u16(out, n.length);
     u16(out, 0);
     out
       ..add(n)
       ..add(data);
     u32(central, 0x02014b50);
-    u16(central, 20);
+    // Made by Unix when a file mode is given (links need it).
+    u16(central, unixModes.containsKey(name) ? (3 << 8) | 20 : 20);
     u16(central, 20);
     u16(central, 0x0800);
     u16(central, 0);
@@ -60,13 +65,13 @@ Uint8List zipStored(Map<String, List<int>> files) {
     u16(central, 0x5821);
     u32(central, crc);
     u32(central, data.length);
-    u32(central, data.length);
+    u32(central, declared[name] ?? data.length);
     u16(central, n.length);
     u16(central, 0);
     u16(central, 0);
     u16(central, 0);
     u16(central, 0);
-    u32(central, 0);
+    u32(central, (unixModes[name] ?? 0) << 16);
     u32(central, offset);
     central.add(n);
     count++;
@@ -171,6 +176,72 @@ void main() {
       fs.close(h);
       expect(() => fs.mkdir('x'), throwsA(isA<VirtualFileException>()));
       fs.dispose();
+    }, skip: _skip(NativeLibrary.archive));
+
+    test(
+      'PRIV-005 a crafted ZIP: links, escapes, absolute names, depth and sizes',
+      () {
+        final deep = List.filled(80, 'd').join('/');
+        final zip = zipStored(
+          {
+            'ok/page1.jpg': [1, 2, 3],
+            '../x': [9],
+            '/abs.jpg': [9],
+            'link.jpg': utf8.encode('/etc/passwd'),
+            '$deep/too-deep.jpg': [9],
+          },
+          unixModes: {'link.jpg': 0xA1FF, 'ok/page1.jpg': 0x81A4},
+        );
+        final f = File('${tmp.path}/crafted.zip')..writeAsBytesSync(zip);
+        final fs = ArchiveSyncFileSystem(LocalArchiveSource(f.path));
+        // Only the one honest page: no escape, no absolute name, no symlink, no
+        // entry past the depth limit.
+        expect(fs.entryCount, 1);
+        expect(fs.list('').map((e) => e.name), ['ok']);
+        fs.dispose();
+      },
+      skip: _skip(NativeLibrary.archive),
+    );
+
+    test(
+      'PRIV-005 an entry that declares far more than the limit is refused',
+      () {
+        final zip = zipStored(
+          {
+            'big.bin': [1, 2, 3],
+          },
+          declared: {'big.bin': 3 << 30},
+        );
+        final f = File('${tmp.path}/bomb.zip')..writeAsBytesSync(zip);
+        expect(
+          () => ArchiveSyncFileSystem(
+            LocalArchiveSource(f.path),
+            limits: const ArchiveLimits(maxTotalBytes: 1 << 30),
+          ),
+          throwsA(
+            isA<VirtualFileException>().having(
+              (e) => e.error,
+              'error',
+              VirtualFileError.unsupported,
+            ),
+          ),
+        );
+      },
+      skip: _skip(NativeLibrary.archive),
+    );
+
+    test('PRIV-005 a ratio far above the limit is refused', () {
+      final zip = zipStored(
+        {
+          'a.bin': [1, 2, 3],
+        },
+        declared: {'a.bin': 400 << 20},
+      );
+      final f = File('${tmp.path}/ratio.zip')..writeAsBytesSync(zip);
+      expect(
+        () => ArchiveSyncFileSystem(LocalArchiveSource(f.path)),
+        throwsA(isA<VirtualFileException>()),
+      );
     }, skip: _skip(NativeLibrary.archive));
 
     test('reads an archive from a blocking source without copying it', () {

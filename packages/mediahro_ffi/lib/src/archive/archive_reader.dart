@@ -42,6 +42,7 @@ final class ArchiveLimits {
     this.maxTotalBytes = 64 << 30,
     this.maxRatio = 1000,
     this.ratioFloorBytes = 256 << 20,
+    this.maxPathDepth = 64,
   });
 
   final int maxEntries;
@@ -64,6 +65,9 @@ final class ArchiveLimits {
   /// ...unless it unpacks to less than this in total (small files compress
   /// very well without being a bomb).
   final int ratioFloorBytes;
+
+  /// Entries nested deeper than this many folders are ignored.
+  final int maxPathDepth;
 }
 
 /// Why an archive that declares [unpackedBytes] in total and is
@@ -143,7 +147,13 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
       _onSeek,
       exceptionalReturn: ARCHIVE_FATAL,
     );
-    _index();
+    try {
+      _index();
+    } on Object {
+      // The constructor does not finish, so nobody else will free these.
+      dispose();
+      rethrow;
+    }
   }
 
   final ArchiveSource source;
@@ -302,7 +312,11 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
         .cast<Utf8>()
         .toDartString();
     final path = normaliseEntryPath(name);
-    if (path == null || path.length > limits.maxPathLength) return 0;
+    if (path == null ||
+        path.length > limits.maxPathLength ||
+        '/'.allMatches(path).length >= limits.maxPathDepth) {
+      return 0;
+    }
     // Mask: mode_t is 16-bit on some ABIs; the type bits fit either way.
     final type = _b.archive_entry_filetype(e) & AE_IFMT;
     if (type == AE_IFDIR || name.endsWith('/')) {
@@ -310,10 +324,19 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
       return 0;
     }
     if (type != AE_IFREG && type != 0) return 0;
+    // A hard link names another entry; it is not a file of its own.
+    if (_b.archive_entry_hardlink(e) != ffi.nullptr) return 0;
+    // A file that does not say how big it is cannot be held to a limit.
+    if (_b.archive_entry_size_is_set(e) == 0) return 0;
+    final size = _b.archive_entry_size(e);
+    if (size < 0) {
+      throw VirtualFileException(
+        VirtualFileError.unsupported,
+        _uri(''),
+        'an entry declares a negative size',
+      );
+    }
     _addDirs(path, includeSelf: false);
-    final size = _b.archive_entry_size_is_set(e) != 0
-        ? _b.archive_entry_size(e)
-        : null;
     _entries[path] = _Entry(
       path,
       size: size,
@@ -321,7 +344,7 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
       index: index,
       encrypted: _b.archive_entry_is_encrypted(e) != 0,
     );
-    return size ?? 0;
+    return size;
   }
 
   /// The length of the archive file itself, when known.

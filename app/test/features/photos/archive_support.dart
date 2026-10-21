@@ -124,6 +124,7 @@ final class FakeBooks implements ArchiveBooks {
       fs: fs,
       root: testRoot,
       onClose: () async => closes++,
+      passphraseGiven: passphrase != null,
     );
   }
 }

@@ -42,6 +42,7 @@ functions:
     - archive_entry_size
     - archive_entry_size_is_set
     - archive_entry_filetype
+    - archive_entry_hardlink
     - archive_entry_mtime
     - archive_entry_is_encrypted
     - archive_version_number

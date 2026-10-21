@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide ImageInfo;
@@ -9,6 +10,7 @@ import 'package:mediahro/features/photos/archive/archive_book.dart';
 import 'package:mediahro/features/photos/archive/archive_providers.dart';
 import 'package:mediahro/features/photos/archive/comic_reader.dart';
 import 'package:mediahro/features/photos/archive/reader_layout.dart';
+import 'package:mediahro/features/photos/archive/reader_positions.dart';
 import 'package:mediahro/features/photos/archive/reader_settings.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
@@ -35,8 +37,20 @@ Future<ui.Image> _pic(WidgetTester tester) async {
   return made!;
 }
 
+/// Places kept in memory (the widget tests do no file work).
+final class MemoryPositions extends ReaderPositions {
+  final Map<String, int> pages = {};
+
+  @override
+  Future<int> page(String book) async => pages[book] ?? 0;
+
+  @override
+  Future<void> save(String book, int page) async => pages[book] = page;
+}
+
 void main() {
   late SettingsStore store;
+  var positions = MemoryPositions();
   late FakeBooks books;
   late List<ui.Size> sizes;
   final loaded = <int>[];
@@ -56,6 +70,7 @@ void main() {
     SettingsStore? useStore,
   }) async {
     sizes = pageSizes ?? List.filled(pages, _portrait);
+    if (useStore == null) positions = MemoryPositions();
     loaded.clear();
     disposed.clear();
     store = useStore ?? (await tester.runAsync(() => memoryStore(settings)))!;
@@ -74,6 +89,7 @@ void main() {
       ProviderScope(
         overrides: [
           settingsStoreProvider.overrideWithValue(store),
+          readerPositionsProvider.overrideWithValue(positions),
           archiveBooksProvider.overrideWithValue(books),
           comicPageLoaderProvider.overrideWithValue((book, index) async {
             loaded.add(index);
@@ -293,27 +309,69 @@ void main() {
     ) async {
       await open(tester);
       await next(tester);
-      expect(ReaderPrefs.page(store, ref.key), 1);
-      expect(ReaderPrefs.page(store, 'file:///books/other.cbz'), 0);
+      expect(await positions.page(ref.key), 1);
+      expect(await positions.page('file:///books/other.cbz'), 0);
+    });
+
+    test(
+      'IMG-017 a place is kept under a hash, not the name of the book',
+      () async {
+        final dir = Directory.systemTemp.createTempSync('c3-pos');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final pos = ReaderPositions(directory: () async => dir);
+        await pos.save('content://docs/secret-diary.cbz', 12);
+        expect(await pos.page('content://docs/secret-diary.cbz'), 12);
+        expect(await pos.page('content://docs/other.cbz'), 0);
+        final file = File(
+          '${dir.path}/${ReaderPositions.folder}/reader-positions.json',
+        );
+        final text = file.readAsStringSync();
+        expect(text, isNot(contains('secret')));
+        expect(text, isNot(contains('content')));
+        expect(
+          text,
+          contains(ReaderPositions.keyOf('content://docs/secret-diary.cbz')),
+        );
+        expect(ReaderPositions.keyOf('a'), hasLength(64));
+      },
+    );
+
+    test('IMG-017 places are not part of the settings', () async {
+      final s = await memoryStore();
+      final dir = Directory.systemTemp.createTempSync('c3-pos');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      await ReaderPositions(directory: () async => dir).save('book', 3);
+      expect(s.exportJson(), isNot(contains('reader.positions')));
+      expect(s.exportJson(), isNot(contains('"book"')));
     });
 
     test('IMG-017 only the most recent books keep their place', () async {
-      final s = await memoryStore();
-      for (var i = 0; i < ReaderPrefs.remembered + 5; i++) {
-        ReaderPrefs.savePage(s, 'book$i', i + 1);
+      final dir = Directory.systemTemp.createTempSync('c3-pos');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final pos = ReaderPositions(directory: () async => dir);
+      for (var i = 0; i < ReaderPositions.remembered + 5; i++) {
+        await pos.save('book$i', i + 1);
       }
-      expect(ReaderPrefs.page(s, 'book0'), 0);
-      expect(ReaderPrefs.page(s, 'book4'), 0);
-      expect(ReaderPrefs.page(s, 'book5'), 6);
+      expect(await pos.page('book0'), 0);
+      expect(await pos.page('book4'), 0);
+      expect(await pos.page('book5'), 6);
       expect(
-        ReaderPrefs.page(s, 'book${ReaderPrefs.remembered + 4}'),
-        ReaderPrefs.remembered + 5,
+        await pos.page('book${ReaderPositions.remembered + 4}'),
+        ReaderPositions.remembered + 5,
       );
     });
 
     test('IMG-017 a garbled record is just no places', () async {
-      final s = await memoryStore({'photos.reader.positions': 'nonsense'});
-      expect(ReaderPrefs.page(s, 'anything'), 0);
+      final dir = Directory.systemTemp.createTempSync('c3-pos');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      File('${dir.path}/${ReaderPositions.folder}/reader-positions.json')
+        ..createSync(recursive: true)
+        ..writeAsStringSync('nonsense');
+      final pos = ReaderPositions(directory: () async => dir);
+      expect(await pos.page('anything'), 0);
+      // And saving over it works.
+      await pos.save('anything', 2);
+      expect(await pos.page('anything'), 2);
     });
   });
 
@@ -368,6 +426,40 @@ void main() {
       await tester.tap(find.text('Open'));
       await _settle(tester);
       expect(books.passphrases, [null, 'secret']);
+      expect(find.text('Page 1 of 2'), findsWidgets);
+    });
+
+    testWidgets('IMG-017 a wrong password is asked for again, once at a time', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        withBooks: FakeBooks(
+          (pass) => switch (pass) {
+            null => FakeArchiveFs(
+              [],
+              listError: VirtualFileException(
+                VirtualFileError.authenticationRequired,
+                testRoot,
+              ),
+            ),
+            'good' => FakeArchiveFs(['p1.jpg', 'p2.jpg']),
+            _ => FakeArchiveFs(['p1.jpg', 'p2.jpg'], encrypted: {'p1.jpg'}),
+          },
+        ),
+      );
+      await tester.enterText(find.byType(TextField), 'wrong');
+      await tester.tap(find.text('Open'));
+      await _settle(tester);
+      expect(
+        find.text('That password did not open the archive.'),
+        findsOneWidget,
+      );
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'good');
+      await tester.tap(find.text('Open'));
+      await _settle(tester);
+      expect(books.passphrases, [null, 'wrong', 'good']);
       expect(find.text('Page 1 of 2'), findsWidgets);
     });
 

@@ -52,6 +52,7 @@ final class ArchiveBook {
     required VirtualFileSystem fs,
     required Uri root,
     Future<void> Function()? onClose,
+    bool passphraseGiven = false,
   }) async {
     final found = <String>[];
     final pending = <Uri>[root];
@@ -86,7 +87,23 @@ final class ArchiveBook {
       await onClose?.call();
       throw const ArchiveBookException(ArchiveProblem.noPages);
     }
-    return ArchiveBook._(name, fs, root, pages, onClose);
+    final book = ArchiveBook._(name, fs, root, pages, onClose);
+    if (passphraseGiven) {
+      // A wrong password lists fine and fails on the first page: find out
+      // now, so it can be asked for again.
+      try {
+        final first = await book.openPage(0);
+        try {
+          await first.read(0, 1);
+        } finally {
+          await first.close();
+        }
+      } on Object {
+        await onClose?.call();
+        throw const ArchiveBookException(ArchiveProblem.needsPassphrase);
+      }
+    }
+    return book;
   }
 
   final String name;
@@ -178,6 +195,7 @@ final class FfiArchiveBooks implements ArchiveBooks {
       fs: fs,
       root: root,
       onClose: release,
+      passphraseGiven: passphrase != null,
     );
   }
 

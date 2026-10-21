@@ -1070,6 +1070,7 @@
   "photosReaderNoPages": "There are no pictures in this archive.",
   "photosReaderPageFailed": "This page could not be opened",
   "photosReaderPassphraseTitle": "Password needed",
+  "photosReaderPassphraseWrong": "That password did not open the archive.",
   "photosReaderPassphraseLabel": "Archive password",
   "photosReaderPassphraseOpen": "Open",
   "photosReaderSettings": "Reading settings",

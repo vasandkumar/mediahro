@@ -9,6 +9,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/photos/archive/archive_book.dart';
 import 'package:mediahro/features/photos/archive/archive_providers.dart';
 import 'package:mediahro/features/photos/archive/reader_layout.dart';
+import 'package:mediahro/features/photos/archive/reader_positions.dart';
 import 'package:mediahro/features/photos/archive/reader_settings.dart';
 import 'package:mediahro/features/photos/viewer/viewer_image.dart';
 import 'package:mediahro/features/settings/settings_providers.dart';
@@ -79,6 +80,9 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
     unawaited(_open());
   }
 
+  /// A prompt for the password is up; there is only ever one.
+  bool _asking = false;
+
   Future<void> _open({String? passphrase}) async {
     try {
       final book = await ref
@@ -88,8 +92,13 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
         await book.close();
         return;
       }
-      final store = ref.read(settingsStoreProvider);
-      final start = ReaderPrefs.page(store, widget.archive.key);
+      final start = await ref
+          .read(readerPositionsProvider)
+          .page(widget.archive.key);
+      if (_disposed) {
+        await book.close();
+        return;
+      }
       _book?.close().ignore();
       _forgetImages();
       setState(() {
@@ -101,7 +110,7 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
     } on ArchiveBookException catch (e) {
       if (_disposed) return;
       if (e.problem == ArchiveProblem.needsPassphrase) {
-        await _askPassphrase();
+        await _askPassphrase(wrong: passphrase != null);
       } else {
         setState(() => _problem = e.problem);
       }
@@ -112,11 +121,19 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
     }
   }
 
-  Future<void> _askPassphrase() async {
-    final pass = await showDialog<String>(
-      context: context,
-      builder: (_) => const _PassphraseDialog(),
-    );
+  Future<void> _askPassphrase({bool wrong = false}) async {
+    if (_asking || !mounted) return;
+    _asking = true;
+    final String? pass;
+    try {
+      pass = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _PassphraseDialog(wrong: wrong),
+      );
+    } finally {
+      _asking = false;
+    }
     if (!mounted || _disposed) return;
     if (pass == null || pass.isEmpty) {
       Navigator.of(context).maybePop();
@@ -224,10 +241,10 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
   void _onPage(int spread) {
     setState(() => _at = spread);
     _wanted();
-    ReaderPrefs.savePage(
-      ref.read(settingsStoreProvider),
-      widget.archive.key,
-      _spreads[spread].first,
+    unawaited(
+      ref
+          .read(readerPositionsProvider)
+          .save(widget.archive.key, _spreads[spread].first),
     );
   }
 
@@ -628,7 +645,10 @@ class _ComicReaderState extends ConsumerState<ComicReaderScreen> {
 /// Asks for the password of an archive. Owns its field, so the field lives
 /// as long as the dialog does, including while it closes.
 class _PassphraseDialog extends StatefulWidget {
-  const _PassphraseDialog();
+  const _PassphraseDialog({this.wrong = false});
+
+  /// The password just tried did not open the archive.
+  final bool wrong;
 
   @override
   State<_PassphraseDialog> createState() => _PassphraseDialogState();
@@ -656,6 +676,7 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
         autocorrect: false,
         decoration: InputDecoration(
           labelText: l10n.photosReaderPassphraseLabel,
+          errorText: widget.wrong ? l10n.photosReaderPassphraseWrong : null,
         ),
         onSubmitted: (v) => Navigator.pop(context, v),
       ),
