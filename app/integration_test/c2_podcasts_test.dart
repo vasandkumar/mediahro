@@ -138,7 +138,13 @@ void main() {
 
       final db = LibraryDatabase.memory();
       final gateway = NetworkGateway(_AllowAll());
-      final http = PodcastHttp(send: gateway.sendStreamed, allowHost: (_) {});
+      final http = PodcastHttp(
+        send: gateway.sendStreamed,
+        beginChain: () => ChainAllowance(allow: (_) {}, close: () {}),
+        // The feed is on the loopback server the test started: a subscription
+        // host, so its enclosure there is allowed.
+        localAllowed: (host) async => host == InternetAddress.loopbackIPv4.host,
+      );
       final mounts = MountedFileSystems();
       final manager = DownloadManager(
         db: db,
