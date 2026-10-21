@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediahro/core/db/library_database.dart';
+import 'package:mediahro/core/files/file_systems.dart';
 import 'package:mediahro/core/library/playlists.dart';
 import 'package:mediahro/core/library/queues.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
@@ -20,10 +21,13 @@ void main() {
   late MusicPlaylists playlists;
   late MusicIncoming incoming;
   late List<StubFile> opened;
+  late MusicSeed seed;
   var refuse = false;
+  var roots = <Uri>[];
 
   setUp(() async {
     refuse = false;
+    roots = [Uri.parse('file:///music/')];
     opened = [];
     db = LibraryDatabase.memory();
     engine = ScriptedMusicEngine();
@@ -40,6 +44,7 @@ void main() {
     incoming = MusicIncoming(
       player: player,
       playlists: playlists,
+      fileRoots: () async => roots,
       open: (uri) async {
         if (refuse) {
           throw VirtualFileException(VirtualFileError.notFound, uri);
@@ -49,7 +54,7 @@ void main() {
         return f;
       },
     );
-    final seed = MusicSeed(db);
+    seed = MusicSeed(db);
     await seed.song('a/1.flac', title: 'One', artist: 'A', album: 'X');
     await seed.song('a/2.flac', title: 'Two', artist: 'A', album: 'X');
   });
@@ -137,6 +142,66 @@ void main() {
       expect(player.state.episode?.title, 'x');
     });
 
+    test('SYS-004 only a file inside a folder the app holds is played from a '
+        'file address; any other is refused before it is looked at', () async {
+      expect(
+        await incoming.playExternalAudio(Uri.parse('file:///private/x.mp3')),
+        isFalse,
+      );
+      expect(
+        await incoming.playExternalAudio(
+          Uri.parse('file:///music/../private/x.mp3'),
+        ),
+        isFalse,
+      );
+      roots = [];
+      expect(
+        await incoming.playExternalAudio(Uri.parse('file:///music/x.mp3')),
+        isFalse,
+      );
+      expect(engine.opened, isEmpty);
+    });
+
+    test('SYS-004 only content from other apps is opened: nothing of the '
+        "app's own, nothing on any other scheme", () async {
+      for (final u in const [
+        'content://com.mediahro.vault/doc/1.mp3',
+        'ftp://host/a.mp3',
+        'smb://nas/share/a.mp3',
+        'rtsp://host/live',
+        'data:audio/mpeg;base64,AAAA',
+      ]) {
+        expect(
+          await incoming.playExternalAudio(Uri.parse(u)),
+          isFalse,
+          reason: u,
+        );
+      }
+      expect(engine.opened, isEmpty);
+      expect(opened, isEmpty);
+    });
+
+    test('SYS-004 a link on a host the listener has a source for is not read '
+        'with that source: it never reaches the mounts', () async {
+      final dav = _Dav();
+      final mounts = MountedFileSystems()
+        ..mount(Uri.parse('https://dav.example'), dav);
+      final viaMounts = MusicIncoming(
+        player: player,
+        playlists: playlists,
+        fileRoots: () async => roots,
+        open: (uri) => mounts.forUri(uri).open(uri),
+      );
+      for (final u in const [
+        'https://dav.example/music/a.mp3',
+        'http://dav.example/music/a.mp3',
+      ]) {
+        expect(await viaMounts.playExternalAudio(Uri.parse(u)), isFalse);
+      }
+      expect(dav.opened, isEmpty);
+      expect(engine.opened, isEmpty);
+    });
+
     test('titles read well', () {
       String t(String u) => MusicIncoming.titleOf(Uri.parse(u));
       expect(t('file:///a/b/Track.01.flac'), 'Track.01');
@@ -176,6 +241,24 @@ void main() {
       expect(engine.opened, isEmpty);
     });
 
+    test('LIB-013 songs behind the PIN never play from a request: a locked '
+        'folder, or a locked source', () async {
+      await seed.song('b/3.flac', title: 'Three', artist: 'A', album: 'Y');
+      final songs = await MusicLibrary(db).songs();
+      final mix = await playlists.createManual('Mix');
+      await playlists.add(mix, songs);
+      final sid = (await db.select(db.sources).getSingle()).id;
+      await db.customStatement(
+        "INSERT INTO locked_folder (source_id, rel_path) VALUES ($sid, 'a')",
+      );
+      expect(await incoming.playPlaylistByName('mix'), isTrue);
+      expect(player.state.queue.map((t) => t.title), ['Three']);
+      await db.customStatement('UPDATE source SET locked = 1');
+      engine.opened.clear();
+      expect(await incoming.playPlaylistByName('mix'), isFalse);
+      expect(engine.opened, isEmpty);
+    });
+
     test('LIB-013 hidden songs never play from a request, and a playlist of '
         'only hidden songs is not started', () async {
       final songs = await MusicLibrary(db).songs();
@@ -193,4 +276,27 @@ void main() {
       expect(engine.opened, isEmpty);
     });
   });
+}
+
+/// A source the listener added that serves a host, and says if it was used.
+final class _Dav implements VirtualFileSystem {
+  final opened = <Uri>[];
+
+  @override
+  Set<String> get schemes => const {'https'};
+
+  @override
+  Set<VirtualFsCapability> get capabilities => const {};
+
+  @override
+  Future<VirtualFile> open(Uri uri) async {
+    opened.add(uri);
+    return StubFile(uri);
+  }
+
+  @override
+  Future<VirtualEntry> stat(Uri uri) => throw UnimplementedError();
+
+  @override
+  Stream<VirtualEntry> list(Uri directory) => const Stream.empty();
 }

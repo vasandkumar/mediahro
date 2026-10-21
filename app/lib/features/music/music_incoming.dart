@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mediahro/app/incoming/incoming_target.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/music/library/music_playlists.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/platform/platform_facades.dart' show storageProvider;
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
@@ -19,29 +21,36 @@ final class MusicIncoming {
     required this.player,
     required this.playlists,
     required this.open,
+    required this.fileRoots,
   });
 
   final MusicPlayer player;
   final MusicPlaylists playlists;
+
+  /// The `file:` folders the app already holds access to.
+  final Future<List<Uri>> Function() fileRoots;
 
   /// The engine source for an address that mpv does not read itself (a
   /// `content:` URI, a share); throws [VirtualFileException] when nothing
   /// serves it.
   final Future<VirtualFile> Function(Uri uri) open;
 
-  /// Addresses mpv reads itself. Web links are not among them: they are the
-  /// video player's, which checks them like any link the listener opens.
-  static const _direct = {'file'};
-
   VirtualFile? _held;
 
   /// Plays the audio file at [uri]; false when it cannot be opened here (the
   /// video player, which plays audio too, then gets it).
   Future<bool> playExternalAudio(Uri uri) async {
+    // What the hand-over may be: content from another app (never this app's
+    // own) or a file in a folder the app holds. Anything else, web links
+    // included, is refused before it can reach a source the listener added
+    // (and be read with its credentials); the video player gets it and
+    // checks it like any link.
+    final target = classifyIncoming(uri, fileRoots: await fileRoots());
+    if (target is! IncomingDocument) return false;
     final MediaSource source;
     VirtualFile? file;
     final title = titleOf(uri);
-    if (_direct.contains(uri.scheme)) {
+    if (uri.scheme == 'file') {
       source = UriSource(uri, title: title);
     } else {
       try {
@@ -106,5 +115,13 @@ final musicIncomingProvider = Provider<MusicIncoming>((ref) {
     player: ref.watch(musicPlayerProvider),
     playlists: ref.watch(musicPlaylistsProvider),
     open: (uri) => ref.read(mountsProvider).forUri(uri).open(uri),
+    fileRoots: () async {
+      try {
+        final grants = await ref.read(storageProvider).grants();
+        return [for (final g in grants) g.uri];
+      } on Object {
+        return const [];
+      }
+    },
   );
 });
