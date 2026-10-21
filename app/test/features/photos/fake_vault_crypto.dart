@@ -30,6 +30,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   VaultCryptoError? failPlainOpen;
   VaultCryptoError? failBiometricOpen;
 
+  /// What the Android codec does: `open` hands back a read-only view of its
+  /// buffer (writing to it throws `UnsupportedError`).
+  bool readOnlyResults = false;
+
   /// Every `seal` and `open` call throws this.
   VaultCryptoError? failChunks;
 
@@ -167,9 +171,10 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
         nonce: nonce,
         mac: Mac(sealed.sublist(sealed.length - 16)),
       );
-      return Uint8List.fromList(
+      final plain = Uint8List.fromList(
         await _aes.decrypt(box, secretKey: SecretKey(fileKey), aad: aad),
       );
+      return readOnlyResults ? plain.asUnmodifiableView() : plain;
     } on SecretBoxAuthenticationError {
       throw const VaultCryptoException(VaultCryptoError.integrityFailure);
     }
