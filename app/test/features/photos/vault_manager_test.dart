@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mediahro/features/photos/vault/vault_container.dart';
 import 'package:mediahro/features/photos/vault/vault_kdf.dart';
 import 'package:mediahro/features/photos/vault/vault_manager.dart';
 import 'package:mediahro/platform/vault_crypto.dart';
@@ -97,7 +96,7 @@ void main() {
       await r.vault!.close();
       final dirs = root.listSync().whereType<Directory>().toList();
       expect(baseNames(dirs[0]), baseNames(dirs[1]));
-      expect(baseNames(dirs[0]), {'index.mv', 'salt', '.nomedia'});
+      expect(baseNames(dirs[0]), {'index.mv', 'salt', 'secret.mv', '.nomedia'});
     });
 
     test('PRIV-007 set-up twice is refused', () async {
@@ -470,15 +469,52 @@ void main() {
     );
 
     test(
-      'PRIV-007 changing the PIN turns that vault fingerprint off',
+      'PRIV-007 the fingerprint keeps working when the PIN is changed',
       () async {
         final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        await addTo(r.vault!, 'real.jpg');
         await manager.setFingerprint(r.vault!, enabled: true);
-        await manager.changePin(r.vault!, '555555');
+        expect(
+          await manager.changePin(r.vault!, '555555'),
+          VaultOutcome.opened,
+        );
         await r.vault!.close();
-        expect(await manager.fingerprintOn, isFalse);
+        expect(await manager.fingerprintOn, isTrue);
+        final f = await manager.openWithFingerprint();
+        expect(f.isOpen, isTrue, reason: '${f.outcome}');
+        expect(f.vault!.container.list().single.name, 'real.jpg');
+        await f.vault!.close();
       },
     );
+
+    test(
+      'PRIV-007 a PIN under six digits is refused, at set-up and on change',
+      () async {
+        expect(
+          (await manager.setUp(pin: '12345', decoyPin: '135790')).outcome,
+          VaultOutcome.pinTooShort,
+        );
+        expect(
+          (await manager.setUp(pin: '246810', decoyPin: '1357')).outcome,
+          VaultOutcome.pinTooShort,
+        );
+        expect(manager.exists, isFalse);
+        final r = await manager.setUp(pin: '246810', decoyPin: '135790');
+        expect(
+          await manager.changePin(r.vault!, '12345'),
+          VaultOutcome.pinTooShort,
+        );
+        await r.vault!.close();
+        expect((await manager.openWithPin('246810')).isOpen, isTrue);
+      },
+    );
+
+    test('PRIV-007 the same PIN for both vaults is refused', () async {
+      expect(
+        (await manager.setUp(pin: '246810', decoyPin: '246810')).outcome,
+        VaultOutcome.pinNotAllowed,
+      );
+    });
 
     test('PRIV-007 the other vault PIN is refused as a new PIN', () async {
       final r = await manager.setUp(pin: '246810', decoyPin: '135790');
@@ -559,62 +595,74 @@ void main() {
   });
 
   group('PRIV-007 a Change PIN that is cut short', () {
-    late String name;
     late Directory dir;
-
-    Uint8List tokenOf(String pin, Uint8List salt) =>
-        pbkdf2Sha256(pin.codeUnits, salt, 4);
-
-    Uint8List saltBytes(Uint8List salt) => Uint8List.fromList([
-      ...salt,
-      ...(ByteData(4)..setUint32(0, 4)).buffer.asUint8List(),
-    ]);
+    late Uint8List oldSalt;
+    late Uint8List oldSecret;
+    late Uint8List newSalt;
+    late Uint8List newSecret;
+    late Uint8List indexBefore;
 
     setUp(() async {
       final r = await manager.setUp(pin: '246810', decoyPin: '135790');
       await addTo(r.vault!, 'real.jpg');
       dir = r.vault!.container.directory;
-      name = dir.path.split(Platform.pathSeparator).last;
+      oldSalt = File('${dir.path}/salt').readAsBytesSync();
+      oldSecret = File('${dir.path}/secret.mv').readAsBytesSync();
+      indexBefore = File('${dir.path}/index.mv').readAsBytesSync();
+      expect(await manager.changePin(r.vault!, '555555'), VaultOutcome.opened);
+      newSalt = File('${dir.path}/salt').readAsBytesSync();
+      newSecret = File('${dir.path}/secret.mv').readAsBytesSync();
       await r.vault!.close();
     });
 
-    /// The state after the new index is written and the new salt not yet.
-    Future<(Uint8List, Uint8List)> prepare() async {
-      final salt = Uint8List.fromList(List.generate(16, (i) => i + 1));
-      final token = tokenOf('555555', salt);
-      final master = await crypto.openMasterKey(requireBiometry: false);
-      final c = await VaultContainer.open(
-        directory: dir,
-        crypto: crypto,
-        master: master,
-        token: tokenOf(
-          '246810',
-          File('${dir.path}/salt').readAsBytesSync().sublist(0, 16),
-        ),
-      );
-      await c.prepareRekey(token);
-      c.close();
-      await crypto.close(master);
-      return (salt, token);
+    void put(String name, Uint8List bytes) =>
+        File('${dir.path}/$name').writeAsBytesSync(bytes);
+
+    /// The folder as it was before the change plus the files a cut-off left.
+    void state({
+      required bool secretNext,
+      required bool saltNext,
+      bool swapped = false,
+    }) {
+      put('salt', oldSalt);
+      put('secret.mv', swapped ? newSecret : oldSecret);
+      for (final f in ['salt.next', 'secret.mv.next']) {
+        if (File('${dir.path}/$f').existsSync()) {
+          File('${dir.path}/$f').deleteSync();
+        }
+      }
+      if (secretNext) put('secret.mv.next', newSecret);
+      if (saltNext) put('salt.next', newSalt);
     }
 
+    test('PRIV-007 a finished change opens with the new PIN only', () async {
+      expect((await manager.openWithPin('246810')).isOpen, isFalse);
+      final r = await manager.openWithPin('555555');
+      expect(r.isOpen, isTrue);
+      expect(r.vault!.container.list().single.name, 'real.jpg');
+      await r.vault!.close();
+    });
+
+    test('PRIV-007 changing the PIN does not touch the index or the files', () {
+      expect(File('${dir.path}/index.mv').readAsBytesSync(), indexBefore);
+    });
+
     test(
-      'PRIV-007 after only the new index is written the old PIN opens',
+      'PRIV-007 after only the new secret file is written the old PIN opens',
       () async {
-        await prepare();
+        state(secretNext: true, saltNext: false);
         final r = await manager.openWithPin('246810');
         expect(r.isOpen, isTrue);
         expect(r.vault!.container.list().single.name, 'real.jpg');
         await r.vault!.close();
         // The leftover is cleaned and the new PIN does not open.
-        expect(File('${dir.path}/index.mv.next').existsSync(), isFalse);
+        expect(File('${dir.path}/secret.mv.next').existsSync(), isFalse);
         expect((await manager.openWithPin('555555')).isOpen, isFalse);
       },
     );
 
-    test('PRIV-007 with both new files written either PIN opens', () async {
-      final (salt, _) = await prepare();
-      File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
+    test('PRIV-007 with both new files written the new PIN opens', () async {
+      state(secretNext: true, saltNext: true);
       final fresh = make();
       final r = await fresh.openWithPin('555555');
       expect(r.isOpen, isTrue, reason: '${r.outcome}');
@@ -622,7 +670,7 @@ void main() {
       await r.vault!.close();
       // The new pair is now the folder's own; the old PIN is gone.
       expect(File('${dir.path}/salt.next').existsSync(), isFalse);
-      expect(File('${dir.path}/index.mv.next').existsSync(), isFalse);
+      expect(File('${dir.path}/secret.mv.next').existsSync(), isFalse);
       expect((await manager.openWithPin('246810')).isOpen, isFalse);
       final again = await manager.openWithPin('555555');
       expect(again.isOpen, isTrue);
@@ -632,8 +680,7 @@ void main() {
     test(
       'PRIV-007 with both new files written the old PIN still opens too',
       () async {
-        final (salt, _) = await prepare();
-        File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
+        state(secretNext: true, saltNext: true);
         final r = await manager.openWithPin('246810');
         expect(r.isOpen, isTrue);
         await r.vault!.close();
@@ -641,21 +688,15 @@ void main() {
       },
     );
 
-    test(
-      'PRIV-007 after the index is swapped but not the salt the new PIN opens',
-      () async {
-        final (salt, token) = await prepare();
-        File('${dir.path}/salt.next').writeAsBytesSync(saltBytes(salt));
-        File('${dir.path}/index.mv.next').renameSync('${dir.path}/index.mv');
-        expect(token, hasLength(32));
-        final r = await manager.openWithPin('555555');
-        expect(r.isOpen, isTrue, reason: '${r.outcome}');
-        expect(r.vault!.container.list().single.name, 'real.jpg');
-        await r.vault!.close();
-        expect(File('${dir.path}/salt.next').existsSync(), isFalse);
-        expect(name, isNotEmpty);
-      },
-    );
+    test('PRIV-007 after the secret file is swapped but not the salt the new PIN opens', () async {
+      state(secretNext: false, saltNext: true, swapped: true);
+      final r = await manager.openWithPin('555555');
+      expect(r.isOpen, isTrue, reason: '${r.outcome}');
+      expect(r.vault!.container.list().single.name, 'real.jpg');
+      await r.vault!.close();
+      expect(File('${dir.path}/salt.next').existsSync(), isFalse);
+      expect(File('${dir.path}/salt').readAsBytesSync(), newSalt);
+    });
   });
 
   group('PRIV-007 one damaged vault does not shut out the other', () {

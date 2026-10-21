@@ -854,9 +854,9 @@
   "photosVaultSubtitle": "Private photos, locked with a PIN",
   "photosVaultIntro": "Keep private photos behind a PIN, and your fingerprint if you like. They are encrypted on this device, kept out of the gallery and out of backups, and hidden from screenshots and the app switcher.",
   "photosVaultSetUpTitle": "Set up the vault",
-  "photosVaultPinLabel": "PIN, 4 to 12 digits",
+  "photosVaultPinLabel": "PIN, 6 to 12 digits",
   "photosVaultPinRepeat": "Repeat the PIN",
-  "photosVaultPinShort": "Use 4 to 12 digits.",
+  "photosVaultPinShort": "Use 6 to 12 digits.",
   "photosVaultPinMismatch": "The two PINs differ.",
   "photosVaultSecondTitle": "Second vault (optional)",
   "photosVaultSecondBody": "A second, separate vault that opens with another PIN. It looks exactly like this one and holds only what you put in it, so you can open it if someone makes you open the vault. Nothing in the app shows that it exists. Anyone who examines this phone's storage can still find that there are two vaults.",
@@ -950,7 +950,6 @@
   "photosVaultFingerprintOff": "The fingerprint no longer opens a vault.",
   "photosVaultChangePin": "Change PIN",
   "photosVaultChangePinDone": "PIN changed.",
-  "photosVaultChangePinDoneFingerprintOff": "PIN changed. Fingerprint unlock is now off; turn it on again if you want it.",
   "photosVaultNewPin": "New PIN",
   "photosVaultMove": "Move to vault",
   "photosVaultMoveTitle": "{count, plural, =1{Move this photo to the vault?} other{Move {count} photos to the vault?}}",
@@ -1037,5 +1036,5 @@
   "photosVaultLocked": "The vault is locked.",
   "photosVaultFingerprintWarning": "Anyone can make you place your finger on the phone. The fingerprint opens the vault it was turned on in, so turn it on only in the vault you would not mind being made to open.",
   "photosVaultPinNotAllowed": "Choose a different PIN.",
-  "photosVaultPinHelp": "The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type."
+  "photosVaultPinHelp": "A longer PIN protects the vault better if someone gets into the phone itself. The PIN pad on the lock screen is our own, so no keyboard learns it. Here the phone keyboard is used, with suggestions off; some keyboards may still remember what you type."
 }

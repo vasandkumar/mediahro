@@ -46,7 +46,12 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
   void loseKeys() {
     _masters[false] = _bytes(32);
     _masters[true] = _bytes(32);
+    _lost = true;
   }
+
+  // True from loseKeys until reset: opening any key says keyLost, as the real
+  // facade does when the keystore entry is gone.
+  bool _lost = false;
 
   @override
   Future<VaultKeyHandle> openMasterKey({
@@ -54,6 +59,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     Uint8List? secret,
   }) async {
     calls.add('openMaster:$requireBiometry');
+    if (_lost) throw const VaultCryptoException(VaultCryptoError.keyLost);
     final fail = requireBiometry ? failBiometricOpen : failPlainOpen;
     if (fail != null) throw VaultCryptoException(fail);
     final id = _next++;
@@ -181,6 +187,7 @@ final class FakeVaultCrypto implements VaultCryptoFacade {
     // New keys, as a new keystore entry would be; open handles are closed.
     _open.clear();
     loseKeys();
+    _lost = false;
   }
 
   @override

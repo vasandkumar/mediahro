@@ -7,9 +7,9 @@ The vault keeps private photos **encrypted** behind a PIN, and behind your finge
 
 ## Set-up
 
-- Choose a **PIN of 4 to 12 digits** (6 or more is better). When you open the vault the PIN is typed on Mediahro's own number pad, so no keyboard learns it. When you **set up** the vault or **change the PIN** the phone's keyboard is used, with suggestions switched off; some keyboards may still remember what you type there.
+- Choose a **PIN of 6 to 12 digits**; the longer, the better (see below). When you open the vault the PIN is typed on Mediahro's own number pad, so no keyboard learns it. When you **set up** the vault or **change the PIN** the phone's keyboard is used, with suggestions switched off; some keyboards may still remember what you type there.
 - The first time you also choose, if you want, a **second vault** with its own PIN (see below) and whether the **fingerprint** opens the vault.
-- Each photo is encrypted with its own key, and those keys are protected by a key kept in the phone's secure storage. The PIN is also mixed in: it is turned into a secret with a slow function (600,000 rounds) on a background thread, which takes a moment on purpose, and the vault can't be read without it. Someone with the phone and plenty of time could still try PINs one after another, so a longer PIN is better.
+- Each photo is encrypted with its own key. All of them are protected by a secret that belongs to the vault, and that secret is kept locked by your PIN together with a key in the phone's secure hardware. On Android every PIN guess has to be checked by that hardware, so guesses cannot be tried away from your phone, and the wrong-PIN waits (below) apply. The PIN is turned into a key with a slow function (600,000 rounds) on a background thread, which takes a moment on purpose. Someone who gets into the phone itself (a rooted phone, say) could still try PINs on it, which is why a longer PIN is better.
 
 ## Using it
 
@@ -19,7 +19,7 @@ The vault keeps private photos **encrypted** behind a PIN, and behind your finge
 - **Take out:** select photos, **Take out**, choose where to save. The copy is saved first and then removed from the vault; its rating, colour label and tags are written back into the file where the format can hold them, so the library reads them again. This is not an export tool: the saved copy is plain.
 - **Delete for good** erases photos without a trash.
 - **Fingerprint:** ⋮ → **Fingerprint unlock** turns it on or off for the vault you are in. Read the note it shows first: anyone can make you place your finger on the phone, so turn it on only in the vault you would not mind being made to open. Adding or removing a fingerprint on the phone turns it off by itself; the PIN keeps working.
-- **Change PIN:** ⋮ → **Change PIN**. The new PIN can't be the PIN of the other vault. If the fingerprint was on for this vault it is turned off; turn it on again if you want it. If the phone stops or the app is closed in the middle, the old PIN still works.
+- **Change PIN:** ⋮ → **Change PIN** (6 to 12 digits). The new PIN can't be the PIN of the other vault. Only the vault's lock is changed; the photos are not touched and the fingerprint keeps working. If the phone stops or the app is closed in the middle, one of the two PINs still works.
 - **Locking:** the vault locks when you press **Lock**, leave the screen, or send the app to the background, and every vault screen closes. While a vault screen is up, Android hides the window from screenshots, screen recordings and the recent-apps picture.
 
 ## Wrong PINs
@@ -34,7 +34,7 @@ This helps if someone makes you open the vault: open the second one. It does **n
 
 ## What can go wrong
 
-- **If the phone's key is lost** (the app data was restored on another phone, or the key store was reset), the vault can't be opened and **there is no way back**. Mediahro says so and, if it happens again, offers **Reset the vault** after a clear question; it deletes both vaults. One damaged folder does not stop the other vault from opening. Take photos out first if you plan to restore or switch phones.
+- **If the phone's key is lost** (the app data was restored on another phone, or the key store was reset), the vault can't be opened and **there is no way back**. Mediahro says so and offers **Reset the vault** after a clear question; it deletes both vaults. A wrong PIN is never mistaken for this: it is only reported when the phone's own key is gone. One damaged folder does not stop the other vault from opening. Take photos out first if you plan to restore or switch phones.
 - **Backups:** the vault folder is kept out of Android backups and out of transfers to a new phone. A copy of a photo already in a cloud backup or another app, made before you moved it, is not touched.
 - **Deleting is best effort** on a phone's flash memory: the original is deleted and its space is reused, but the phone does not promise to overwrite every trace.
 - Videos and music can't be put in the vault yet.

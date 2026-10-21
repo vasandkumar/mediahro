@@ -203,7 +203,7 @@ void main() {
       await tester.ensureVisible(set);
       await tester.tap(set);
       await tester.pump();
-      expect(find.text('Use 4 to 12 digits.'), findsOneWidget);
+      expect(find.text('Use 6 to 12 digits.'), findsOneWidget);
       await tester.enterText(fields.at(0), '246810');
       await tester.enterText(fields.at(1), '246811');
       await tester.ensureVisible(set);
@@ -650,7 +650,7 @@ void main() {
     );
 
     testWidgets(
-      'IMG-011 changing the PIN of the vault with the fingerprint turns it off',
+      'IMG-011 changing the PIN of the vault with the fingerprint keeps it on',
       (tester) async {
         await seeded(tester);
         await tester.runAsync(() async {
@@ -661,11 +661,8 @@ void main() {
         await open(tester);
         await typePin(tester, '246810');
         await changePinTo(tester, '999999');
-        expect(
-          find.textContaining('Fingerprint unlock is now off'),
-          findsOneWidget,
-        );
-        expect(await tester.runAsync(() => manager.fingerprintOn), isFalse);
+        expect(find.text('PIN changed.'), findsOneWidget);
+        expect(await tester.runAsync(() => manager.fingerprintOn), isTrue);
       },
     );
 
@@ -694,9 +691,6 @@ void main() {
       crypto.loseKeys();
       await open(tester);
       await typePin(tester, '246810');
-      // One lost-key answer could be one damaged folder; Reset comes after two.
-      expect(find.text('Reset the vault'), findsNothing);
-      await typePin(tester, '246810');
       expect(find.textContaining('key is gone'), findsOneWidget);
       await tester.tap(find.text('Reset the vault'));
       await tester.pumpAndSettle();
@@ -719,7 +713,6 @@ void main() {
     await seeded(tester, names: ['one.mp4']);
     crypto.loseKeys();
     await open(tester);
-    await typePin(tester, '246810');
     await typePin(tester, '246810');
     crypto.failReset = VaultCryptoError.unavailable;
     await tester.tap(find.text('Reset the vault'));

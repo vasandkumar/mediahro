@@ -49,7 +49,6 @@ void main() {
       directory: Directory('${dir.path}/v'),
       crypto: crypto,
       master: master,
-      token: bytesOf(32, 5),
     );
     cache = ThumbnailCache(db: db, directory: Directory('${dir.path}/thumbs'));
     pipeline = MediahroImagePipeline(

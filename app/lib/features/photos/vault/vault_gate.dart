@@ -41,6 +41,7 @@ String vaultOutcomeText(AppLocalizations l10n, VaultOpenResult r) =>
       VaultOutcome.damaged => l10n.photosVaultDamaged,
       VaultOutcome.noFingerprint => l10n.photosVaultCancelled,
       VaultOutcome.pinNotAllowed => l10n.photosVaultPinNotAllowed,
+      VaultOutcome.pinTooShort => l10n.photosVaultPinShort,
     };
 
 /// The one way into the vault (IMG-011, ADR-040): a PIN pad, and the
@@ -62,18 +63,15 @@ class _VaultGateState extends ConsumerState<VaultGate> {
   bool _busy = false;
   bool _lost = false;
 
-  // A lost key is told once; the way out (Reset) is offered when it happens
-  // again, so one odd read does not tempt anybody to delete the vault.
-  int _lostCount = 0;
-
   void _finish(VaultOpenResult r) {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context);
     setState(() {
       _busy = false;
       _message = vaultOutcomeText(l10n, r);
-      if (r.outcome == VaultOutcome.keyLost) _lostCount++;
-      _lost = _lostCount >= 2;
+      // The way out (Reset) is offered only when the phone key itself is gone,
+      // which the manager checks before it says so.
+      _lost = r.outcome == VaultOutcome.keyLost;
     });
     // A refused fingerprint may have switched itself off.
     if (!r.isOpen) ref.invalidate(vaultFingerprintOnProvider);
@@ -141,7 +139,6 @@ class _VaultGateState extends ConsumerState<VaultGate> {
     if (mounted) {
       setState(() {
         _lost = false;
-        _lostCount = 0;
         _message = '';
       });
     }
@@ -272,7 +269,7 @@ class _VaultSetUpFormState extends ConsumerState<VaultSetUpForm> {
     super.dispose();
   }
 
-  static final RegExp _valid = RegExp(r'^\d{4,12}$');
+  static final RegExp _valid = RegExp(r'^\d{6,12}$');
 
   Future<void> _go() async {
     final l10n = AppLocalizations.of(context);

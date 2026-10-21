@@ -445,18 +445,7 @@ class _OpenVaultViewState extends ConsumerState<_OpenVaultView> {
       _toast(vaultOutcomeText(l10n, VaultOpenResult(outcome)));
       return;
     }
-    // Whether the fingerprint is still on is for the manager to say: it was
-    // turned off only if it belonged to this vault.
-    final wasOn = _fingerprintOn;
-    final on = await manager.fingerprintOn;
-    if (!mounted) return;
-    setState(() => _fingerprintOn = on);
-    ref.invalidate(vaultFingerprintOnProvider);
-    _toast(
-      wasOn && !on
-          ? l10n.photosVaultChangePinDoneFingerprintOff
-          : l10n.photosVaultChangePinDone,
-    );
+    _toast(l10n.photosVaultChangePinDone);
   }
 
   @override
@@ -717,7 +706,7 @@ class _ChangePinDialogState extends State<_ChangePinDialog> {
   }
 
   void _go(AppLocalizations l10n) {
-    if (!RegExp(r'^\d{4,12}$').hasMatch(_a.text)) {
+    if (!RegExp(r'^\d{6,12}$').hasMatch(_a.text)) {
       setState(() => _error = l10n.photosVaultPinShort);
     } else if (_a.text != _b.text) {
       setState(() => _error = l10n.photosVaultPinMismatch);
