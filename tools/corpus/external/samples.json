@@ -1,0 +1,41 @@
+{
+  "comment": "Synthetic samples made with permissively licensed tools that FFmpeg does not have (recipe: README.md). tools/corpus/generate.dart copies them into the generated corpus and lists them in its manifest.",
+  "items": [
+    {
+      "file": "ape_tone.ape",
+      "category": "audio",
+      "ids": ["AUD-001"],
+      "expect": {"video": 0, "audio": 1, "audioCodec": "ape"}
+    },
+    {
+      "file": "mpc_tone.mpc",
+      "category": "audio",
+      "ids": ["AUD-001"],
+      "expect": {"video": 0, "audio": 1, "audioCodec": "musepack8"}
+    },
+    {
+      "file": "dv_p81.mp4",
+      "category": "hdr-lfs",
+      "ids": ["VID-033", "VID-035"],
+      "expect": {"video": 1, "hdr": "dolbyVision", "dvProfile": 8}
+    },
+    {
+      "file": "dv_p81.mkv",
+      "category": "hdr-lfs",
+      "ids": ["VID-033", "VID-035"],
+      "expect": {"video": 1, "hdr": "dolbyVision", "dvProfile": 8}
+    },
+    {
+      "file": "hdr10p.mp4",
+      "category": "hdr-lfs",
+      "ids": ["VID-032"],
+      "expect": {"video": 1, "hdr": "hdr10Plus"}
+    },
+    {
+      "file": "hdr10p.mkv",
+      "category": "hdr-lfs",
+      "ids": ["VID-032"],
+      "expect": {"video": 1, "hdr": "hdr10Plus"}
+    }
+  ]
+}
