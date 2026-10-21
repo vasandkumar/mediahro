@@ -25,6 +25,10 @@ class Feature:
     release_raw: str
     section: str
 
+    @property
+    def removed(self) -> bool:
+        return is_removed(self.release_raw)
+
     def platform_state(self) -> dict[str, str]:
         """Map each platform to '1.0', '1.1', '1.2' or '-' (not applicable)."""
         raw = self.platforms_raw
@@ -47,7 +51,18 @@ class Feature:
         return state
 
 
+_REMOVED = re.compile(r"^\s*(?:[—–-]+|Removed.*)\s*$", re.IGNORECASE)
+
+
+def is_removed(raw: str) -> bool:
+    """True for a release cell of `—`, `-` or text starting "Removed"."""
+    return bool(_REMOVED.match(raw))
+
+
 def _first_release(raw: str) -> str:
+    """'1.0'/'1.1'/'1.2', or '-' when the feature was removed from the release plan."""
+    if is_removed(raw):
+        return "-"
     m = re.search(r"1\.\d", raw)
     return m.group(0) if m else "1.0"
 

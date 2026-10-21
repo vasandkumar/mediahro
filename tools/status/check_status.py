@@ -1,4 +1,5 @@
 """CI guard: every feature ID in docs/04 appears exactly once in STATUS.md,
+a feature whose doc 04 release cell is `—` (removed) has `—` on every platform,
 and no 1.0 platform cell has been silently changed to "—" (scope narrowing).
 """
 
@@ -25,12 +26,19 @@ def main() -> int:
                 return 1
             rows[m.group(1)] = [c.strip() for c in line.strip().strip("|").split("|")]
     errors = []
+    removed = 0
     for f in features.parse():
         row = rows.get(f.fid)
         if row is None:
             errors.append(f"{f.fid} missing from STATUS.md")
             continue
         cells = dict(zip(features.PLATFORMS, row[3:7]))
+        if f.removed:
+            removed += 1
+            for p, have in cells.items():
+                if have != "—":
+                    errors.append(f"{f.fid} platform {p}: removed from 1.0 in doc 04, expected '—', found '{have}'")
+            continue
         for p, want in f.platform_state().items():
             have = cells.get(p, "")
             if want == "1.0" and have not in ("☐", "☑", "⛔"):
@@ -39,7 +47,7 @@ def main() -> int:
         print(e)
     ticked = sum(r[3:7].count("☑") for r in rows.values())
     total = sum(r[3:7].count("☐") + r[3:7].count("☑") + r[3:7].count("⛔") for r in rows.values())
-    print(f"{len(rows)} IDs tracked; {ticked}/{total} platform cells done")
+    print(f"{len(rows)} IDs tracked; {ticked}/{total} platform cells done ({removed} removed from 1.0)")
     return 1 if errors else 0
 
 
