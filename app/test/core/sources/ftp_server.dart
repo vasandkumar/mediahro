@@ -69,6 +69,7 @@ final class TestFtpOptions {
     this.context,
     this.implicitTls = false,
     this.requireTls = false,
+    this.waitForClientTlsClose = true,
   });
 
   final String user;
@@ -80,6 +81,11 @@ final class TestFtpOptions {
   final SecurityContext? context;
   final bool implicitTls;
   final bool requireTls;
+
+  /// vsftpd's bidirectional TLS shutdown: on a protected data channel the
+  /// server sends its close_notify, then waits for the client's before it
+  /// answers 226. A client that waits for 226 first never gets it.
+  final bool waitForClientTlsClose;
 }
 
 final class _Session {
@@ -421,7 +427,17 @@ final class _Session {
       } else {
         await data.addStream(file!.openRead(offset));
       }
-      await data.close();
+      if (_protected && o.waitForClientTlsClose) {
+        final peer = data.listen(null);
+        try {
+          await data.close();
+          await peer.asFuture<void>().timeout(const Duration(seconds: 10));
+        } finally {
+          await peer.cancel();
+        }
+      } else {
+        await data.close();
+      }
       _reply(226, 'Transfer complete.');
     } on Object {
       data.destroy();

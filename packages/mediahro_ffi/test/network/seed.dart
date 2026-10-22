@@ -49,10 +49,31 @@ Future<void> main(List<String> args) async {
   // NET-001 "large files": a sparse 5 GiB file; the tail byte is known.
   final big = File('${media.path}/Large/sparse-5g.bin');
   await big.parent.create(recursive: true);
-  final raf = await big.open(mode: FileMode.write);
-  await raf.setPosition((5 << 30) - 1);
-  await raf.writeByte(0x5A);
-  await raf.close();
+  if (big.existsSync()) big.deleteSync();
+  big.createSync();
+  if (Platform.isWindows) {
+    // NTFS keeps a file sparse only when it is flagged before it grows;
+    // otherwise seeking past the end writes out 5 GiB of zeros. Opening
+    // with FileMode.write would recreate it and drop the flag, so the
+    // length is set by fsutil and the last byte appended.
+    for (final args in [
+      ['sparse', 'setflag', big.path],
+      ['file', 'seteof', big.path, '${(5 << 30) - 1}'],
+    ]) {
+      final r = Process.runSync('fsutil', args);
+      if (r.exitCode != 0) {
+        throw StateError('fsutil ${args.take(2).join(' ')}: ${r.stdout}');
+      }
+    }
+    final raf = await big.open(mode: FileMode.append);
+    await raf.writeByte(0x5A);
+    await raf.close();
+  } else {
+    final raf = await big.open(mode: FileMode.write);
+    await raf.setPosition((5 << 30) - 1);
+    await raf.writeByte(0x5A);
+    await raf.close();
+  }
 
   final dfs = Directory('${root.path}/dfs');
   await dfs.create(recursive: true);

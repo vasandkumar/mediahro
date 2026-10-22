@@ -8,8 +8,10 @@ output: ../lib/src/smb2/smb2_bindings.dart
 headers:
   entry-points:
     - ../../../.deps-cache/headers/libsmb2/include/smb2/libsmb2.h
+    - ../../../.deps-cache/headers/libsmb2/include/smb2/libsmb2-raw.h
   include-directives:
     - '**/smb2/libsmb2.h'
+    - '**/smb2/libsmb2-raw.h'
     - '**/smb2/smb2.h'
 compiler-opts:
   - '-I../../.deps-cache/headers/libsmb2/include'
@@ -22,6 +24,9 @@ compiler-opts:
   - 'time.h'
   - '-include'
   - 'smb2/smb2.h'
+  # libsmb2-raw.h uses libsmb2.h's types without including it.
+  - '-include'
+  - 'smb2/libsmb2.h'
 exclude-all-by-default: true
 functions:
   include:
@@ -59,6 +64,13 @@ functions:
     - smb2_rename
     - smb2_echo
     - smb2_get_libsmb2Version
+    # DFS referrals (FSCTL_DFS_GET_REFERRALS) through the raw async API and
+    # libsmb2's own event loop; libsmb2 has no sync ioctl.
+    - smb2_cmd_ioctl_async
+    - smb2_queue_pdu
+    - smb2_get_fd
+    - smb2_which_events
+    - smb2_service
 structs:
   include:
     - smb2_stat_64
@@ -67,6 +79,9 @@ structs:
     - smb2_context
     - smb2dir
     - smb2fh
+    - smb2_pdu
+    - smb2_ioctl_request
+    - smb2_ioctl_reply
 enums:
   include:
     - smb2_negotiate_version

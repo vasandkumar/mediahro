@@ -123,6 +123,11 @@ Duration? _duration(String? s) {
   );
 }
 
+/// The root of the DLNA source for a device's UDN (`uuid:…`): the UDN
+/// without its `uuid:` prefix is the host, so the URI parses back.
+Uri dlnaRootUri(String udn) =>
+    Uri(scheme: 'dlna', host: udn.replaceFirst('uuid:', ''), path: '/');
+
 /// DLNA/UPnP media server browsing (NET-005) as a path-addressed file
 /// system: `dlna://<udn>/<container titles>/<item name>`. Paths map to
 /// object ids by browsing; results are cached per container. Duplicate

@@ -524,7 +524,9 @@ class NfsBindings {
   late final _nfs_set_uid = _nfs_set_uidPtr
       .asFunction<void Function(ffi.Pointer<nfs_context>, int)>();
 
-  /// Set NFS version. Supported versions are NFS_V3 (default) NFS_V4
+  /// Set NFS version. Supported versions are NFS_V3 (default) NFS_V4 NFSv4.0
+  /// NFS_V4_2 NFSv4.2, where LIBNFS_FEATURE_NFS4_2 is defined and the library
+  /// was built with NFSv4.2 support
   int nfs_set_version(ffi.Pointer<nfs_context> nfs, int version) {
     return _nfs_set_version(nfs, version);
   }

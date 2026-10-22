@@ -1,4 +1,5 @@
 import 'dart:ffi' as ffi;
+import 'dart:io' show Platform;
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -6,6 +7,7 @@ import 'package:ffi/ffi.dart';
 import 'package:mediahro_ffi/src/native/native_library.dart';
 import 'package:mediahro_ffi/src/native/posix.dart';
 import 'package:mediahro_ffi/src/smb2/smb2_bindings.dart';
+import 'package:mediahro_ffi/src/smb2/smb2_dfs.dart';
 import 'package:mediahro_ffi/src/vfs/isolate_file_system.dart';
 import 'package:mediahro_ffi/src/vfs/virtual_file.dart';
 import 'package:meta/meta.dart';
@@ -66,8 +68,32 @@ enum SmbVersion {
 const int _secUndefined = 0;
 const int _secNtlmssp = 1;
 
+// FSCTL_DFS_GET_REFERRALS and SMB2_0_IOCTL_IS_FSCTL (MS-SMB2 2.2.31).
+const int _fsctlDfsGetReferrals = 0x00060194;
+const int _ioctlIsFsctl = 0x00000001;
+const int _ntPathNotCovered = 0xC0000257;
+
+typedef _CommandCb = ffi.Void Function(
+  ffi.Pointer<smb2_context>,
+  ffi.Int,
+  ffi.Pointer<ffi.Void>,
+  ffi.Pointer<ffi.Void>,
+);
+
+/// `smb://server/share/path` (no port: the URI names the share, the port
+/// is a connection detail in [SmbOptions]).
+Uri smbUri(SmbOptions o, String path, {bool directory = false}) => Uri(
+  scheme: 'smb',
+  host: o.server,
+  pathSegments: [
+    o.share,
+    ...path.split('/').where((s) => s.isNotEmpty),
+    if (directory) '',
+  ],
+);
+
 /// Blocking libsmb2 client; runs on its worker isolate only.
-final class Smb2SyncFileSystem implements SyncFileSystem {
+final class Smb2SyncFileSystem implements DfsCapableFileSystem {
   Smb2SyncFileSystem(this.options, {Smb2Bindings? bindings})
     : _b = bindings ?? Smb2Bindings(NativeLibraries.open(NativeLibrary.smb2)) {
     if (!options.guest) {
@@ -162,6 +188,7 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
     });
   }
 
+  @override
   final SmbOptions options;
   final Smb2Bindings _b;
   late final ffi.Pointer<smb2_context> _ctx;
@@ -169,18 +196,116 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
   late final int _maxWrite;
   final _handles = <int, (ffi.Pointer<smb2fh>, int?)>{};
   int _next = 1;
+  bool _notCovered = false;
+
+  /// Requests that timed out: their callback and buffers stay alive until
+  /// the context is destroyed, which is when libsmb2 lets go of them.
+  final _orphans = <void Function()>[];
 
   /// The negotiated dialect, e.g. 0x0311 (connection-health detail).
   int get dialect => _b.smb2_get_dialect(_ctx);
 
-  Uri _uri(String path) => Uri(
-    scheme: 'smb',
-    host: options.server,
-    pathSegments: [
-      options.share,
-      ...path.split('/').where((s) => s.isNotEmpty),
-    ],
-  );
+  Uri _uri(String path) => smbUri(options, path);
+
+  @override
+  bool takePathNotCovered() {
+    final v = _notCovered;
+    _notCovered = false;
+    return v;
+  }
+
+  /// After a failed call: libsmb2 answers STATUS_PATH_NOT_COVERED with
+  /// -ENOEXEC from status-returning calls, and records the NT status for
+  /// open/opendir, which return NULL.
+  void _noteFailure([int? rc]) {
+    _notCovered = rc != null
+        ? rc == -PosixErrno.current.noexec
+        : (_b.smb2_get_nterror(_ctx) & 0xffffffff) == _ntPathNotCovered;
+  }
+
+  @override
+  Uint8List dfsReferral(Uint8List request) {
+    final req = calloc<smb2_ioctl_request>();
+    final input = calloc<ffi.Uint8>(request.length);
+    input.asTypedList(request.length).setAll(0, request);
+    req.ref
+      ..ctl_code = _fsctlDfsGetReferrals
+      ..input_count = request.length
+      ..flags = _ioctlIsFsctl
+      ..input = input.cast();
+    // No file: the referral is asked of the tree (MS-SMB2 3.2.4.20.3).
+    for (var i = 0; i < 16; i++) {
+      req.ref.file_id[i] = 0xff;
+    }
+    int? status;
+    Uint8List? out;
+    final cb = ffi.NativeCallable<_CommandCb>.isolateLocal((
+      ffi.Pointer<smb2_context> _,
+      int st,
+      ffi.Pointer<ffi.Void> data,
+      ffi.Pointer<ffi.Void> _,
+    ) {
+      status = st & 0xffffffff;
+      if (status == 0 && data != ffi.nullptr) {
+        final rep = data.cast<smb2_ioctl_reply>().ref;
+        out = rep.output == ffi.nullptr
+            ? Uint8List(0)
+            : Uint8List.fromList(
+                rep.output.cast<ffi.Uint8>().asTypedList(rep.output_count),
+              );
+      }
+    });
+    void release() {
+      cb.close();
+      calloc
+        ..free(input)
+        ..free(req);
+    }
+
+    final pdu = _b.smb2_cmd_ioctl_async(
+      _ctx,
+      req,
+      cb.nativeFunction,
+      ffi.nullptr,
+    );
+    if (pdu == ffi.nullptr) {
+      final err = _error();
+      release();
+      throw VirtualFileException(VirtualFileError.io, _uri(''), err);
+    }
+    _b.smb2_queue_pdu(_ctx, pdu);
+    final clock = Stopwatch()..start();
+    while (status == null) {
+      if (clock.elapsed > options.timeout) {
+        _orphans.add(release);
+        throw VirtualFileException(
+          VirtualFileError.timeout,
+          _uri(''),
+          'DFS referral timed out',
+        );
+      }
+      final revents = _SocketPoll.wait(
+        _b.smb2_get_fd(_ctx),
+        _b.smb2_which_events(_ctx),
+        1000,
+      );
+      if (revents == 0) continue;
+      if (revents < 0 || _b.smb2_service(_ctx, revents) < 0) {
+        final err = _error();
+        _orphans.add(release);
+        throw VirtualFileException(VirtualFileError.unreachable, _uri(''), err);
+      }
+    }
+    release();
+    if (status != 0) {
+      throw VirtualFileException(
+        smbNtStatusError(status!) ?? VirtualFileError.unsupported,
+        _uri(''),
+        'DFS referral failed with 0x${status!.toRadixString(16)}',
+      );
+    }
+    return out ?? Uint8List(0);
+  }
 
   String _error() => _b.smb2_get_error(_ctx).cast<Utf8>().toDartString();
 
@@ -188,6 +313,7 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
   List<VirtualEntry> list(String path) => using((a) {
     final dir = _b.smb2_opendir(_ctx, path.toNativeUtf8(allocator: a).cast());
     if (dir == ffi.nullptr) {
+      _noteFailure();
       throw VirtualFileException(_mapMessage(_error()), _uri(path), _error());
     }
     final out = <VirtualEntry>[];
@@ -219,16 +345,17 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
     return out;
   });
 
-  Uri _uriEntry(String path, {required bool directory}) {
-    final u = _uri(path);
-    return directory ? u.replace(pathSegments: [...u.pathSegments, '']) : u;
-  }
+  Uri _uriEntry(String path, {required bool directory}) =>
+      smbUri(options, path, directory: directory);
 
   @override
   VirtualEntry stat(String path) => using((a) {
     final st = a<smb2_stat_64>();
     final rc = _b.smb2_stat(_ctx, path.toNativeUtf8(allocator: a).cast(), st);
-    if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
+    if (rc < 0) {
+      _noteFailure(rc);
+      throw VirtualFileException(_map(rc), _uri(path), _error());
+    }
     final isDir = st.ref.smb2_type == SMB2_TYPE_DIRECTORY;
     return VirtualEntry(
       uri: _uriEntry(path, directory: isDir),
@@ -259,6 +386,7 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
       flags,
     );
     if (fh == ffi.nullptr) {
+      _noteFailure();
       throw VirtualFileException(_mapMessage(_error()), _uri(path), _error());
     }
     int? size;
@@ -352,7 +480,10 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
       from.toNativeUtf8(allocator: a).cast(),
       to.toNativeUtf8(allocator: a).cast(),
     );
-    if (rc < 0) throw VirtualFileException(_map(rc), _uri(from), _error());
+    if (rc < 0) {
+      _noteFailure(rc);
+      throw VirtualFileException(_map(rc), _uri(from), _error());
+    }
   });
 
   /// Round-trip used by connection health (NET-019).
@@ -367,6 +498,10 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
     _b
       ..smb2_disconnect_share(_ctx)
       ..smb2_destroy_context(_ctx);
+    for (final release in _orphans) {
+      release();
+    }
+    _orphans.clear();
   }
 
   void _pathOp(
@@ -374,7 +509,10 @@ final class Smb2SyncFileSystem implements SyncFileSystem {
     int Function(ffi.Pointer<smb2_context>, ffi.Pointer<ffi.Char>) op,
   ) => using((a) {
     final rc = op(_ctx, path.toNativeUtf8(allocator: a).cast());
-    if (rc < 0) throw VirtualFileException(_map(rc), _uri(path), _error());
+    if (rc < 0) {
+      _noteFailure(rc);
+      throw VirtualFileException(_map(rc), _uri(path), _error());
+    }
   });
 
   (ffi.Pointer<smb2fh>, int?) _fh(int handle) =>
@@ -471,7 +609,7 @@ IsolateFileSystem smbFileSystem(Uri root, SmbOptions options) =>
       root: root,
       schemes: const {'smb'},
       debugName: 'mediahro-smb:${options.server}',
-      factory: () => Smb2SyncFileSystem(options),
+      factory: () => SmbDfsFileSystem(Smb2SyncFileSystem(options)),
     );
 
 /// Splits `smb://DOMAIN;user@host:445/share/dir` into options (credentials
@@ -513,3 +651,50 @@ SmbOptions smbOptionsFromUri(
 bool get smb2Available =>
     !Platform.environment.containsKey('MEDIAHRO_NO_NATIVE') &&
     NativeLibraries.isAvailable(NativeLibrary.smb2);
+
+/// One socket's readiness, as libsmb2's own sync calls wait for it:
+/// `poll` on POSIX, `WSAPoll` on Windows. [wait] returns revents (0 on
+/// timeout, -1 on error); events pass through as libsmb2 reports them.
+abstract final class _SocketPoll {
+  static final bool _win = Platform.isWindows;
+
+  static final int Function(ffi.Pointer<ffi.Uint8>, int, int) _poll = _win
+      ? ffi.DynamicLibrary.open('ws2_32.dll').lookupFunction<
+          ffi.Int32 Function(ffi.Pointer<ffi.Uint8>, ffi.Uint32, ffi.Int32),
+          int Function(ffi.Pointer<ffi.Uint8>, int, int)
+        >('WSAPoll')
+      : ffi.DynamicLibrary.process().lookupFunction<
+          ffi.Int32 Function(
+            ffi.Pointer<ffi.Uint8>,
+            ffi.UnsignedLong,
+            ffi.Int32,
+          ),
+          int Function(ffi.Pointer<ffi.Uint8>, int, int)
+        >('poll');
+
+  static int wait(int fd, int events, int timeoutMs) {
+    // struct pollfd {int fd; short events; short revents;} or
+    // WSAPOLLFD {SOCKET fd; SHORT events; SHORT revents;} (64-bit SOCKET;
+    // the binding returns its low 32 bits, which is where handles live).
+    final size = _win ? 16 : 8;
+    final eventsAt = _win ? 8 : 4;
+    final p = calloc<ffi.Uint8>(size);
+    try {
+      final b = p
+          .asTypedList(size)
+          .buffer
+          .asByteData(p.asTypedList(size).offsetInBytes, size);
+      if (_win) {
+        b.setUint64(0, fd & 0xffffffff, Endian.host);
+      } else {
+        b.setInt32(0, fd, Endian.host);
+      }
+      b.setInt16(eventsAt, events, Endian.host);
+      final rc = _poll(p, 1, timeoutMs);
+      if (rc < 0) return -1;
+      return rc == 0 ? 0 : b.getInt16(eventsAt + 2, Endian.host) & 0xffff;
+    } finally {
+      calloc.free(p);
+    }
+  }
+}

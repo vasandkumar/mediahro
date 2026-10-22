@@ -29,7 +29,18 @@ Future<SecureSocket> _secure(
 
 /// A [TlsSocketFacade] as C4 provides it: plain sockets it can upgrade in
 /// place, pinned TLS connections and session-reuse requests (recorded).
+///
+/// dart:io never reports a peer's close_notify; it ends a stream only on
+/// TCP EOF. OS TLS (SSLSocket, Network.framework, SChannel) ends it on
+/// close_notify, and FTPS servers such as vsftpd send close_notify on a data
+/// channel and then wait for the client's before closing TCP. With
+/// [opensslDataChannels] (Linux, real servers) data channels go through
+/// `openssl s_client`, which ends its output on close_notify like the OS
+/// does, trusting the certificate the control connection pinned.
 final class FakeTlsSocketFacade implements TlsSocketFacade {
+  FakeTlsSocketFacade({this.opensslDataChannels = false});
+
+  final bool opensslDataChannels;
   final List<(String, int, String?)> connects = [];
   final List<String> plainConnects = [];
   final List<String> upgrades = [];
@@ -55,6 +66,24 @@ final class FakeTlsSocketFacade implements TlsSocketFacade {
   }) async {
     connects.add((host, port, pinnedSha256));
     resumed.add(resumeSessionOf);
+    final control = resumeSessionOf == null ? null : _sockets[resumeSessionOf];
+    if (opensslDataChannels && control != null) {
+      final cert = switch (control._s) {
+        final SecureSocket t => t.peerCertificate,
+        _ => null,
+      };
+      if (cert != null &&
+          (pinnedSha256 == null ||
+              certificateFingerprint(cert.der) == pinnedSha256)) {
+        return await _OpensslTlsSocket.connect(
+          host,
+          port,
+          cert,
+          'sock-${++_ids}',
+          timeout,
+        );
+      }
+    }
     final s = await _secure(
       host,
       pinnedSha256,
@@ -137,4 +166,73 @@ final class _FakeTlsSocket implements TlsSocket {
 
   @override
   Future<void> close() => _s.close();
+}
+
+/// A TLS client connection through `openssl s_client`, trusting exactly
+/// the given certificate (self-signed: it is its own root). Its output ends when the
+/// server sends close_notify; closing stdin sends ours.
+final class _OpensslTlsSocket implements TlsSocket {
+  _OpensslTlsSocket._(this._p, this.id, this._fingerprint, this._dir);
+
+  static Future<TlsSocket> connect(
+    String host,
+    int port,
+    X509Certificate cert,
+    String id,
+    Duration timeout,
+  ) async {
+    final dir = Directory.systemTemp.createTempSync('mediahro-tls');
+    final ca = File('${dir.path}/ca.pem')..writeAsStringSync(cert.pem);
+    final p = await Process.start('openssl', [
+      's_client',
+      '-connect',
+      '$host:$port',
+      '-CAfile',
+      ca.path,
+      '-verify_return_error',
+      '-partial_chain',
+      '-quiet',
+      '-no_ign_eof',
+    ]).timeout(timeout);
+    unawaited(p.stderr.drain<void>());
+    return _OpensslTlsSocket._(p, id, certificateFingerprint(cert.der), dir);
+  }
+
+  final Process _p;
+  final String _fingerprint;
+  final Directory _dir;
+
+  @override
+  final String id;
+
+  @override
+  bool get isTls => true;
+
+  @override
+  String get protocolVersion => 'TLSv1.3';
+
+  @override
+  String get peerCertificateSha256 => _fingerprint;
+
+  @override
+  Stream<Uint8List> get input =>
+      _p.stdout.map((b) => b is Uint8List ? b : Uint8List.fromList(b));
+
+  @override
+  Future<void> write(Uint8List data) async {
+    _p.stdin.add(data);
+    await _p.stdin.flush();
+  }
+
+  @override
+  Future<void> close() async {
+    try {
+      await _p.stdin.close();
+      await _p.exitCode.timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      _p.kill();
+    } finally {
+      if (_dir.existsSync()) _dir.deleteSync(recursive: true);
+    }
+  }
 }

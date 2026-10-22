@@ -6,6 +6,7 @@ import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/sources/discovery/lan_discovery.dart';
+import 'package:mediahro/core/sources/dlna/dlna_file_system.dart';
 import 'package:mediahro/core/sources/dlna/upnp.dart';
 import 'package:mediahro/core/sources/source_access.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
@@ -212,11 +213,7 @@ class _AddShareScreenState extends ConsumerState<AddShareScreen> {
           NewSource(
             kind: SourceKind.dlna,
             name: d.friendlyName,
-            root: Uri(
-              scheme: 'dlna',
-              host: d.udn.replaceFirst('uuid:', ''),
-              path: '/',
-            ),
+            root: dlnaRootUri(d.udn),
             options: {'controlUrl': cd.controlUrl.toString()},
           ),
         );

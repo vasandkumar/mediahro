@@ -24,7 +24,8 @@ services:
     ports: ["8080:80"]
     volumes: ["./data/media:/srv/media"]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/health"]
+      # The Debian httpd image has no wget or curl; bash's /dev/tcp will do.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
       interval: 2s
       retries: 30
 
@@ -68,7 +69,7 @@ services:
 
   sftp:
     build: ./sftp
-    ports: ["2222:22"]
+    ports: ["${SFTP_PORT:-2222}:22"]
     volumes:
       - "./data/media:/srv/media"
       - "./data/ssh/authorized_keys:/home/test/.ssh/authorized_keys:ro"

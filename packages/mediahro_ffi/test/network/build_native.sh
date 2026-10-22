@@ -1,34 +1,62 @@
 #!/usr/bin/env bash
 # Linux CI only: native libraries for the FFI network contract tests until
 # lane B4's mediahro-deps archives exist. libsmb2/libnfs are built from the
-# same pinned sources ffigen read (SHA-256 checked); libarchive,
-# libebur128, chromaprint and uchardet come from Ubuntu (their APIs match
-# the bound subset). Test-only: nothing here is shipped.
+# releases mediahro-deps ships (deps-pins.json, a copy of its versions.json
+# entries; SHA-256 checked) with its patches and configure flags, so the
+# protocol tests cover the shipped code. libarchive, libebur128, chromaprint
+# and uchardet come from Ubuntu (their APIs match the bound subset).
+# Test-only: nothing here is shipped.
 # Usage: build_native.sh <prefix>   (then LD_LIBRARY_PATH=<prefix>/lib)
 set -euo pipefail
 prefix="$1"
-sudo apt-get -qq update
-sudo apt-get -qq install -y build-essential cmake pkg-config \
-  libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev > /dev/null
-src="$(mktemp -d)"
-fetch() {
-  curl -sSLf "$2" -o "$src/$1.tgz"
-  echo "$3  $src/$1.tgz" | sha256sum -c -
-  mkdir -p "$src/$1" && tar -xzf "$src/$1.tgz" -C "$src/$1" --strip-components=1
-}
-fetch smb2 https://github.com/sahlberg/libsmb2/archive/refs/tags/libsmb2-6.2.tar.gz \
-  8e1f9efc6b2e0f6546f0fe121ac0ddf4fc2f0908ae5a6bd1f185be7c9e0bcbb3
-fetch nfs https://github.com/sahlberg/libnfs/archive/refs/tags/libnfs-6.0.2.tar.gz \
-  4e5459cc3e0242447879004e9ad28286d4d27daa42cbdcde423248fad911e747
-# Patches carried until upstream has them (same files as mediahro-deps).
 here="$(cd "$(dirname "$0")" && pwd)"
-patch -p1 -d "$src/smb2" < "$here/patches/libsmb2-6.2-guest-session.patch"
-patch -p1 -d "$src/nfs" < "$here/patches/libnfs-6.0.2-open-errno.patch"
-for lib in smb2 nfs; do
+pkgs=(build-essential cmake pkg-config python3
+  libarchive-dev libebur128-dev libchromaprint-dev libuchardet-dev)
+# Only when something is missing (a local run may race unattended-upgrades).
+if ! dpkg -s "${pkgs[@]}" > /dev/null 2>&1; then
+  sudo apt-get -qq update
+  sudo apt-get -qq install -y "${pkgs[@]}" > /dev/null
+fi
+src="$(mktemp -d)"
+
+# <name> -> "<url> <sha256>" from deps-pins.json ({tag}/{version} expanded).
+pin() {
+  python3 - "$here/deps-pins.json" "$1" <<'EOF'
+import json, sys
+e = next(l for l in json.load(open(sys.argv[1]))["libraries"] if l["name"] == sys.argv[2])
+url = e["source"].replace("{tag}", e.get("tag", "")).replace("{version}", e["version"])
+print(url, e["sha256"])
+EOF
+}
+
+# fetch <name>: download, verify, extract, apply patches/<name>/*.patch in order.
+fetch() {
+  local url sha
+  read -r url sha < <(pin "$1")
+  curl -sSLf "$url" -o "$src/$1.tgz"
+  echo "$sha  $src/$1.tgz" | sha256sum -c -
+  mkdir -p "$src/$1" && tar -xzf "$src/$1.tgz" -C "$src/$1" --strip-components=1
+  for p in "$here/patches/$1"/*.patch; do
+    [ -e "$p" ] || continue
+    echo "patch $1: $(basename "$p")"
+    patch -p1 -d "$src/$1" < "$p"
+  done
+}
+
+# build <name> <cmake flags...>: the flags mediahro-deps android/build.sh uses.
+build() {
+  local lib="$1"
+  shift
   cmake -S "$src/$lib" -B "$src/$lib/build" -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_SHARED_LIBS=ON -DENABLE_EXAMPLES=OFF -DENABLE_TESTS=OFF -DENABLE_UTILS=OFF \
-    -DCMAKE_INSTALL_PREFIX="$prefix" -DCMAKE_INSTALL_LIBDIR=lib > /dev/null
+    -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX="$prefix" \
+    -DCMAKE_INSTALL_LIBDIR=lib "$@" > /dev/null
   cmake --build "$src/$lib/build" -j"$(nproc)" > /dev/null
   cmake --install "$src/$lib/build" > /dev/null
-done
+}
+
+fetch libsmb2
+fetch libnfs
+build libsmb2 -DENABLE_EXAMPLES=OFF -DENABLE_LIBKRB5=OFF -DENABLE_GSSAPI=OFF
+build libnfs -DENABLE_TESTS=OFF -DENABLE_DOCUMENTATION=OFF -DENABLE_UTILS=OFF \
+  -DENABLE_EXAMPLES=OFF -DENABLE_MULTITHREADING=OFF
 ls -l "$prefix"/lib/libsmb2.so* "$prefix"/lib/libnfs.so*
