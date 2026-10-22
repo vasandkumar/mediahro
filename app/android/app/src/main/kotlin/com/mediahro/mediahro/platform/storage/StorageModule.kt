@@ -318,10 +318,14 @@ class StorageModule(private val context: Context, private val host: ActivityHost
                 emptyList()
             }
         }
-        if (types.isEmpty()) return@withContext emptyList()
-        val selection = StringBuilder(
-            "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${types.joinToString(",")})",
-        )
+        // Subtitle files next to a video (SUB-012): the system classes them as MEDIA_TYPE_SUBTITLE
+        // (API 31), older versions only by name.
+        val subtitles = kinds.contains(PickKindMsg.SUBTITLE)
+        if (types.isEmpty() && !subtitles) return@withContext emptyList()
+        val clauses = ArrayList<String>()
+        if (types.isNotEmpty()) clauses += "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${types.joinToString(",")})"
+        if (subtitles) clauses += PickPolicy.subtitleSelection(Build.VERSION.SDK_INT >= 31)
+        val selection = StringBuilder(clauses.joinToString(" OR ", "(", ")"))
         if (modifiedSinceMs != null) {
             // Rows not yet scanned have no DATE_MODIFIED; DATE_ADDED stands in.
             // Inlined as an integer: a bound argument is text, and the
@@ -348,12 +352,14 @@ class StorageModule(private val context: Context, private val host: ActivityHost
         resolver.query(MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL), projection, query, null)?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getLong(0)
-                val video = c.getInt(1) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
+                val type = c.getInt(1)
+                val video = type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
+                val audio = type == MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO
                 val volume = c.getString(6) ?: MediaStore.VOLUME_EXTERNAL
-                val collection = if (video) {
-                    MediaStore.Video.Media.getContentUri(volume)
-                } else {
-                    MediaStore.Audio.Media.getContentUri(volume)
+                val collection = when {
+                    video -> MediaStore.Video.Media.getContentUri(volume)
+                    audio -> MediaStore.Audio.Media.getContentUri(volume)
+                    else -> MediaStore.Files.getContentUri(volume)
                 }
                 out += MediaStoreEntryMsg(
                     uri = ContentUris.withAppendedId(collection, id).toString(),
@@ -361,7 +367,11 @@ class StorageModule(private val context: Context, private val host: ActivityHost
                     name = c.getString(3).orEmpty(),
                     size = c.getLong(4),
                     modifiedMs = (if (c.isNull(5) || c.getLong(5) == 0L) c.getLong(7) else c.getLong(5)) * 1000,
-                    kind = if (video) PickKindMsg.VIDEO else PickKindMsg.AUDIO,
+                    kind = when {
+                        video -> PickKindMsg.VIDEO
+                        audio -> PickKindMsg.AUDIO
+                        else -> PickKindMsg.SUBTITLE
+                    },
                 )
             }
         }

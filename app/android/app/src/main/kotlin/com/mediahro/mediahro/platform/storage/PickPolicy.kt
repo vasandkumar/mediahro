@@ -36,6 +36,18 @@ internal object PickPolicy {
         }.distinct().toTypedArray()
     }
 
+    /** Extensions of subtitle files next to a video (SUB-012). */
+    private val SUBTITLE_EXTENSIONS = listOf("srt", "ass", "ssa", "vtt", "smi", "sub", "idx")
+
+    /**
+     * The MediaStore.Files WHERE clause for subtitle files: their media type where the system has
+     * one (API 31, MEDIA_TYPE_SUBTITLE = 5), and their name otherwise. Pure, so it is unit-tested.
+     */
+    fun subtitleSelection(hasSubtitleType: Boolean): String {
+        val byName = SUBTITLE_EXTENSIONS.joinToString(" OR ") { "lower(_display_name) LIKE '%.$it'" }
+        return if (hasSubtitleType) "(media_type = 5 OR ($byName))" else "($byName)"
+    }
+
     /**
      * The best user-facing name: the first candidate that is a real name
      * (not blank, not a bare media id), else the URI's last segment if it

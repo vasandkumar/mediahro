@@ -42,6 +42,13 @@ abstract final class VideoSettings {
         defaultValue: VideoOrientation.followVideo,
       );
 
+  /// The one-time offer to allow access to a video's folder for its
+  /// subtitles has been made (SUB-012).
+  static final SettingKey<bool> subtitleAccessAsked = SettingKey.boolean(
+    'video.subtitleAccessAsked',
+    defaultValue: false,
+  );
+
   /// Picture-in-picture when leaving the app while a video plays (VID-067,
   /// opt-in).
   static final SettingKey<bool> autoPip = SettingKey.boolean(

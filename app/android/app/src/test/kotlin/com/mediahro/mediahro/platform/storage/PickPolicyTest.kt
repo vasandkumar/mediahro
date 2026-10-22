@@ -53,4 +53,14 @@ class PickPolicyTest {
     fun `SYS-007 a file-like last segment is used when the provider gives no name`() {
         assertEquals("clip.mp4", PickPolicy.displayName(listOf(null), "primary:Movies/clip.mp4", "video/mp4", ext))
     }
+
+    @Test
+    fun `SUB-012 subtitle files are found by media type where there is one and by name`() {
+        val withType = PickPolicy.subtitleSelection(true)
+        assertTrue(withType.contains("media_type = 5"))
+        assertTrue(withType.contains("lower(_display_name) LIKE '%.srt'"))
+        val byName = PickPolicy.subtitleSelection(false)
+        assertTrue(!byName.contains("media_type"))
+        assertTrue(byName.contains("'%.ass'") && byName.contains("'%.vtt'"))
+    }
 }

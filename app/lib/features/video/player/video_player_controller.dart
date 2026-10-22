@@ -185,6 +185,14 @@ final class VideoPlayerController extends ChangeNotifier {
 
   Future<void> _sidecarScan = Future<void>.value();
 
+  /// Looks for the current item's subtitle files again, e.g. after the user
+  /// allowed access to its folder (SUB-012).
+  Future<void> reloadSidecars() {
+    final r = _request;
+    if (r == null) return Future<void>.value();
+    return _sidecarScan = _loadSidecars(r);
+  }
+
   /// Completes when the subtitle files found for the current item have
   /// been added and a track picked (SUB-012).
   Future<void> get sidecarsLoaded => _sidecarScan;

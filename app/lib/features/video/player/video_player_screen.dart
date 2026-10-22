@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:ui' show PlatformDispatcher;
 
@@ -72,6 +73,12 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
+  /// The previous player's `engine.stop()`. The engine is shared, and a stop
+  /// that lands after the next video has started wipes it (it bumps the
+  /// engine's generation, so the new open quietly gives up): the next player
+  /// waits for this before it opens anything (VID-067 reopen after Back).
+  static Future<void> _previousStop = Future<void>.value();
+
   VideoPlayerController? _c;
   PlayerPlatform? _platform;
   SleepTimer? _sleep;
@@ -96,11 +103,37 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     unawaited(
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
     );
-    unawaited(_start());
+    unawaited(_startGuarded());
+  }
+
+  /// Why the player could not start, shown instead of a black screen.
+  EngineError? _failure;
+
+  Future<void> _startGuarded() async {
+    try {
+      await _start();
+    } on Object catch (e, st) {
+      developer.log(
+        'player start failed',
+        error: e,
+        stackTrace: st,
+        name: 'mediahro.player',
+      );
+      if (!mounted) return;
+      setState(
+        () => _failure = EngineError(
+          code: e is EngineException ? e.error.code : EngineErrorCode.unknown,
+          detail: '$e',
+        ),
+      );
+    }
   }
 
   Future<void> _start() async {
     final memory = await ref.read(videoMemoryProvider.future);
+    if (!mounted) return;
+    // A stop that hangs must not keep the next video from opening.
+    await _previousStop.timeout(const Duration(seconds: 3), onTimeout: () {});
     if (!mounted) return;
     final engine = ref.read(playbackEngineProvider(EngineRole.video));
     final c = VideoPlayerController(
@@ -148,8 +181,57 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _scheduleHide();
     await platform.start();
     await c.open(widget.request);
+    unawaited(_offerSubtitleAccess(c));
     unawaited(_restoreShader(c));
     _watchPower(c);
+  }
+
+  /// A device-media video with no subtitle found beside it: once, offer to
+  /// allow access to its folder (Android shows no `.srt` through the
+  /// MediaStore, and all-files access is not asked for). Never again after
+  /// the offer, whatever the answer (SUB-012).
+  Future<void> _offerSubtitleAccess(VideoPlayerController c) async {
+    await c.sidecarsLoaded;
+    final video = await c.request?.locate?.call();
+    if (!mounted || video == null || video.scheme != 'mediastore') return;
+    final loader = ref.read(sidecarLoaderProvider);
+    final found = c.subtitleFiles.isNotEmpty;
+    final granted = await loader.alternatesFor?.call(video) ?? const <Uri>[];
+    if (!mounted || found || granted.isNotEmpty) return;
+    final store = ref.read(settingsStoreProvider);
+    final storage = _optional(() => ref.read(storageProvider));
+    if (storage == null || store.get(VideoSettings.subtitleAccessAsked)) {
+      return;
+    }
+    store.set(VideoSettings.subtitleAccessAsked, true);
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.videoSubtitleAccessPrompt),
+        duration: const Duration(seconds: 12),
+        action: SnackBarAction(
+          label: l.videoSubtitleAccessAllow,
+          onPressed: () => unawaited(_grantSubtitleAccess(storage, c)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _grantSubtitleAccess(
+    StorageFacade storage,
+    VideoPlayerController c,
+  ) async {
+    try {
+      final grant = await storage.pickFolder();
+      if (grant != null && mounted) await c.reloadSidecars();
+    } on Object catch (e, st) {
+      developer.log(
+        'subtitle folder access failed',
+        error: e,
+        stackTrace: st,
+        name: 'mediahro.subtitles',
+      );
+    }
   }
 
   /// Pauses shaders and smooth motion while the device is hot or saving
@@ -548,7 +630,30 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final pick = ref.read(subtitleFilePickerProvider);
     final c = _c;
     if (pick == null || c == null) return;
-    final picked = await pick();
+    final PickedSubtitle? picked;
+    try {
+      picked = await pick();
+    } on Object catch (e, st) {
+      // A pick that fails after the file was chosen used to end in silence.
+      developer.log(
+        'adding a subtitle file failed',
+        error: e,
+        stackTrace: st,
+        name: 'mediahro.subtitles',
+      );
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is NotASubtitleFile
+                ? l.videoSubtitleNotRecognised
+                : l.videoSubtitleAddFailed,
+          ),
+        ),
+      );
+      return;
+    }
     if (picked == null) return;
     final file = await ref
         .read(sidecarLoaderProvider)
@@ -655,7 +760,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       c
         ..removeListener(_onChange)
         ..dispose();
-      unawaited(c.engine.stop());
+      _previousStop = c.engine.stop().then<void>(
+        (_) {},
+        onError: (Object _) {},
+      );
     }
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     super.dispose();
@@ -738,7 +846,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final l = AppLocalizations.of(context);
     final c = _c;
     if (c == null) {
-      return const ColoredBox(color: Colors.black, child: SizedBox.expand());
+      final failure = _failure;
+      return ColoredBox(
+        color: Colors.black,
+        child: failure == null
+            ? const SizedBox.expand()
+            : Center(
+                child: _ErrorCard(error: failure, onBack: _close),
+              ),
+      );
     }
     _phone = MediaQuery.sizeOf(context).shortestSide < 600;
     final s = c.state;
@@ -782,7 +898,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final secondText = s.secondarySubtitleText;
     final secondOnTop = settingsNow.get(SubtitleSettings.secondaryOnTop);
 
-    final error = s.error;
+    final error = s.error ?? _failure;
     final overlay = Stack(
       fit: StackFit.expand,
       children: [

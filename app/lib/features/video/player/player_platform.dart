@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -50,6 +51,8 @@ final class SystemChromeOrientation implements OrientationRequests {
 ///
 /// Every facade is optional: where a platform has none the feature quietly
 /// does nothing, or falls back (rotation through [OrientationRequests]).
+const _log = 'mediahro.player';
+
 final class PlayerPlatform with WidgetsBindingObserver {
   PlayerPlatform({
     required this.controller,
@@ -112,6 +115,7 @@ final class PlayerPlatform with WidgetsBindingObserver {
     _started = true;
     WidgetsBinding.instance.addObserver(this);
     controller.addListener(_onChange);
+    settings.addListener(_onSettings);
     _commands = session?.commands.listen((c) => unawaited(_onCommand(c)));
     final p = pip;
     if (p != null) {
@@ -231,6 +235,11 @@ final class PlayerPlatform with WidgetsBindingObserver {
     await orientation.lock(lock);
   }
 
+  /// The rotation setting changed while playing (the More sheet's switch).
+  void _onSettings() {
+    if (!_disposed) _applyOrientation(controller.state);
+  }
+
   // --------------------------------------------------------- background
 
   @override
@@ -245,17 +254,29 @@ final class PlayerPlatform with WidgetsBindingObserver {
     }
   }
 
+  /// Sound only is the user asking for the sound without the picture, so it
+  /// keeps playing when the screen locks or the app is left (VID-068); the
+  /// other ways are the per-video switch and the "always" setting.
   bool get backgroundAllowed =>
+      controller.videoOff ||
       backgroundThisSession.value ||
       settings.get(VideoSettings.backgroundPlay) == BackgroundPlay.always;
 
   Future<void> _toBackground() async {
-    if (inPip.value) return;
+    if (inPip.value) {
+      developer.log('background: in PiP, nothing to do', name: _log);
+      return;
+    }
     if (controller.state.status != PlaybackStatus.playing) return;
     if (!backgroundAllowed) {
+      developer.log('background: pausing (not allowed)', name: _log);
       await controller.engine.pause();
       return;
     }
+    developer.log(
+      'background: playing on (soundOnly=${controller.videoOff})',
+      name: _log,
+    );
     if (settings.get(VideoSettings.backgroundVideoOff) &&
         !controller.videoOff) {
       _offForBackground = true;
@@ -354,6 +375,7 @@ final class PlayerPlatform with WidgetsBindingObserver {
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
     controller.removeListener(_onChange);
+    settings.removeListener(_onSettings);
     await _pipSub?.cancel();
     await _commands?.cancel();
     final d = display;

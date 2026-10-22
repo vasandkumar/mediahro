@@ -30,6 +30,9 @@ final class RecordingEngine implements PlaybackEngine {
   final List<(SubtitleStyle, SubtitleSlot)> styles = [];
   final List<(TrackType, Uri)> externalTracks = [];
 
+  /// When set, [stop] waits for it first (a slow engine teardown).
+  Future<void>? stopGate;
+
   PlaybackState? _injected;
   final _extra = StreamController<PlaybackState>.broadcast();
 
@@ -77,7 +80,10 @@ final class RecordingEngine implements PlaybackEngine {
   Future<void> pause() => fake.pause();
 
   @override
-  Future<void> stop() => fake.stop();
+  Future<void> stop() async {
+    await stopGate;
+    await fake.stop();
+  }
 
   @override
   Future<void> seek(Duration position, {SeekMode mode = SeekMode.keyframe}) {
