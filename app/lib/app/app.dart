@@ -36,7 +36,10 @@ class MediahroApp extends ConsumerStatefulWidget {
 class _MediahroAppState extends ConsumerState<MediahroApp> {
   GoRouter? _router;
   AppLifecycleListener? _lifecycle;
-  String? _lastMode;
+  SettingsStore? _store;
+  VoidCallback? _recordMode;
+  var _recordQueued = false;
+  String? _modeInUse;
 
   @override
   void initState() {
@@ -58,7 +61,15 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
           initialLocation: initial,
           fullScreenRoutes: ref.read(appRoutesProvider),
         );
-    router.routerDelegate.addListener(() => _rememberMode(router, store));
+    // The mode in use is kept in the settings so the next launch opens there
+    // (CORE-001). It is written when the mode changes and again whenever the
+    // settings change under it: "Reset all settings" wipes `shell.lastMode`,
+    // and the mode in use must not be forgotten with it.
+    _store = store;
+    _recordMode = () => _rememberMode(router, store);
+    router.routerDelegate.addListener(_recordMode!);
+    store.addListener(_recordMode!);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recordMode?.call());
     // SYS-003/004, CORE-003: what other apps hand over waits until the router
     // exists, then is delivered once.
     WidgetsBinding.instance.addPostFrameCallback(
@@ -71,18 +82,25 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
     return _router = router;
   }
 
-  /// Records the current mode so the next launch opens there.
+  /// Records the mode in use so the next launch opens there, unless the
+  /// settings already say so. Only a screen of a mode counts as the mode in
+  /// use; Search, Settings and full-screen routes keep the one before them.
   void _rememberMode(GoRouter router, SettingsStore store) {
     final segments =
         router.routerDelegate.currentConfiguration.uri.pathSegments;
-    if (segments.isEmpty) return;
-    final mode = segments.first;
-    if (mode == _lastMode || !AppDestination.isMode(mode)) return;
-    _lastMode = mode;
+    if (segments.isNotEmpty && AppDestination.isMode(segments.first)) {
+      _modeInUse = segments.first;
+    }
+    final mode = _modeInUse;
+    if (mode == null) return;
+    if (store.isLoaded && store.get(CoreSettings.lastMode) == mode) return;
+    if (_recordQueued) return;
+    _recordQueued = true;
     // Router notifications can arrive mid-build; write after the frame.
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => store.set(CoreSettings.lastMode, mode),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recordQueued = false;
+      if (mounted && store.isLoaded) store.set(CoreSettings.lastMode, mode);
+    });
   }
 
   @override
@@ -93,6 +111,11 @@ class _MediahroAppState extends ConsumerState<MediahroApp> {
       } on Object {
         // The container is already gone (tests); nothing is waiting on it.
       }
+    }
+    final record = _recordMode;
+    if (record != null) {
+      _router?.routerDelegate.removeListener(record);
+      _store?.removeListener(record);
     }
     _lifecycle?.dispose();
     super.dispose();

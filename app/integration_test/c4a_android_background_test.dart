@@ -68,7 +68,9 @@ void main() {
     expect(held!['intervalMs'], const Duration(hours: 6).inMilliseconds);
     expect(held['network'], 'CONNECTED');
     expect(held['charging'], isFalse);
-    expect(held['state'], 'ENQUEUED');
+    // A job with no unmet constraint starts at once on a phone that is online
+    // (the worker then waits for Dart), so it may already be running.
+    expect(held['state'], anyOf('ENQUEUED', 'RUNNING'));
 
     // Scheduling the same id again replaces the job rather than adding one.
     await work.schedulePeriodic(
