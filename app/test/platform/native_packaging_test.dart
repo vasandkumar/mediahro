@@ -13,10 +13,7 @@ void main() {
   const notPackaged = {
     'curl':
         'no app feature opens libcurl yet (FTP and WebDAV are Dart clients)',
-    'whisper': 'speech models are downloaded on demand (SUB-052), not built in',
-    'tesseract': 'on-device OCR is not offered on Android yet (ADR-034)',
-    'cld3': 'on-device language detection is not offered on Android yet',
-    'bergamot': 'on-device translation is not offered on Android yet',
+    'whisper': 'SUB-052 auto-captions: the video side is not built yet',
   };
   // Pulled in by libmpv's own DT_NEEDED closure (libuchardet is one of them).
   const viaMpv = {'mpv', 'uchardet'};
@@ -76,6 +73,15 @@ void main() {
         'libsmb2.so',
         'libnfs.so',
       ]),
+    );
+  });
+
+  test('the on-device text services are packaged (SUB-051, SUB-053)', () {
+    // Their app side is built and wired in the Android bindings
+    // (openTextServiceOverrides); libleptonica comes in with libtesseract.
+    expect(
+      packagedRoots(),
+      containsAll(['libtesseract.so', 'libcld3.so', 'libbergamot.so']),
     );
   });
 
