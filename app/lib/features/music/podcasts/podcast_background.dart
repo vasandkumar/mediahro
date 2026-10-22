@@ -54,11 +54,7 @@ final class PodcastBackgroundRefresh {
     final any = (await service.shows()).isNotEmpty;
     if (any && !_scheduled) {
       _scheduled = true;
-      await work.schedulePeriodic(
-        taskId,
-        interval,
-        unmeteredOnly: true,
-      );
+      await work.schedulePeriodic(taskId, interval, unmeteredOnly: true);
     } else if (!any && _scheduled) {
       _scheduled = false;
       await work.cancel(taskId);
