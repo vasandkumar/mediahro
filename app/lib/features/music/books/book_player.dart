@@ -7,6 +7,7 @@ import 'package:mediahro/features/music/books/book_library.dart';
 import 'package:mediahro/features/music/books/book_store.dart';
 import 'package:mediahro/features/music/player/music_dsp.dart';
 import 'package:mediahro/features/music/player/music_player.dart';
+import 'package:mediahro/features/music/player/spoken_mode.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:meta/meta.dart';
 
@@ -111,8 +112,10 @@ final class BookPlayer {
     required this.library,
     required this.store,
     this.saveEvery = const Duration(seconds: 5),
+    SpokenMode? mode,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now,
+       _mode = mode ?? SpokenMode();
 
   final MusicPlayer player;
   final PlaybackEngine engine;
@@ -121,6 +124,7 @@ final class BookPlayer {
   final BookStore store;
   final Duration saveEvery;
   final DateTime Function() _clock;
+  final SpokenMode _mode;
 
   /// Less than this left counts as the end of the book.
   static const endMargin = Duration(seconds: 2);
@@ -152,6 +156,7 @@ final class BookPlayer {
   Future<void> open(Book book, {Duration? at, bool autoplay = true}) =>
       _serial(() async {
         if (_state.active && _state.book!.id != book.id) await _release();
+        _mode.claim(this);
         final stored = await store.progress(book.id);
         final speed = stored?.speed ?? await store.lastSpeed();
         var progress = (stored ?? BookProgress(speed: speed)).copyWith(
@@ -338,7 +343,10 @@ final class BookPlayer {
     final book = _state.book;
     if (book == null || _opening || _disposed) return;
     final current = s.current;
-    if (current == null ||
+    // A station or an episode plays: the queue (the book) is waiting.
+    if (s.live ||
+        s.spoken ||
+        current == null ||
         !book.tracks.any((t) => t.itemId == current.itemId)) {
       unawaited(_serial(_release));
       return;
@@ -419,8 +427,10 @@ final class BookPlayer {
     _lastSave = null;
     _wasPlaying = false;
     _set(const BookPlayerState());
-    await dsp.setSkipSilence(enabled: false);
-    await engine.setRate(1);
+    if (_mode.release(this)) {
+      await dsp.setSkipSilence(enabled: false);
+      await engine.setRate(1);
+    }
   }
 
   Future<void> _serial(Future<void> Function() op) {

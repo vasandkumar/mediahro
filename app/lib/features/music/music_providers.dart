@@ -29,7 +29,13 @@ import 'package:mediahro/features/music/player/music_prefs.dart';
 import 'package:mediahro/features/music/player/music_session.dart';
 import 'package:mediahro/features/music/player/sleep_shake.dart';
 import 'package:mediahro/features/music/player/sleep_timer.dart';
+import 'package:mediahro/features/music/player/spoken_mode.dart';
 import 'package:mediahro/features/music/player/wake_alarms.dart';
+import 'package:mediahro/features/music/podcasts/episode_downloads.dart';
+import 'package:mediahro/features/music/podcasts/podcast_http.dart';
+import 'package:mediahro/features/music/podcasts/podcast_player.dart';
+import 'package:mediahro/features/music/podcasts/podcast_service.dart';
+import 'package:mediahro/features/music/podcasts/podcast_store.dart';
 import 'package:mediahro/features/music/radio/radio_stations.dart';
 import 'package:mediahro/features/music/scrobble/scrobble_services.dart';
 import 'package:mediahro/features/music/scrobble/scrobbler.dart';
@@ -332,6 +338,145 @@ final FutureProviderFamily<Lyrics?, MusicTrack> lyricsProvider =
       (ref, track) => ref.watch(lyricsServiceProvider).forTrack(track),
     );
 
+/// Podcasts (POD-002): subscriptions, refresh, downloads and playback.
+final podcastStoreProvider = Provider<PodcastStore>(
+  (ref) => PodcastStore(ref.watch(musicPrefsProvider)),
+);
+
+/// The way podcasts reach the network: through the gateway, one allowed hop
+/// at a time, each request chain allowed only to the code running that
+/// request (a feed cannot widen the allow-list, nothing stays allowed after
+/// the request, and a hop to the listener's own network is refused unless it
+/// is the host the listener gave for that feed).
+final podcastHttpProvider = Provider<PodcastHttp>((ref) {
+  // Looked up when a request is made, so a podcast screen costs nothing
+  // until the network is used.
+  return PodcastHttp(
+    send: (r, {maxRedirects = 5}) => ref
+        .read(networkGatewayProvider)
+        .sendStreamed(r, maxRedirects: maxRedirects),
+    beginChain: () {
+      final scope = ref.read(networkPolicyProvider).beginAllowScope();
+      return ChainAllowance(
+        allow: scope.allow,
+        close: scope.close,
+        run: scope.run,
+      );
+    },
+  );
+});
+
+final episodeDownloadsProvider = Provider<ManagerEpisodeDownloads>((ref) {
+  final d = ManagerEpisodeDownloads(
+    manager: ref.watch(downloadManagerProvider),
+    mounts: ref.watch(mountsProvider),
+    fileSystem: HttpUrlFileSystem(
+      ref.watch(podcastHttpProvider),
+      trustedFor: ref.read(podcastStoreProvider).feedHostFor,
+    ),
+  );
+  unawaited(d.resumePending().catchError((Object _) {}));
+  return d;
+});
+
+final podcastServiceProvider = Provider<PodcastService>((ref) {
+  final net = _optional(() => ref.read(networkStatusProvider));
+  final s = PodcastService(
+    store: ref.watch(podcastStoreProvider),
+    http: ref.watch(podcastHttpProvider),
+    downloads: ref.watch(episodeDownloadsProvider),
+    artDir: Directory(
+      [
+        ref.watch(appDataDirectoryProvider).path,
+        'music',
+        'podcasts',
+        'art',
+      ].join(Platform.pathSeparator),
+    ),
+    canDownloadNow: net == null
+        ? null
+        : () async {
+            final st = await net.current();
+            return !st.metered && !st.constrained;
+          },
+  );
+  ref.onDispose(() => unawaited(s.dispose()));
+  return s;
+});
+
+/// Checks the subscriptions for new episodes at start and then about every
+/// hour while the app runs (POD-002). The OS does not wake the app for it:
+/// that waits for a background task facade (ADR request).
+final podcastBootProvider = Provider<void>((ref) {
+  final s = ref.watch(podcastServiceProvider);
+  Future<void> check() => s
+      .refreshAll(minAge: const Duration(hours: 2))
+      .then((_) {}, onError: (Object _) {});
+  unawaited(Future(check));
+  final timer = Timer.periodic(
+    const Duration(hours: 1),
+    (_) => unawaited(check()),
+  );
+  ref.onDispose(timer.cancel);
+});
+
+final podcastPlayerProvider = Provider<PodcastPlayer>((ref) {
+  final sleep = ref.watch(sleepTimerProvider);
+  final p = PodcastPlayer(
+    mode: ref.watch(spokenModeProvider),
+    player: ref.watch(musicPlayerProvider),
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+    dsp: ref.watch(musicDspProvider),
+    service: ref.watch(podcastServiceProvider),
+    holdAtEnd: () {
+      final s = sleep.state;
+      return s.active &&
+          (s.mode == SleepMode.endOfTrack ||
+              (s.mode == SleepMode.tracks && s.tracksLeft == 1));
+    },
+  );
+  ref.onDispose(() => unawaited(p.dispose()));
+  return p;
+});
+
+final podcastPlayerStateProvider = StreamProvider<PodcastPlayerState>(
+  (ref) => ref.watch(podcastPlayerProvider).states,
+);
+
+/// The subscriptions with their unplayed counts; reloads on any change.
+final podcastShowsProvider = StreamProvider<List<(PodcastShow, int)>>((
+  ref,
+) async* {
+  final s = ref.watch(podcastServiceProvider);
+  Future<List<(PodcastShow, int)>> load() async {
+    final counts = await s.unplayedCounts();
+    return [for (final show in await s.shows()) (show, counts[show.id] ?? 0)];
+  }
+
+  yield await load();
+  await for (final _ in s.changes) {
+    yield await load();
+  }
+});
+
+/// One show; reloads on any change.
+final FutureProviderFamily<PodcastShow?, String> podcastShowProvider =
+    FutureProvider.family<PodcastShow?, String>((ref, showId) {
+      final s = ref.watch(podcastServiceProvider);
+      final sub = s.changes.listen((_) => ref.invalidateSelf());
+      ref.onDispose(sub.cancel);
+      return s.store.show(showId);
+    });
+
+/// The episodes of one show; reloads on any change.
+final FutureProviderFamily<List<EpisodeEntry>, String> podcastEpisodesProvider =
+    FutureProvider.family<List<EpisodeEntry>, String>((ref, showId) {
+      final s = ref.watch(podcastServiceProvider);
+      final sub = s.changes.listen((_) => ref.invalidateSelf());
+      ref.onDispose(sub.cancel);
+      return s.episodes(showId);
+    });
+
 /// Audiobooks (POD-001): the books in the music library, where the listener
 /// stands in each, and the player mode that remembers it.
 final bookStoreProvider = Provider<BookStore>(
@@ -347,8 +492,12 @@ final bookLibraryProvider = Provider<BookLibrary>(
   ),
 );
 
+/// Who owns the engine's speed while spoken word plays (books, podcasts).
+final spokenModeProvider = Provider<SpokenMode>((ref) => SpokenMode());
+
 final bookPlayerProvider = Provider<BookPlayer>((ref) {
   final b = BookPlayer(
+    mode: ref.watch(spokenModeProvider),
     player: ref.watch(musicPlayerProvider),
     engine: ref.watch(playbackEngineProvider(EngineRole.music)),
     dsp: ref.watch(musicDspProvider),

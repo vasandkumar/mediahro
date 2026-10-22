@@ -752,5 +752,153 @@
         "format": "decimalPattern"
       }
     }
-  }
+  },
+  "musicTabPodcasts": "Podcasts",
+  "musicPodEmptyTitle": "No podcasts yet",
+  "musicPodEmpty": "Subscribe with a feed address, or import the list from another podcast app (OPML). Mediahro has no directory and no recommendations: you bring the addresses.",
+  "musicPodAdd": "Add podcast",
+  "musicPodAddTitle": "Subscribe to a podcast",
+  "musicPodFeedAddress": "Feed address",
+  "musicPodFeedAddressHint": "https://example.com/feed.xml",
+  "musicPodSubscribe": "Subscribe",
+  "musicPodSubscribing": "Subscribing…",
+  "musicPodImport": "Import OPML",
+  "musicPodExport": "Export OPML",
+  "musicPodRefreshAll": "Check for new episodes",
+  "musicPodSubscribed": "Subscribed to \"{title}\"",
+  "@musicPodSubscribed": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodErrInvalid": "That isn't a web address.",
+  "musicPodErrUnreachable": "Couldn't reach that address. Check it and your connection.",
+  "musicPodErrNotFeed": "That address isn't a podcast feed.",
+  "musicPodErrTooLarge": "That feed is too large.",
+  "musicPodErrBlocked": "Network access for this address is turned off.",
+  "musicPodErrPrivate": "That address is on your own network or this device. Mediahro won't follow a podcast there unless you subscribed to it yourself.",
+  "musicPodErrAlready": "You're already subscribed to this podcast.",
+  "musicPodLocalTitle": "Add feeds on your own network?",
+  "musicPodLocalBody": "This file lists podcasts on this device or your own network:\n\n{urls}\n\nOnly add them if you know what they are.",
+  "@musicPodLocalBody": {
+    "placeholders": {
+      "urls": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodLocalAdd": "Add them",
+  "musicPodNewEpisodes": "{count, plural, =0{No new episodes} =1{1 new episode} other{{count} new episodes}}",
+  "@musicPodNewEpisodes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodRefreshFailed": "{count, plural, =1{Couldn't check 1 podcast} other{Couldn't check {count} podcasts}}",
+  "@musicPodRefreshFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodImporting": "Importing {done} of {total}",
+  "@musicPodImporting": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodImported": "Added {added}, already subscribed {already}, couldn't add {failed}.",
+  "@musicPodImported": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "already": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodImportNone": "No podcasts found in that file.",
+  "musicPodUnplayed": "{count, plural, =0{All played} =1{1 unplayed} other{{count} unplayed}}",
+  "@musicPodUnplayed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodNoEpisodes": "No episodes yet.",
+  "musicPodOldestFirst": "Oldest first",
+  "musicPodAutoDownload": "Keep newest episodes downloaded",
+  "musicPodAutoDownloadOff": "Off",
+  "musicPodAutoDownloadCount": "{count, plural, =1{1 episode} other{{count} episodes}}",
+  "@musicPodAutoDownloadCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodAutoDownloadNote": "Downloads only on an unmetered connection.",
+  "musicPodDeleteWhenPlayed": "Delete downloads once played",
+  "musicPodMarkAllPlayed": "Mark all as played",
+  "musicPodMarkAllUnplayed": "Mark all as unplayed",
+  "musicPodUnsubscribe": "Unsubscribe",
+  "musicPodUnsubscribeConfirm": "Unsubscribe from \"{title}\"? Its downloaded episodes are deleted.",
+  "@musicPodUnsubscribeConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodSettings": "Podcast settings",
+  "musicPodEpisodeInfo": "{date} · {duration}",
+  "@musicPodEpisodeInfo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "musicPodDownload": "Download",
+  "musicPodRemoveDownload": "Remove download",
+  "musicPodMarkPlayed": "Mark as played",
+  "musicPodMarkUnplayed": "Mark as unplayed",
+  "musicPodShowNotes": "Show notes",
+  "musicPodNoNotes": "No show notes.",
+  "musicPodPlayed": "Played",
+  "musicPodDownloaded": "Downloaded",
+  "musicPodDownloadQueued": "Waiting to download",
+  "musicPodDownloading": "Downloading {percent}%",
+  "@musicPodDownloading": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "musicPodDownloadFailed": "Download failed",
+  "musicPodNowPlaying": "Podcast",
+  "musicPodBack10": "Back 10 seconds",
+  "musicPodForward30": "Forward 30 seconds",
+  "musicPodSpeedRemembered": "Each show remembers its own speed.",
+  "musicPodOffline": "Playing the downloaded copy",
+  "musicPodExplicit": "Explicit"
 }

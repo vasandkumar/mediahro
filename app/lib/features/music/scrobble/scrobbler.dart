@@ -108,7 +108,7 @@ final class Scrobbler {
   // -------------------------------------------------------------- timing --
 
   Future<void> _onState(MusicPlayerState s) async {
-    final t = s.live ? null : s.current;
+    final t = s.live || s.spoken ? null : s.current;
     final status = s.playback.status;
     final newSong = t?.itemId != _itemId || s.playback.item != _engineItem;
     if (newSong) {

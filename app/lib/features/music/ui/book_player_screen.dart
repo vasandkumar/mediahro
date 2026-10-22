@@ -470,25 +470,47 @@ class _BookmarksList extends ConsumerWidget {
   }
 }
 
-const bookSpeedPresets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
+const speedPresets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
 
-void showBookSpeedSheet(BuildContext context) => unawaited(
+void showBookSpeedSheet(BuildContext context) => showSpeedSheet(
+  context,
+  speedOf: (ref) =>
+      ref.watch(bookPlayerStateProvider.select((s) => s.value?.speed ?? 1)),
+  onChange: (ref, v) => unawaited(ref.read(bookPlayerProvider).setSpeed(v)),
+  note: (l10n) => l10n.musicBookSpeedRemembered,
+);
+
+/// The speed picker of the spoken-word players (books and podcasts): a
+/// slider in 0.05 steps and the usual presets.
+void showSpeedSheet(
+  BuildContext context, {
+  required double Function(WidgetRef ref) speedOf,
+  required void Function(WidgetRef ref, double speed) onChange,
+  required String Function(AppLocalizations l10n) note,
+}) => unawaited(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    builder: (_) => const _SpeedSheet(),
+    builder: (_) =>
+        _SpeedSheet(speedOf: speedOf, onChange: onChange, note: note),
   ),
 );
 
 class _SpeedSheet extends ConsumerWidget {
-  const _SpeedSheet();
+  const _SpeedSheet({
+    required this.speedOf,
+    required this.onChange,
+    required this.note,
+  });
+
+  final double Function(WidgetRef ref) speedOf;
+  final void Function(WidgetRef ref, double speed) onChange;
+  final String Function(AppLocalizations l10n) note;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final s =
-        ref.watch(bookPlayerStateProvider).value ?? const BookPlayerState();
-    final player = ref.read(bookPlayerProvider);
+    final speed = speedOf(ref);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(KSpacing.s16),
@@ -501,34 +523,30 @@ class _SpeedSheet extends ConsumerWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: KSpacing.s8),
-            Text(l10n.musicBookSpeedValue(s.speed)),
+            Text(l10n.musicBookSpeedValue(speed)),
             Semantics(
               label: l10n.musicBookSpeed,
               child: Slider(
                 min: 0.5,
                 max: 3,
                 divisions: 50,
-                value: s.speed.clamp(0.5, 3.0),
-                label: l10n.musicBookSpeedValue(s.speed),
-                onChanged: (v) =>
-                    unawaited(player.setSpeed((v * 20).round() / 20)),
+                value: speed.clamp(0.5, 3.0),
+                label: l10n.musicBookSpeedValue(speed),
+                onChanged: (v) => onChange(ref, (v * 20).round() / 20),
               ),
             ),
             Wrap(
               spacing: KSpacing.s8,
               children: [
-                for (final p in bookSpeedPresets)
+                for (final p in speedPresets)
                   ChoiceChip(
                     label: Text(l10n.musicBookSpeedValue(p)),
-                    selected: (s.speed - p).abs() < 0.001,
-                    onSelected: (_) => unawaited(player.setSpeed(p)),
+                    selected: (speed - p).abs() < 0.001,
+                    onSelected: (_) => onChange(ref, p),
                   ),
               ],
             ),
-            Text(
-              l10n.musicBookSpeedRemembered,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(note(l10n), style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),

@@ -10,6 +10,25 @@ import 'package:mediahro/features/music/radio/radio_stations.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 import 'package:meta/meta.dart';
 
+/// A podcast episode playing on the music engine (POD-002).
+@immutable
+final class NowPlayingEpisode {
+  const NowPlayingEpisode({
+    required this.id,
+    required this.title,
+    required this.show,
+    this.artPath,
+  });
+
+  /// Unique per show and episode.
+  final String id;
+  final String title;
+  final String show;
+
+  /// The show's artwork file on this device.
+  final String? artPath;
+}
+
 /// Snapshot of the music player for the UI, mini player and media session.
 @immutable
 final class MusicPlayerState {
@@ -23,6 +42,7 @@ final class MusicPlayerState {
     this.restoredPosition,
     this.queues = const [],
     this.station,
+    this.episode,
   });
 
   final List<MusicTrack> queue;
@@ -43,7 +63,14 @@ final class MusicPlayerState {
   /// it plays.
   final RadioStation? station;
 
+  /// The podcast episode playing (POD-002); the queue waits while it plays,
+  /// as for a station.
+  final NowPlayingEpisode? episode;
+
   bool get live => station != null;
+
+  /// A podcast episode is playing: not a song, no queue to move through.
+  bool get spoken => episode != null;
 
   MusicTrack? get current =>
       index >= 0 && index < queue.length ? queue[index] : null;
@@ -70,6 +97,7 @@ final class MusicPlayerState {
     Duration? Function()? restoredPosition,
     List<QueueRow>? queues,
     RadioStation? Function()? station,
+    NowPlayingEpisode? Function()? episode,
   }) => MusicPlayerState(
     queue: queue ?? this.queue,
     index: index ?? this.index,
@@ -82,6 +110,7 @@ final class MusicPlayerState {
         : restoredPosition(),
     queues: queues ?? this.queues,
     station: station == null ? this.station : station(),
+    episode: episode == null ? this.episode : episode(),
   );
 }
 
@@ -353,7 +382,11 @@ final class MusicPlayer {
     await engine.setNext(null);
     await _savePosition();
     _emit(
-      _state.copyWith(station: () => station, restoredPosition: () => null),
+      _state.copyWith(
+        station: () => station,
+        episode: () => null,
+        restoredPosition: () => null,
+      ),
     );
     await _awaitItem(
       () => engine.open(
@@ -363,9 +396,47 @@ final class MusicPlayer {
     );
   });
 
+  // -------------------------------------------------------------- podcast --
+
+  /// How far the lock-screen and car "next" and "previous" buttons jump in
+  /// an episode.
+  static const episodeSkipForward = Duration(seconds: 30);
+  static const episodeSkipBack = Duration(seconds: 10);
+
+  /// Plays a podcast episode (POD-002) from [source], from [start]. The
+  /// queue keeps its place and resumes with the next song played from it.
+  /// The episode's place, speed and played mark are the podcast player's.
+  Future<void> playEpisode(
+    NowPlayingEpisode episode,
+    MediaSource source, {
+    Duration? start,
+    bool autoplay = true,
+  }) => _serial(() async {
+    _preparedIndex = null;
+    await engine.setNext(null);
+    await _savePosition();
+    _emit(
+      _state.copyWith(
+        station: () => null,
+        episode: () => episode,
+        restoredPosition: () => null,
+      ),
+    );
+    await _awaitItem(
+      () => engine.open(
+        source,
+        opts: OpenOptions(audioOnly: true, start: start, autoplay: autoplay),
+      ),
+    );
+  });
+
   // ------------------------------------------------------------ transport --
 
   Future<void> play() => _serial(() async {
+    if (_state.spoken) {
+      await engine.play();
+      return;
+    }
     final station = _state.station;
     if (station != null) {
       final st = engine.current.status;
@@ -412,6 +483,13 @@ final class MusicPlayer {
   });
 
   Future<void> next() => _serial(() async {
+    if (_state.spoken) {
+      await engine.seek(
+        _state.position + episodeSkipForward,
+        mode: SeekMode.exact,
+      );
+      return;
+    }
     if (_state.live || _state.queue.isEmpty) return;
     if (_preparedIndex != null && engine.current.nextPrepared) {
       final to = _preparedIndex!;
@@ -428,6 +506,14 @@ final class MusicPlayer {
 
   /// Restarts the track after 3 s, otherwise goes to the previous one.
   Future<void> previous() => _serial(() async {
+    if (_state.spoken) {
+      final back = _state.position - episodeSkipBack;
+      await engine.seek(
+        back < Duration.zero ? Duration.zero : back,
+        mode: SeekMode.exact,
+      );
+      return;
+    }
     if (_state.live || _state.queue.isEmpty) return;
     if (_state.position > const Duration(seconds: 3)) {
       await engine.seek(Duration.zero, mode: SeekMode.exact);
@@ -496,7 +582,13 @@ final class MusicPlayer {
     final src = await files.mediaSource(t.sourceId, t.relPath, title: t.title);
     _lastPosition = start ?? Duration.zero;
     // Playing from the queue ends a radio station.
-    _emit(_state.copyWith(restoredPosition: () => null, station: () => null));
+    _emit(
+      _state.copyWith(
+        restoredPosition: () => null,
+        station: () => null,
+        episode: () => null,
+      ),
+    );
     await _awaitItem(
       () => engine.open(
         src,
@@ -561,7 +653,8 @@ final class MusicPlayer {
     if (_disposed) return;
     if (s.status == PlaybackStatus.playing) _lastPosition = s.position;
     _emit(_state.copyWith(playback: s));
-    if (_state.live) return; // a stream: no queue hand-off, no play counts
+    // A stream or an episode: no queue hand-off, no play counts.
+    if (_state.live || _state.spoken) return;
     if (!_busy && s.item != _currentItem && _preparedIndex != null) {
       final to = _preparedIndex!;
       _currentItem = s.item;
@@ -633,7 +726,9 @@ final class MusicPlayer {
   /// database may already be closed while the app shuts down.
   Future<void> _savePosition() async {
     final id = _state.queueId;
-    if (id == null || _state.current == null || _state.live) return;
+    if (id == null || _state.current == null || _state.live || _state.spoken) {
+      return;
+    }
     try {
       await queues.savePosition(id, _state.index, _state.position);
     } on Object {

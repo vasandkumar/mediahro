@@ -110,7 +110,8 @@ final class MusicSessionBridge {
   Future<void> _onState(MusicPlayerState s) async {
     final track = s.current;
     final station = s.station;
-    if (track == null && station == null) return;
+    final episode = s.episode;
+    if (track == null && station == null && episode == null) return;
     if (!_active && s.playing) {
       _active = true;
       owner?.claim();
@@ -118,7 +119,8 @@ final class MusicSessionBridge {
     }
     if (!_active) return;
     if (s.playback.status == PlaybackStatus.idle ||
-        (s.playback.status == PlaybackStatus.ended && !s.hasNext)) {
+        (s.playback.status == PlaybackStatus.ended &&
+            (!s.hasNext || s.spoken))) {
       // Music stopped: give the session back (ADR-029).
       _active = false;
       _shownItem = null;
@@ -128,10 +130,22 @@ final class MusicSessionBridge {
       await session.deactivate();
       return;
     }
-    final key = station != null ? 'st:${station.id}' : 'tr:${track!.itemId}';
+    final key = episode != null
+        ? 'ep:${episode.id}'
+        : station != null
+        ? 'st:${station.id}'
+        : 'tr:${track!.itemId}';
     if (_shownItem != key) {
       _shownItem = key;
-      final item = station != null
+      final item = episode != null
+          // A podcast episode (POD-002): the show is the artist.
+          ? NowPlaying(
+              title: episode.title,
+              artist: episode.show,
+              duration: s.duration,
+              artwork: await _fileBytes(episode.artPath),
+            )
+          : station != null
           // A radio stream (MUS-014): live, no duration.
           ? NowPlaying(title: station.name, isLive: true)
           : NowPlaying(
@@ -176,8 +190,13 @@ final class MusicSessionBridge {
 
   Future<Uint8List?> _artwork(int itemId) async {
     final path = await art.coverPath(itemId);
+    return await _fileBytes(path);
+  }
+
+  Future<Uint8List?> _fileBytes(String? path) async {
     if (path == null) return null;
     final f = File(path);
+    if (!f.existsSync()) return null;
     // Large covers go through as-is; the platform module scales them.
     if (await f.length() > 4 * 1024 * 1024) return null;
     return await f.readAsBytes();

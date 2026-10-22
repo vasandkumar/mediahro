@@ -10,6 +10,42 @@ import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/tag_editor_screen.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
+/// A show's artwork from the device, or a neutral placeholder.
+class ShowArt extends StatelessWidget {
+  const ShowArt({required this.path, required this.size, super.key});
+
+  final String? path;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final file = path == null ? null : File(path!);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox.square(
+        dimension: size,
+        child: file != null && file.existsSync()
+            ? Image.file(
+                file,
+                fit: BoxFit.cover,
+                cacheWidth: (size * dpr).round().clamp(32, 1024),
+                gaplessPlayback: true,
+                excludeFromSemantics: true,
+                errorBuilder: (_, _, _) => _placeholder(scheme),
+              )
+            : _placeholder(scheme),
+      ),
+    );
+  }
+
+  Widget _placeholder(ColorScheme scheme) => ColoredBox(
+    color: scheme.surfaceContainerHighest,
+    child: Icon(Icons.podcasts, color: scheme.onSurfaceVariant),
+  );
+}
+
 /// Cover art of an item (MUS-004) or a neutral placeholder, decoded at the
 /// size it is shown.
 class CoverArt extends ConsumerWidget {
