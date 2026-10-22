@@ -58,6 +58,7 @@ object DebugHooks {
         InputHooks.install(engine.dartExecutor.binaryMessenger)
         MotionVideoHooks.install(host.context, engine.dartExecutor.binaryMessenger)
         PresentationHooks.install(host.context, engine.dartExecutor.binaryMessenger)
+        BackgroundHooks.install(host.context, engine.dartExecutor.binaryMessenger)
     }
 
     private fun answer(contract: ActivityResultContract<*, *>): Result<Any?>? {

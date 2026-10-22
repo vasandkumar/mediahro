@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:mediahro/platform/platform_facades.dart';
 import 'package:mediahro_servers/mediahro_servers.dart';
 import 'package:meta/meta.dart';
@@ -80,7 +79,7 @@ final class ScrobbleError implements Exception {
 
 /// A scrobbling service account.
 abstract interface class ScrobbleService {
-  /// `listenbrainz`, `lastfm` or `librefm` (also the PRIV-004 endpoint id).
+  /// `listenbrainz` (also the PRIV-004 endpoint id).
   String get id;
 
   /// Signed in (a token or session key is stored).
@@ -185,162 +184,6 @@ final class ListenBrainzService implements ScrobbleService {
       },
     },
   };
-}
-
-/// Last.fm and Libre.fm (Audioscrobbler 2.0 API, signed calls): signed in
-/// once with `auth.getMobileSession`; only the session key is stored.
-final class AudioscrobblerService implements ScrobbleService {
-  AudioscrobblerService({
-    required this.id,
-    required this.http,
-    required this.secure,
-    required this.apiBase,
-    required this.apiKey,
-    required this.apiSecret,
-  });
-
-  /// Libre.fm accepts any client key; a build may set its own.
-  factory AudioscrobblerService.libreFm(
-    HttpTransport http,
-    SecureStorageFacade secure,
-  ) => AudioscrobblerService(
-    id: 'librefm',
-    http: http,
-    secure: secure,
-    apiBase: Uri.https('libre.fm', '/2.0/'),
-    apiKey: const String.fromEnvironment(
-      'LIBREFM_API_KEY',
-      defaultValue: 'mediahro0000000000000000000000ab',
-    ),
-    apiSecret: const String.fromEnvironment(
-      'LIBREFM_API_SECRET',
-      defaultValue: 'mediahro0000000000000000000000cd',
-    ),
-  );
-
-  /// Last.fm: keys from the build (`LASTFM_API_KEY`, `LASTFM_API_SECRET`,
-  /// an owner task); null when the build has none.
-  static AudioscrobblerService? lastFm(
-    HttpTransport http,
-    SecureStorageFacade secure,
-  ) {
-    const key = String.fromEnvironment('LASTFM_API_KEY');
-    const secret = String.fromEnvironment('LASTFM_API_SECRET');
-    if (key.isEmpty || secret.isEmpty) return null;
-    return AudioscrobblerService(
-      id: 'lastfm',
-      http: http,
-      secure: secure,
-      apiBase: Uri.https('ws.audioscrobbler.com', '/2.0/'),
-      apiKey: key,
-      apiSecret: secret,
-    );
-  }
-
-  @override
-  final String id;
-  final HttpTransport http;
-  final SecureStorageFacade secure;
-  final Uri apiBase;
-  final String apiKey;
-  final String apiSecret;
-
-  String get _sessionKey => 'music.scrobble.$id.session';
-
-  @override
-  int get batchSize => 50;
-
-  @override
-  Future<bool> connected() async => (await secure.read(_sessionKey)) != null;
-
-  /// Signs in; the password is sent once to the service over HTTPS and
-  /// never stored. Returns the user name.
-  Future<String> signIn(String user, String password) async {
-    final res = await _call({
-      'method': 'auth.getMobileSession',
-      'username': user,
-      'password': password,
-    });
-    final session = res['session'];
-    if (session is! Map<String, Object?> || session['key'] is! String) {
-      throw const ScrobbleError('no session', auth: true);
-    }
-    await secure.write(_sessionKey, session['key']! as String);
-    return session['name'] as String? ?? user;
-  }
-
-  @override
-  Future<void> signOut() => secure.delete(_sessionKey);
-
-  @override
-  Future<void> nowPlaying(ScrobbleTrack t) async {
-    final sk = await secure.read(_sessionKey);
-    if (sk == null) throw const ScrobbleError('not signed in', auth: true);
-    await _call({
-      'method': 'track.updateNowPlaying',
-      'sk': sk,
-      'artist': t.artist,
-      'track': t.title,
-      'album': ?t.album,
-      'albumArtist': ?t.albumArtist,
-      'duration': ?t.duration?.inSeconds.toString(),
-      'trackNumber': ?t.trackNumber?.toString(),
-      'mbid': ?t.recordingMbid,
-    });
-  }
-
-  @override
-  Future<void> submit(List<ScrobbleTrack> listens) async {
-    final sk = await secure.read(_sessionKey);
-    if (sk == null) throw const ScrobbleError('not signed in', auth: true);
-    final params = <String, String>{'method': 'track.scrobble', 'sk': sk};
-    for (final (i, t) in listens.indexed) {
-      params['artist[$i]'] = t.artist;
-      params['track[$i]'] = t.title;
-      params['timestamp[$i]'] = '${t.playedAt.millisecondsSinceEpoch ~/ 1000}';
-      if (t.album != null) params['album[$i]'] = t.album!;
-      if (t.albumArtist != null) params['albumArtist[$i]'] = t.albumArtist!;
-      if (t.duration != null) {
-        params['duration[$i]'] = '${t.duration!.inSeconds}';
-      }
-      if (t.trackNumber != null) params['trackNumber[$i]'] = '${t.trackNumber}';
-      if (t.recordingMbid != null) params['mbid[$i]'] = t.recordingMbid!;
-    }
-    await _call(params);
-  }
-
-  /// A signed POST (`api_sig` = md5 of sorted params + secret).
-  Future<Map<String, Object?>> _call(Map<String, String> params) async {
-    final p = {...params, 'api_key': apiKey};
-    final sig = md5
-        .convert(
-          utf8.encode(
-            '${(p.keys.toList()..sort()).map((k) => '$k${p[k]}').join()}$apiSecret',
-          ),
-        )
-        .toString();
-    final body = Uri(queryParameters: {...p, 'api_sig': sig, 'format': 'json'})
-        .query;
-    final res = await http.send(
-      HttpRequestData(
-        method: 'POST',
-        uri: apiBase,
-        headers: const {'content-type': 'application/x-www-form-urlencoded'},
-        body: utf8.encode(body),
-      ),
-    );
-    final j = _json(res.body) ?? const <String, Object?>{};
-    final err = j['error'];
-    if (err is int) {
-      // 4 auth failed, 9 invalid session, 10 invalid key, 26 suspended key.
-      throw ScrobbleError(
-        '${j['message'] ?? 'error $err'}',
-        auth: const {4, 9, 10, 14, 26}.contains(err),
-      );
-    }
-    if (res.statusCode != 200) throw ScrobbleError('HTTP ${res.statusCode}');
-    return j;
-  }
 }
 
 Map<String, Object?>? _json(List<int> body) {

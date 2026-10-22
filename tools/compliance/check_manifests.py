@@ -23,10 +23,25 @@ FORBIDDEN_ANDROID = [
 ]
 
 
+def declared(text: str) -> str:
+    """The manifest without comments and without `tools:node="remove"` elements.
+
+    A flavour may remove a permission a library merges in (WorkManager's boot
+    permission, ADR-049); naming it to remove it is not requesting it.
+    """
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    return re.sub(
+        r"<[\w-]+\b[^<>]*?tools:node=\"remove\"[^<>]*?/>",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+
+
 def main() -> int:
     errors = []
     for m in (ROOT / "app" / "android" / "app" / "src").glob("*/AndroidManifest.xml"):
-        text = m.read_text(encoding="utf-8")
+        text = declared(m.read_text(encoding="utf-8"))
         for perm in FORBIDDEN_ANDROID:
             if perm in text:
                 errors.append(f"{m.relative_to(ROOT)}: {perm} is not allowed")

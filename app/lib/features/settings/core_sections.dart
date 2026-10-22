@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:mediahro/app/capabilities.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/app/locales.dart';
+import 'package:mediahro/features/settings/about/about_panel.dart';
 import 'package:mediahro/features/settings/core_settings.dart';
 import 'package:mediahro/features/settings/privacy/privacy_dashboard.dart';
 import 'package:mediahro/features/settings/settings_registry.dart';
@@ -143,6 +144,18 @@ final List<SettingsContribution> coreSettingsContributions = [
         keywords: (l) => l.settingsPrivacyKeywords,
         settingKeys: [CoreSettings.updateCheck],
         builder: (context, highlight) => PrivacyDashboard(highlight: highlight),
+      ),
+    ],
+  ),
+  SettingsContribution(
+    section: SettingsSectionId.about,
+    entries: [
+      CustomSetting(
+        id: 'about.build',
+        title: (l) => l.settingsSectionAbout,
+        description: (l) => l.settingsSectionAboutDescription,
+        keywords: (l) => l.settingsAboutKeywords,
+        builder: (context, highlight) => const AboutPanel(),
       ),
     ],
   ),

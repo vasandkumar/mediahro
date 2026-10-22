@@ -639,6 +639,12 @@ FILE "book.mp3" MP3
         ..startTracks(2)
         ..shake();
       expect(timer.state.tracksLeft, 3);
+      // The last track is no longer the one it stops after.
+      timer
+        ..startEndOfTrack()
+        ..shake();
+      expect(timer.state.tracksLeft, 2);
+      expect(player.holdAtEnd, isFalse);
       timer
         ..cancel()
         ..shake();

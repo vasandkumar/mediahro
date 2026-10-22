@@ -623,6 +623,218 @@
   "@settingsPrivacyServiceTrakt": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
+  "settingsAboutVersion": "Version {version} ({build})",
+  "@settingsAboutVersion": {
+    "description": "Version line at the top of About.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutBuild": "{flavour} build for {platform}",
+  "@settingsAboutBuild": {
+    "description": "Which build this is: {flavour} is the distribution (Store, Direct download, Open source, Enterprise), {platform} the operating system.",
+    "placeholders": {
+      "flavour": {
+        "type": "String"
+      },
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutFlavourStore": "Store",
+  "@settingsAboutFlavourStore": {
+    "description": "Build flavour: from an app store."
+  },
+  "settingsAboutFlavourDirect": "Direct download",
+  "@settingsAboutFlavourDirect": {
+    "description": "Build flavour: installed from the project site."
+  },
+  "settingsAboutFlavourFoss": "Open source",
+  "@settingsAboutFlavourFoss": {
+    "description": "Build flavour: F-Droid and source releases."
+  },
+  "settingsAboutFlavourEnterprise": "Enterprise",
+  "@settingsAboutFlavourEnterprise": {
+    "description": "Build flavour: managed devices."
+  },
+  "settingsAboutPlatformAndroid": "Android",
+  "@settingsAboutPlatformAndroid": {
+    "description": "Operating system name. Not translated."
+  },
+  "settingsAboutPlatformIos": "iOS and iPadOS",
+  "@settingsAboutPlatformIos": {
+    "description": "Operating system name. Not translated."
+  },
+  "settingsAboutPlatformMacos": "macOS",
+  "@settingsAboutPlatformMacos": {
+    "description": "Operating system name. Not translated."
+  },
+  "settingsAboutPlatformWindows": "Windows",
+  "@settingsAboutPlatformWindows": {
+    "description": "Operating system name. Not translated."
+  },
+  "settingsAboutUnofficial": "Unofficial build — not endorsed by the Mediahro project",
+  "@settingsAboutUnofficial": {
+    "description": "Shown in About on a fork or modified build (trademark policy)."
+  },
+  "settingsAboutEngineHeading": "Playback engine",
+  "@settingsAboutEngineHeading": {
+    "description": "Heading above the versions of the playback libraries."
+  },
+  "settingsAboutEngineVideo": "Video and audio engine",
+  "@settingsAboutEngineVideo": {
+    "description": "Row title; the value is the engine name and version."
+  },
+  "settingsAboutEngineVideoDescription": "Plays your media",
+  "@settingsAboutEngineVideoDescription": {
+    "description": "One-line description of the video and audio engine row."
+  },
+  "settingsAboutEngineCodecs": "Codecs and containers",
+  "@settingsAboutEngineCodecs": {
+    "description": "Row title; the value is the library name and version."
+  },
+  "settingsAboutEngineCodecsDescription": "Reads most formats",
+  "@settingsAboutEngineCodecsDescription": {
+    "description": "One-line description of the codecs row."
+  },
+  "settingsAboutLibraryLine": "{name} {version}",
+  "@settingsAboutLibraryLine": {
+    "description": "A library name followed by its version, shown as a row value.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutOsDecoders": "HEVC and AAC are decoded by your device's own decoders where it has them.",
+  "@settingsAboutOsDecoders": {
+    "description": "Statement about codec licensing in About."
+  },
+  "settingsAboutLicences": "Open-source licences",
+  "@settingsAboutLicences": {
+    "description": "Row that opens the list of licences."
+  },
+  "settingsAboutLicencesDescription": "Every library in this app, with its licence text",
+  "@settingsAboutLicencesDescription": {
+    "description": "One-line description of the licences row."
+  },
+  "settingsAboutSource": "Source code and build details",
+  "@settingsAboutSource": {
+    "description": "Row that opens the source offer page."
+  },
+  "settingsAboutSourceDescription": "Where to get the source of this build, and how the libraries were built",
+  "@settingsAboutSourceDescription": {
+    "description": "One-line description of the source row."
+  },
+  "settingsAboutPoliciesHeading": "Policies and source",
+  "@settingsAboutPoliciesHeading": {
+    "description": "Heading above the links to the published policies."
+  },
+  "settingsAboutPrivacy": "Privacy policy",
+  "@settingsAboutPrivacy": {
+    "description": "Row title for a link."
+  },
+  "settingsAboutTerms": "Terms of use",
+  "@settingsAboutTerms": {
+    "description": "Row title for a link."
+  },
+  "settingsAboutTrademark": "Trademark policy",
+  "@settingsAboutTrademark": {
+    "description": "Row title for a link."
+  },
+  "settingsAboutSourceLink": "Mediahro source code",
+  "@settingsAboutSourceLink": {
+    "description": "Row title for a link."
+  },
+  "settingsAboutLinkHint": "Copy a link to open it in your browser. This screen makes no network connections.",
+  "@settingsAboutLinkHint": {
+    "description": "Explains that links are copied, not opened."
+  },
+  "settingsAboutCopy": "Copy link",
+  "@settingsAboutCopy": {
+    "description": "Button tooltip: copies a web address."
+  },
+  "settingsAboutCopied": "Link copied",
+  "@settingsAboutCopied": {
+    "description": "Confirmation after copying a web address."
+  },
+  "settingsAboutNoDetails": "Library details aren't included in this build.",
+  "@settingsAboutNoDetails": {
+    "description": "Shown when the build carries no native library notices."
+  },
+  "settingsAboutSourceTitle": "Source code and build",
+  "@settingsAboutSourceTitle": {
+    "description": "Title of the source offer page."
+  },
+  "settingsAboutSourceOffer": "Mediahro is free software. It uses libraries under the GNU Lesser General Public Licence (LGPL), such as FFmpeg and mpv. They are linked dynamically, so you can replace them with your own build of the same source. The complete source of every library in this build is offered at the address below, from the {release} release.",
+  "@settingsAboutSourceOffer": {
+    "description": "Source offer required by the LGPL. {release} is a release tag.",
+    "placeholders": {
+      "release": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutSourceArchive": "Source archive",
+  "@settingsAboutSourceArchive": {
+    "description": "Label for the web address of the source archive."
+  },
+  "settingsAboutSourceRelease": "Release page",
+  "@settingsAboutSourceRelease": {
+    "description": "Label for the web address of the release page."
+  },
+  "settingsAboutChecksum": "SHA-256: {sha}",
+  "@settingsAboutChecksum": {
+    "description": "Checksum of the source archive.",
+    "placeholders": {
+      "sha": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutConfigureHeading": "How {name} was built",
+  "@settingsAboutConfigureHeading": {
+    "description": "Heading above the exact build options of a library.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutCopyBuildLine": "Copy build line",
+  "@settingsAboutCopyBuildLine": {
+    "description": "Button tooltip: copies the build options."
+  },
+  "settingsAboutBuildLineCopied": "Build line copied",
+  "@settingsAboutBuildLineCopied": {
+    "description": "Confirmation after copying the build options."
+  },
+  "settingsAboutPatches": "Patches: {files}",
+  "@settingsAboutPatches": {
+    "description": "List of patch files applied to a library.",
+    "placeholders": {
+      "files": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsAboutLgplHeading": "LGPL libraries in this build",
+  "@settingsAboutLgplHeading": {
+    "description": "Heading above the list of LGPL libraries."
+  },
+  "settingsAboutKeywords": "version build licence license open source ffmpeg mpv lgpl privacy policy terms trademark",
+  "@settingsAboutKeywords": {
+    "description": "Extra search terms for the About entry; not shown."
+  },
   "settingsPrivacyFeedHostsHeader": "Your feeds and stations",
   "settingsPrivacyFeedHostsExplainer": "Podcasts you subscribed to and radio stations you added. Subscribing or adding a station allows that site's host, and nothing else. Removing a host here also unsubscribes or deletes what added it.",
   "settingsPrivacyNoFeedHosts": "You haven't subscribed to a podcast or added a station.",

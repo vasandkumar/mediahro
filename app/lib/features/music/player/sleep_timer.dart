@@ -108,6 +108,8 @@ final class SleepTimer {
         final left = _state.tracksLeft;
         if (left == null) return;
         unawaited(_restoreVolume());
+        // One more track: the current one is no longer the last.
+        player.holdAtEnd = false;
         _emit(SleepTimerState(mode: SleepMode.tracks, tracksLeft: left + 1));
       case SleepMode.off:
         break;

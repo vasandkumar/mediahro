@@ -637,8 +637,6 @@
   "musicScrobbling": "Scrobbling",
   "musicScrobbleIntro": "Share what you listen to with a scrobbling service. A song counts once it has played for half its length or four minutes. Listens wait on this device until they are sent.",
   "musicScrobbleListenBrainz": "ListenBrainz",
-  "musicScrobbleLastFm": "Last.fm",
-  "musicScrobbleLibreFm": "Libre.fm",
   "musicScrobbleNotConnected": "Not connected",
   "musicScrobbleConnectedAs": "Connected as {name}",
   "@musicScrobbleConnectedAs": {
@@ -680,9 +678,6 @@
   },
   "musicScrobbleToken": "User token",
   "musicScrobbleTokenHint": "Copy it from your ListenBrainz settings page.",
-  "musicScrobbleUser": "User name",
-  "musicScrobblePassword": "Password",
-  "musicScrobblePasswordNote": "Your password is sent once to sign in. Only the session key is kept, in secure storage.",
   "musicScrobbleSignInFailed": "Couldn't sign in. Check the details and try again.",
   "musicScrobbleOffline": "Couldn't reach the service. Try again when you're online.",
   "musicScrobbleExclude": "Don't scrobble from",

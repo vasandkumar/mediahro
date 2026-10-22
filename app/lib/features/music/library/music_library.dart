@@ -166,10 +166,16 @@ final class MusicLibrary {
     );
   }
 
-  Future<List<MusicTrack>> tracksByIds(List<int> ids) async {
+  /// The songs with [ids], in that order. With [visibility] only those it
+  /// lets through (hidden, missing and locked items are dropped).
+  Future<List<MusicTrack>> tracksByIds(
+    List<int> ids, {
+    Visibility? visibility,
+  }) async {
     if (ids.isEmpty) return const [];
     final rows = await _tracks(
-      'WHERE i.id IN (${List.filled(ids.length, '?').join(',')})',
+      'WHERE i.id IN (${List.filled(ids.length, '?').join(',')})'
+      '${visibility == null ? '' : ' AND ${visibility.sql}'}',
       [for (final id in ids) Variable.withInt(id)],
     );
     final byId = {for (final t in rows) t.itemId: t};
