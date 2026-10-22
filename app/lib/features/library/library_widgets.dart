@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show AsyncNotifierProviderFamily;
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/library/library_views.dart';
@@ -9,58 +10,62 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/library/widgets.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 
-/// Folder mode ⇄ library mode toggle, persisted per mode (LIB-004).
-class ViewModeToggle extends ConsumerStatefulWidget {
-  const ViewModeToggle({
-    required this.mode,
-    required this.onChanged,
-    super.key,
-  });
+/// The folder-or-library choice of one mode, kept in the library database
+/// (LIB-004). Without a library (shell-only builds, tests) it stays on the
+/// curated library view and the choice lives only for the session.
+final AsyncNotifierProviderFamily<ViewModeNotifier, ViewMode, LibraryMode>
+viewModeProvider =
+    AsyncNotifierProvider.family<ViewModeNotifier, ViewMode, LibraryMode>(
+      ViewModeNotifier.new,
+    );
+
+class ViewModeNotifier extends AsyncNotifier<ViewMode> {
+  ViewModeNotifier(this.mode);
 
   final LibraryMode mode;
-  final ValueChanged<ViewMode> onChanged;
 
   @override
-  ConsumerState<ViewModeToggle> createState() => _ViewModeToggleState();
-}
-
-class _ViewModeToggleState extends ConsumerState<ViewModeToggle> {
-  ViewMode? _mode;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(
-      ref.read(libraryViewsProvider).viewMode(widget.mode).then((m) {
-        if (mounted) setState(() => _mode = m);
-        widget.onChanged(m);
-      }),
-    );
+  Future<ViewMode> build() async {
+    try {
+      return await ref.read(libraryViewsProvider).viewMode(mode);
+    } on Object {
+      return ViewMode.library;
+    }
   }
 
+  Future<void> set(ViewMode view) async {
+    state = AsyncData(view);
+    try {
+      await ref.read(libraryViewsProvider).setViewMode(mode, view);
+    } on Object {
+      // The choice still holds for this session.
+    }
+  }
+}
+
+/// App-bar button that switches a mode between its curated library view and
+/// its folder view, remembered per mode (LIB-004). It shows the view it
+/// would switch to; its label says so.
+class ViewModeToggle extends ConsumerWidget {
+  const ViewModeToggle({required this.mode, super.key});
+
+  final LibraryMode mode;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final m = _mode ?? ViewMode.library;
-    return SegmentedButton<ViewMode>(
-      segments: [
-        ButtonSegment(
-          value: ViewMode.library,
-          icon: const Icon(Icons.video_library_outlined),
-          label: Text(l10n.libraryViewLibrary),
-        ),
-        ButtonSegment(
-          value: ViewMode.folders,
-          icon: const Icon(Icons.folder_outlined),
-          label: Text(l10n.libraryViewFolders),
-        ),
-      ],
-      selected: {m},
-      onSelectionChanged: (v) async {
-        setState(() => _mode = v.first);
-        await ref.read(libraryViewsProvider).setViewMode(widget.mode, v.first);
-        widget.onChanged(v.first);
-      },
+    final current = ref.watch(viewModeProvider(mode)).value ?? ViewMode.library;
+    final folders = current == ViewMode.folders;
+    return KIconButton(
+      icon: folders ? KIcon.library : KIcon.folder,
+      label: folders
+          ? l10n.libraryViewShowLibrary
+          : l10n.libraryViewShowFolders,
+      onPressed: () => unawaited(
+        ref
+            .read(viewModeProvider(mode).notifier)
+            .set(folders ? ViewMode.library : ViewMode.folders),
+      ),
     );
   }
 }

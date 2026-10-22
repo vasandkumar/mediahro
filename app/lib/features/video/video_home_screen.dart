@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/library/library_views.dart';
+import 'package:mediahro/features/library/library_folder_view.dart';
 import 'package:mediahro/features/library/library_widgets.dart';
 import 'package:mediahro/features/library/widgets.dart';
 import 'package:mediahro/features/onboarding/first_run_panel.dart';
@@ -74,10 +75,14 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
     final l = AppLocalizations.of(context);
     final videos = ref.watch(allVideosProvider).value ?? const [];
     final hasLibrary = videos.isNotEmpty;
+    final folders =
+        ref.watch(viewModeProvider(LibraryMode.video)).value ==
+        ViewMode.folders;
     return Scaffold(
       appBar: AppBar(
         title: Text(l.appNavVideo),
         actions: [
+          const ViewModeToggle(mode: LibraryMode.video),
           KIconButton(
             icon: KIcon.openFile,
             label: l.videoOpenFile,
@@ -92,6 +97,12 @@ class _VideoHomeScreenState extends ConsumerState<VideoHomeScreen> {
       ),
       body: !hasLibrary
           ? const FirstRunPanel()
+          : folders
+          ? LibraryFolderView(
+              mode: LibraryMode.video,
+              onOpen: (context, item) =>
+                  unawaited(openVideoItem(context, item)),
+            )
           : CustomScrollView(
               slivers: [
                 const SliverToBoxAdapter(

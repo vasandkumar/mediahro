@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
+import 'package:mediahro/core/library/library_views.dart';
+import 'package:mediahro/features/library/library_widgets.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
 import 'package:mediahro/features/music/ui/alarms_screen.dart';
@@ -102,12 +104,16 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       (l10n.musicTabRadio, const RadioTab()),
     ];
     final songs = _songs;
+    final folders =
+        ref.watch(viewModeProvider(LibraryMode.music)).value ==
+        ViewMode.folders;
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
           title: Text(AppLocalizations.of(context).appNavMusic),
           actions: [
+            const ViewModeToggle(mode: LibraryMode.music),
             PopupMenuButton<String>(
               tooltip: l10n.musicMoreNowPlaying,
               onSelected: (v) async {
@@ -148,11 +154,14 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
                 onPressed: () => showQueueSheet(context),
               ),
           ],
-          bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: [for (final (label, _) in tabs) Tab(text: label)],
-          ),
+          // The folder view is one list, so the tabs step aside.
+          bottom: folders
+              ? null
+              : TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  tabs: [for (final (label, _) in tabs) Tab(text: label)],
+                ),
         ),
         body: Column(
           children: [
@@ -179,6 +188,8 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
             Expanded(
               child: songs == null
                   ? const SizedBox.shrink()
+                  : folders
+                  ? const FoldersTab()
                   : TabBarView(children: [for (final (_, view) in tabs) view]),
             ),
           ],
