@@ -238,13 +238,20 @@ final class Mp4GaplessFile implements VirtualFile {
   Future<void> close() => inner.close();
 }
 
-/// A local file as a [VirtualFile] (one handle, serialised reads).
+/// A local file as a [VirtualFile] (one handle, serialised reads and close).
+///
+/// [close] waits for the reads already queued and then closes the handle; a
+/// read asked for after [close] is refused. Closing a [RandomAccessFile] with an
+/// operation pending throws `FileSystemException: An async operation is
+/// currently pending`, which is what disposing an engine while the stream
+/// protocol was still reading did (AUD-043, batch 6).
 final class LocalVirtualFile implements VirtualFile {
   LocalVirtualFile(this.file);
 
   final File file;
   RandomAccessFile? _raf;
   Future<void> _lock = Future.value();
+  bool _closed = false;
 
   @override
   Uri get uri => file.uri;
@@ -257,6 +264,7 @@ final class LocalVirtualFile implements VirtualFile {
 
   @override
   Future<Uint8List> read(int offset, int length) async {
+    if (_closed) throw VirtualFileException(VirtualFileError.closed, uri);
     final previous = _lock;
     final done = Completer<void>();
     _lock = done.future;
@@ -272,7 +280,18 @@ final class LocalVirtualFile implements VirtualFile {
 
   @override
   Future<void> close() async {
-    await _raf?.close();
-    _raf = null;
+    _closed = true;
+    // Behind the reads that are queued or running, so none is cut off.
+    final previous = _lock;
+    final done = Completer<void>();
+    _lock = done.future;
+    await previous;
+    try {
+      final raf = _raf;
+      _raf = null;
+      await raf?.close();
+    } finally {
+      done.complete();
+    }
   }
 }

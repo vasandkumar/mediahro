@@ -129,7 +129,9 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
     this.passphrase,
     this.limits = const ArchiveLimits(),
     ArchiveBindings? bindings,
-  }) : _b =
+    Uri? root,
+  }) : _root = root ?? Uri(scheme: 'archive', path: '/'),
+       _b =
            bindings ??
            ArchiveBindings(NativeLibraries.open(NativeLibrary.archive)) {
     final s = source;
@@ -160,6 +162,11 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
   final String? passphrase;
   final ArchiveLimits limits;
   final ArchiveBindings _b;
+
+  /// Where this archive is mounted: the URIs of its entries are below it, so
+  /// that a file system hosting it can map them back to paths
+  /// (`IsolateFileSystem.pathOf`).
+  final Uri _root;
   SyncFileSystem? _outer;
   int _outerHandle = 0;
   int? _outerSize;
@@ -176,7 +183,7 @@ final class ArchiveSyncFileSystem implements SyncFileSystem {
   /// Number of file entries (tests and the archive info sheet).
   int get entryCount => _entries.length;
 
-  Uri _uri(String path) => Uri(scheme: 'archive', path: '/$path');
+  Uri _uri(String path) => archiveEntryUri(_root, path);
 
   ffi.Pointer<archive> _openArchive() {
     final a = _b.archive_read_new();
@@ -642,6 +649,17 @@ String? normaliseEntryPath(String name) {
   return parts.isEmpty ? null : parts.join('/');
 }
 
+/// The URI of [path] (`''` for the archive itself, `dir/` for a folder) below
+/// [root], the mount point of an archive file system. Entries must be listed
+/// with URIs under the root, or a folder found in a listing cannot be listed
+/// in turn: `IsolateFileSystem.pathOf` refuses anything outside the root.
+Uri archiveEntryUri(Uri root, String path) {
+  final base = root.path.isEmpty
+      ? '/'
+      : (root.path.endsWith('/') ? root.path : '${root.path}/');
+  return root.replace(path: '$base$path');
+}
+
 /// An archive browsed as a file system (`archive:///path?src=<outer uri>`).
 IsolateFileSystem archiveFileSystem(
   Uri root,
@@ -653,6 +671,10 @@ IsolateFileSystem archiveFileSystem(
   schemes: const {'archive'},
   capabilities: const {VirtualFsCapability.list},
   debugName: 'mediahro-archive',
-  factory: () =>
-      ArchiveSyncFileSystem(source, passphrase: passphrase, limits: limits),
+  factory: () => ArchiveSyncFileSystem(
+    source,
+    passphrase: passphrase,
+    limits: limits,
+    root: root,
+  ),
 );
