@@ -204,6 +204,8 @@ All modules are reached through a single typed Pigeon/platform-channel facade pe
 - TLS: platform stacks; certificate pinning not used (self-hosted servers); self-signed certificates accepted per-server after explicit fingerprint confirmation.
 - Allow-list: the only Mediahro-controlled endpoints are `api.mediahro.com` (feature flags/static JSON on GitHub Pages) and the opt-in Sentry/Aptabase hosts (on hold: PRIV-002/PRIV-003 are not built until the owner decides); third-party endpoints (LRCLIB, MusicBrainz and Cover Art Archive, ListenBrainz, IntroDB) each sit behind a user toggle (PRIV-004). Hosts that need a publisher API key are not on the list (ADR-048: OpenSubtitles, Subdl, Podnapisi, TMDB, TheTVDB, Last.fm, Libre.fm, Trakt, AcoustID, cloud-drive OAuth hosts). There is no map-tile endpoint (ADR-041).
 
+Feed-supplied hosts (podcast enclosures, artwork, redirects, OPML entries) are checked by DNS lookup on every hop and refused if any address is non-public, unless the feed's own host is on the local network; a rebinding window remains because the frozen gateway resolves again when it connects (accepted, ADR-049 note). User feed/station hosts are matched by host name; scheme and port are not distinguished (ADR-049 note).
+
 ## 10. Native dependency matrix (versions pinned in `mediahro-deps`)
 
 | Library | Version (min) | Licence | Linking | Notes |

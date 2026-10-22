@@ -76,7 +76,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ⛔ | ⛔ | ☐ | ☑ | W ☑ perf-windows run 39355442122: profile median 18.2 ms, max 19.6 ms (budget 100 ms). M: perf-macos on main. A I ⛔ profile mode needs a physical device (device lab, §4). |
 | CORE-002 | First-run without walls | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
-| CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL validation, headers/UA, history of 50, Open URL dialog. Playback hand-off is the `openUrlActionProvider` seam (C1 wires it). |
 | CORE-006 | Settings model | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: typed SettingKey/SettingsStore (JSON in app support dir, atomic, debounced), registry for other lanes, search, descriptions, Advanced collapsed, reset per section, import/export, managed overlay hook Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
@@ -86,7 +86,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-011 | Crash resilience | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ | Built (#132): About screen and licences; hand check H15 in batch 6. |
 | CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
 | CORE-015 | Privacy dashboard | B3 | ☑ | ☑ | ☑ | ☑ | A I M W ☑ ci run 39355442122 (PR #10, c747a1e): "CORE-015 dashboard reads the live network policy", "CORE-015 privacy dashboard lists every endpoint" on integration-android/-apple (iOS+macOS)/-windows. |
 
@@ -233,7 +233,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | POD-001 | Audiobook/podcast mode | C2 | ☐ | ☐ | ☐ | ☐ | Built (#121): books with chapters, per-book resume, speed and place, bookmarks, sleep at chapter end, shake to extend. A ☐: device batch 5 (`c2_books_test`) and the hand checks on the phone; not ticked. |
-| POD-002 | Podcast feeds | C2 | ☐ | ☐ | ☐ | ☐ |  |
+| POD-002 | Podcast feeds | C2 | ☐ | ☐ | ☐ | ☐ | Built (#122, #127): podcasts, OPML, downloads, per-show speed, scheduled refresh (ADR-049); device batch 7. |
 | POD-003 | Audiobookshelf client | C2 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 7. IMG — Images and gallery
@@ -297,8 +297,8 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | SYS-001 | Media session | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-002 | Notifications/lock screen | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
-| SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
+| SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
 | SYS-005 | File provider / Files integration | C4 | — | ☐ | 1.1 | 1.1 |  |
 | SYS-006 | Foreground service & battery | C4 | ☑ | — | — | — | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-007 | Storage access | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #23: c4a_android_storage_test 13/13 on Samsung SM-M176B (Android 16), tools/check 321 pass. |
@@ -325,7 +325,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | PRIV-001 | Zero telemetry by default | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-002 | Opt-in crash reports | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
 | PRIV-003 | Opt-in usage analytics | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
-| PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ | Feeds and stations section (#128). |
 | PRIV-005 | Parsing safety | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-006 | Credentials | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-007 | Vault | C3 | ☐ | ☐ | ☐ | ☐ |  |
@@ -436,6 +436,18 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | Date | Event |
 |---|---|
+| 2026-10-22 | Merged C4a **#134** (merge 839835b, head c784b40; last-mode restore fix (CORE-001), b2 OS-trash and PIN cells on device, IMG-012 presentation entrypoint fix, 9 native libraries packaged: archive, ebur128, chromaprint, smb2, nfs, tesseract, leptonica, cld3, bergamot, background-test race). |
+| 2026-10-22 | Merged C4a **#133** (merge edcf8a1, head 01e8805; debug leave-scheduled hook for the ADR-049 cold-start check). |
+| 2026-10-22 | Merged C4a **#132** (merge ef8c3b6, head 3c738c0; CORE-013 About and licences; CORE-001 on-device mode-switch probe). |
+| 2026-10-22 | Merged C2 **#131** (merge de42515, head b9fd1fd; music seams for Open with: external audio and play playlist by name). |
+| 2026-10-22 | Merged C4a **#130** (merge 3912eea, head 74b5f8e; CORE-003, SYS-003, SYS-004 Open with, Share and shortcuts wiring). |
+| 2026-10-22 | Merged C4a **#129** (merge 81ba1d4, head 88504bf; dispatcher starts in main() before any widget; no-view guard). |
+| 2026-10-22 | Merged C2 **#128** (merge a5ca3bd, head a18a82c; PRIV-004 "Your feeds and stations" user hosts and dashboard). |
+| 2026-10-22 | Merged C2 **#127** (merge e3e8053, head 6d33f9f; POD-002 scheduled background refresh). |
+| 2026-10-22 | Merged C4a **#126** (merge 8e3f3b6, head e246e85; ADR-049 Android WorkManager). |
+| 2026-10-22 | Merged C2 **#125** (merge ac7aea0, head ff9d40b; sleep-timer shake hold fix). |
+| 2026-10-22 | Merged C2 **#123** (merge bd18a54, head c3d745e; MUS-009 ListenBrainz only, ADR-048). |
+| 2026-10-22 | Merged C2 **#122** (merge e8ab55a, head c57966a; POD-002 podcasts with per-hop network checks). |
 | 2026-10-22 | Merged C2 **#121** (merge 8c8e553, head 1e12464; POD-001 audiobook mode: books with chapters, per-book resume, speed and place, skip silence, bookmarks, sleep at chapter end, shake to extend; Audiobooks tab and book player; UI numbers from ARB). Device: `c2_books_test` and the audiobook hand checks are in batch 5; nothing ticked. |
 | 2026-10-22 | Merged B1 **#119** (merge 180514b, head 66935c1; test-only: the AUD-043 DoP tests run on a phone without a DAC, with the simulated OS grant named in the test names). Device: the engine_test AUD-043 re-run is in batch 5; nothing ticked. |
 | 2026-10-22 | Merged C2 **#118** (merge 5f7cc2c, head bbaac9f; AUD-043 native DSD offered in the Output sheet only after a bit-perfect grant on a DoP DAC; the player opens the next DSD item on end). Device: the owner's real-DAC hand check (§4) is open; nothing ticked. |

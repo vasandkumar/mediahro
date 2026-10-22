@@ -11,6 +11,10 @@ All notable changes are grouped by feature area and reference feature IDs from `
 - A wrong password or a disabled account on an SMB share now says so instead of reporting the server as unreachable (NET-001).
 
 ### Added
+- Podcasts: subscribe, OPML, downloads, per-show speed, scheduled refresh (POD-002).
+- About screen with licences and source offer (CORE-013).
+- Open with, Share to Mediahro and launcher shortcuts (CORE-003, SYS-003, SYS-004).
+- Privacy dashboard lists your feeds and stations (PRIV-004).
 - Updated native libraries (mediahro-deps v2026.10.5-android.1): more subtitle and video filter support in FFmpeg, on-device OCR (Tesseract 5.5.3), language detection and offline translation components, SMB and NFS fixes, and faster ARMv7 decoding (VID-041, SUB-053).
 - Video picture settings: scaling and filters, shader presets including your own shaders from a folder, and smooth-motion interpolation (VID-037, VID-038, VID-039).
 - Internet radio with your own stations and M3U/PLS import; opt-in scrobbling to ListenBrainz, Libre.fm or Last.fm with an offline queue (MUS-014, MUS-009).
