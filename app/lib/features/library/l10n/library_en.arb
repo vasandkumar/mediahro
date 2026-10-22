@@ -263,5 +263,16 @@
     }
   },
   "libraryViewFolders": "Folders",
-  "libraryViewLibrary": "Library"
+  "libraryViewLibrary": "Library",
+  "libraryViewShowFolders": "Show folders",
+  "libraryViewShowLibrary": "Show library",
+  "libraryFolderEmpty": "Nothing to show in this folder.",
+  "libraryFolderItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@libraryFolderItemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
