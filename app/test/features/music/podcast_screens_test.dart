@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,12 @@ import 'podcast_test_support.dart';
 
 /// POD-002 on screen: the Podcasts tab, subscribing, a show's episodes, and
 /// the episode player.
+///
+/// What the screens wait for (a feed parsed on an isolate, files written,
+/// the database) runs in real time, so every step waits for what it expects
+/// to see instead of for a fixed number of frames: `until` lets real time
+/// pass and pumps frames until the condition holds, however busy the machine
+/// is.
 void main() {
   late LibraryDatabase db;
   late ScriptedMusicEngine engine;
@@ -60,14 +67,35 @@ void main() {
     }
   });
 
-  Future<void> settle(WidgetTester tester) async {
-    for (var i = 0; i < 30; i++) {
+  /// Lets real time pass (isolates, files, the database) and pumps frames
+  /// until [done]; then a few more frames so transitions finish. [what] says
+  /// what was waited for if it never happens.
+  Future<void> until(
+    WidgetTester tester,
+    FutureOr<bool> Function() done, {
+    required String what,
+  }) async {
+    // Only a bound for a test that would hang: not a time anything is
+    // expected to take.
+    final bound = DateTime.now().add(const Duration(seconds: 90));
+    Future<bool> check() async => await done();
+    while (!(await tester.runAsync(check))!) {
+      if (DateTime.now().isAfter(bound)) fail('never happened: $what');
       await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
       );
       await tester.pump(const Duration(milliseconds: 50));
     }
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
   }
+
+  Future<void> untilFound(WidgetTester tester, Finder finder) => until(
+    tester,
+    () => finder.evaluate().isNotEmpty,
+    what: finder.describeMatch(Plurality.zero),
+  );
 
   Future<void> pump(WidgetTester tester) async {
     tester.view
@@ -91,30 +119,41 @@ void main() {
         child: MediahroApp(router: buildRouter(initialLocation: '/music')),
       ),
     );
-    await settle(tester);
+    await untilFound(tester, find.text('Podcasts'));
     await tester.ensureVisible(find.text('Podcasts'));
     await tester.tap(find.text('Podcasts'));
-    await settle(tester);
+    await untilFound(tester, find.text('Add podcast'));
   }
 
   Future<void> finish(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox());
-    await settle(tester);
+    // Let drift's stream-close timers and the last file operations run.
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
   }
 
   Future<void> subscribe(WidgetTester tester) async {
     await tester.tap(find.text('Add podcast'));
-    await settle(tester);
+    await untilFound(tester, find.byType(TextField));
     await tester.enterText(find.byType(TextField), 'show.example/rss');
     await tester.pump();
     await tester.tap(find.text('Subscribe'));
-    await settle(tester);
+    await untilFound(tester, find.text('The Show & Co'));
+  }
+
+  Future<void> openShow(WidgetTester tester) async {
+    await tester.tap(find.text('The Show & Co'));
+    await untilFound(tester, find.text('Episode 2'));
   }
 
   testWidgets('POD-002 no podcasts yet: the tab says what to do, with no '
       'directory to browse', (tester) async {
     await pump(tester);
-    expect(find.text('No podcasts yet'), findsOneWidget);
+    await untilFound(tester, find.text('No podcasts yet'));
     expect(find.textContaining('no directory'), findsOneWidget);
     expect(find.text('Add podcast'), findsOneWidget);
     await finish(tester);
@@ -124,20 +163,18 @@ void main() {
       'unplayed episodes; a bad address says why', (tester) async {
     await pump(tester);
     await tester.tap(find.text('Add podcast'));
-    await settle(tester);
+    await untilFound(tester, find.byType(TextField));
     await tester.enterText(find.byType(TextField), 'not a url');
     await tester.pump();
     await tester.tap(find.text('Subscribe'));
-    await settle(tester);
-    expect(find.text("That isn't a web address."), findsOneWidget);
+    await untilFound(tester, find.text("That isn't a web address."));
     await tester.enterText(find.byType(TextField), 'show.example/rss');
     await tester.pump();
     await tester.tap(find.text('Subscribe'));
-    await settle(tester);
+    await untilFound(tester, find.text('Subscribed to "The Show & Co"'));
     expect(find.text('The Show & Co'), findsOneWidget);
     expect(find.text('Ann Host'), findsOneWidget);
     expect(find.text('2 unplayed'), findsOneWidget);
-    expect(find.text('Subscribed to "The Show & Co"'), findsOneWidget);
     await finish(tester);
   });
 
@@ -145,23 +182,25 @@ void main() {
       'changes the count', (tester) async {
     await pump(tester);
     await subscribe(tester);
-    await tester.tap(find.text('The Show & Co'));
-    await settle(tester);
+    await openShow(tester);
     expect(find.text('Episode 2'), findsOneWidget);
     expect(find.text('Episode 1'), findsOneWidget);
     await tester.tap(find.byTooltip('More actions for Episode 2'));
-    await settle(tester);
+    await untilFound(tester, find.text('Mark as played'));
     await tester.tap(find.text('Mark as played'));
-    await settle(tester);
-    expect(find.text('Played'), findsOneWidget);
+    await untilFound(tester, find.text('Played'));
     await tester.tap(find.byTooltip('Podcast settings'));
-    await settle(tester);
+    await untilFound(tester, find.text('Oldest first'));
     await tester.tap(find.text('Oldest first'));
-    await settle(tester);
     // Oldest first: episode 1 is the first row.
-    expect(
-      tester.getTopLeft(find.text('Episode 1')).dy,
-      lessThan(tester.getTopLeft(find.text('Episode 2')).dy),
+    await until(
+      tester,
+      () =>
+          find.text('Episode 1').evaluate().isNotEmpty &&
+          find.text('Episode 2').evaluate().isNotEmpty &&
+          tester.getTopLeft(find.text('Episode 1')).dy <
+              tester.getTopLeft(find.text('Episode 2')).dy,
+      what: 'episode 1 above episode 2 (oldest first)',
     );
     await finish(tester);
   });
@@ -170,31 +209,37 @@ void main() {
       "show, the speed is the show's, and the place is kept", (tester) async {
     await pump(tester);
     await subscribe(tester);
-    await tester.tap(find.text('The Show & Co'));
-    await settle(tester);
+    await openShow(tester);
     await tester.tap(find.text('Episode 2'));
-    await settle(tester);
+    await untilFound(tester, find.text('Podcast'));
     expect(uriOf(engine.opened.last), 'https://cdn.example/ep2.mp3');
-    expect(find.text('Podcast'), findsOneWidget);
     expect(find.text('Episode 2'), findsWidgets);
     expect(find.text('The Show & Co'), findsWidgets);
 
     await tester.tap(find.byTooltip('Forward 30 seconds'));
-    await settle(tester);
-    expect(engine.current.position, const Duration(seconds: 30));
+    await until(
+      tester,
+      () => engine.current.position == const Duration(seconds: 30),
+      what: 'the engine at 30 seconds',
+    );
 
     await tester.tap(find.widgetWithText(ActionChip, '1×'));
-    await settle(tester);
+    await untilFound(tester, find.text('1.5×'));
     await tester.tap(find.text('1.5×'));
-    await settle(tester);
-    expect(engine.rates.last, 1.5);
-    expect(find.text('Each show remembers its own speed.'), findsOneWidget);
+    await until(
+      tester,
+      () =>
+          engine.rates.isNotEmpty &&
+          engine.rates.last == 1.5 &&
+          find.text('Each show remembers its own speed.').evaluate().isNotEmpty,
+      what: 'speed 1.5× and the note about it',
+    );
     // The speed is saved with the show when it is chosen.
-    expect(
-      (await tester.runAsync(
-        () => store.show(PodcastStore.idOf('https://show.example/rss')),
-      ))!.speed,
-      1.5,
+    final id = PodcastStore.idOf('https://show.example/rss');
+    await until(
+      tester,
+      () async => (await store.show(id))?.speed == 1.5,
+      what: 'the speed saved with the show',
     );
     await finish(tester);
   });
@@ -204,20 +249,17 @@ void main() {
   ) async {
     await pump(tester);
     await subscribe(tester);
-    await tester.tap(find.text('The Show & Co'));
-    await settle(tester);
+    await openShow(tester);
     await tester.tap(find.byTooltip('Podcast settings'));
-    await settle(tester);
+    await untilFound(tester, find.text('Unsubscribe'));
     await tester.tap(find.text('Unsubscribe'));
-    await settle(tester);
-    expect(
+    await untilFound(
+      tester,
       find.textContaining('Its downloaded episodes are deleted'),
-      findsOneWidget,
     );
     await tester.tap(find.text('Unsubscribe').last);
-    await settle(tester);
-    expect(find.text('No podcasts yet'), findsOneWidget);
-    expect(await service.shows(), isEmpty);
+    await untilFound(tester, find.text('No podcasts yet'));
+    expect(await tester.runAsync(service.shows), isEmpty);
     await finish(tester);
   });
 }

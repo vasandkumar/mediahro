@@ -337,13 +337,11 @@ final class PodcastService {
     for (final e in show.episodes) {
       await downloads.remove(Uri.parse(e.url));
     }
-    final art = show.artPath;
-    if (art != null) {
-      final f = File(art);
-      if (f.existsSync()) await f.delete();
-    }
     await store.remove(showId);
     await hosts?.removeFeedOwner(owner(showId));
+    // After the subscription is gone: a picture still open on screen (Windows
+    // cannot delete an open file) must not leave the show half removed.
+    await _dropArt(show.artPath);
     _changes.add(null);
     _unsubscribed.add(showId);
   });
@@ -725,6 +723,11 @@ final class PodcastService {
   Future<void> _dropArt(String? path) async {
     if (path == null) return;
     final f = File(path);
-    if (f.existsSync()) await f.delete();
+    try {
+      if (f.existsSync()) await f.delete();
+    } on FileSystemException {
+      // In use (Windows): it is overwritten by the next subscription to the
+      // same feed, and is only a cached picture.
+    }
   }
 }
