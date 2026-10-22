@@ -86,10 +86,10 @@ void main() {
       final s = await SettingsStore.open(MemorySettingsPersistence(), null);
       s
         ..set(CoreSettings.amoled, true)
-        ..set(CoreSettings.endpoint('tmdb'), true)
+        ..set(CoreSettings.endpoint('lrclib'), true)
         ..resetSection('appearance');
       expect(s.get(CoreSettings.amoled), isFalse);
-      expect(s.get(CoreSettings.endpoint('tmdb')), isTrue);
+      expect(s.get(CoreSettings.endpoint('lrclib')), isTrue);
     });
 
     test(
@@ -173,7 +173,7 @@ void main() {
 
     test('PRIV-001 every endpoint and update checks start off', () async {
       final s = await SettingsStore.open(MemorySettingsPersistence(), null);
-      for (final id in ['config', 'crash', 'analytics', 'tmdb']) {
+      for (final id in ['config', 'crash', 'analytics', 'lrclib']) {
         expect(s.get(CoreSettings.endpoint(id)), isFalse);
       }
       expect(s.get(CoreSettings.updateCheck), isFalse);

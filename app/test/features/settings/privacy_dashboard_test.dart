@@ -51,12 +51,12 @@ void main() {
     tester,
   ) async {
     final store = await pumpApp(tester, initialLocation: '/settings/privacy');
-    final row = find.byKey(const ValueKey('privacy.tmdb'));
+    final row = find.byKey(const ValueKey('privacy.lrclib'));
     await scrollTo(tester, row);
     await tester.tap(row);
     await tester.pumpAndSettle();
-    expect(store.get(CoreSettings.endpoint('tmdb')), isTrue);
-    expect(store.get(endpointToggle(Endpoints.tmdb)), isTrue);
+    expect(store.get(CoreSettings.endpoint('lrclib')), isTrue);
+    expect(store.get(endpointToggle(Endpoints.lrclib)), isTrue);
   });
 
   testWidgets('CORE-015 shows last-used time and user-configured hosts', (

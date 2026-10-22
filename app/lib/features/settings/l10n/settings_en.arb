@@ -571,26 +571,6 @@
   "@settingsPrivacyServiceAnalytics": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
-  "settingsPrivacyServiceOpenSubtitles": "OpenSubtitles",
-  "@settingsPrivacyServiceOpenSubtitles": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServicePodnapisi": "Podnapisi",
-  "@settingsPrivacyServicePodnapisi": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceSubdl": "SubDL",
-  "@settingsPrivacyServiceSubdl": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceTmdb": "TMDB",
-  "@settingsPrivacyServiceTmdb": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceTvdb": "TheTVDB",
-  "@settingsPrivacyServiceTvdb": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
   "settingsPrivacyServiceLrclib": "LRCLIB",
   "@settingsPrivacyServiceLrclib": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
@@ -599,28 +579,12 @@
   "@settingsPrivacyServiceMusicBrainz": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
-  "settingsPrivacyServiceAcoustId": "AcoustID",
-  "@settingsPrivacyServiceAcoustId": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
   "settingsPrivacyServiceListenBrainz": "ListenBrainz",
   "@settingsPrivacyServiceListenBrainz": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
-  "settingsPrivacyServiceLastFm": "Last.fm",
-  "@settingsPrivacyServiceLastFm": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceLibreFm": "Libre.fm",
-  "@settingsPrivacyServiceLibreFm": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
   "settingsPrivacyServiceIntroDb": "IntroDB",
   "@settingsPrivacyServiceIntroDb": {
-    "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
-  },
-  "settingsPrivacyServiceTrakt": "Trakt",
-  "@settingsPrivacyServiceTrakt": {
     "description": "Name of a network service in the privacy dashboard. Third-party names are proper nouns: keep them unless your locale customarily transliterates."
   },
   "settingsAboutVersion": "Version {version} ({build})",

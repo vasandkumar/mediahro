@@ -60,33 +60,6 @@ abstract final class Endpoints {
     hosts: ['analytics.mediahro.com'],
     purpose: EndpointPurpose.analytics,
   );
-  static const openSubtitles = NetworkEndpoint(
-    id: 'opensubtitles',
-    hosts: ['api.opensubtitles.com', '*.opensubtitles.com'],
-    purpose: EndpointPurpose.subtitles,
-    policyUrl: 'https://www.opensubtitles.com/en/privacy',
-  );
-  static const podnapisi = NetworkEndpoint(
-    id: 'podnapisi',
-    hosts: ['www.podnapisi.net'],
-    purpose: EndpointPurpose.subtitles,
-  );
-  static const subdl = NetworkEndpoint(
-    id: 'subdl',
-    hosts: ['api.subdl.com', 'dl.subdl.com'],
-    purpose: EndpointPurpose.subtitles,
-  );
-  static const tmdb = NetworkEndpoint(
-    id: 'tmdb',
-    hosts: ['api.themoviedb.org', 'image.tmdb.org'],
-    purpose: EndpointPurpose.metadata,
-    policyUrl: 'https://www.themoviedb.org/privacy-policy',
-  );
-  static const tvdb = NetworkEndpoint(
-    id: 'tvdb',
-    hosts: ['api4.thetvdb.com', 'artworks.thetvdb.com'],
-    purpose: EndpointPurpose.metadata,
-  );
   static const lrclib = NetworkEndpoint(
     id: 'lrclib',
     hosts: ['lrclib.net'],
@@ -97,33 +70,10 @@ abstract final class Endpoints {
     hosts: ['musicbrainz.org', 'coverartarchive.org', '*.archive.org'],
     purpose: EndpointPurpose.artwork,
   );
-  static const acoustId = NetworkEndpoint(
-    id: 'acoustid',
-    hosts: ['api.acoustid.org'],
-    purpose: EndpointPurpose.fingerprinting,
-  );
   static const listenBrainz = NetworkEndpoint(
     id: 'listenbrainz',
     hosts: ['api.listenbrainz.org'],
     purpose: EndpointPurpose.scrobbling,
-  );
-  static const lastFm = NetworkEndpoint(
-    id: 'lastfm',
-    hosts: ['ws.audioscrobbler.com'],
-    purpose: EndpointPurpose.scrobbling,
-  );
-  static const libreFm = NetworkEndpoint(
-    id: 'librefm',
-    hosts: ['libre.fm'],
-    purpose: EndpointPurpose.scrobbling,
-  );
-
-  /// Watched-state sync (LIB-010, opt-in per account).
-  static const trakt = NetworkEndpoint(
-    id: 'trakt',
-    hosts: ['api.trakt.tv'],
-    purpose: EndpointPurpose.scrobbling,
-    policyUrl: 'https://trakt.tv/privacy',
   );
   static const introDb = NetworkEndpoint(
     id: 'introdb',
@@ -135,18 +85,9 @@ abstract final class Endpoints {
     config,
     sentry,
     aptabase,
-    openSubtitles,
-    podnapisi,
-    subdl,
-    tmdb,
-    tvdb,
     lrclib,
     musicBrainz,
-    acoustId,
     listenBrainz,
-    lastFm,
-    libreFm,
-    trakt,
     introDb,
   ];
 }

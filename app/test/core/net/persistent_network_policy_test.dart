@@ -18,18 +18,18 @@ void main() {
     () async {
       final p = await PersistentNetworkPolicy.load(db);
       expect(p.endpoints.every((e) => !e.enabled), isTrue);
-      await p.setEnabled(Endpoints.tmdb, enabled: true);
+      await p.setEnabled(Endpoints.lrclib, enabled: true);
       final at = DateTime.utc(2026, 10, 19, 8);
-      p.recordUse(Endpoints.tmdb, at);
+      p.recordUse(Endpoints.lrclib, at);
       await p.flush();
       final again = await PersistentNetworkPolicy.load(db);
-      final tmdb = again.endpoints.firstWhere(
-        (e) => e.endpoint == Endpoints.tmdb,
+      final lrclib = again.endpoints.firstWhere(
+        (e) => e.endpoint == Endpoints.lrclib,
       );
-      expect(tmdb.enabled, isTrue);
-      expect(tmdb.lastUsed, at);
-      again.applyManagedOverlay({'tmdb'});
-      expect(again.isEnabled(Endpoints.tmdb), isFalse);
+      expect(lrclib.enabled, isTrue);
+      expect(lrclib.lastUsed, at);
+      again.applyManagedOverlay({'lrclib'});
+      expect(again.isEnabled(Endpoints.lrclib), isFalse);
       await p.dispose();
       await again.dispose();
     },
@@ -111,9 +111,9 @@ void main() {
             addedAt: DateTime.utc(2026),
           ),
         );
-    final on = <String>{'tmdb'};
+    final on = <String>{'musicbrainz'};
     final p = await PersistentNetworkPolicy.load(db, isToggledOn: on.contains);
-    expect(p.isEnabled(Endpoints.tmdb), isTrue);
+    expect(p.isEnabled(Endpoints.musicBrainz), isTrue);
     expect(p.isEnabled(Endpoints.lrclib), isFalse);
     var changes = 0;
     final sub = p.changes.listen((_) => changes++);
@@ -123,15 +123,15 @@ void main() {
     expect(p.userConfiguredHosts(), ['nas.local']);
     final at = DateTime.utc(2026, 10, 19, 9);
     final gw = NetworkGateway(p, clock: () => at)
-      ..authorize(Uri.parse('https://api.themoviedb.org/3/x'))
+      ..authorize(Uri.parse('https://musicbrainz.org/ws/x'))
       ..authorize(Uri.parse('http://nas.local/x'));
-    expect(p.lastUsed(Endpoints.tmdb), at);
+    expect(p.lastUsed(Endpoints.musicBrainz), at);
     expect(p.hostLastUsed('NAS.local'), at);
     await Future<void>.delayed(Duration.zero);
     expect(changes, greaterThanOrEqualTo(3));
-    p.applyManagedOverlay({'tmdb'});
-    expect(p.isForcedOff(Endpoints.tmdb), isTrue);
-    expect(p.isEnabled(Endpoints.tmdb), isFalse);
+    p.applyManagedOverlay({'musicbrainz'});
+    expect(p.isForcedOff(Endpoints.musicBrainz), isTrue);
+    expect(p.isEnabled(Endpoints.musicBrainz), isFalse);
     gw.close();
     await sub.cancel();
     await p.dispose();

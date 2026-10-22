@@ -3,12 +3,13 @@ import 'package:mediahro/core/db/library_database.dart';
 import 'package:meta/meta.dart';
 
 /// A server or tracker that mirrors watched state and positions (LIB-010):
-/// Jellyfin, Emby and Plex (lane C4 adapters over `ServerLibrary`) and
-/// Trakt. Each is opt-in per account.
+/// Jellyfin, Emby and Plex (lane C4 adapters over `ServerLibrary`). Each is
+/// opt-in per account. (Trakt sync needs a key the publisher would hold and
+/// is not offered, ADR-048.)
 abstract interface class ProgressSyncTarget {
   String get id;
 
-  /// Whether [itemId] is known to this target (server item map, Trakt ids).
+  /// Whether [itemId] is known to this target (server item map).
   Future<bool> handles(int itemId);
   Future<void> push(ProgressUpdate update);
 

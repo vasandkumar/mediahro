@@ -92,7 +92,7 @@ class LibraryDatabase extends _$LibraryDatabase {
   /// Bumped with every schema change; each step has a migration below and a
   /// test in `test/core/db/migration_test.dart`.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -105,6 +105,21 @@ class LibraryDatabase extends _$LibraryDatabase {
     },
     onUpgrade: (m, from, to) async {
       // Stepwise migrations: for (var v = from; v < to; v++) { ... }.
+      if (from < 2) {
+        // ADR-048: no film database or cloud drive that needs a key the
+        // publisher would have to hold. The ids they filled in, and the
+        // cloud-drive source kind (no such source could ever be added), go.
+        await customStatement("DELETE FROM source WHERE kind = 'cloud'");
+        for (final (table, column) in const [
+          ('video_meta', 'tmdb_id'),
+          ('video_meta', 'tvdb_id'),
+          ('person', 'tmdb_id'),
+          ('series', 'tmdb_id'),
+          ('series', 'tvdb_id'),
+        ]) {
+          await customStatement('ALTER TABLE $table DROP COLUMN $column');
+        }
+      }
     },
     beforeOpen: (details) async {
       if (!details.wasCreated) await checkSqliteSupport(this);

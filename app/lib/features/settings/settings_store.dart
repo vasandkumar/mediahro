@@ -11,7 +11,7 @@ part 'settings_store.g.dart';
 
 /// A typed setting (CORE-006). Ids are `<section>.<name>` where `<section>`
 /// is a `SettingsSectionId` name (`playback.seekStep`,
-/// `privacy.endpoint.tmdb`); "Reset section" clears every id with that
+/// `privacy.endpoint.lrclib`); "Reset section" clears every id with that
 /// prefix. Lanes declare their keys in their own folders.
 @immutable
 final class SettingKey<T extends Object> {

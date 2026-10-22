@@ -25,14 +25,47 @@ void main() {
     () {
       final gw = NetworkGateway(_Policy());
       expect(
-        () => gw.authorize(
-          Uri.parse('https://api.opensubtitles.com/api/v1/subtitles'),
-        ),
+        () => gw.authorize(Uri.parse('https://lrclib.net/api/get')),
         throwsA(isA<NetworkBlocked>()),
       );
       gw.close();
     },
   );
+
+  test('ADR-048 services that need a publisher key are not on the '
+      'allow-list, even with every toggle on', () {
+    expect(Endpoints.all.map((e) => e.id).toSet(), {
+      'config',
+      'crash',
+      'analytics',
+      'lrclib',
+      'musicbrainz',
+      'listenbrainz',
+      'introdb',
+    });
+    final gw = NetworkGateway(
+      _Policy(enabled: {for (final e in Endpoints.all) e.id}),
+    );
+    for (final host in const [
+      'api.opensubtitles.com',
+      'api.subdl.com',
+      'www.podnapisi.net',
+      'api.themoviedb.org',
+      'image.tmdb.org',
+      'api4.thetvdb.com',
+      'api.acoustid.org',
+      'ws.audioscrobbler.com',
+      'libre.fm',
+      'api.trakt.tv',
+    ]) {
+      expect(
+        () => gw.authorize(Uri.parse('https://$host/x')),
+        throwsA(isA<NetworkBlocked>()),
+        reason: host,
+      );
+    }
+    gw.close();
+  });
 
   test(
     'PRIV-004 enabled endpoint is allowed and its last use recorded (CORE-015)',

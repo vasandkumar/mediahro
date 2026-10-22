@@ -1,8 +1,6 @@
 {
   "@@locale": "en",
   "sourcesAdd": "Add source",
-  "sourcesAddCloud": "Cloud drive",
-  "sourcesAddCloudHint": "Google Drive, OneDrive, Dropbox, Box, pCloud, Yandex Disk",
   "sourcesAddDeviceMedia": "Device media",
   "sourcesAddDeviceMediaHint": "Videos and music saved on this device",
   "sourcesAddDlna": "Media server on this network",
@@ -214,8 +212,8 @@
       }
     }
   },
-  "sourcesScrape": "Look up movie and series details",
-  "sourcesScrapeHint": "Uses TMDB or TVDB when turned on in Privacy",
+  "sourcesScrape": "Read movie and series details saved with your videos",
+  "sourcesScrapeHint": "From .nfo files next to the videos. Nothing is looked up online.",
   "sourcesSearchAgain": "Search again",
   "sourcesShare": "Share name",
   "sourcesTestConnection": "Test connection",

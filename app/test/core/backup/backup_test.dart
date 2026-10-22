@@ -104,7 +104,7 @@ void main() {
         .into(a.settingsTable)
         .insert(
           SettingsTableCompanion.insert(
-            key: 'privacy.lastUsed.tmdb',
+            key: 'privacy.lastUsed.lrclib',
             value: 'x',
           ),
         );
@@ -184,7 +184,7 @@ void main() {
       for (final s in await b.select(b.settingsTable).get()) s.key: s.value,
     };
     expect(settings['library.viewMode.music'], 'folders');
-    expect(settings.containsKey('privacy.lastUsed.tmdb'), isFalse);
+    expect(settings.containsKey('privacy.lastUsed.lrclib'), isFalse);
     final restoredSource = await (b.select(
       b.sources,
     )..where((s) => s.name.equals('Media'))).getSingle();

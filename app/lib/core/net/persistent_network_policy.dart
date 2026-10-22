@@ -5,8 +5,6 @@ import 'package:drift/drift.dart';
 import 'package:mediahro/core/db/library_database.dart';
 import 'package:mediahro/core/net/local_hosts.dart';
 import 'package:mediahro/core/net/network_policy.dart';
-import 'package:mediahro/core/sources/cloud/cloud_providers.dart';
-import 'package:mediahro/core/sources/source_access.dart' show decodeOptions;
 import 'package:meta/meta.dart';
 
 export 'package:mediahro/core/net/local_hosts.dart' show isLocalNetworkHost;
@@ -148,9 +146,6 @@ final class PersistentNetworkPolicy
   final List<FeedHostEntry> _feedHosts = [];
   final Map<String, FeedOwnerRemover> _ownerRemovers = {};
 
-  /// Cloud drives with a connected account (or signing in now).
-  final Set<CloudProvider> _providers = {};
-  final Set<CloudProvider> _sessionProviders = {};
   Set<String> _forcedOff = const {};
   bool _lan = true;
   Timer? _flush;
@@ -227,7 +222,6 @@ final class PersistentNetworkPolicy
         when scope.allows(h)) {
       return true;
     }
-    if (_providers.any((p) => cloudHostMatches(p, h))) return true;
     return _lan && isLocalNetworkHost(h);
   }
 
@@ -374,31 +368,15 @@ final class PersistentNetworkPolicy
   /// added to the session or to the dashboard.
   AllowScope beginAllowScope() => AllowScope._();
 
-  /// Allows a cloud provider's hosts while the user signs in (NET-007).
-  void allowProviderForSession(CloudProvider provider) {
-    _sessionProviders.add(provider);
-    _providers.add(provider);
-  }
-
   /// Re-reads hosts of saved sources and server accounts.
   Future<void> refreshUserHosts() async {
     final sources = await _db.select(_db.sources).get();
     final servers = await _db.select(_db.serverAccounts).get();
-    _providers
-      ..clear()
-      ..addAll(_sessionProviders)
-      ..addAll([
-        for (final s in sources)
-          if (s.kind == SourceKind.cloud)
-            ?cloudProvider(decodeOptions(s.options)['provider'] ?? ''),
-      ]);
     _userHosts
       ..clear()
       ..addAll([
         for (final s in sources) ?_host(s.rootUri),
         for (final a in servers) ?_host(a.baseUrl),
-        for (final s in sources)
-          if (decodeHostOption(s.options) case final String extra) extra,
       ]);
     _changes.add(null);
   }
@@ -464,10 +442,4 @@ final class AllowScope {
     _closed = true;
     _hosts.clear();
   }
-}
-
-/// `host` option of a source (e.g. the OAuth API host of a cloud drive).
-String? decodeHostOption(String optionsJson) {
-  final m = RegExp(r'"apiHost"\s*:\s*"([^"]+)"').firstMatch(optionsJson);
-  return m?.group(1)?.toLowerCase();
 }

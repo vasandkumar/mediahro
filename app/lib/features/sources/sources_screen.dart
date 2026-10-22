@@ -24,14 +24,9 @@ final addServerActionProvider = Provider<void Function(BuildContext context)?>(
   (ref) => null,
 );
 
-/// Starts cloud-drive sign-in (needs C4's AuthBrowserFacade; null until then).
-final addCloudActionProvider = Provider<void Function(BuildContext context)?>(
-  (ref) => null,
-);
-
 /// Sources (docs/06 §3.4): every source with its health, last scan and
-/// item count; add local folders, network shares, servers, cloud drives,
-/// DLNA servers and URLs.
+/// item count; add local folders, network shares, servers, DLNA servers
+/// and URLs.
 class SourcesScreen extends ConsumerWidget {
   const SourcesScreen({super.key});
 
@@ -160,7 +155,7 @@ void _addShare(BuildContext context) =>
         .push(MaterialPageRoute<void>(builder: (_) => const AddShareScreen()));
 
 /// The add flow (docs/06 §3.4): local folder · network share · media
-/// server · cloud drive · DLNA · URL.
+/// server · DLNA · URL.
 Future<void> showAddSourceSheet(BuildContext context, WidgetRef ref) =>
     showModalBottomSheet<void>(
       context: context,
@@ -200,13 +195,6 @@ Future<void> showAddSourceSheet(BuildContext context, WidgetRef ref) =>
                   leading: const Icon(Icons.dns_outlined),
                   title: Text(l10n.sourcesAddServer),
                   subtitle: Text(l10n.sourcesAddServerHint),
-                  onTap: () => go(() => add(context)),
-                ),
-              if (ref.read(addCloudActionProvider) case final add?)
-                ListTile(
-                  leading: const Icon(Icons.cloud_outlined),
-                  title: Text(l10n.sourcesAddCloud),
-                  subtitle: Text(l10n.sourcesAddCloudHint),
                   onTap: () => go(() => add(context)),
                 ),
               ListTile(
@@ -312,7 +300,7 @@ class SourceTile extends ConsumerWidget {
     SourceKind.nfs ||
     SourceKind.ftp ||
     SourceKind.sftp => Icons.lan_outlined,
-    SourceKind.webdav || SourceKind.cloud => Icons.cloud_outlined,
+    SourceKind.webdav => Icons.cloud_outlined,
     SourceKind.dlna => Icons.cast_outlined,
     SourceKind.url => Icons.link,
     SourceKind.server => Icons.dns_outlined,
