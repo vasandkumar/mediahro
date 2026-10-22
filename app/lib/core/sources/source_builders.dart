@@ -61,6 +61,7 @@ Map<SourceKind, FileSystemBuilder> defaultFileSystemBuilders({
         root: s.root,
         io: fdIo,
       ),
+      // Video, audio and pictures (screenshots, camera) of the device.
       'mediastore' => MediaStoreFileSystem(_storage(storage, s), io: fdIo),
       _ => const LocalFileSystem(),
     },

@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +11,11 @@ import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/core/sources/source_repository.dart';
 import 'package:mediahro/features/photos/organise/photo_collection_view.dart';
 import 'package:mediahro/features/photos/photos_providers.dart';
+import 'package:mediahro/features/photos/timeline/photo_access_banner.dart';
 import 'package:mediahro/features/photos/timeline/source_filter.dart';
 import 'package:mediahro/features/photos/timeline/timeline_model.dart';
+import 'package:mediahro/features/sources/sources_screen.dart'
+    show addDeviceMediaFlow;
 import 'package:mediahro_design/mediahro_design.dart';
 
 /// The timeline tab (IMG-003): every photo and video, newest first, with
@@ -19,7 +26,7 @@ class TimelineTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    return ref
+    final body = ref
         .watch(photoEntriesProvider)
         .when(
           data: (list) => list.isEmpty
@@ -27,9 +34,17 @@ class TimelineTab extends ConsumerWidget {
                   title: l10n.photosEmptyTitle,
                   message: l10n.photosEmptyMessage,
                   actions: [
+                    // The device's own pictures (screenshots, camera) are
+                    // not in a folder the user would think to pick.
+                    if (defaultTargetPlatform == TargetPlatform.android)
+                      KButton(
+                        label: l10n.photosAddDevice,
+                        variant: KButtonVariant.primary,
+                        onPressed: () =>
+                            unawaited(addDeviceMediaFlow(context, ref)),
+                      ),
                     KButton(
                       label: l10n.photosAddPhotos,
-                      variant: KButtonVariant.primary,
                       onPressed: () => context.go(AppRoutes.addFolder),
                     ),
                   ],
@@ -44,6 +59,14 @@ class TimelineTab extends ConsumerWidget {
             ),
           ),
         );
+    // Partial or refused access to the device's pictures is said above the
+    // timeline (IMG-016).
+    return Column(
+      children: [
+        const PhotoAccessBanner(),
+        Expanded(child: body),
+      ],
+    );
   }
 }
 

@@ -128,7 +128,11 @@ Future<void> _addFolder(BuildContext context, WidgetRef ref) async {
   }
 }
 
-/// Device media (LIB-002 Android): MediaStore video and audio as a source.
+/// Device media (LIB-002 Android): MediaStore video, audio and pictures as a
+/// source (also offered by the Photos screen).
+Future<void> addDeviceMediaFlow(BuildContext context, WidgetRef ref) =>
+    _addDeviceMedia(context, ref);
+
 Future<void> _addDeviceMedia(BuildContext context, WidgetRef ref) async {
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.of(context);

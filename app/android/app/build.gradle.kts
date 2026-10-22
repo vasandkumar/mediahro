@@ -61,6 +61,11 @@ android {
         for (flavour in listOf("direct", "foss", "enterprise")) {
             getByName(flavour).java.srcDir("src/noBilling/kotlin")
         }
+        // Start-up diagnostics (media permissions and what the MediaStore shows): debug and
+        // profile builds only, never release.
+        for (type in listOf("debug", "profile")) {
+            getByName(type).java.srcDir("src/diagnostics/kotlin")
+        }
     }
 
     signingConfigs {

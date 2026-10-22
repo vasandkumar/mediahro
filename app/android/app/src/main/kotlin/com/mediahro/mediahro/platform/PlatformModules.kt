@@ -256,6 +256,18 @@ object PlatformModules {
         // Scheduled background jobs (ADR-049).
         BackgroundWorkModules.register(context.applicationContext, engine)
         debugHooks(host, engine)
+        startupDiagnostics(context.applicationContext)
+    }
+
+    /** Debug and profile builds log the media permission state and what the MediaStore shows (src/diagnostics). */
+    private fun startupDiagnostics(context: Context) {
+        try {
+            Class.forName("com.mediahro.mediahro.diagnostics.StartupDiagnostics")
+                .getMethod("run", Context::class.java)
+                .invoke(null, context)
+        } catch (e: ClassNotFoundException) {
+            // Release builds.
+        }
     }
 
     /** Debug builds add integration-test hooks (src/debug); absent in release. */

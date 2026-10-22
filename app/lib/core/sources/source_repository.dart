@@ -323,8 +323,9 @@ final class SourceRepository {
   }
 }
 
-/// Device media (LIB-002 Android): the MediaStore's video and audio as one
-/// source. Asks for READ_MEDIA_VIDEO/AUDIO first; null when refused.
+/// Device media (LIB-002 Android): the MediaStore's video, audio and pictures
+/// as one source. Asks for READ_MEDIA_VIDEO/AUDIO/IMAGES first; null when
+/// all are refused.
 extension DeviceMediaSource on SourceRepository {
   static final Uri root = Uri.parse('mediastore:///');
 
@@ -334,7 +335,7 @@ extension DeviceMediaSource on SourceRepository {
   }) async {
     final s = storage ?? (throw const PlatformCapabilityUnavailable('storage'));
     var granted = false;
-    for (final kind in const [PickKind.video, PickKind.audio]) {
+    for (final kind in const [PickKind.video, PickKind.audio, PickKind.image]) {
       var p = await s.mediaPermission(kind);
       if (p == MediaPermission.denied) {
         p = await s.requestMediaPermission(kind);
