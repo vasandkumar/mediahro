@@ -101,6 +101,19 @@ flutter {
     source = "../.."
 }
 
+// Play Billing drags in Google's usage-reporting pipeline (Data Transport with the CCT
+// backend that uploads) and the location client. The app has no telemetry (docs/09, PRIV-004),
+// so the uploader and the location client are kept out of every APK. The billing library only
+// links transport-api/-runtime; with no backend registered its events have nowhere to go.
+// tools/compliance/check_classpath.py fails the build if any of these returns.
+configurations.configureEach {
+    exclude(group = "com.google.android.datatransport", module = "transport-backend-cct")
+    exclude(group = "com.google.firebase", module = "firebase-encoders-json")
+    exclude(group = "com.google.firebase", module = "firebase-encoders-proto")
+    exclude(group = "com.google.android.gms", module = "play-services-location")
+    exclude(group = "com.google.android.gms", module = "play-services-places-placereport")
+}
+
 // Platform modules (docs/05 §8, lane C4a): Kotlin + coroutines + Media3, no Java.
 dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
@@ -132,4 +145,41 @@ dependencies {
 
     // JVM unit tests of the modules' pure rules (./gradlew :app:testFossDebugUnitTest).
     testImplementation("junit:junit:4.13.2")
+}
+
+// No telemetry or location library, and no test library, may ship in a release build (docs/09,
+// PRIV-004). Fails every release build if one reaches a release runtime classpath again.
+// The profile build keeps integration_test (and with it junit) for the device tests.
+val bannedInRelease = listOf(
+    "com.google.android.datatransport:transport-backend-cct",
+    "com.google.android.gms:play-services-location",
+    "com.google.android.gms:play-services-places-placereport",
+    "com.google.firebase:firebase-encoders-json",
+    "com.google.firebase:firebase-encoders-proto",
+    "junit:junit",
+    "org.hamcrest:hamcrest-core",
+    "org.hamcrest:hamcrest-library",
+    "org.hamcrest:hamcrest-integration",
+)
+val verifyReleaseClasspaths = tasks.register("verifyReleaseClasspaths") {
+    group = "verification"
+    description = "Fails when a telemetry, location or test library is on a release runtime classpath."
+    doLast {
+        val found = sortedSetOf<String>()
+        for (flavour in listOf("store", "direct", "foss", "enterprise")) {
+            val name = "${flavour}ReleaseRuntimeClasspath"
+            val config = configurations.findByName(name) ?: continue
+            for (component in config.incoming.resolutionResult.allComponents) {
+                val id = component.moduleVersion ?: continue
+                if ("${id.group}:${id.name}" in bannedInRelease) found += "$name: ${id.group}:${id.name}:${id.version}"
+            }
+        }
+        if (found.isNotEmpty()) {
+            throw GradleException("Banned libraries on a release classpath: " + found.joinToString("; "))
+        }
+    }
+}
+afterEvaluate {
+    tasks.matching { it.name in setOf("preStoreReleaseBuild", "preDirectReleaseBuild", "preFossReleaseBuild", "preEnterpriseReleaseBuild") }
+        .configureEach { dependsOn(verifyReleaseClasspaths) }
 }

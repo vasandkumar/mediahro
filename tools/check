@@ -24,6 +24,8 @@ echo "== status"
 "$PY" tools/status/check_status.py
 echo "== manifests"
 "$PY" tools/compliance/check_manifests.py
+echo "== classpath"
+"$PY" tools/compliance/check_classpath.py
 echo "== tests"
 for p in packages/mediahro_ffi packages/mediahro_servers packages/mediahro_subtitles; do (cd "$p" && "$DART" test); done
 for p in packages/mediahro_design packages/mediahro_engine app; do (cd "$p" && "$FLUTTER" test); done
