@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/misc.dart'
     show FutureProviderFamily, ProviderException;
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/net/network_policy.dart';
+import 'package:mediahro/core/net/persistent_network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
 import 'package:mediahro/features/music/books/book_library.dart';
@@ -229,7 +230,10 @@ final musicPlaylistsProvider = Provider<MusicPlaylists>(
 
 /// The user's radio stations (MUS-014).
 final radioStationsProvider = Provider<RadioStations>((ref) {
-  final r = RadioStations(ref.watch(musicPrefsProvider));
+  final r = RadioStations(
+    ref.watch(musicPrefsProvider),
+    hosts: _feedHosts(ref),
+  );
   ref.onDispose(() => unawaited(r.dispose()));
   return r;
 });
@@ -380,9 +384,29 @@ final episodeDownloadsProvider = Provider<ManagerEpisodeDownloads>((ref) {
   return d;
 });
 
+/// The network policy that keeps the hosts of feeds and stations (PRIV-004);
+/// null where it is not in play (some tests).
+PersistentNetworkPolicy? _feedPolicy(Ref ref) {
+  try {
+    return ref.read(networkPolicyProvider);
+  } on Object {
+    return null;
+  }
+}
+
+/// The same, as the registry subscriptions and stations record into.
+FeedHostRegistry? _feedHosts(Ref ref) {
+  try {
+    return ref.read(networkPolicyProvider);
+  } on Object {
+    return null;
+  }
+}
+
 final podcastServiceProvider = Provider<PodcastService>((ref) {
   final net = _optional(() => ref.read(networkStatusProvider));
   final s = PodcastService(
+    hosts: _feedHosts(ref),
     store: ref.watch(podcastStoreProvider),
     http: ref.watch(podcastHttpProvider),
     downloads: ref.watch(episodeDownloadsProvider),
@@ -410,6 +434,18 @@ final podcastServiceProvider = Provider<PodcastService>((ref) {
 /// that waits for a background task facade (ADR request).
 final podcastBootProvider = Provider<void>((ref) {
   final s = ref.watch(podcastServiceProvider);
+  // The privacy dashboard's "Your feeds and stations": records the hosts of
+  // what the user already has, and lets the dashboard unsubscribe or delete
+  // when a host is removed there.
+  final policy = _feedPolicy(ref);
+  if (policy != null) {
+    final radio = ref.watch(radioStationsProvider);
+    policy
+      ..registerOwnerRemover('podcast', s.unsubscribe)
+      ..registerOwnerRemover('radio', radio.delete);
+    unawaited(s.syncHosts().catchError((Object _) {}));
+    unawaited(radio.syncHosts().catchError((Object _) {}));
+  }
   Future<void> check() => s
       .refreshAll(minAge: const Duration(hours: 2))
       .then((_) {}, onError: (Object _) {});

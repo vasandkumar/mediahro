@@ -67,7 +67,9 @@ class _RadioTabState extends ConsumerState<RadioTab> {
     try {
       final bytes = await readPickedFile(storage, file.uri, maxBytes: 4 << 20);
       final parsed = await parsePlaylistIsolated(bytes, format);
-      final n = await ref.read(radioStationsProvider).importPlaylist(parsed);
+      final n = await ref
+          .read(radioStationsProvider)
+          .importPlaylist(parsed, confirmLocal: _confirmLocal);
       messenger?.showSnackBar(
         SnackBar(content: Text(l10n.musicStationsImported(n))),
       );
@@ -76,6 +78,33 @@ class _RadioTabState extends ConsumerState<RadioTab> {
         SnackBar(content: Text(l10n.musicStationsImported(0))),
       );
     }
+  }
+
+  /// An imported file lists streams on this device or the listener's own
+  /// network: say which, and add them only on a yes.
+  Future<bool> _confirmLocal(List<String> urls) async {
+    if (!mounted) return false;
+    final l10n = AppLocalizations.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(l10n.musicStationsLocalTitle),
+        content: SingleChildScrollView(
+          child: Text(l10n.musicStationsLocalBody(urls.join('\n'))),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(d).pop(false),
+            child: Text(l10n.musicCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(d).pop(true),
+            child: Text(l10n.musicStationsLocalAdd),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   Future<void> _export() async {

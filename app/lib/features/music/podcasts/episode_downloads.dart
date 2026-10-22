@@ -49,6 +49,18 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
   @override
   Set<VirtualFsCapability> get capabilities => const {};
 
+  /// The files that are open now, by the episode they read.
+  final _open = <_TrackedFile>[];
+
+  /// Closes every open file of [episode] (a stream, a download): the next
+  /// read fails, so removing a subscription or its host is not a request
+  /// that carries on for as long as the file stays open.
+  Future<void> revoke(Uri episode) async {
+    for (final f in List.of(_open)) {
+      if (f.episode == episode) await f.close();
+    }
+  }
+
   @override
   Future<VirtualFile> open(Uri uri) async {
     final episode = podcastEpisodeUri(uri) ?? uri;
@@ -60,7 +72,13 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
       );
     }
     try {
-      return await http.openFile(episode, trusted: await trustedFor(episode));
+      final file = await http.openFile(
+        episode,
+        trusted: await trustedFor(episode),
+      );
+      final tracked = _TrackedFile(episode, file, _open.remove);
+      _open.add(tracked);
+      return tracked;
     } on PodcastHttpException catch (e) {
       throw VirtualFileException(
         VirtualFileError.permissionDenied,
@@ -85,6 +103,33 @@ final class HttpUrlFileSystem implements VirtualFileSystem {
       'episodes are single files',
     ),
   );
+}
+
+/// An open episode file that [HttpUrlFileSystem] can close from outside.
+final class _TrackedFile implements VirtualFile {
+  _TrackedFile(this.episode, this._inner, this._forget);
+
+  final Uri episode;
+  final VirtualFile _inner;
+  final void Function(_TrackedFile file) _forget;
+
+  @override
+  Uri get uri => _inner.uri;
+
+  @override
+  bool get isSeekable => _inner.isSeekable;
+
+  @override
+  Future<int?> length() => _inner.length();
+
+  @override
+  Future<Uint8List> read(int offset, int length) => _inner.read(offset, length);
+
+  @override
+  Future<void> close() async {
+    _forget(this);
+    await _inner.close();
+  }
 }
 
 /// Offline copies of episodes on the app's download manager (NET-018):
@@ -163,6 +208,9 @@ final class ManagerEpisodeDownloads implements EpisodeDownloads {
   Future<void> remove(Uri url) async {
     final r = await _row(url);
     if (r != null) await manager.remove(r.id);
+    // A download still reading, or the episode being played from the
+    // internet, stops with it.
+    await fileSystem.revoke(url);
   }
 
   @override

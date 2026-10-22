@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:mediahro/core/db/library_database.dart' show DownloadState;
 import 'package:mediahro/core/net/local_hosts.dart';
 import 'package:mediahro/core/net/network_policy.dart' show NetworkBlocked;
+import 'package:mediahro/core/net/persistent_network_policy.dart'
+    show FeedHostRegistry;
 import 'package:mediahro/features/music/podcasts/feed_parser.dart';
 import 'package:mediahro/features/music/podcasts/opml.dart';
 import 'package:mediahro/features/music/podcasts/podcast_http.dart';
@@ -122,6 +124,7 @@ final class PodcastService {
     required this.http,
     required this.downloads,
     this.artDir,
+    this.hosts,
     this.parse = parseFeedIsolated,
     this.canDownloadNow,
     DateTime Function()? clock,
@@ -133,6 +136,11 @@ final class PodcastService {
 
   /// Where show artwork is kept; null keeps none.
   final Directory? artDir;
+
+  /// Where a subscription's host is recorded as the user's own choice
+  /// (PRIV-004): listed in the privacy dashboard, removed with the
+  /// subscription.
+  final FeedHostRegistry? hosts;
   final Future<ParsedFeed> Function(Uint8List bytes, {Uri? base}) parse;
 
   /// False on a metered connection (automatic downloads wait for Wi-Fi).
@@ -140,6 +148,11 @@ final class PodcastService {
   final DateTime Function() _clock;
 
   final _changes = StreamController<void>.broadcast();
+  final _unsubscribed = StreamController<String>.broadcast();
+
+  /// Fires with a show's id once it has been unsubscribed from (anything
+  /// still playing from it must stop).
+  Stream<String> get unsubscribed => _unsubscribed.stream;
 
   /// The tail of each show's queue of changes (see [_locked]).
   final _tails = <String, Future<void>>{};
@@ -210,6 +223,7 @@ final class PodcastService {
         throw PodcastException(PodcastFailure.alreadySubscribed, showId: id);
       }
       await store.save(withArt);
+      await _recordHost(withArt);
     });
     _changes.add(null);
     return withArt;
@@ -276,6 +290,7 @@ final class PodcastService {
           }, previous: current.episodes),
         );
         await store.save(updated);
+        if (updated.title != show.title) await _recordHost(updated);
         return (
           show: updated,
           progress: progress,
@@ -328,8 +343,35 @@ final class PodcastService {
       if (f.existsSync()) await f.delete();
     }
     await store.remove(showId);
+    await hosts?.removeFeedOwner(owner(showId));
     _changes.add(null);
+    _unsubscribed.add(showId);
   });
+
+  /// The owner name a subscription's host is recorded under.
+  static String owner(String showId) => 'podcast:$showId';
+
+  Future<void> _recordHost(PodcastShow show) async {
+    final uri = Uri.tryParse(show.url);
+    if (uri == null) return;
+    await hosts?.addFeedHost(uri, owner: owner(show.id), label: show.title);
+  }
+
+  /// Records the hosts of subscriptions made before hosts were recorded
+  /// (the user subscribed, so this is their choice), and forgets the hosts
+  /// of subscriptions that are gone (removed while nothing was listening).
+  Future<void> syncHosts() async {
+    for (final s in await store.shows()) {
+      // Not for a show that was unsubscribed in the meantime.
+      await _locked(s.id, () async {
+        final now = await store.show(s.id);
+        if (now != null) await _recordHost(now);
+      });
+    }
+    await hosts?.pruneFeedOwners('podcast', {
+      for (final s in await store.shows()) s.id,
+    });
+  }
 
   /// Per-show choices: order, automatic downloads, deleting what is played.
   Future<void> configure(
@@ -513,7 +555,10 @@ final class PodcastService {
     return out;
   }
 
-  Future<void> dispose() => _changes.close();
+  Future<void> dispose() async {
+    await _changes.close();
+    await _unsubscribed.close();
+  }
 
   // ------------------------------------------------------------ internals --
 

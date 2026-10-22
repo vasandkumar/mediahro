@@ -106,6 +106,7 @@ final class PodcastPlayer {
   final _states = StreamController<PodcastPlayerState>.broadcast();
   PodcastPlayerState _state = const PodcastPlayerState();
   StreamSubscription<MusicPlayerState>? _sub;
+  StreamSubscription<String>? _removals;
   Future<void> _ops = Future.value();
   bool _opening = false;
   bool _wasPlaying = false;
@@ -178,6 +179,9 @@ final class PodcastPlayer {
       _opening = false;
     }
     _sub ??= player.states.listen(_onPlayer);
+    _removals ??= service.unsubscribed.listen(
+      (id) => unawaited(_serial(() => _stopFor(id))),
+    );
     _set(_state.copyWith(playing: autoplay));
   });
 
@@ -241,6 +245,7 @@ final class PodcastPlayer {
   Future<void> dispose() async {
     _disposed = true;
     await _sub?.cancel();
+    await _removals?.cancel();
     if (_state.active) await _save(force: true);
     await _holdStream(null);
     await _states.close();
@@ -398,6 +403,21 @@ final class PodcastPlayer {
         updatedAt: now.toUtc(),
       ),
     );
+  }
+
+  /// The listener unsubscribed from [showId]: whatever is playing from it
+  /// stops (nothing is saved for a show that is gone).
+  Future<void> _stopFor(String showId) async {
+    if (_state.show?.id != showId) return;
+    _lastSave = null;
+    _wasPlaying = false;
+    await player.stop();
+    _set(const PodcastPlayerState());
+    if (_mode.release(this)) {
+      await dsp.setSkipSilence(enabled: false);
+      await engine.setRate(1);
+    }
+    await _holdStream(null);
   }
 
   /// Leaves podcast mode: saves, and gives the music player its normal

@@ -30,6 +30,21 @@ final class PolicyPrivacyUsage extends ChangeNotifier implements PrivacyUsage {
   ];
 
   @override
+  List<FeedHostRow> feedHosts() {
+    final byHost = <String, List<String>>{};
+    for (final e in _policy.feedHostEntries) {
+      (byHost[e.host] ??= []).add(e.label);
+    }
+    return [
+      for (final e in byHost.entries) FeedHostRow(host: e.key, labels: e.value),
+    ]..sort((a, b) => a.host.compareTo(b.host));
+  }
+
+  @override
+  Future<bool> removeFeedHost(String host) async =>
+      await _policy.removeFeedHost(host) != null;
+
+  @override
   bool isForcedOff(NetworkEndpoint endpoint) => _policy.isForcedOff(endpoint);
 
   @override

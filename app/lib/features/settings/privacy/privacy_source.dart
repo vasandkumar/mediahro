@@ -14,6 +14,18 @@ final class UserConfiguredHost {
   final DateTime? lastUsed;
 }
 
+/// A host a podcast subscription or a radio station asked for, with the
+/// names of everything that added it (POD-002, MUS-014). The network policy
+/// matches hosts by name, so there is one row per host, whatever the scheme
+/// and port. Removing it unsubscribes or deletes all of them.
+@immutable
+final class FeedHostRow {
+  const FeedHostRow({required this.host, required this.labels});
+
+  final String host;
+  final List<String> labels;
+}
+
 /// What the privacy dashboard (CORE-015) reads besides the toggles: last
 /// use per endpoint, the user-configured hosts, endpoints that managed
 /// configuration forces off, and LAN discovery. In the app this is
@@ -21,6 +33,14 @@ final class UserConfiguredHost {
 abstract interface class PrivacyUsage implements Listenable {
   DateTime? lastUsed(NetworkEndpoint endpoint);
   List<UserConfiguredHost> userConfiguredHosts();
+
+  /// Hosts the user's podcasts and stations asked for, by host.
+  List<FeedHostRow> feedHosts();
+
+  /// Removes [host], unsubscribing or deleting whatever added it. False
+  /// when that cannot be done yet (the app is still starting): nothing was
+  /// changed, try again.
+  Future<bool> removeFeedHost(String host);
 
   /// Managed configuration (B2B-001) forces [endpoint] off.
   bool isForcedOff(NetworkEndpoint endpoint);
@@ -40,6 +60,12 @@ final class NoPrivacyUsage extends ChangeNotifier implements PrivacyUsage {
   List<UserConfiguredHost> userConfiguredHosts() => const [];
 
   @override
+  List<FeedHostRow> feedHosts() => const [];
+
+  @override
+  Future<bool> removeFeedHost(String host) async => true;
+
+  @override
   bool isForcedOff(NetworkEndpoint endpoint) => false;
 
   @override
@@ -56,6 +82,7 @@ final class RecordingPrivacyUsage extends ChangeNotifier
   final Map<String, DateTime> _endpoints = {};
   final Map<String, DateTime?> _hosts = {};
   final Set<String> forcedOff = {};
+  final Map<String, List<String>> _feeds = {};
   bool? _lan;
 
   @override
@@ -88,6 +115,27 @@ final class RecordingPrivacyUsage extends ChangeNotifier
     for (final e in _hosts.entries)
       UserConfiguredHost(host: e.key, lastUsed: e.value),
   ]..sort((a, b) => a.host.compareTo(b.host));
+
+  /// Whether [removeFeedHost] can be done yet.
+  bool feedRemovalReady = true;
+
+  void addFeedHost(String host, String label) {
+    (_feeds[host] ??= []).add(label);
+    notifyListeners();
+  }
+
+  @override
+  List<FeedHostRow> feedHosts() => [
+    for (final e in _feeds.entries) FeedHostRow(host: e.key, labels: e.value),
+  ]..sort((a, b) => a.host.compareTo(b.host));
+
+  @override
+  Future<bool> removeFeedHost(String host) async {
+    if (!feedRemovalReady) return false;
+    _feeds.remove(host);
+    notifyListeners();
+    return true;
+  }
 }
 
 final privacyUsageProvider = Provider<PrivacyUsage>((ref) {
