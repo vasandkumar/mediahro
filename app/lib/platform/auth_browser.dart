@@ -1,5 +1,7 @@
 /// OAuth 2 authorization in the system's authentication browser (RFC 8252):
-/// cloud drives (NET-007) and Trakt progress sync (LIB-010). The app never
+/// for a sign-in that needs one. No feature uses it since ADR-048 removed the
+/// cloud drives (NET-007) and Trakt progress sync (LIB-010), which each needed
+/// a client ID the publisher would hold. The app never
 /// shows sign-in pages in its own web view and never sees the password.
 ///
 /// Lane C4 implements it in Phase C:

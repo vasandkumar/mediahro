@@ -82,7 +82,6 @@ IconData _iconOf(TimelineSource s) {
     SourceKind.webdav ||
     SourceKind.ftp ||
     SourceKind.sftp ||
-    SourceKind.cloud ||
     SourceKind.server => Icons.cloud_outlined,
     _ => Icons.storage_outlined,
   };

@@ -37,9 +37,9 @@ void main() {
     tearDown(close);
 
     test('PRIV-004 the policy reads the dashboard switches from settings', () {
-      expect(policy.isEnabled(Endpoints.tmdb), isFalse);
-      settings.set(endpointToggle(Endpoints.tmdb), true);
-      expect(policy.isEnabled(Endpoints.tmdb), isTrue);
+      expect(policy.isEnabled(Endpoints.lrclib), isFalse);
+      settings.set(endpointToggle(Endpoints.lrclib), true);
+      expect(policy.isEnabled(Endpoints.lrclib), isTrue);
     });
 
     test(
@@ -59,7 +59,7 @@ void main() {
       var notified = 0;
       usage.addListener(() => notified++);
       policy.recordUse(Endpoints.musicBrainz, DateTime.utc(2026, 10, 20, 9));
-      settings.set(endpointToggle(Endpoints.tmdb), true);
+      settings.set(endpointToggle(Endpoints.lrclib), true);
       await Future<void>.delayed(Duration.zero);
       expect(
         usage.lastUsed(Endpoints.musicBrainz),
@@ -69,10 +69,10 @@ void main() {
     });
 
     test('managed configuration forces an endpoint off', () {
-      settings.set(endpointToggle(Endpoints.tmdb), true);
-      policy.applyManagedOverlay({'tmdb'});
-      expect(usage.isForcedOff(Endpoints.tmdb), isTrue);
-      expect(policy.isEnabled(Endpoints.tmdb), isFalse);
+      settings.set(endpointToggle(Endpoints.lrclib), true);
+      policy.applyManagedOverlay({'lrclib'});
+      expect(usage.isForcedOff(Endpoints.lrclib), isTrue);
+      expect(policy.isEnabled(Endpoints.lrclib), isFalse);
     });
 
     test('LAN discovery switch goes to the policy', () async {
@@ -88,7 +88,7 @@ void main() {
     await tester.runAsync(open);
     policy
       ..recordUse(Endpoints.lrclib, DateTime(2026, 10, 18, 21, 30))
-      ..applyManagedOverlay({'opensubtitles'});
+      ..applyManagedOverlay({'listenbrainz'});
     await pumpApp(
       tester,
       settings: settings,
@@ -105,7 +105,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    final os = find.byKey(const ValueKey('privacy.opensubtitles'));
+    final os = find.byKey(const ValueKey('privacy.listenbrainz'));
     await tester.ensureVisible(os);
     await tester.pumpAndSettle();
     expect(

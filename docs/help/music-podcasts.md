@@ -38,4 +38,4 @@ Downloads use the same download manager as network files: they resume after an i
 ## Good to know
 
 - Mediahro keeps the 400 newest episodes of a feed, plus any you've played, started or downloaded.
-- Checking for new episodes while the app is closed is not available yet.
+- On Android, Mediahro also checks for new episodes while the app is closed: once you follow a podcast it asks Android to check about every 3 hours, and only on an unmetered connection (Wi-Fi). Android decides the exact time, so a check can be later than that, and it stops when you no longer follow any podcast. Downloads you asked for ("Keep newest episodes downloaded") follow a check the same way. See [Refreshing in the background](background-refresh.md). On iOS the system decides when to wake the app; on macOS and Windows Mediahro checks only while it is open.

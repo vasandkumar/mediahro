@@ -484,7 +484,7 @@ class SourceRow extends DataClass implements Insertable<SourceRow> {
   final SourceKind kind;
   final String name;
 
-  /// Root URI (file:, smb:, nfs:, davs:, ftp:, sftp:, dlna:, cloud:, ...).
+  /// Root URI (file:, smb:, nfs:, davs:, ftp:, sftp:, dlna:, ...).
   final String rootUri;
 
   /// StorageFacade grant id for SAF trees / bookmarks (LIB-002).
@@ -2679,24 +2679,6 @@ class $SeriesTableTable extends SeriesTable
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _tmdbIdMeta = const VerificationMeta('tmdbId');
-  @override
-  late final GeneratedColumn<String> tmdbId = GeneratedColumn<String>(
-    'tmdb_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _tvdbIdMeta = const VerificationMeta('tvdbId');
-  @override
-  late final GeneratedColumn<String> tvdbId = GeneratedColumn<String>(
-    'tvdb_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _overviewMeta = const VerificationMeta(
     'overview',
   );
@@ -2709,14 +2691,7 @@ class $SeriesTableTable extends SeriesTable
     requiredDuringInsert: false,
   );
   @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    title,
-    year,
-    tmdbId,
-    tvdbId,
-    overview,
-  ];
+  List<GeneratedColumn> get $columns => [id, title, year, overview];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2746,18 +2721,6 @@ class $SeriesTableTable extends SeriesTable
         year.isAcceptableOrUnknown(data['year']!, _yearMeta),
       );
     }
-    if (data.containsKey('tmdb_id')) {
-      context.handle(
-        _tmdbIdMeta,
-        tmdbId.isAcceptableOrUnknown(data['tmdb_id']!, _tmdbIdMeta),
-      );
-    }
-    if (data.containsKey('tvdb_id')) {
-      context.handle(
-        _tvdbIdMeta,
-        tvdbId.isAcceptableOrUnknown(data['tvdb_id']!, _tvdbIdMeta),
-      );
-    }
     if (data.containsKey('overview')) {
       context.handle(
         _overviewMeta,
@@ -2785,14 +2748,6 @@ class $SeriesTableTable extends SeriesTable
         DriftSqlType.int,
         data['${effectivePrefix}year'],
       ),
-      tmdbId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tmdb_id'],
-      ),
-      tvdbId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tvdb_id'],
-      ),
       overview: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}overview'],
@@ -2810,15 +2765,11 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
   final int id;
   final String title;
   final int? year;
-  final String? tmdbId;
-  final String? tvdbId;
   final String? overview;
   const SeriesRow({
     required this.id,
     required this.title,
     this.year,
-    this.tmdbId,
-    this.tvdbId,
     this.overview,
   });
   @override
@@ -2828,12 +2779,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
     map['title'] = Variable<String>(title);
     if (!nullToAbsent || year != null) {
       map['year'] = Variable<int>(year);
-    }
-    if (!nullToAbsent || tmdbId != null) {
-      map['tmdb_id'] = Variable<String>(tmdbId);
-    }
-    if (!nullToAbsent || tvdbId != null) {
-      map['tvdb_id'] = Variable<String>(tvdbId);
     }
     if (!nullToAbsent || overview != null) {
       map['overview'] = Variable<String>(overview);
@@ -2846,12 +2791,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
       id: Value(id),
       title: Value(title),
       year: year == null && nullToAbsent ? const Value.absent() : Value(year),
-      tmdbId: tmdbId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(tmdbId),
-      tvdbId: tvdbId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(tvdbId),
       overview: overview == null && nullToAbsent
           ? const Value.absent()
           : Value(overview),
@@ -2867,8 +2806,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       year: serializer.fromJson<int?>(json['year']),
-      tmdbId: serializer.fromJson<String?>(json['tmdbId']),
-      tvdbId: serializer.fromJson<String?>(json['tvdbId']),
       overview: serializer.fromJson<String?>(json['overview']),
     );
   }
@@ -2879,8 +2816,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
       'year': serializer.toJson<int?>(year),
-      'tmdbId': serializer.toJson<String?>(tmdbId),
-      'tvdbId': serializer.toJson<String?>(tvdbId),
       'overview': serializer.toJson<String?>(overview),
     };
   }
@@ -2889,15 +2824,11 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
     int? id,
     String? title,
     Value<int?> year = const Value.absent(),
-    Value<String?> tmdbId = const Value.absent(),
-    Value<String?> tvdbId = const Value.absent(),
     Value<String?> overview = const Value.absent(),
   }) => SeriesRow(
     id: id ?? this.id,
     title: title ?? this.title,
     year: year.present ? year.value : this.year,
-    tmdbId: tmdbId.present ? tmdbId.value : this.tmdbId,
-    tvdbId: tvdbId.present ? tvdbId.value : this.tvdbId,
     overview: overview.present ? overview.value : this.overview,
   );
   SeriesRow copyWithCompanion(SeriesTableCompanion data) {
@@ -2905,8 +2836,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       year: data.year.present ? data.year.value : this.year,
-      tmdbId: data.tmdbId.present ? data.tmdbId.value : this.tmdbId,
-      tvdbId: data.tvdbId.present ? data.tvdbId.value : this.tvdbId,
       overview: data.overview.present ? data.overview.value : this.overview,
     );
   }
@@ -2917,15 +2846,13 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('year: $year, ')
-          ..write('tmdbId: $tmdbId, ')
-          ..write('tvdbId: $tvdbId, ')
           ..write('overview: $overview')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, year, tmdbId, tvdbId, overview);
+  int get hashCode => Object.hash(id, title, year, overview);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2933,8 +2860,6 @@ class SeriesRow extends DataClass implements Insertable<SeriesRow> {
           other.id == this.id &&
           other.title == this.title &&
           other.year == this.year &&
-          other.tmdbId == this.tmdbId &&
-          other.tvdbId == this.tvdbId &&
           other.overview == this.overview);
 }
 
@@ -2942,39 +2867,29 @@ class SeriesTableCompanion extends UpdateCompanion<SeriesRow> {
   final Value<int> id;
   final Value<String> title;
   final Value<int?> year;
-  final Value<String?> tmdbId;
-  final Value<String?> tvdbId;
   final Value<String?> overview;
   const SeriesTableCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.year = const Value.absent(),
-    this.tmdbId = const Value.absent(),
-    this.tvdbId = const Value.absent(),
     this.overview = const Value.absent(),
   });
   SeriesTableCompanion.insert({
     this.id = const Value.absent(),
     required String title,
     this.year = const Value.absent(),
-    this.tmdbId = const Value.absent(),
-    this.tvdbId = const Value.absent(),
     this.overview = const Value.absent(),
   }) : title = Value(title);
   static Insertable<SeriesRow> custom({
     Expression<int>? id,
     Expression<String>? title,
     Expression<int>? year,
-    Expression<String>? tmdbId,
-    Expression<String>? tvdbId,
     Expression<String>? overview,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (year != null) 'year': year,
-      if (tmdbId != null) 'tmdb_id': tmdbId,
-      if (tvdbId != null) 'tvdb_id': tvdbId,
       if (overview != null) 'overview': overview,
     });
   }
@@ -2983,16 +2898,12 @@ class SeriesTableCompanion extends UpdateCompanion<SeriesRow> {
     Value<int>? id,
     Value<String>? title,
     Value<int?>? year,
-    Value<String?>? tmdbId,
-    Value<String?>? tvdbId,
     Value<String?>? overview,
   }) {
     return SeriesTableCompanion(
       id: id ?? this.id,
       title: title ?? this.title,
       year: year ?? this.year,
-      tmdbId: tmdbId ?? this.tmdbId,
-      tvdbId: tvdbId ?? this.tvdbId,
       overview: overview ?? this.overview,
     );
   }
@@ -3009,12 +2920,6 @@ class SeriesTableCompanion extends UpdateCompanion<SeriesRow> {
     if (year.present) {
       map['year'] = Variable<int>(year.value);
     }
-    if (tmdbId.present) {
-      map['tmdb_id'] = Variable<String>(tmdbId.value);
-    }
-    if (tvdbId.present) {
-      map['tvdb_id'] = Variable<String>(tvdbId.value);
-    }
     if (overview.present) {
       map['overview'] = Variable<String>(overview.value);
     }
@@ -3027,8 +2932,6 @@ class SeriesTableCompanion extends UpdateCompanion<SeriesRow> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('year: $year, ')
-          ..write('tmdbId: $tmdbId, ')
-          ..write('tvdbId: $tvdbId, ')
           ..write('overview: $overview')
           ..write(')'))
         .toString();
@@ -3459,7 +3362,8 @@ class CollectionRow extends DataClass implements Insertable<CollectionRow> {
   final int id;
   final String name;
 
-  /// tmdb / user / photoAlbum.
+  /// user / photoAlbum (a collection of films from an online database is
+  /// not offered: ADR-048).
   final String type;
   final String? externalId;
   const CollectionRow({
@@ -3737,24 +3641,6 @@ class $VideoMetaTable extends VideoMeta
       'REFERENCES collection (id)',
     ),
   );
-  static const VerificationMeta _tmdbIdMeta = const VerificationMeta('tmdbId');
-  @override
-  late final GeneratedColumn<String> tmdbId = GeneratedColumn<String>(
-    'tmdb_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _tvdbIdMeta = const VerificationMeta('tvdbId');
-  @override
-  late final GeneratedColumn<String> tvdbId = GeneratedColumn<String>(
-    'tvdb_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _imdbIdMeta = const VerificationMeta('imdbId');
   @override
   late final GeneratedColumn<String> imdbId = GeneratedColumn<String>(
@@ -3844,8 +3730,6 @@ class $VideoMetaTable extends VideoMeta
     seriesId,
     seasonId,
     collectionId,
-    tmdbId,
-    tvdbId,
     imdbId,
     overview,
     episodeTitle,
@@ -3924,18 +3808,6 @@ class $VideoMetaTable extends VideoMeta
           data['collection_id']!,
           _collectionIdMeta,
         ),
-      );
-    }
-    if (data.containsKey('tmdb_id')) {
-      context.handle(
-        _tmdbIdMeta,
-        tmdbId.isAcceptableOrUnknown(data['tmdb_id']!, _tmdbIdMeta),
-      );
-    }
-    if (data.containsKey('tvdb_id')) {
-      context.handle(
-        _tvdbIdMeta,
-        tvdbId.isAcceptableOrUnknown(data['tvdb_id']!, _tvdbIdMeta),
       );
     }
     if (data.containsKey('imdb_id')) {
@@ -4030,14 +3902,6 @@ class $VideoMetaTable extends VideoMeta
         DriftSqlType.int,
         data['${effectivePrefix}collection_id'],
       ),
-      tmdbId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tmdb_id'],
-      ),
-      tvdbId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tvdb_id'],
-      ),
       imdbId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}imdb_id'],
@@ -4084,8 +3948,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
   final int? seriesId;
   final int? seasonId;
   final int? collectionId;
-  final String? tmdbId;
-  final String? tvdbId;
   final String? imdbId;
   final String? overview;
   final String? episodeTitle;
@@ -4104,8 +3966,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
     this.seriesId,
     this.seasonId,
     this.collectionId,
-    this.tmdbId,
-    this.tvdbId,
     this.imdbId,
     this.overview,
     this.episodeTitle,
@@ -4138,12 +3998,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
     }
     if (!nullToAbsent || collectionId != null) {
       map['collection_id'] = Variable<int>(collectionId);
-    }
-    if (!nullToAbsent || tmdbId != null) {
-      map['tmdb_id'] = Variable<String>(tmdbId);
-    }
-    if (!nullToAbsent || tvdbId != null) {
-      map['tvdb_id'] = Variable<String>(tvdbId);
     }
     if (!nullToAbsent || imdbId != null) {
       map['imdb_id'] = Variable<String>(imdbId);
@@ -4189,12 +4043,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
       collectionId: collectionId == null && nullToAbsent
           ? const Value.absent()
           : Value(collectionId),
-      tmdbId: tmdbId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(tmdbId),
-      tvdbId: tvdbId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(tvdbId),
       imdbId: imdbId == null && nullToAbsent
           ? const Value.absent()
           : Value(imdbId),
@@ -4231,8 +4079,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
       seriesId: serializer.fromJson<int?>(json['seriesId']),
       seasonId: serializer.fromJson<int?>(json['seasonId']),
       collectionId: serializer.fromJson<int?>(json['collectionId']),
-      tmdbId: serializer.fromJson<String?>(json['tmdbId']),
-      tvdbId: serializer.fromJson<String?>(json['tvdbId']),
       imdbId: serializer.fromJson<String?>(json['imdbId']),
       overview: serializer.fromJson<String?>(json['overview']),
       episodeTitle: serializer.fromJson<String?>(json['episodeTitle']),
@@ -4254,8 +4100,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
       'seriesId': serializer.toJson<int?>(seriesId),
       'seasonId': serializer.toJson<int?>(seasonId),
       'collectionId': serializer.toJson<int?>(collectionId),
-      'tmdbId': serializer.toJson<String?>(tmdbId),
-      'tvdbId': serializer.toJson<String?>(tvdbId),
       'imdbId': serializer.toJson<String?>(imdbId),
       'overview': serializer.toJson<String?>(overview),
       'episodeTitle': serializer.toJson<String?>(episodeTitle),
@@ -4275,8 +4119,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
     Value<int?> seriesId = const Value.absent(),
     Value<int?> seasonId = const Value.absent(),
     Value<int?> collectionId = const Value.absent(),
-    Value<String?> tmdbId = const Value.absent(),
-    Value<String?> tvdbId = const Value.absent(),
     Value<String?> imdbId = const Value.absent(),
     Value<String?> overview = const Value.absent(),
     Value<String?> episodeTitle = const Value.absent(),
@@ -4295,8 +4137,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
     seriesId: seriesId.present ? seriesId.value : this.seriesId,
     seasonId: seasonId.present ? seasonId.value : this.seasonId,
     collectionId: collectionId.present ? collectionId.value : this.collectionId,
-    tmdbId: tmdbId.present ? tmdbId.value : this.tmdbId,
-    tvdbId: tvdbId.present ? tvdbId.value : this.tvdbId,
     imdbId: imdbId.present ? imdbId.value : this.imdbId,
     overview: overview.present ? overview.value : this.overview,
     episodeTitle: episodeTitle.present ? episodeTitle.value : this.episodeTitle,
@@ -4325,8 +4165,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
       collectionId: data.collectionId.present
           ? data.collectionId.value
           : this.collectionId,
-      tmdbId: data.tmdbId.present ? data.tmdbId.value : this.tmdbId,
-      tvdbId: data.tvdbId.present ? data.tvdbId.value : this.tvdbId,
       imdbId: data.imdbId.present ? data.imdbId.value : this.imdbId,
       overview: data.overview.present ? data.overview.value : this.overview,
       episodeTitle: data.episodeTitle.present
@@ -4354,8 +4192,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
           ..write('seriesId: $seriesId, ')
           ..write('seasonId: $seasonId, ')
           ..write('collectionId: $collectionId, ')
-          ..write('tmdbId: $tmdbId, ')
-          ..write('tvdbId: $tvdbId, ')
           ..write('imdbId: $imdbId, ')
           ..write('overview: $overview, ')
           ..write('episodeTitle: $episodeTitle, ')
@@ -4377,8 +4213,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
     seriesId,
     seasonId,
     collectionId,
-    tmdbId,
-    tvdbId,
     imdbId,
     overview,
     episodeTitle,
@@ -4399,8 +4233,6 @@ class VideoMetaRow extends DataClass implements Insertable<VideoMetaRow> {
           other.seriesId == this.seriesId &&
           other.seasonId == this.seasonId &&
           other.collectionId == this.collectionId &&
-          other.tmdbId == this.tmdbId &&
-          other.tvdbId == this.tvdbId &&
           other.imdbId == this.imdbId &&
           other.overview == this.overview &&
           other.episodeTitle == this.episodeTitle &&
@@ -4419,8 +4251,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
   final Value<int?> seriesId;
   final Value<int?> seasonId;
   final Value<int?> collectionId;
-  final Value<String?> tmdbId;
-  final Value<String?> tvdbId;
   final Value<String?> imdbId;
   final Value<String?> overview;
   final Value<String?> episodeTitle;
@@ -4437,8 +4267,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
     this.seriesId = const Value.absent(),
     this.seasonId = const Value.absent(),
     this.collectionId = const Value.absent(),
-    this.tmdbId = const Value.absent(),
-    this.tvdbId = const Value.absent(),
     this.imdbId = const Value.absent(),
     this.overview = const Value.absent(),
     this.episodeTitle = const Value.absent(),
@@ -4456,8 +4284,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
     this.seriesId = const Value.absent(),
     this.seasonId = const Value.absent(),
     this.collectionId = const Value.absent(),
-    this.tmdbId = const Value.absent(),
-    this.tvdbId = const Value.absent(),
     this.imdbId = const Value.absent(),
     this.overview = const Value.absent(),
     this.episodeTitle = const Value.absent(),
@@ -4475,8 +4301,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
     Expression<int>? seriesId,
     Expression<int>? seasonId,
     Expression<int>? collectionId,
-    Expression<String>? tmdbId,
-    Expression<String>? tvdbId,
     Expression<String>? imdbId,
     Expression<String>? overview,
     Expression<String>? episodeTitle,
@@ -4494,8 +4318,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
       if (seriesId != null) 'series_id': seriesId,
       if (seasonId != null) 'season_id': seasonId,
       if (collectionId != null) 'collection_id': collectionId,
-      if (tmdbId != null) 'tmdb_id': tmdbId,
-      if (tvdbId != null) 'tvdb_id': tvdbId,
       if (imdbId != null) 'imdb_id': imdbId,
       if (overview != null) 'overview': overview,
       if (episodeTitle != null) 'episode_title': episodeTitle,
@@ -4515,8 +4337,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
     Value<int?>? seriesId,
     Value<int?>? seasonId,
     Value<int?>? collectionId,
-    Value<String?>? tmdbId,
-    Value<String?>? tvdbId,
     Value<String?>? imdbId,
     Value<String?>? overview,
     Value<String?>? episodeTitle,
@@ -4534,8 +4354,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
       seriesId: seriesId ?? this.seriesId,
       seasonId: seasonId ?? this.seasonId,
       collectionId: collectionId ?? this.collectionId,
-      tmdbId: tmdbId ?? this.tmdbId,
-      tvdbId: tvdbId ?? this.tvdbId,
       imdbId: imdbId ?? this.imdbId,
       overview: overview ?? this.overview,
       episodeTitle: episodeTitle ?? this.episodeTitle,
@@ -4573,12 +4391,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
     if (collectionId.present) {
       map['collection_id'] = Variable<int>(collectionId.value);
     }
-    if (tmdbId.present) {
-      map['tmdb_id'] = Variable<String>(tmdbId.value);
-    }
-    if (tvdbId.present) {
-      map['tvdb_id'] = Variable<String>(tvdbId.value);
-    }
     if (imdbId.present) {
       map['imdb_id'] = Variable<String>(imdbId.value);
     }
@@ -4614,8 +4426,6 @@ class VideoMetaCompanion extends UpdateCompanion<VideoMetaRow> {
           ..write('seriesId: $seriesId, ')
           ..write('seasonId: $seasonId, ')
           ..write('collectionId: $collectionId, ')
-          ..write('tmdbId: $tmdbId, ')
-          ..write('tvdbId: $tvdbId, ')
           ..write('imdbId: $imdbId, ')
           ..write('overview: $overview, ')
           ..write('episodeTitle: $episodeTitle, ')
@@ -11862,15 +11672,6 @@ class $PeopleTable extends People with TableInfo<$PeopleTable, PersonRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _tmdbIdMeta = const VerificationMeta('tmdbId');
-  @override
-  late final GeneratedColumn<String> tmdbId = GeneratedColumn<String>(
-    'tmdb_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
   static const VerificationMeta _isFaceClusterMeta = const VerificationMeta(
     'isFaceCluster',
   );
@@ -11887,7 +11688,7 @@ class $PeopleTable extends People with TableInfo<$PeopleTable, PersonRow> {
     defaultValue: const Constant(false),
   );
   @override
-  List<GeneratedColumn> get $columns => [id, name, tmdbId, isFaceCluster];
+  List<GeneratedColumn> get $columns => [id, name, isFaceCluster];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -11910,12 +11711,6 @@ class $PeopleTable extends People with TableInfo<$PeopleTable, PersonRow> {
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
-    }
-    if (data.containsKey('tmdb_id')) {
-      context.handle(
-        _tmdbIdMeta,
-        tmdbId.isAcceptableOrUnknown(data['tmdb_id']!, _tmdbIdMeta),
-      );
     }
     if (data.containsKey('is_face_cluster')) {
       context.handle(
@@ -11943,10 +11738,6 @@ class $PeopleTable extends People with TableInfo<$PeopleTable, PersonRow> {
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
-      tmdbId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}tmdb_id'],
-      ),
       isFaceCluster: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_face_cluster'],
@@ -11963,12 +11754,10 @@ class $PeopleTable extends People with TableInfo<$PeopleTable, PersonRow> {
 class PersonRow extends DataClass implements Insertable<PersonRow> {
   final int id;
   final String name;
-  final String? tmdbId;
   final bool isFaceCluster;
   const PersonRow({
     required this.id,
     required this.name,
-    this.tmdbId,
     required this.isFaceCluster,
   });
   @override
@@ -11976,9 +11765,6 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
-    if (!nullToAbsent || tmdbId != null) {
-      map['tmdb_id'] = Variable<String>(tmdbId);
-    }
     map['is_face_cluster'] = Variable<bool>(isFaceCluster);
     return map;
   }
@@ -11987,9 +11773,6 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return PeopleCompanion(
       id: Value(id),
       name: Value(name),
-      tmdbId: tmdbId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(tmdbId),
       isFaceCluster: Value(isFaceCluster),
     );
   }
@@ -12002,7 +11785,6 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return PersonRow(
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      tmdbId: serializer.fromJson<String?>(json['tmdbId']),
       isFaceCluster: serializer.fromJson<bool>(json['isFaceCluster']),
     );
   }
@@ -12012,27 +11794,19 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
-      'tmdbId': serializer.toJson<String?>(tmdbId),
       'isFaceCluster': serializer.toJson<bool>(isFaceCluster),
     };
   }
 
-  PersonRow copyWith({
-    int? id,
-    String? name,
-    Value<String?> tmdbId = const Value.absent(),
-    bool? isFaceCluster,
-  }) => PersonRow(
+  PersonRow copyWith({int? id, String? name, bool? isFaceCluster}) => PersonRow(
     id: id ?? this.id,
     name: name ?? this.name,
-    tmdbId: tmdbId.present ? tmdbId.value : this.tmdbId,
     isFaceCluster: isFaceCluster ?? this.isFaceCluster,
   );
   PersonRow copyWithCompanion(PeopleCompanion data) {
     return PersonRow(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      tmdbId: data.tmdbId.present ? data.tmdbId.value : this.tmdbId,
       isFaceCluster: data.isFaceCluster.present
           ? data.isFaceCluster.value
           : this.isFaceCluster,
@@ -12044,51 +11818,44 @@ class PersonRow extends DataClass implements Insertable<PersonRow> {
     return (StringBuffer('PersonRow(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('tmdbId: $tmdbId, ')
           ..write('isFaceCluster: $isFaceCluster')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, name, tmdbId, isFaceCluster);
+  int get hashCode => Object.hash(id, name, isFaceCluster);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is PersonRow &&
           other.id == this.id &&
           other.name == this.name &&
-          other.tmdbId == this.tmdbId &&
           other.isFaceCluster == this.isFaceCluster);
 }
 
 class PeopleCompanion extends UpdateCompanion<PersonRow> {
   final Value<int> id;
   final Value<String> name;
-  final Value<String?> tmdbId;
   final Value<bool> isFaceCluster;
   const PeopleCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
-    this.tmdbId = const Value.absent(),
     this.isFaceCluster = const Value.absent(),
   });
   PeopleCompanion.insert({
     this.id = const Value.absent(),
     required String name,
-    this.tmdbId = const Value.absent(),
     this.isFaceCluster = const Value.absent(),
   }) : name = Value(name);
   static Insertable<PersonRow> custom({
     Expression<int>? id,
     Expression<String>? name,
-    Expression<String>? tmdbId,
     Expression<bool>? isFaceCluster,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
-      if (tmdbId != null) 'tmdb_id': tmdbId,
       if (isFaceCluster != null) 'is_face_cluster': isFaceCluster,
     });
   }
@@ -12096,13 +11863,11 @@ class PeopleCompanion extends UpdateCompanion<PersonRow> {
   PeopleCompanion copyWith({
     Value<int>? id,
     Value<String>? name,
-    Value<String?>? tmdbId,
     Value<bool>? isFaceCluster,
   }) {
     return PeopleCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
-      tmdbId: tmdbId ?? this.tmdbId,
       isFaceCluster: isFaceCluster ?? this.isFaceCluster,
     );
   }
@@ -12116,9 +11881,6 @@ class PeopleCompanion extends UpdateCompanion<PersonRow> {
     if (name.present) {
       map['name'] = Variable<String>(name.value);
     }
-    if (tmdbId.present) {
-      map['tmdb_id'] = Variable<String>(tmdbId.value);
-    }
     if (isFaceCluster.present) {
       map['is_face_cluster'] = Variable<bool>(isFaceCluster.value);
     }
@@ -12130,7 +11892,6 @@ class PeopleCompanion extends UpdateCompanion<PersonRow> {
     return (StringBuffer('PeopleCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('tmdbId: $tmdbId, ')
           ..write('isFaceCluster: $isFaceCluster')
           ..write(')'))
         .toString();
@@ -20393,8 +20154,6 @@ typedef $$SeriesTableTableCreateCompanionBuilder =
       Value<int> id,
       required String title,
       Value<int?> year,
-      Value<String?> tmdbId,
-      Value<String?> tvdbId,
       Value<String?> overview,
     });
 typedef $$SeriesTableTableUpdateCompanionBuilder =
@@ -20402,8 +20161,6 @@ typedef $$SeriesTableTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> title,
       Value<int?> year,
-      Value<String?> tmdbId,
-      Value<String?> tvdbId,
       Value<String?> overview,
     });
 
@@ -20470,16 +20227,6 @@ class $$SeriesTableTableFilterComposer
 
   ColumnFilters<int> get year => $composableBuilder(
     column: $table.year,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get tvdbId => $composableBuilder(
-    column: $table.tvdbId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20563,16 +20310,6 @@ class $$SeriesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get tvdbId => $composableBuilder(
-    column: $table.tvdbId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get overview => $composableBuilder(
     column: $table.overview,
     builder: (column) => ColumnOrderings(column),
@@ -20596,12 +20333,6 @@ class $$SeriesTableTableAnnotationComposer
 
   GeneratedColumn<int> get year =>
       $composableBuilder(column: $table.year, builder: (column) => column);
-
-  GeneratedColumn<String> get tmdbId =>
-      $composableBuilder(column: $table.tmdbId, builder: (column) => column);
-
-  GeneratedColumn<String> get tvdbId =>
-      $composableBuilder(column: $table.tvdbId, builder: (column) => column);
 
   GeneratedColumn<String> get overview =>
       $composableBuilder(column: $table.overview, builder: (column) => column);
@@ -20688,15 +20419,11 @@ class $$SeriesTableTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<int?> year = const Value.absent(),
-                Value<String?> tmdbId = const Value.absent(),
-                Value<String?> tvdbId = const Value.absent(),
                 Value<String?> overview = const Value.absent(),
               }) => SeriesTableCompanion(
                 id: id,
                 title: title,
                 year: year,
-                tmdbId: tmdbId,
-                tvdbId: tvdbId,
                 overview: overview,
               ),
           createCompanionCallback:
@@ -20704,15 +20431,11 @@ class $$SeriesTableTableTableManager
                 Value<int> id = const Value.absent(),
                 required String title,
                 Value<int?> year = const Value.absent(),
-                Value<String?> tmdbId = const Value.absent(),
-                Value<String?> tvdbId = const Value.absent(),
                 Value<String?> overview = const Value.absent(),
               }) => SeriesTableCompanion.insert(
                 id: id,
                 title: title,
                 year: year,
-                tmdbId: tmdbId,
-                tvdbId: tvdbId,
                 overview: overview,
               ),
           withReferenceMapper: (p0) => p0
@@ -21460,8 +21183,6 @@ typedef $$VideoMetaTableCreateCompanionBuilder = VideoMetaCompanion Function({
   Value<int?> seriesId,
   Value<int?> seasonId,
   Value<int?> collectionId,
-  Value<String?> tmdbId,
-  Value<String?> tvdbId,
   Value<String?> imdbId,
   Value<String?> overview,
   Value<String?> episodeTitle,
@@ -21479,8 +21200,6 @@ typedef $$VideoMetaTableUpdateCompanionBuilder = VideoMetaCompanion Function({
   Value<int?> seriesId,
   Value<int?> seasonId,
   Value<int?> collectionId,
-  Value<String?> tmdbId,
-  Value<String?> tvdbId,
   Value<String?> imdbId,
   Value<String?> overview,
   Value<String?> episodeTitle,
@@ -21589,16 +21308,6 @@ class $$VideoMetaTableFilterComposer
 
   ColumnFilters<int> get episodeNumber => $composableBuilder(
     column: $table.episodeNumber,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get tvdbId => $composableBuilder(
-    column: $table.tvdbId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21759,16 +21468,6 @@ class $$VideoMetaTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get tvdbId => $composableBuilder(
-    column: $table.tvdbId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get imdbId => $composableBuilder(
     column: $table.imdbId,
     builder: (column) => ColumnOrderings(column),
@@ -21923,12 +21622,6 @@ class $$VideoMetaTableAnnotationComposer
     column: $table.episodeNumber,
     builder: (column) => column,
   );
-
-  GeneratedColumn<String> get tmdbId =>
-      $composableBuilder(column: $table.tmdbId, builder: (column) => column);
-
-  GeneratedColumn<String> get tvdbId =>
-      $composableBuilder(column: $table.tvdbId, builder: (column) => column);
 
   GeneratedColumn<String> get imdbId =>
       $composableBuilder(column: $table.imdbId, builder: (column) => column);
@@ -22091,8 +21784,6 @@ class $$VideoMetaTableTableManager
                 Value<int?> seriesId = const Value.absent(),
                 Value<int?> seasonId = const Value.absent(),
                 Value<int?> collectionId = const Value.absent(),
-                Value<String?> tmdbId = const Value.absent(),
-                Value<String?> tvdbId = const Value.absent(),
                 Value<String?> imdbId = const Value.absent(),
                 Value<String?> overview = const Value.absent(),
                 Value<String?> episodeTitle = const Value.absent(),
@@ -22109,8 +21800,6 @@ class $$VideoMetaTableTableManager
                 seriesId: seriesId,
                 seasonId: seasonId,
                 collectionId: collectionId,
-                tmdbId: tmdbId,
-                tvdbId: tvdbId,
                 imdbId: imdbId,
                 overview: overview,
                 episodeTitle: episodeTitle,
@@ -22129,8 +21818,6 @@ class $$VideoMetaTableTableManager
                 Value<int?> seriesId = const Value.absent(),
                 Value<int?> seasonId = const Value.absent(),
                 Value<int?> collectionId = const Value.absent(),
-                Value<String?> tmdbId = const Value.absent(),
-                Value<String?> tvdbId = const Value.absent(),
                 Value<String?> imdbId = const Value.absent(),
                 Value<String?> overview = const Value.absent(),
                 Value<String?> episodeTitle = const Value.absent(),
@@ -22147,8 +21834,6 @@ class $$VideoMetaTableTableManager
                 seriesId: seriesId,
                 seasonId: seasonId,
                 collectionId: collectionId,
-                tmdbId: tmdbId,
-                tvdbId: tvdbId,
                 imdbId: imdbId,
                 overview: overview,
                 episodeTitle: episodeTitle,
@@ -28439,13 +28124,11 @@ typedef $$PlayEventsTableProcessedTableManager =
 typedef $$PeopleTableCreateCompanionBuilder = PeopleCompanion Function({
   Value<int> id,
   required String name,
-  Value<String?> tmdbId,
   Value<bool> isFaceCluster,
 });
 typedef $$PeopleTableUpdateCompanionBuilder = PeopleCompanion Function({
   Value<int> id,
   Value<String> name,
-  Value<String?> tmdbId,
   Value<bool> isFaceCluster,
 });
 
@@ -28488,11 +28171,6 @@ class $$PeopleTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -28546,11 +28224,6 @@ class $$PeopleTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get tmdbId => $composableBuilder(
-    column: $table.tmdbId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<bool> get isFaceCluster => $composableBuilder(
     column: $table.isFaceCluster,
     builder: (column) => ColumnOrderings(column),
@@ -28571,9 +28244,6 @@ class $$PeopleTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get tmdbId =>
-      $composableBuilder(column: $table.tmdbId, builder: (column) => column);
 
   GeneratedColumn<bool> get isFaceCluster => $composableBuilder(
     column: $table.isFaceCluster,
@@ -28636,24 +28306,20 @@ class $$PeopleTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String?> tmdbId = const Value.absent(),
                 Value<bool> isFaceCluster = const Value.absent(),
               }) => PeopleCompanion(
                 id: id,
                 name: name,
-                tmdbId: tmdbId,
                 isFaceCluster: isFaceCluster,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String name,
-                Value<String?> tmdbId = const Value.absent(),
                 Value<bool> isFaceCluster = const Value.absent(),
               }) => PeopleCompanion.insert(
                 id: id,
                 name: name,
-                tmdbId: tmdbId,
                 isFaceCluster: isFaceCluster,
               ),
           withReferenceMapper: (p0) => p0

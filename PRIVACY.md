@@ -15,7 +15,7 @@ Your library index, playback positions, playlists, ratings, tags, settings, thum
 | Configuration updates | A request for a static, signed JSON file | `api.mediahro.com` |
 
 ## Third-party services you may enable
-Each sits behind its own toggle in the privacy dashboard and is governed by that service's policy: OpenSubtitles.com, Podnapisi, Subdl, TMDB, TVDB, LRCLIB, MusicBrainz / Cover Art Archive / AcoustID, ListenBrainz, Last.fm, Libre.fm, OpenStreetMap tiles, IntroDB. Servers you add yourself (Jellyfin, Emby, Plex, Subsonic-compatible, Immich, Nextcloud, Audiobookshelf, network shares, cloud drives) receive only what is needed to browse and play from them.
+Each sits behind its own toggle in the privacy dashboard and is governed by that service's policy: LRCLIB, MusicBrainz / Cover Art Archive, ListenBrainz, IntroDB. Services that need a key the publisher would have to hold (subtitle databases, film and series databases, Last.fm and Libre.fm, Trakt, AcoustID, cloud drives) are not part of Mediahro (ADR-048). Servers you add yourself (Jellyfin, Emby, Plex, Subsonic-compatible, Immich, Nextcloud, Audiobookshelf, network shares) receive only what is needed to browse and play from them.
 
 ## Retention
 Crash reports 90 days; analytics aggregates 12 months.

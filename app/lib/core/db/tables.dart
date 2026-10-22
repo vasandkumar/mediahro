@@ -18,7 +18,6 @@ enum SourceKind {
   sftp,
   dlna,
   url,
-  cloud,
   server,
   archive,
 }
@@ -45,7 +44,7 @@ class Sources extends Table with _Id {
   TextColumn get kind => textEnum<SourceKind>()();
   TextColumn get name => text()();
 
-  /// Root URI (file:, smb:, nfs:, davs:, ftp:, sftp:, dlna:, cloud:, ...).
+  /// Root URI (file:, smb:, nfs:, davs:, ftp:, sftp:, dlna:, ...).
   TextColumn get rootUri => text()();
 
   /// StorageFacade grant id for SAF trees / bookmarks (LIB-002).
@@ -153,8 +152,6 @@ class VideoMeta extends Table {
   IntColumn get seasonId => integer().nullable().references(Seasons, #id)();
   IntColumn get collectionId =>
       integer().nullable().references(Collections, #id)();
-  TextColumn get tmdbId => text().nullable()();
-  TextColumn get tvdbId => text().nullable()();
   TextColumn get imdbId => text().nullable()();
   TextColumn get overview => text().nullable()();
   TextColumn get episodeTitle => text().nullable()();
@@ -431,7 +428,6 @@ class People extends Table with _Id {
   String get tableName => 'person';
 
   TextColumn get name => text()();
-  TextColumn get tmdbId => text().nullable()();
   BoolColumn get isFaceCluster =>
       boolean().withDefault(const Constant(false))();
 }
@@ -494,8 +490,6 @@ class SeriesTable extends Table with _Id {
 
   TextColumn get title => text()();
   IntColumn get year => integer().nullable()();
-  TextColumn get tmdbId => text().nullable()();
-  TextColumn get tvdbId => text().nullable()();
   TextColumn get overview => text().nullable()();
 }
 
@@ -517,7 +511,8 @@ class Collections extends Table with _Id {
 
   TextColumn get name => text()();
 
-  /// tmdb / user / photoAlbum.
+  /// user / photoAlbum (a collection of films from an online database is
+  /// not offered: ADR-048).
   TextColumn get type => text()();
   TextColumn get externalId => text().nullable()();
 }
