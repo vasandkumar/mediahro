@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mediahro/app/appearance.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
+import 'package:mediahro/app/perf/mode_switch_probe.dart';
 import 'package:mediahro/app/router.dart';
 import 'package:mediahro/ui/mini_player_slot.dart';
 import 'package:mediahro_design/mediahro_design.dart';
@@ -28,8 +29,11 @@ class AdaptiveShell extends ConsumerWidget {
 
   AppDestination get _current => AppDestination.values[shell.currentIndex];
 
-  void _go(AppDestination d) =>
-      shell.goBranch(d.index, initialLocation: d == _current);
+  void _go(AppDestination d) {
+    // CORE-001: time the switch to the first frame of the new destination.
+    if (d != _current) ModeSwitchProbe.instance.begin(d.name);
+    shell.goBranch(d.index, initialLocation: d == _current);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

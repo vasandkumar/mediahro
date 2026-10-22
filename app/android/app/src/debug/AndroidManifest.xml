@@ -18,5 +18,11 @@
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
+        <!-- Debug builds only: leaves a scheduled background job for the
+             cold-start check (ADR-049). Exported so `adb shell am broadcast`
+             can reach it; debug builds only. -->
+        <receiver
+            android:name="com.mediahro.mediahro.testing.DebugJobReceiver"
+            android:exported="true" />
     </application>
 </manifest>

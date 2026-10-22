@@ -1,6 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/widgets.dart';
+import 'package:mediahro/app/background_work_dispatcher.dart';
+import 'package:mediahro/app/debug/debug_background_job.dart';
+import 'package:mediahro/app/incoming/app_incoming_handler.dart';
+import 'package:mediahro/app/incoming/incoming_router.dart';
 import 'package:mediahro/app/media_wiring.dart';
 import 'package:mediahro/app/root.dart';
 import 'package:mediahro/app/router.dart';
@@ -9,6 +14,8 @@ import 'package:mediahro/features/library/widgets.dart'
     show openItemActionProvider;
 import 'package:mediahro/features/music/music_wiring.dart';
 import 'package:mediahro/features/photos/map/map_licences.dart';
+import 'package:mediahro/features/photos/viewer/external_image_viewer.dart'
+    show externalImageRoutes;
 import 'package:mediahro/features/photos/viewer/photo_viewer.dart'
     show photoRoutes;
 import 'package:mediahro/features/video/player/bundled_shaders.dart';
@@ -25,17 +32,35 @@ Future<void> main() async {
   unawaited(registerShaderLicences());
   // Licence notices for the photo map data (IMG-007, CORE-013).
   registerMapLicences();
-  runApp(
-    mediahroRoot(
-      services.settings,
-      overrides: [
-        ...services.overrides,
-        ...platformOverrides(),
-        ...musicOverrides,
-        ...videoOverrides,
-        openItemActionProvider.overrideWithValue(openItemByKind),
-        appRoutesProvider.overrideWithValue([...videoRoutes, ...photoRoutes]),
-      ],
-    ),
-  );
+  // The app's one container, made before any widget so work that must not wait
+  // for a screen can start from it. ADR-049: it listens for scheduled jobs at
+  // once; when the OS wakes a closed app the engine starts without a screen
+  // (ADR-036) and the job waits for this listener, whether or not a widget
+  // tree is ever built there.
+  final container = mediahroContainer(
+    services.settings,
+    overrides: [
+      ...services.overrides,
+      ...platformOverrides(),
+      ...musicOverrides,
+      ...videoOverrides,
+      openItemActionProvider.overrideWithValue(openItemByKind),
+      appRoutesProvider.overrideWithValue([
+        ...videoRoutes,
+        ...photoRoutes,
+        ...externalImageRoutes,
+      ]),
+    ],
+  )..read(backgroundWorkDispatcherProvider);
+  // QA only: answers the job the debug receiver leaves scheduled for the
+  // cold-start check (ADR-049). Debug builds only.
+  if (kDebugMode) {
+    registerDebugBackgroundJob(
+      container.read(backgroundWorkDispatcherProvider),
+    );
+  }
+  // CORE-003, SYS-003, SYS-004: what other apps hand over (Open with, Share,
+  // shortcuts) is received from the first moment and held until the app shows.
+  startIncoming(container, handlerFor: AppIncomingHandler.new);
+  showApp(container);
 }

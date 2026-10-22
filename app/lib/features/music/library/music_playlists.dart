@@ -101,7 +101,7 @@ final class MusicPlaylists {
     return await library.tracksByIds([
       for (final e in entries)
         if (e.item case final ItemRow i when i.kind == ItemKind.audio) i.id,
-    ]);
+    ], visibility: visibility);
   }
 
   /// How many songs [rule] matches now (live preview in the editor).

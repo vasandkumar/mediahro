@@ -83,7 +83,7 @@ GoRouter buildRouter({
             routes: [
               GoRoute(
                 path: d.path,
-                builder: (context, state) => _screenFor(d),
+                builder: (context, state) => _screenFor(d, state),
                 routes: [
                   if (d == AppDestination.settings)
                     GoRoute(
@@ -102,11 +102,15 @@ GoRouter buildRouter({
   ],
 );
 
-Widget _screenFor(AppDestination d) => switch (d) {
+Widget _screenFor(AppDestination d, GoRouterState state) => switch (d) {
   AppDestination.video => const VideoHomeScreen(),
   AppDestination.music => const MusicHomeScreen(),
   AppDestination.photos => const PhotosHomeScreen(),
-  AppDestination.search => const SearchScreen(),
+  // `?q=` starts a search (a shared text, a voice search, SYS-003/004).
+  AppDestination.search => SearchScreen(
+    key: ValueKey(state.uri.queryParameters['q']),
+    initialQuery: state.uri.queryParameters['q'],
+  ),
   AppDestination.settings => const SettingsScreen(),
   AppDestination.sources => const SourcesScreen(),
 };

@@ -186,18 +186,14 @@ final musicPlayerProvider = Provider<MusicPlayer>((ref) {
   return p;
 });
 
-/// Scrobbling accounts (MUS-009). Last.fm only when the build has its
-/// keys; none where secure storage is missing (credentials live nowhere
-/// else).
+/// Scrobbling accounts (MUS-009): ListenBrainz with the user's own token;
+/// none where secure storage is missing (credentials live nowhere else).
+/// Last.fm and Libre.fm need an app key and are not offered (ADR-048).
 final scrobbleServicesProvider = Provider<List<ScrobbleService>>((ref) {
   final secure = _optional(() => ref.read(secureStorageProvider));
   if (secure == null) return const [];
   final http = _LazyTransport(() => ref.read(networkGatewayProvider));
-  return [
-    ListenBrainzService(http, secure),
-    ?AudioscrobblerService.lastFm(http, secure),
-    AudioscrobblerService.libreFm(http, secure),
-  ];
+  return [ListenBrainzService(http, secure)];
 });
 
 final Expando<Scrobbler> _scrobblers = Expando('scrobbler');

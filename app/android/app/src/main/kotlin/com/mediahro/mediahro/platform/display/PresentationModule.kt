@@ -6,6 +6,7 @@ import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Display
 import com.mediahro.mediahro.pigeon.FlutterError
 import com.mediahro.mediahro.pigeon.PresentationHostApi
@@ -68,7 +69,10 @@ class PresentationModule(
         // A group engine shares the VM resources of the first one; no plugins: the page only draws what it is sent.
         val engine = group.createAndRunEngine(
             FlutterEngineGroup.Options(context)
-                .setDartEntrypoint(DartEntrypoint(bundle, ENTRYPOINT))
+                // The function lives in its own library, not in `main.dart`, so the engine
+                // must be told where: without the library it cannot resolve the entrypoint and
+                // the window on the display stays blank.
+                .setDartEntrypoint(DartEntrypoint(bundle, ENTRYPOINT_LIBRARY, ENTRYPOINT))
                 .setAutomaticallyRegisterPlugins(false),
         )
         val channel = BasicMessageChannel(engine.dartExecutor.binaryMessenger, "mediahro/presentation", StandardMessageCodec.INSTANCE)
@@ -94,6 +98,14 @@ class PresentationModule(
         }
         state.presentation = shown
         live[presentationId] = state
+        // A page that never starts (a wrong entrypoint, a crashed isolate) leaves a blank screen
+        // and no other sign; say so in the log.
+        val watchedId = presentationId
+        main.postDelayed({
+            if (live[watchedId]?.ready == false) {
+                Log.w(TAG, "presentation $watchedId on display $displayId: the page did not report ready in ${READY_WATCHDOG_MS / 1000} s")
+            }
+        }, READY_WATCHDOG_MS)
         try {
             shown.show()
         } catch (e: RuntimeException) {
@@ -131,6 +143,14 @@ class PresentationModule(
     companion object {
         /** The Dart function the spawned engine starts at (`presentation_main.dart`). */
         const val ENTRYPOINT = "presentationMain"
+
+        /** The library that defines [ENTRYPOINT] (`lib/platform/android/presentation_main.dart`). */
+        const val ENTRYPOINT_LIBRARY = "package:mediahro/platform/android/presentation_main.dart"
+
+        private const val TAG = "MediahroPresentation"
+
+        /** How long the page has to say it listens before the log says it did not start. */
+        private const val READY_WATCHDOG_MS = 10_000L
     }
 }
 

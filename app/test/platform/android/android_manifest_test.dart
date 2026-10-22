@@ -72,6 +72,26 @@ void main() {
     expect(manifest.contains('RECEIVE_BOOT_COMPLETED'), isFalse);
   });
 
+  test('ADR-049 WorkManager gets no boot permission outside the enterprise build', () {
+    // WorkManager's own manifest declares RECEIVE_BOOT_COMPLETED; every other
+    // flavour removes it (docs/07), the enterprise build keeps it.
+    for (final flavour in ['store', 'direct', 'foss']) {
+      final xml = File('android/app/src/$flavour/AndroidManifest.xml')
+          .readAsStringSync();
+      expect(
+        RegExp(
+          '<uses-permission[^>]*RECEIVE_BOOT_COMPLETED[^>]*tools:node="remove"',
+          dotAll: true,
+        ).hasMatch(xml),
+        isTrue,
+        reason: flavour,
+      );
+    }
+    final enterprise = File('android/app/src/enterprise/AndroidManifest.xml')
+        .readAsStringSync();
+    expect(enterprise.contains('tools:node="remove"'), isFalse);
+  });
+
   test('IMG-011 the vault may detect screen recording (Android 15+)', () {
     expect(has('DETECT_SCREEN_RECORDING'), isTrue);
   });
