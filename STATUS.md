@@ -27,7 +27,9 @@ Essential first: the first Play internal upload happens when all 53 Essential An
 | 2 | Ran on the Samsung SM-M176B (Android 16) at main bd9dc8a, 2026-10-21 03:40-04:57 IST, 23 test runs. **Passed:** c1_video_player_test 33/33; c2_music_test 4/4; c2_playlists_car_test 2/2; c4a_android_caption_style_test 2/2; c4a_android_car_alarm_test 4/4; c4a_android_power_status_test 2/2; c4a_android_home_widgets_test 3/3; c4a_android_intents_test 4/4; c4a_android_text_test 2/2; c3_photos_test 5/5; c3_map_test 2/2; c4a_android_imaging_test 10/10; engine_test ADR-031 5/5, MUS-014 1/1, VID-002 decoder stalls 2/2. **Failed:** c4a_android_tls_test (NET-017 unpaired peer not refused); c4a_android_sftp_test 0/7 (test-infra: in-app sshd needs PathUtils.setUserHomeFolderResolver); c2_tag_edit_test (MUS-003 leftover filter matches the package path com.mediahro.app; test bug); c2_radio_scrobble_test (MUS-014 pause on a live station still plays); c4a_android_hdr_video_test (VID-031 MissingPluginException on mediahro/hdr_video/4242 `ready`); c3_edit_test (IMG-009 preview 655 ms vs 400 ms budget); engine_test ADR-032 0/5 (PathAccessException opening /proc/self/fd/N on Android 16, audio_decoder.dart:174); engine_test AUD-046 0/3 (audio tap delivers 0 frames). **Ticked (8):** IMG-003, IMG-004, IMG-006, MUS-008, MUS-011, MUS-012, SUB-040, VID-039. **Not ticked:** MUS-003, MUS-009, MUS-014, AUD-046, SUB-050, VID-031, IMG-009, NET-017 (failing tests); MUS-013, SUB-014, SUB-030, SUB-051, SUB-053, VID-038, VID-040, VID-041, IMG-007, IMG-008, CORE-003, SYS-003, SYS-004 (hand checks not run); VID-037 (crop waits on ADR-033). Details, owners and the hand-check list: docs/release/android-batch-2-results.md. | done 2026-10-21; failures routed to lanes |
 | 3 | Ran on the Samsung SM-M176B (Android 16) at main 311b583, 2026-10-21 22:10-22:52 IST, 28 runs (18 app test files, 10 engine runs). **Passed:** c4a_android_hdr_video_test 2/2; c4a_android_purchases_test 4/4; c4a_android_vault_test 8/8; c4a_android_motion_test 4/4; c4a_android_imaging_test 10/10; c4a_android_storage_test 14/14; c3_edit_test 3/3 (preview 158 ms, budget met); c3_places_test 2/2; c3_pano_test 2/2; c3_formats_test 3/3; engine_test ADR-032 5/5, AUD-046 3/3, VID-041 3/3, "ADR-031 image" 7/7, PRIV-007 2/2, VID-002 22/22, VID-033 2/2, VID-032 4/4, AUD-001 24 pass 1 skipped (MIDI). **Failed:** c4a_android_tls_test (NET-017 mutual-TLS test hangs; C4a); c4a_android_sftp_test 1/7 (sshj slf4j LoggerFactory NPE, product bug; C4a); c4a_android_input_test 3/4 (SYS-009 trigger axis null; SYS-008 passes; C4a); c4a_android_enterprise_test 4/5 plus teardown hang (B2B-002 start-on-boot in the store build; B2B-001 passes; C4a); c2_tag_edit_test 0/1 (MUS-003 leftover filter matches the package path; C2); c2_radio_scrobble_test 1/2 (MUS-014 pause on a live station; MUS-009 passes; C2); c3_compare_test 0/4 (harness: missing KStringsScope; C3); c3_vault_test 2/5 (product bug: "Cannot modify an unmodifiable list" in OpenVault.close and _changePin; C3); engine_test AUD-043 6 pass, 1 fail, 8 not completed (the phone's keyguard returned mid-run: re-run before assigning; B1). **Ticked (3):** AUD-046, SUB-050, VID-032. **Not ticked:** SUB-052, MUS-010 (only the ADR-032 engine half), VID-002 (VC-1 has no sample), VID-033 (no 8.4 sample), VID-041 (hand check), AUD-001 (MIDI skipped, TAK and SACD ISO missing), PRIV-007 (vault video and music #104 not merged), plus every ID with a failing test or a hand check. Details, excerpts and the hand-check list: docs/release/android-batch-3-results.md. | done 2026-10-21; failures routed to lanes |
 | 4 | **Re-run (failed in batch 3):** `c4a_android_tls_test` NET-017 mutual TLS (#41, #83; C4a; hangs, run with a timeout) · `c4a_android_sftp_test` SFTP facade (#45; C4a; sshj needs an slf4j binding: LoggerFactory NPE at SSHClient.<init>) · `c4a_android_input_test` SYS-009 trigger axis (#80; C4a; null reading; SYS-008 passes) · `c4a_android_enterprise_test` B2B-002 start-on-boot in the store build (#75; C4a; teardown hangs; B2B-001 passes) · `c2_tag_edit_test` MUS-003 (#44; C2; filter matches com.mediahro.app) · `c2_radio_scrobble_test` MUS-014 pause on a live station (#52; C2; MUS-009 passes) · `c3_compare_test` IMG-008, IMG-013, IMG-014 (#76, #84; C3; harness needs the KStringsScope wrapper from mediahro_design/testing.dart) · `c3_vault_test` IMG-011 (#94; C3; "Cannot modify an unmodifiable list" in OpenVault.close and VaultManager._changePin) · engine_test `--name "AUD-043"` (#102; B1; unlock the phone first, 8 cases did not complete). **Hand checks still to do (21, full text in docs/release/android-batch-3-results.md):** MUS-013 cold car connect · VID-038 film grain and shaders · SUB-014 and SUB-030 · CORE-003, SYS-003, SYS-004 (B3 wiring first) · SUB-051/053 native text services · VID-040/041 UI and VID-037 crop · IMG-007 Places and chooser · IMG-008 compare · IMG-009 SAF Replace original and metadata strip · ImagingFacade (wallpaper, print, HeifWriter EXIF, Ultra HDR keepHdr) · SYS-009 real controller · IMG-010, IMG-015, IMG-002 · IMG-014 and IMG-013 · B2B-002 kiosk enter() and B2B-001 MDM tenant · SUP-002 real payment · IMG-011 (fingerprint-only prompt, key invalidated after a new finger, decoy PIN) · #98 motion yaw/pitch/landscape · IMG-001 formats (SVG, Motion Photo, Live Photo, TIFF, panorama) · IMG-001 360 viewer and gyro (#96, #103) · IMG-012 slideshow · AUD-043 real DAC. **Fixes merged for the re-runs above (run on the device, then record):** #113 (merge 33b8aea) c3_vault_test IMG-011, the secret is copied into a vault-owned buffer and wipe() never throws on a read-only view · #114 (merge c22313a) c4a_android_sftp_test and c4a_android_tls_test NET-004/NET-017, c4a_android_input_test SYS-009 and c4a_android_enterprise_test B2B-002 · #115 (merge d921c9f) c3_compare_test IMG-008/IMG-013/IMG-014 with the KStringsScope wrapper. **Added from merged PRs:** PRIV-007 video and music in the vault (#104, merge 2e8ad5d; Android): `c3_vault_test` PRIV-007 case, plus the hand check "vault video plays and stops when backgrounded". **Still to merge, then add to this batch:** #108 IMG-017 comics (Android; `c3_archives_test` plus a hand check with a CBZ/CBR, right-to-left reading and a password; the PR conflicts with main in photos_en.arb and waits for C3 to merge main) · #106 audio route · #110 presentations · #111 IMG-016 · #112 motion provider. **Not counted yet:** SUB-052 and MUS-010 (C1 and C2 sides not built), VID-002 (VC-1 sample), VID-033 (8.4 sample), VID-041, AUD-001. **RAN 2026-10-22 00:36-00:52 IST on the Samsung SM-M176B (Android 16) at main 7facf62: 8 app files and 2 engine runs (early run, owner present; #108, #106, #110, #111, #112 were not merged, so PRIV-007 was the only new feature).** **Passed:** c4a_android_tls_test 6/6 (NET-017 no longer hangs); c4a_android_sftp_test 7/7; c4a_android_enterprise_test 5/5 (no teardown hang); c3_compare_test 4/4; c3_vault_test 7/7 (IMG-011 and PRIV-007); engine_test PRIV-007 2/2. **Failed:** c4a_android_input_test 3/4 (SYS-009 repeat suppression at line 98: the same X=1.0 sent again still produced 2 events; the trigger-axis null is fixed; C4a); c2_tag_edit_test 0/1 (MUS-003, unchanged; C2); c2_radio_scrobble_test 1/2 (MUS-014 pause on a live station, unchanged; C2); engine_test AUD-043 8 pass, 7 fail (every case that needs DoP to open times out on a phone with no DAC; B1). **Ticked (2):** NET-004, NET-017. Details, excerpts and the hand-check list: docs/release/android-batch-4-results.md. | done 2026-10-22; failures routed to lanes |
-| 5 | **Re-run (failed in batch 4):** `c4a_android_input_test` SYS-009 repeat suppression (C4a; the same axis value sent again must not produce an event) · `c2_tag_edit_test` MUS-003 (C2; filter matches com.mediahro.app) · `c2_radio_scrobble_test` MUS-014 pause on a live station (C2) · engine_test `--name "AUD-043"` 7 DoP cases (B1; needs a phone-aware skip or a DAC). **Hand checks still to do (22, full text in docs/release/android-batch-4-results.md):** the 21 from batch 3 plus PRIV-007 (vault video and song play, and stop when the app is backgrounded or the screen turns off). **Merged 2026-10-22, now counted in this batch:** #108 IMG-017 comics (`c3_archives_test` plus the CBZ, CBR, right-to-left and password hand check) · #106 AUD-043 audio-route wiring (the route watcher re-checks both engines; needs no device run of its own; AUD-043 stays unticked and DoP is not offered until C2's UI gate exists) · #110 IMG-012, CAST-004 external-display presentation (`c4a_android_presentation_test`) · #112 Motion Photo provider follow-ups (re-run `c4a_android_storage_test`). **Also merged 2026-10-22, added to this batch:** #111 IMG-016 source chips on the timeline and the remote-share gallery (`c3_remote_sources_test`; Android; local folders, MediaStore, SMB, NFS, WebDAV, FTP and SFTP sources; Immich, Nextcloud / ownCloud and PhotoPrism wait on C4d, §3) · #117 MUS-003 and MUS-014 device-test fixes (the two re-runs above) · #116 SYS-009 device-test fix (the test repeated an incomplete reading; the dedupe is correct) · #118 AUD-043 DSD gate in the Output sheet (DoP offered only after a bit-perfect grant on a DoP DAC; the real-DAC hand check is still open) · #119 test-only, the AUD-043 DoP engine cases run on a phone without a DAC (the engine_test re-run above) · #121 POD-001 audiobook mode (`c2_books_test`, plus the audiobook playback hand checks on the phone) · MUS-009 ListenBrainz scrobble (`c2_radio_scrobble_test`, the other case in that file, which passed in batches 3 and 4; re-run with MUS-014). **Not counted yet:** SUB-052 and MUS-010 (C1 and C2 sides not built), VID-002 (VC-1 sample), VID-033 (8.4 sample), VID-041, AUD-001. | collecting |
+| 5 | **Re-run (failed in batch 4):** `c4a_android_input_test` SYS-009 repeat suppression (C4a; the same axis value sent again must not produce an event) · `c2_tag_edit_test` MUS-003 (C2; filter matches com.mediahro.app) · `c2_radio_scrobble_test` MUS-014 pause on a live station (C2) · engine_test `--name "AUD-043"` 7 DoP cases (B1; needs a phone-aware skip or a DAC). **Hand checks still to do (22, full text in docs/release/android-batch-4-results.md):** the 21 from batch 3 plus PRIV-007 (vault video and song play, and stop when the app is backgrounded or the screen turns off). **Merged 2026-10-22, now counted in this batch:** #108 IMG-017 comics (`c3_archives_test` plus the CBZ, CBR, right-to-left and password hand check) · #106 AUD-043 audio-route wiring (the route watcher re-checks both engines; needs no device run of its own; AUD-043 stays unticked and DoP is not offered until C2's UI gate exists) · #110 IMG-012, CAST-004 external-display presentation (`c4a_android_presentation_test`) · #112 Motion Photo provider follow-ups (re-run `c4a_android_storage_test`). **Also merged 2026-10-22, added to this batch:** #111 IMG-016 source chips on the timeline and the remote-share gallery (`c3_remote_sources_test`; Android; local folders, MediaStore, SMB, NFS, WebDAV, FTP and SFTP sources; Immich, Nextcloud / ownCloud and PhotoPrism wait on C4d, §3) · #117 MUS-003 and MUS-014 device-test fixes (the two re-runs above) · #116 SYS-009 device-test fix (the test repeated an incomplete reading; the dedupe is correct) · #118 AUD-043 DSD gate in the Output sheet (DoP offered only after a bit-perfect grant on a DoP DAC; the real-DAC hand check is still open) · #119 test-only, the AUD-043 DoP engine cases run on a phone without a DAC (the engine_test re-run above) · #121 POD-001 audiobook mode (`c2_books_test`, plus the audiobook playback hand checks on the phone) · MUS-009 ListenBrainz scrobble (`c2_radio_scrobble_test`, the other case in that file, which passed in batches 3 and 4; re-run with MUS-014). **Not counted yet:** SUB-052 and MUS-010 (C1 and C2 sides not built), VID-002 (VC-1 sample), VID-033 (8.4 sample), VID-041, AUD-001. | run as part of batch 6 (2026-10-22) |
+| 6 | Ran on the Samsung SM-M176B (Android 16) 2026-10-22, 04:37-13:11 IST, main edcf8a1 then ff51e88 (resume and re-runs); carries the batch 5 items. **Passed:** all of c4a_android_intents_test 4/4, b2_library_sources_test 11/11, c4a_android_storage_test 14/14, c4a_android_display_test 6/6, c1_video_player_test 33/33, engine SUB-01[0-6] 25/25, c4a_android_caption_style_test 2/2, c4a_android_media_test 8 pass 1 benign skip, engine AUD-04[45] 3/3, c3_photos_test 5/5, c3_formats_test 3/3, c3_pano_test 2/2, c4a_android_motion_test 4/4, c4a_android_imaging_test 10/10, c3_compare_test 4/4, c4a_android_input_test 4/4 (SYS-009 fixed), c4a_android_security_test 6/6, b3_foundations_test 9/9, app_smoke_test 3/3, c4a_android_back_test 1/1, c4a_mode_switch_test 1/1 (p95 71.1 ms, debug), c2_tag_edit_test 1/1 (MUS-003 fixed), c2_radio_scrobble_test 2/2 (MUS-014 fixed), c2_books_test 1/1, c2_playlists_car_test 2/2, c4a_android_car_alarm_test 4/4, c3_places_test 2/2, c3_edit_test 3/3, c4a_android_presentation_test 4/4, c3_remote_sources_test 5/5, c4a_android_network_test 6/6, c4a_android_purchases_test 4/4, b2_native_libraries_test 6/6, c4a_android_background_test 6/6, c4a_android_text_test 2/2, c2_podcasts_test 1/1, c3_vault_test 7/7, c4a_android_vault_test 8/8, c4a_android_enterprise_test 5/5, c4a_android_tls_test 6/6, c4a_android_sftp_test 7/7, c4a_android_hdr_video_test 2/2, c4a_android_home_widgets_test 3/3, b2_library_perf_test 2/2, engine ADR-031 12/12, VID-037/040/041 1/1, 1/1, 3/3, PRIV-007 2/2. **Failed:** c3_archives_test 1/3 (IMG-017: ArchiveBookException unreadable from ArchiveBook.open; C4a fixing); engine AUD-043 14 pass 1 fail (teardown FileSystemException on dispose; C4a fixing). **Not run:** adb checks X1-X10 (the debug APK stays on the splash when started on its own; they need a profile APK, build in progress). **Ticked (11):** LIB-001, LIB-002, LIB-007, FILE-001, FILE-002, SUB-010, AUD-045, PRIV-006, CORE-001, MUS-003, MUS-014. **Device tests pass, owner hand check pending:** H1-H15 Essential, H20-H45 Good to have, H50-H64 Advanced (docs/release/android-batch-6-plan.md section 3). Details, excerpts and the per-feature reasons: docs/release/android-batch-6-results.md. | done 2026-10-22; failures routed to lanes |
+| 7 | **Re-run:** `c3_archives_test` IMG-017 (C4a fix) · engine `--name "AUD-043"` teardown case (C4a fix). **New:** adb checks X1-X10 (Open with, Share, shortcuts, refused schemes, truncated and random files, cold start #129/#133) on a profile APK (CORE-003, SYS-003, SYS-004, PRIV-005). **Hand checks for the owner (docs/release/android-batch-6-plan.md section 3):** H1-H15 Essential, H20-H45 Good to have, H50-H64 Advanced. H31, H44, H45, H61, H62 and H64 need hardware or accounts (Android Auto DHU, Play internal track, foldable or tablet, gamepad, MDM tenant, USB DAC). | collecting |
 
 ### Phase A (M0) deliverables
 
@@ -74,9 +76,9 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ⛔ | ⛔ | ☐ | ☑ | W ☑ perf-windows run 39355442122: profile median 18.2 ms, max 19.6 ms (budget 100 ms). M: perf-macos on main. A I ⛔ profile mode needs a physical device (device lab, §4). |
+| CORE-001 | Three-mode shell (Video, Music, Photos) with a shared Sources and Settings area | B3 | ☑ | ⛔ | ☐ | ☑ | W ☑ perf-windows run 39355442122: profile median 18.2 ms, max 19.6 ms (budget 100 ms). M: perf-macos on main. A I ⛔ profile mode needs a physical device (device lab, §4). A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): c4a_mode_switch_test 1/1 (p95 71.1 ms over 20 warm switches against the 100 ms budget, in a debug build), b3_foundations_test 9/9 (last-mode restore), c4a_android_back_test 1/1. |
 | CORE-002 | First-run without walls | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: one screen, three actions via FirstRunActions facade, privacy line + PRIV-001 note; no platform calls on launch (tested) Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
-| CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
+| CORE-003 | Open-with / default handler | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. A ☐ device tests pass (batch 6): c4a_android_intents_test 4/4; hand check H14; adb checks X1-X3 in batch 7 pending. |
 | CORE-004 | Drag-and-drop | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-005 | URL/stream open | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL validation, headers/UA, history of 50, Open URL dialog. Playback hand-off is the `openUrlActionProvider` seam (C1 wires it). |
 | CORE-006 | Settings model | B3 | ☑ | ☑ | ☑ | ☑ | B3 PR #2: typed SettingKey/SettingsStore (JSON in app support dir, atomic, debounced), registry for other lanes, search, descriptions, Advanced collapsed, reset per section, import/export, managed overlay hook Proven by CI on PR #2: integration_test/b3_foundations_test.dart on A/I/M/W plus widget, golden and a11y suites. |
@@ -86,40 +88,40 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CORE-010 | Window management | C4 | — | ☐ | ☐ | ☐ |  |
 | CORE-011 | Crash resilience | B1 | ☑ | ☑ | ☑ | ☑ | AIMW ☑ engine run 39355966616 (7bc4f9b, merge head).  |
 | CORE-012 | Updates | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ | Built (#132): About screen and licences; hand check H15 in batch 6. |
-| CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. |
+| CORE-013 | About and licences | C5 | ☐ | ☐ | ☐ | ☐ | Built (#132): About screen and licences; hand check H15 in batch 6. Device test: none; hand check H15 pending (batch 6). |
+| CORE-014 | Backup/restore | B2 | ☐ | ☐ | ☐ | ☐ | B2: MHROBK1 file (PBKDF2-SHA256 + AES-256-GCM), cross-device restore by hash→path→name+size; backup screen. Saving/picking the file on A/I needs C4 StorageFacade. A ☐ device tests pass (batch 6): b2_library_sources_test 11/11; hand check H42 pending. |
 | CORE-015 | Privacy dashboard | B3 | ☑ | ☑ | ☑ | ☑ | A I M W ☑ ci run 39355442122 (PR #10, c747a1e): "CORE-015 dashboard reads the live network policy", "CORE-015 privacy dashboard lists every endpoint" on integration-android/-apple (iOS+macOS)/-windows. |
 
 ### 2. LIB — Library, indexing, search
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| LIB-001 | Unified index | B2 | ☐ | ☐ | ☐ | ☐ | B2: drift index (docs/05 §6 tables, FTS5), scanner isolate pool, viewport probe queue. Codec/duration fields fill from B1 through the `MediaProber` seam. |
-| LIB-002 | Local sources | B2 | ☐ | ☐ | ☐ | ☐ | B2: local sources via StorageFacade grants (fakes in tests); Win32 fast path. ⛔ C4 StorageFacade (SAF/MediaStore, bookmarks, pickers). |
+| LIB-001 | Unified index | B2 | ☑ | ☐ | ☐ | ☐ | B2: drift index (docs/05 §6 tables, FTS5), scanner isolate pool, viewport probe queue. Codec/duration fields fill from B1 through the `MediaProber` seam. A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): b2_library_sources_test 11/11. |
+| LIB-002 | Local sources | B2 | ☑ | ☐ | ☐ | ☐ | B2: local sources via StorageFacade grants (fakes in tests); Win32 fast path. ⛔ C4 StorageFacade (SAF/MediaStore, bookmarks, pickers). A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): b2_library_sources_test 11/11, c4a_android_storage_test 14/14. |
 | LIB-003 | Scan performance | B2 | ☑ | ☐ | ☐ | ☐ | B2: 10 k files 1.0–2.5 s initial / 0.2–0.55 s incremental (desktop); pause/resume/cancel; manual/on-open/watch. Phone budget: device lab. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): b2_library_perf_test: initial 1951 ms, incremental 969 ms; c4a storage changes(). |
-| LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ | B2: folder browser + `ViewModeToggle` persisted per mode; C1–C3 place them in each mode. |
+| LIB-004 | Folder mode and library mode | B2 | ☐ | ☐ | ☐ | ☐ | B2: folder browser + `ViewModeToggle` persisted per mode; C1–C3 place them in each mode. Device test: none; hand check H1 pending (batch 6). |
 | LIB-005 | Search | B2 | ☑ | ☑ | ☑ | ☑ | B2: FTS5 prefix search, bm25, all doc 04 filters; 50 k items median 9.5 ms (desktop CI). Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-006 | Continue watching / recently added / recently played | B2 | ☐ | ☐ | ☐ | ☐ | B2: `HomeRow` continue/recently added/played/unwatched queries + widgets; C1–C3 place them; resume thumbnails from B1/C3. |
-| LIB-007 | Playlists | B2 | ☐ | ☐ | ☐ | ☐ | B2: manual + smart playlists (rule builder, AND/OR, limit, sort), M3U/M3U8/PLS/XSPF/CUE parse (isolate, limits) and export. File import/export pickers → C4. |
+| LIB-007 | Playlists | B2 | ☑ | ☐ | ☐ | ☐ | B2: manual + smart playlists (rule builder, AND/OR, limit, sort), M3U/M3U8/PLS/XSPF/CUE parse (isolate, limits) and export. File import/export pickers → C4. A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): b2_library_sources_test 11/11. |
 | LIB-008 | Multiple queues | B2 | ☑ | ☑ | ☑ | ☑ | B2: named audio queues + one video queue, persisted, repeat/shuffle; queues screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-009 | Tags and labels | B2 | ☑ | ☑ | ☑ | ☑ | B2: tags, colour labels, bulk apply; tag editor sheet. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 | LIB-010 | Watched/unwatched state and progress sync | B2 | ☐ | ☐ | ☐ | ☐ | B2: per-item progress/watched; `ProgressSyncTarget` seam for Jellyfin/Emby/Plex (C4 servers). **Narrowed (ADR-048, 2026-10-22):** Trakt removed (needs a publisher client ID); Jellyfin/Emby/Plex stay. |
 | LIB-011 | Metadata scraping (video) | B2 | ☐ | ☐ | ☐ | ☐ | B2: filename parser, NFO, artwork cache, manual match. **Narrowed (ADR-048, 2026-10-22):** TMDB/TVDB online scraping removed (publisher API key); the filename parser, NFO, local artwork sidecars, server-provided metadata and manual match stay. Live tests need no keys. |
 | LIB-012 | Collections | B2 | ☐ | ☐ | ☐ | ☐ | B2: series/season, albums/artists/genres/years/composers; photo people/places come from C3. **Narrowed (ADR-048, 2026-10-22):** TMDB collections removed; series/season, music and photo groupings stay. |
-| LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ | B2: PBKDF2 PIN (isolate), lockout, biometrics, locked sources/folders, hidden items excluded. Needs C4 SecureStorage/Biometrics facades on device. |
-| LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ | B2: exact hash, pHash (images), duration+size (video), chromaprint (audio) review UI; never deletes. ⛔ chromaprint native lib (B4). |
+| LIB-013 | Parental PIN and hidden items | B2 | ☐ | ☐ | ☐ | ☐ | B2: PBKDF2 PIN (isolate), lockout, biometrics, locked sources/folders, hidden items excluded. Needs C4 SecureStorage/Biometrics facades on device. A ☐ device tests pass (batch 6): b2_library_sources_test 11/11; hand check H50 pending. |
+| LIB-014 | Duplicate finder | B2 | ☐ | ☐ | ☐ | ☐ | B2: exact hash, pHash (images), duration+size (video), chromaprint (audio) review UI; never deletes. ⛔ chromaprint native lib (B4). Not ticked (batch 6): b2_native_libraries_test 6/6 covers the loudness and chromaprint libraries only; the finder UI has no device test. |
 | LIB-015 | Statistics | B2 | ☑ | ☑ | ☑ | ☑ | B2: play counts, time played, top items, storage by type/source; statistics screen. Proven by CI run 39334797330 (9971a48): integration-android/-ios/-macos/-windows + test-unit; b2_library_sources_test.dart. |
 
 ### 3. FILE — File browser and management
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| FILE-001 | Browser | B2 | ☐ | ☐ | ☐ | ☐ | B2: browser with breadcrumbs, list, sort (name/date/size/type), selection. Grid thumbnails/resume bar use C1/C3 thumbnails. |
-| FILE-002 | Operations | B2 | ☐ | ☐ | ☐ | ☐ | B2: rename/move/copy/new folder, delete to trash with undo, permanent delete only on request. OS trash/share/"open in" via C4 StorageFacade. |
+| FILE-001 | Browser | B2 | ☑ | ☐ | ☐ | ☐ | B2: browser with breadcrumbs, list, sort (name/date/size/type), selection. Grid thumbnails/resume bar use C1/C3 thumbnails. A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): b2_library_sources_test 11/11. |
+| FILE-002 | Operations | B2 | ☑ | ☐ | ☐ | ☐ | B2: rename/move/copy/new folder, delete to trash with undo, permanent delete only on request. OS trash/share/"open in" via C4 StorageFacade. A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): b2_library_sources_test 11/11, c4a_android_storage_test 14/14. |
 | FILE-003 | Batch operations | B2 | ☐ | ☐ | ☐ | ☐ | B2: multi-select, batch rename with tokens, batch tag edit, batch image convert through ImagePipeline (C3). |
 | FILE-004 | Archives | B2 | ⛔ | ⛔ | ⛔ | ⛔ | B2: libarchive VFS (ZIP/CBZ/RAR/7z/CBR) via ffigen. ⛔ libarchive archives from B4. |
 | FILE-005 | Transfer | B2 | ☐ | ☐ | ☐ | ☐ | B2: Wi-Fi transfer page (shelf, 128-bit path token, QR). iOS Files integration and USB-C drives → C4. |
-| FILE-006 | Subtitle/audio sidecars | B2 | ☐ | ☐ | ☐ | ☐ | B2: sidecar detection by name + language suffix; rename/move keeps them together. |
+| FILE-006 | Subtitle/audio sidecars | B2 | ☐ | ☐ | ☐ | ☐ | B2: sidecar detection by name + language suffix; rename/move keeps them together. A ☐ device tests pass (batch 6): b2_library_sources_test 11/11; hand check H25 pending. |
 
 ### 4.1 Formats and decoding
 
@@ -144,11 +146,11 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | VID-034 | Dolby Vision profile 5 | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples, libdovi (§3) |
 | VID-035 | Dolby Vision profile 7 (MEL/FEL) | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ no DV samples (§3) |
 | VID-036 | Auto frame-rate and resolution matching | C1 | ☑ | — | ☐ | ☐ | Rel. 1.0 (TV UI 1.1) A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c4a_android_display_test 6/6. |
-| VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-037 | Scaling and filters | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c1_video_player_test 33/33, engine VID-037 1/1; hand check H26 pending. |
+| VID-038 | User shaders | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c1_video_player_test 33/33; hand check H52 pending. |
 | VID-039 | Frame interpolation | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c1_video_player_test 33/33 (smooth motion asks about battery on a phone; a hot device pauses it). |
 | VID-040 | ICC / display calibration | C1 | — | — | ☐ | ☐ |  |
-| VID-041 | 3D and 360° | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-041 | 3D and 360° | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): engine VID-041 3/3; hand check H53 pending. |
 | VID-042 | Screenshot, GIF and clip export | C1 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 4.3 Controls and ergonomics
@@ -161,12 +163,12 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | VID-063 | Frame step, A-B loop, chapters, bookmarks | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
 | VID-064 | Resume and post-playback | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
 | VID-065 | Audio/subtitle track switching | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
-| VID-066 | Audio delay and volume | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-067 | Picture-in-Picture | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-068 | Background and audio-only playback | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-069 | Sleep timer and auto-off | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| VID-070 | Orientation and display | C1 | ☐ | ☐ | — | — |  |
-| VID-071 | Second screen / external display | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| VID-066 | Audio delay and volume | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c1_video_player_test 33/33; hand check H27 pending. |
+| VID-067 | Picture-in-Picture | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_display_test 6/6, c1_video_player_test 33/33; hand check H2 pending. |
+| VID-068 | Background and audio-only playback | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c1_video_player_test 33/33; hand check H3 pending. |
+| VID-069 | Sleep timer and auto-off | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c1_video_player_test 33/33; hand check H28 pending. |
+| VID-070 | Orientation and display | C1 | ☐ | ☐ | — | — | A ☐ device tests pass (batch 6): c4a_android_display_test 6/6, c1_video_player_test 33/33; hand check H4 pending. |
+| VID-071 | Second screen / external display | C1 | ☐ | ☐ | ☐ | ☐ | Not ticked (batch 6): c4a_android_display_test 6/6 covers the Display bindings; full-screen video with controls and HDR passthrough on an external display has no device test. |
 | VID-072 | Info overlay | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c1_video_player_test 22/22. |
 | VID-073 | Skip intro/credits | C1 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** kept: IntroDB reads are anonymous and keyless (introdb.app); lookups use IMDb IDs from NFO or server metadata, not TMDB. |
 | VID-074 | Remote control | C1 | ☐ | ☐ | ☐ | ☐ |  |
@@ -175,20 +177,20 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| SUB-010 | Text formats | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
-| SUB-011 | Image formats | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
-| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
-| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (A: engine run 39364109420, Windows-1251, Shift-JIS, UTF-8 BOM on android.4; I M W: 39355966616); UI → C1. The A ⛔ is cleared |
-| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
-| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 |
-| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) |
+| SUB-010 | Text formats | B1 → C1 | ☑ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): engine SUB-01[0-6] 25/25, c1_video_player_test 33/33. |
+| SUB-011 | Image formats | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) A ☐ device tests pass (batch 6): engine SUB-01[0-6] 25/25; hand check H29 pending. |
+| SUB-012 | Embedded and external | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 A ☐ device tests pass (batch 6): c1_video_player_test 33/33, engine SUB-01[0-6] 25/25; hand check H5 pending. |
+| SUB-013 | Encoding detection | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (A: engine run 39364109420, Windows-1251, Shift-JIS, UTF-8 BOM on android.4; I M W: 39355966616); UI → C1. The A ⛔ is cleared A ☐ device tests pass (batch 6): engine SUB-01[0-6] 25/25, b2_native_libraries_test 6/6; hand check H5 pending. |
+| SUB-014 | Styling | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 A ☐ device tests pass (batch 6): c4a_android_caption_style_test 2/2, c1_video_player_test 33/33; hand check H6 pending. |
+| SUB-015 | Timing | B1 → C1 | ☐ | ☐ | ☐ | ☐ | A I M W engine side passes (engine run 39355966616); UI → C1 A ☐ device tests pass (batch 6): engine SUB-01[0-6] 25/25, c1_video_player_test 33/33; hand check H30 pending. |
+| SUB-016 | Dual subtitles | B1 → C1 | ☐ | ⛔ | ⛔ | ☐ | A W engine side passes (engine run 39355966616); UI → C1. I M ⛔ bootstrap libmpv (B4b) A ☐ device tests pass (batch 6): c1_video_player_test 33/33, engine SUB-01[0-6] 25/25; hand check H54 pending. |
 | SUB-020 | Online download | C1 | — | — | — | — | Removed from 1.0 by owner decision (ADR-048 amendment, 2026-10-22). |
-| SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-030 | Subtitle editor | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): engine ADR-031 12/12, c1_video_player_test 33/33; hand check H54 pending. |
 | SUB-040 | Text-to-speech | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_text_test 2/2 (offline voices, short utterance), c1_video_player_test 33/33, engine_test ADR-031 5/5. |
 | SUB-050 | Auto-sync (audio-based) | C1 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 3 (Samsung SM-M176B, main 311b583): engine_test ADR-032 5/5 (decodeAudio on Android 16), with c1_video_player_test 33/33 (sync UI) from batch 2; C1 side merged (#49: VAD + FFT cross-correlation, ±60 s, 8 frame-rate ratios, preview with Undo). |
-| SUB-051 | OCR of image subtitles | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-051 | OCR of image subtitles | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): engine ADR-031 12/12; hand check H55 pending. |
 | SUB-052 | Auto-captions (speech-to-text) | C1 | ☐ | ☐ | ☐ | ☐ |  |
-| SUB-053 | Translation | C1 | ☐ | ☐ | ☐ | ☐ |  |
+| SUB-053 | Translation | C1 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): engine ADR-031 12/12, c1_video_player_test 33/33; hand check H55 pending. |
 
 ### 6.1 Formats and output
 
@@ -203,9 +205,9 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | AUD-040 | Bit-perfect Android | B1 | ⛔ | — | — | — | ⛔ USB DAC device lab (§3) |
 | AUD-041 | Bit-perfect Apple | B1 | — | ⛔ | ⛔ | — | ⛔ device lab (§3) |
 | AUD-042 | Bit-perfect Windows | B1 | — | — | — | ⛔ | ⛔ ASIO licence; exclusive mode needs device lab (§3) |
-| AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W. Built (#102, #106, #118, #119): DoP for DSF and DFF, offered only after a bit-perfect grant on a DoP DAC. The owner's real-DAC hand check is open (§4); not ticked. |
-| AUD-044 | Bluetooth | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
-| AUD-045 | Audio focus and interruptions | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. |
+| AUD-043 | DSD | B1 | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ native DSD/DoP (§3); DSD→PCM passes W. Built (#102, #106, #118, #119): DoP for DSF and DFF, offered only after a bit-perfect grant on a DoP DAC. The owner's real-DAC hand check is open (§4); not ticked. Not ticked (batch 6): engine AUD-043 14 pass, 1 fail (teardown FileSystemException on dispose, C4a fixing); real-DAC hand check H64 open. |
+| AUD-044 | Bluetooth | B1 | ☐ | ⛔ | ⛔ | ⛔ | ⛔ C4 media session; device lab (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. Not ticked (batch 6): c4a_android_media_test and engine AUD-044 cover the output list and honest bit-perfect reporting only; AVRCP metadata, absolute volume, codec display and BT A/V offset need Bluetooth hardware. |
+| AUD-045 | Audio focus and interruptions | B1 | ☑ | ⛔ | ⛔ | ⛔ | ⛔ C4 audio focus (§3) A unblocked by #24 (Android focus/noisy/outputs facade passes on Samsung); engine wiring B1. A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): c4a_android_media_test (focus, ducking, regain, headphone unplug; the notification-prompt case skips itself), engine AUD-045/AUD-044 3/3. |
 | AUD-046 | Visualiser | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 3 (Samsung SM-M176B, main 311b583): engine_test AUD-046 3/3 (the tap analyses the playing audio, costs nothing unlistened, network sources); C2 side merged (#37), B1 audioTap (#55) with the #95 fallback. |
 
 ### 6.2 Music library and player UI
@@ -214,25 +216,25 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | MUS-001 | Library views | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_music_test 4/4 (SAF/MediaStore tags after #34). |
 | MUS-002 | Tag reading | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: #26's device run used file paths only; tags from SAF/MediaStore sources were missing (fixed in #34). Re-test in device batch 1. A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_music_test 4/4 (after #34). |
-| MUS-003 | Tag editing | C2 | ☐ | ☐ | ☐ | ☐ | A ☐: device batch 5 re-run (`c2_tag_edit_test`, device-test fix #117). |
+| MUS-003 | Tag editing | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: device batch 5 re-run (`c2_tag_edit_test`, device-test fix #117). A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): c2_tag_edit_test 1/1. |
 | MUS-004 | Art | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-005 | Lyrics | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_lyrics_test 2/2. |
 | MUS-006 | Now Playing | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 1 (Samsung SM-M176B, main 475f3df): c2_now_playing_test 2/2. |
 | MUS-007 | Queues | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #26: c2_music_test 4/4 on Samsung SM-M176B (Android 16), tools/check 369. |
 | MUS-008 | Smart playlists | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c2_playlists_car_test 2/2 (smart playlist rules on the platform SQLite). |
-| MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** Last.fm and Libre.fm removed (app key); ListenBrainz (user token) stays. A ☐: device batch 5 (`c2_radio_scrobble_test`, the case that passed in batches 3 and 4). |
+| MUS-009 | Scrobbling | C2 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** Last.fm and Libre.fm removed (app key); ListenBrainz (user token) stays. A ☐: device batch 5 (`c2_radio_scrobble_test`, the case that passed in batches 3 and 4). A ☐ device tests pass (batch 6): c2_radio_scrobble_test 2/2; hand check H63 (ListenBrainz token) pending. |
 | MUS-010 | Fingerprinting | C2 | — | — | — | — | Removed from 1.0 by owner decision (ADR-047, 2026-10-22). |
 | MUS-011 | Sleep timer and alarms | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_car_alarm_test 4/4 (alarm fires into the running app; opening from an alarm delivers its id) and c2_now_playing_test (sleep timer, batch 1). |
 | MUS-012 | Widgets and quick controls | C2 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c4a_android_home_widgets_test 3/3 (widget shows the track, clears on stop, buttons reach the player). |
-| MUS-013 | Car | C2 | ☐ | ☐ | — | — |  |
-| MUS-014 | Internet radio | C2 | ☐ | ☐ | ☐ | ☐ | A ☐: device batch 5 re-run (`c2_radio_scrobble_test`, device-test fix #117). |
+| MUS-013 | Car | C2 | ☐ | ☐ | — | — | A ☐ device tests pass (batch 6): c2_playlists_car_test 2/2, c4a_android_car_alarm_test 4/4; hand check H31 (needs the Android Auto DHU or a car) pending. |
+| MUS-014 | Internet radio | C2 | ☑ | ☐ | ☐ | ☐ | A ☐: device batch 5 re-run (`c2_radio_scrobble_test`, device-test fix #117). A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): c2_radio_scrobble_test 2/2. |
 | MUS-015 | Watch companion | C2 | 1.1 | 1.1 | — | — | Rel. 1.1 |
 
 ### 6.3 Podcasts and audiobooks
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| POD-001 | Audiobook/podcast mode | C2 | ☐ | ☐ | ☐ | ☐ | Built (#121): books with chapters, per-book resume, speed and place, bookmarks, sleep at chapter end, shake to extend. A ☐: device batch 5 (`c2_books_test`) and the hand checks on the phone; not ticked. |
+| POD-001 | Audiobook/podcast mode | C2 | ☐ | ☐ | ☐ | ☐ | Built (#121): books with chapters, per-book resume, speed and place, bookmarks, sleep at chapter end, shake to extend. A ☐: device batch 5 (`c2_books_test`) and the hand checks on the phone; not ticked. A ☐ device tests pass (batch 6): c2_books_test 1/1; hand check H32 pending. |
 | POD-002 | Podcast feeds | C2 | ☐ | ☐ | ☐ | ☐ | Built (#122, #127): podcasts, OPML, downloads, per-show speed, scheduled refresh (ADR-049); device batch 7. |
 | POD-003 | Audiobookshelf client | C2 | ☐ | ☐ | ☐ | ☐ |  |
 
@@ -240,23 +242,23 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| IMG-001 | Formats | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-002 | HDR images | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-001 | Formats | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_photos_test 5/5, c3_formats_test 3/3, c3_pano_test 2/2, c4a_android_motion_test 4/4, c4a_android_imaging_test 10/10; hand check H7 pending. |
+| IMG-002 | HDR images | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_imaging_test 10/10; hand check H56 pending. |
 | IMG-003 | Gallery performance | C3 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c3_photos_test 5/5 (thumbnails through the worker pool and cache; 50 000-item timeline scrolls without dropped frames). |
 | IMG-004 | Viewer | C3 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c3_photos_test 5/5 (regions of a large image decode at 1:1 and reduced). |
 | IMG-005 | Organisation | C3 | ☐ | ☐ | ☐ | ☐ |  |
 | IMG-006 | Metadata | C3 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 2 (Samsung SM-M176B, main bd9dc8a): c3_photos_test 5/5 (metadata written to a JPEG reads back). |
-| IMG-007 | Map | C3 | ☐ | ☐ | ☐ | ☐ | Map view and online tiles removed by the owner (ADR-041, 2026-10-21; code removed in #86); Places tab, offline gazetteer and set/clear location (search or typed coordinates) remain |
-| IMG-008 | Compare | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-009 | Editing | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-010 | Batch | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-011 | Vault | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-012 | Slideshow | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-013 | Duplicates | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-014 | Trash | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-015 | Sharing and output | C3 | ☐ | ☐ | ☐ | ☐ |  |
-| IMG-016 | Sources | C3 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** cloud drives (Google Drive, OneDrive, Dropbox) removed (publisher OAuth client IDs); the other sources stay. Android built (#111): source chips on the timeline and the gallery over a remote share; local folders, MediaStore, SMB, NFS, WebDAV, FTP and SFTP covered. Immich, Nextcloud / ownCloud and PhotoPrism wait on C4d (§3). Device run in batch 5 (`c3_remote_sources_test`); not ticked. |
-| IMG-017 | Archives | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| IMG-007 | Map | C3 | ☐ | ☐ | ☐ | ☐ | Map view and online tiles removed by the owner (ADR-041, 2026-10-21; code removed in #86); Places tab, offline gazetteer and set/clear location (search or typed coordinates) remain A ☐ device tests pass (batch 6): c3_places_test 2/2; hand check H33 pending. |
+| IMG-008 | Compare | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_compare_test 4/4; hand check H57 pending. |
+| IMG-009 | Editing | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_edit_test 3/3; hand check H34 pending. |
+| IMG-010 | Batch | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_formats_test 3/3, c4a_android_imaging_test 10/10; hand check H35 pending. |
+| IMG-011 | Vault | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_vault_test 7/7, c4a_android_vault_test 8/8; hand check H58 pending. |
+| IMG-012 | Slideshow | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_presentation_test 4/4; hand check H36 pending. |
+| IMG-013 | Duplicates | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_compare_test 4/4; hand check H37 pending. |
+| IMG-014 | Trash | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_compare_test 4/4; hand check H8 pending. |
+| IMG-015 | Sharing and output | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_imaging_test 10/10; hand check H9 pending. |
+| IMG-016 | Sources | C3 | ☐ | ☐ | ☐ | ☐ | **Narrowed (ADR-048, 2026-10-22):** cloud drives (Google Drive, OneDrive, Dropbox) removed (publisher OAuth client IDs); the other sources stay. Android built (#111): source chips on the timeline and the gallery over a remote share; local folders, MediaStore, SMB, NFS, WebDAV, FTP and SFTP covered. Immich, Nextcloud / ownCloud and PhotoPrism wait on C4d (§3). Device run in batch 5 (`c3_remote_sources_test`); not ticked. Not ticked (batch 6): c3_remote_sources_test 5/5; Immich, Nextcloud / ownCloud and PhotoPrism sources wait on C4d. |
+| IMG-017 | Archives | C3 | ☐ | ☐ | ☐ | ☐ | Not ticked (batch 6): c3_archives_test 1/3 (ArchiveBookException unreadable from ArchiveBook.open; C4a fixing); hand check H59 also pending. |
 | IMG-018 | Screensaver / ambient | C3 | 1.1 | — | ☐ | ☐ |  |
 
 ### 8. NET — Sources, protocols, servers
@@ -267,7 +269,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | NET-002 | NFS v3/v4 | B2 | ⛔ | ⛔ | ⛔ | ⛔ | B2: libnfs VFS, manual + discovered mounts. ⛔ libnfs archive (B4) + network-env CI job. |
 | NET-003 | WebDAV | B2 | ☐ | ☐ | ☐ | ☐ | B2: WebDAV (Basic/Digest, ranges, HTTPS pinning prompt) — unit tests vs local DAV server; Nextcloud in network env. Live servers need the network-env job. |
 | NET-004 | FTP/FTPS/SFTP | B2 | ☑ | ☐ | ☐ | ☐ | B2 (ADR-017): plain FTP in Dart on every platform; FTPS (explicit via connectPlain+upgrade, implicit, data channels resuming the control session) in Dart over TlsSocketFacade with SHA-256 pinning; SFTP VFS over SftpFacade (list/read/mkdir/upload/rename/delete) with host-key TOFU, secrets by SecureStorage reference; libssh2+WinCNG bindings for the Windows facade. Tested against a local FTP/FTPS server, vsftpd (network env) and facade fakes. Waits for C4 facades (sequencing). A ☑ device batch 4 (Samsung SM-M176B, main 7facf62): c4a_android_tls_test 6/6 (NET-004 TLS facades 5/5, NET-017 mutual TLS: paired peers connect, unpaired ones are refused) and c4a_android_sftp_test 7/7 (SFTP facade). |
-| NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ | B2: SSDP + ContentDirectory browse, opt-in renderer (DMR). iOS needs the multicast entitlement (owner) and C4 multicast lock on Android. |
+| NET-005 | DLNA/UPnP | B2 | ☐ | ☐ | ☐ | ☐ | B2: SSDP + ContentDirectory browse, opt-in renderer (DMR). iOS needs the multicast entitlement (owner) and C4 multicast lock on Android. A ☐ device tests pass (batch 6): c4a_android_network_test 6/6; hand check H39 pending. |
 | NET-006 | HTTP(S)/HLS/DASH/RTSP/RTMP | B2 | ☐ | ☐ | ☐ | ☐ | B2: URL open, headers/UA, HTTP range reader; playback of HLS/DASH/RTSP/RTMP is B1 engine. |
 | NET-007 | Cloud drives | B2 | — | — | — | — | Removed from 1.0 by owner decision (ADR-048, 2026-10-22). B2 removes the cloud/OAuth code (cloud_providers.dart, cloud_file_system.dart, oauth.dart) and the Cloud drive add-source entry. |
 | NET-010 | Jellyfin | C4 | ☐ | ☐ | ☐ | ☐ |  |
@@ -279,7 +281,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | NET-016 | Audiobookshelf | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | NET-017 | Mediahro-to-Mediahro | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 4 (Samsung SM-M176B, main 7facf62): c4a_android_tls_test 6/6 (mutual TLS: paired peers connect, unpaired ones are refused). |
 | NET-018 | Offline downloads | B2 | ☐ | ☐ | ☐ | ☐ | B2: downloads with resume, quota, expiry; downloads screen. |
-| NET-019 | Connection health | B2 | ☐ | ☐ | ☐ | ☐ | B2: latency/throughput test, cache-size suggestion, metered warning via `NetworkStatus` seam (C4). |
+| NET-019 | Connection health | B2 | ☐ | ☐ | ☐ | ☐ | B2: latency/throughput test, cache-size suggestion, metered warning via `NetworkStatus` seam (C4). A ☐ device tests pass (batch 6): c4a_android_network_test 6/6; hand check H60 pending. |
 
 ### 9. CAST — Casting and external playback
 
@@ -288,7 +290,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | CAST-001 | Google Cast | C4 | ☐ | ☐ | ☐ | ☐ |  |
 | CAST-002 | AirPlay | C4 | — | ☐ | ☐ | — |  |
 | CAST-003 | DLNA renderer push | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| CAST-004 | External display | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| CAST-004 | External display | C4 | ☐ | ☐ | ☐ | ☐ | Not ticked (batch 6): c4a_android_presentation_test 4/4 covers image frames on an external display; video on the external display has no device test (see VID-071). |
 | CAST-005 | Local transcoding | B1 | ☑ | ⛔ | ⛔ | ☑ | A W ☑ engine run 39355966616 (OS H.264: h264_mediacodec, h264_mf); I M ⛔ bootstrap has no encoders (B4b) |
 
 ### 10. SYS — Platform integration
@@ -297,13 +299,13 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | SYS-001 | Media session | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-002 | Notifications/lock screen | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
-| SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
-| SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. |
+| SYS-003 | Shortcuts/intents | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. A ☐ device tests pass (batch 6): c4a_android_intents_test 4/4; hand check H43; adb check X6 in batch 7 pending. |
+| SYS-004 | Share targets | C4 | ☐ | ☐ | ☐ | ☐ | Built (#130, #131); device: c4a_android_intents_test passed 4/4 in batch 6; adb checks and hand check pending. A ☐ device tests pass (batch 6): c4a_android_intents_test 4/4; hand check H43; adb checks X4-X5 in batch 7 pending. |
 | SYS-005 | File provider / Files integration | C4 | — | ☐ | 1.1 | 1.1 |  |
 | SYS-006 | Foreground service & battery | C4 | ☑ | — | — | — | A ☑ PR #24: c4a_android_media_test 9/9 on Samsung SM-M176B (Android 16), tools/check 325. |
 | SYS-007 | Storage access | C4 | ☑ | ☐ | ☐ | ☐ | A ☑ PR #23: c4a_android_storage_test 13/13 on Samsung SM-M176B (Android 16), tools/check 321 pass. |
-| SYS-008 | Accessibility services | C4 | ☐ | ☐ | ☐ | ☐ |  |
-| SYS-009 | Input | C4 | ☐ | ☐ | ☐ | ☐ |  |
+| SYS-008 | Accessibility services | C4 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_input_test 4/4; hand check H10 pending. |
+| SYS-009 | Input | C4 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_input_test 4/4; hand check H61 (needs a Bluetooth gamepad) pending. |
 | SYS-010 | TV mode | C4 | 1.1 | — | — | — | Rel. 1.1 |
 | SYS-011 | Foldables/large screens | C4 | ☐ | ☐ | — | — |  |
 
@@ -312,7 +314,7 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
 | SUP-001 | Support page | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| SUP-002 | Store rails | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| SUP-002 | Store rails | C5 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_purchases_test 4/4; hand check H44 (real payment, after the first Play upload) pending. |
 | SUP-003 | Web rail | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | SUP-004 | Perks (cosmetic only) | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | SUP-005 | Ask policy | C5 | ☐ | ☐ | ☐ | ☐ |  |
@@ -325,18 +327,18 @@ Shared files (`STATUS.md` own rows only, `CHANGELOG.md` own entries, `docs/05 §
 | PRIV-001 | Zero telemetry by default | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | PRIV-002 | Opt-in crash reports | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
 | PRIV-003 | Opt-in usage analytics | C5 | ⛔ | ⛔ | ⛔ | ⛔ | On hold by owner decision 2026-10-22 (ADR-048 amendment); not to be built until the owner decides |
-| PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ | Feeds and stations section (#128). |
-| PRIV-005 | Parsing safety | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| PRIV-006 | Credentials | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| PRIV-007 | Vault | C3 | ☐ | ☐ | ☐ | ☐ |  |
+| PRIV-004 | Network allow-list | C5 | ☐ | ☐ | ☐ | ☐ | Feeds and stations section (#128). A ☐ device tests pass (batch 6): b3_foundations_test 9/9; hand check H12 pending. |
+| PRIV-005 | Parsing safety | C5 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): b2_native_libraries_test 6/6; the zip-bomb limits sit in c3_archives_test, which is failing (IMG-017); hand check H13; adb check X7 in batch 7 pending. |
+| PRIV-006 | Credentials | C5 | ☑ | ☐ | ☐ | ☐ | A ☑ device batch 6 (Samsung SM-M176B, main ff51e88): c4a_android_security_test 6/6. |
+| PRIV-007 | Vault | C3 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c3_vault_test 7/7, engine PRIV-007 2/2; hand check H58 pending. |
 | PRIV-008 | App lock | C5 | ☐ | ☐ | ☐ | ☐ |  |
 
 ### 13. B2B — Managed deployment, kiosk, engine
 
 | ID | Feature | Lane | A | I | M | W | Notes |
 |---|---|---|:-:|:-:|:-:|:-:|---|
-| B2B-001 | Managed configuration | C5 | ☐ | ☐ | ☐ | ☐ |  |
-| B2B-002 | Kiosk/signage mode | C5 | ☐ | ☐ | ☐ | ☐ |  |
+| B2B-001 | Managed configuration | C5 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_enterprise_test 5/5; hand check H62 (needs an MDM test tenant) pending. |
+| B2B-002 | Kiosk/signage mode | C5 | ☐ | ☐ | ☐ | ☐ | A ☐ device tests pass (batch 6): c4a_android_enterprise_test 5/5; hand check H62 (needs a kiosk setup) pending. |
 | B2B-003 | Headless control API | C5 | ☐ | ☐ | ☐ | ☐ |  |
 | B2B-004 | Mediahro Engine SDK | C5 | ☐ | ☐ | ☐ | ☐ | Rel. 1.0 (docs/samples 1.1) |
 | B2B-005 | Audit and compliance | C5 | ☐ | ☐ | ☐ | ☐ |  |
