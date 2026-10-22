@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:mediahro/platform/storage.dart';
 import 'package:mediahro_ffi/mediahro_ffi.dart';
 
-/// Android's MediaStore video and audio (LIB-002 "MediaStore + SAF trees")
+/// Android's MediaStore video, audio and pictures (LIB-002 "MediaStore + SAF trees")
 /// as a read-only, path-shaped file system: `mediastore:///Movies/Holiday/
 /// a.mkv` from each entry's `RELATIVE_PATH`, so the scanner, the index and
 /// the browser treat it like any folder tree. One MediaStore query per
@@ -15,7 +15,7 @@ final class MediaStoreFileSystem implements ClosableFileSystem {
   MediaStoreFileSystem(
     this.storage, {
     FdIo? io,
-    this.kinds = const {PickKind.video, PickKind.audio},
+    this.kinds = const {PickKind.video, PickKind.audio, PickKind.image},
   }) : io = io ?? PosixFdIo();
 
   static final Uri root = Uri.parse('mediastore:///');

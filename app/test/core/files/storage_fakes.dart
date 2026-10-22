@@ -41,7 +41,7 @@ final class FakeFdIo implements FdIo {
 /// `content://fake/doc/<id>` URIs, auto-renaming on name clashes
 /// ("Name (1)"), fds through [io]. Also serves MediaStore entries and the
 /// OS trash. Members a test does not need throw.
-final class FakeSafStorage implements StorageFacade {
+class FakeSafStorage implements StorageFacade {
   FakeSafStorage(this.dir, this.io);
 
   final Directory dir;

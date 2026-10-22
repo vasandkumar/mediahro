@@ -308,6 +308,7 @@ class StorageModule(private val context: Context, private val host: ActivityHost
             when (it) {
                 PickKindMsg.VIDEO -> MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                 PickKindMsg.AUDIO -> MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO
+                PickKindMsg.IMAGE -> MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
                 PickKindMsg.ANY -> null
                 else -> -1
             }
@@ -355,10 +356,12 @@ class StorageModule(private val context: Context, private val host: ActivityHost
                 val type = c.getInt(1)
                 val video = type == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
                 val audio = type == MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO
+                val image = type == MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
                 val volume = c.getString(6) ?: MediaStore.VOLUME_EXTERNAL
                 val collection = when {
                     video -> MediaStore.Video.Media.getContentUri(volume)
                     audio -> MediaStore.Audio.Media.getContentUri(volume)
+                    image -> MediaStore.Images.Media.getContentUri(volume)
                     else -> MediaStore.Files.getContentUri(volume)
                 }
                 out += MediaStoreEntryMsg(
@@ -370,6 +373,7 @@ class StorageModule(private val context: Context, private val host: ActivityHost
                     kind = when {
                         video -> PickKindMsg.VIDEO
                         audio -> PickKindMsg.AUDIO
+                        image -> PickKindMsg.IMAGE
                         else -> PickKindMsg.SUBTITLE
                     },
                 )

@@ -197,6 +197,7 @@ final class AndroidStorage implements StorageFacade {
           kind: switch (e.kind) {
             PickKindMsg.video => PickKind.video,
             PickKindMsg.subtitle => PickKind.subtitle,
+            PickKindMsg.image => PickKind.image,
             _ => PickKind.audio,
           },
         );

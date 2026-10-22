@@ -2,7 +2,7 @@
   "@@locale": "en",
   "sourcesAdd": "Add source",
   "sourcesAddDeviceMedia": "Device media",
-  "sourcesAddDeviceMediaHint": "Videos and music saved on this device",
+  "sourcesAddDeviceMediaHint": "Videos, music and pictures saved on this device",
   "sourcesAddDlna": "Media server on this network",
   "sourcesAddDlnaHint": "DLNA and UPnP servers, TVs and NAS boxes",
   "sourcesAddFolder": "Add a folder",
@@ -141,7 +141,7 @@
     }
   },
   "sourcesLoadError": "Couldn't load your sources.",
-  "sourcesMediaPermissionDenied": "Mediahro can't see the videos and music on this device. Allow access in Settings, then try again.",
+  "sourcesMediaPermissionDenied": "Mediahro can't see the videos, music and pictures on this device. Allow access in Settings, then try again.",
   "sourcesMore": "More",
   "sourcesName": "Name (optional)",
   "sourcesNothingFound": "Nothing found yet. You can enter the address below.",
