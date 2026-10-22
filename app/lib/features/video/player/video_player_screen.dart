@@ -181,8 +181,57 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _scheduleHide();
     await platform.start();
     await c.open(widget.request);
+    unawaited(_offerSubtitleAccess(c));
     unawaited(_restoreShader(c));
     _watchPower(c);
+  }
+
+  /// A device-media video with no subtitle found beside it: once, offer to
+  /// allow access to its folder (Android shows no `.srt` through the
+  /// MediaStore, and all-files access is not asked for). Never again after
+  /// the offer, whatever the answer (SUB-012).
+  Future<void> _offerSubtitleAccess(VideoPlayerController c) async {
+    await c.sidecarsLoaded;
+    final video = await c.request?.locate?.call();
+    if (!mounted || video == null || video.scheme != 'mediastore') return;
+    final loader = ref.read(sidecarLoaderProvider);
+    final found = c.subtitleFiles.isNotEmpty;
+    final granted = await loader.alternatesFor?.call(video) ?? const <Uri>[];
+    if (!mounted || found || granted.isNotEmpty) return;
+    final store = ref.read(settingsStoreProvider);
+    final storage = _optional(() => ref.read(storageProvider));
+    if (storage == null || store.get(VideoSettings.subtitleAccessAsked)) {
+      return;
+    }
+    store.set(VideoSettings.subtitleAccessAsked, true);
+    final l = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.videoSubtitleAccessPrompt),
+        duration: const Duration(seconds: 12),
+        action: SnackBarAction(
+          label: l.videoSubtitleAccessAllow,
+          onPressed: () => unawaited(_grantSubtitleAccess(storage, c)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _grantSubtitleAccess(
+    StorageFacade storage,
+    VideoPlayerController c,
+  ) async {
+    try {
+      final grant = await storage.pickFolder();
+      if (grant != null && mounted) await c.reloadSidecars();
+    } on Object catch (e, st) {
+      developer.log(
+        'subtitle folder access failed',
+        error: e,
+        stackTrace: st,
+        name: 'mediahro.subtitles',
+      );
+    }
   }
 
   /// Pauses shaders and smooth motion while the device is hot or saving

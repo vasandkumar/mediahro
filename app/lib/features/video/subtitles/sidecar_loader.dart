@@ -41,11 +41,17 @@ final class SidecarLoader {
     required this.fileSystemFor,
     required this.cacheDir,
     this.maxBytes = 20 * 1024 * 1024,
+    this.alternatesFor,
   });
 
   /// The file system serving a URI (mounted sources, local files).
   final VirtualFileSystem Function(Uri uri) fileSystemFor;
   final Directory cacheDir;
+
+  /// Other addresses of the same video where its folder can be listed, for
+  /// when its own folder shows no subtitle: a MediaStore video whose folder
+  /// the user has also granted as a SAF tree (SUB-012).
+  final Future<List<Uri>> Function(Uri video)? alternatesFor;
 
   /// Larger files are skipped (PRIV-005, as `ParseLimits.maxBytes`).
   final int maxBytes;
@@ -88,6 +94,12 @@ final class SidecarLoader {
 
       await scan(folder, '');
       found.addAll(await _copy(matchSidecars(name, files), byPath, target));
+      if (found.isEmpty && alternatesFor != null) {
+        for (final other in await alternatesFor!(video)) {
+          found.addAll(await find(other));
+          if (found.isNotEmpty) break;
+        }
+      }
     }
     if (userFolder != null) {
       final byPath = <String, Uri>{};

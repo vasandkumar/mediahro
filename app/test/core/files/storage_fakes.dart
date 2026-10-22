@@ -47,6 +47,24 @@ final class FakeSafStorage implements StorageFacade {
   final Directory dir;
   final FakeFdIo io;
   final List<MediaStoreEntry> media = [];
+
+  /// The folder grants the user holds, and the one the next folder picker
+  /// returns (it joins [held]).
+  final List<FolderGrant> held = [];
+  FolderGrant? nextFolder;
+  int picks = 0;
+
+  @override
+  Future<List<FolderGrant>> grants() async => List.of(held);
+
+  @override
+  Future<FolderGrant?> pickFolder() async {
+    picks++;
+    final g = nextFolder;
+    if (g != null) held.add(g);
+    return g;
+  }
+
   final List<List<Uri>> trashed = [];
   final List<TrashResult> restored = [];
   int started = 0;

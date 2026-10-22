@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/core/files/media_store_file_system.dart';
 import 'package:mediahro/core/files/picked_files.dart';
+import 'package:mediahro/core/files/saf_file_system.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/features/video/subtitles/sidecar_loader.dart';
 import 'package:mediahro/platform/platform_facades.dart';
@@ -186,8 +187,46 @@ final class SidecarFileSystems {
 
   MediaStoreFileSystem? _subtitles;
   DateTime? _since;
+  final Map<String, SafFileSystem> _grants = {};
+
+  /// Where else a device-media video can be listed: the same folder under a
+  /// SAF tree the user granted (Android 11+ shows no `.srt` through the
+  /// MediaStore, so the grant is the reliable way, SUB-012). Empty for other
+  /// videos or when no grant contains the folder.
+  Future<List<Uri>> alternatesFor(Uri video) async {
+    final s = storage;
+    if (video.scheme != 'mediastore' || s == null) return const [];
+    final rel = [
+      for (final p in video.pathSegments)
+        if (p.isNotEmpty) p,
+    ];
+    final List<FolderGrant> grants;
+    try {
+      grants = await s.grants();
+    } on Object {
+      return const [];
+    }
+    final out = <Uri>[];
+    for (final g in grants) {
+      final base = grantFolder(g.uri);
+      if (base == null || rel.length <= base.length) continue;
+      var inside = true;
+      for (var i = 0; i < base.length; i++) {
+        if (rel[i] != base[i]) inside = false;
+      }
+      if (!inside) continue;
+      final root = SafFileSystem.rootFor(g.id);
+      _grants[g.id] ??= SafFileSystem(s, tree: g.uri, root: root, io: io);
+      out.add(root.replace(pathSegments: [g.id, ...rel.sublist(base.length)]));
+    }
+    return out;
+  }
 
   VirtualFileSystem forUri(Uri uri) {
+    if (uri.scheme == 'saf' && uri.pathSegments.isNotEmpty) {
+      final grant = _grants[uri.pathSegments.first];
+      if (grant != null) return grant;
+    }
     final s = storage;
     if (uri.scheme != 'mediastore' || s == null) return mounted(uri);
     final now = _clock();
@@ -204,6 +243,21 @@ final class SidecarFileSystems {
   }
 }
 
+/// The MediaStore-style folder (`Movies/Holiday`) a SAF tree URI was granted
+/// at (`content://.../tree/primary%3AMovies%2FHoliday`), as its segments; null
+/// when the URI is not a tree URI. The volume (`primary:`) is not compared.
+List<String>? grantFolder(Uri tree) {
+  final i = tree.pathSegments.indexOf('tree');
+  if (i < 0 || i + 1 >= tree.pathSegments.length) return null;
+  final id = tree.pathSegments[i + 1];
+  final colon = id.indexOf(':');
+  final path = colon < 0 ? '' : id.substring(colon + 1);
+  return [
+    for (final p in path.split('/'))
+      if (p.isNotEmpty) p,
+  ];
+}
+
 /// Sidecar search over mounted sources, cached in the app data folder.
 final sidecarLoaderProvider = Provider<SidecarLoader>((ref) {
   final mounts = ref.watch(mountsProvider);
@@ -214,6 +268,7 @@ final sidecarLoaderProvider = Provider<SidecarLoader>((ref) {
   );
   return SidecarLoader(
     fileSystemFor: systems.forUri,
+    alternatesFor: systems.alternatesFor,
     cacheDir: Directory(
       '${ref.watch(appDataDirectoryProvider).path}/subtitle_cache',
     ),
