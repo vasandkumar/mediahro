@@ -766,6 +766,19 @@ void main() {
       expect(await svc.shows(), isEmpty);
     });
 
+    test('POD-002 a picture still open (it is on screen) does not stop '
+        'unsubscribing', () async {
+      final show = await svc.subscribe('https://show.example/rss');
+      final open = await File(show.artPath!).open();
+      addTearDown(open.close);
+      // On Windows the file cannot be deleted while it is open; elsewhere it
+      // can. Either way the subscription is gone.
+      await svc.unsubscribe(show.id);
+      expect(await svc.shows(), isEmpty);
+      expect(await store.show(show.id), isNull);
+      expect(await store.progress(show.id), isEmpty);
+    });
+
     test('POD-002 OPML import subscribes to what is new and says what '
         'failed; export lists the subscriptions', () async {
       await svc.subscribe('https://show.example/rss');
