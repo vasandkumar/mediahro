@@ -122,6 +122,10 @@ dependencies {
     implementation("com.hierynomus:sshj:0.41.2") {
         exclude(group = "org.bouncycastle")
     }
+    // JcaSshConfig hands sshj no-op loggers (`org.slf4j.Logger`, `NOPLogger`), so the API is
+    // compiled against explicitly. It used to reach the classpath only through the debug-only
+    // sshd-sftp below, which broke every release and profile build.
+    implementation("org.slf4j:slf4j-api:2.0.17")
 
     // Debug builds only: a local SFTP server for the SftpFacade device tests.
     debugImplementation("org.apache.sshd:sshd-sftp:2.20.0")
