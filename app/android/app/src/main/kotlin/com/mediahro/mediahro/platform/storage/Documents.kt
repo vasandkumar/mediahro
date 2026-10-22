@@ -54,7 +54,33 @@ internal object Documents {
         return out
     }
 
+    /**
+     * True for URIs of a documents provider (`.../document/<id>`, `.../tree/<id>`): the only
+     * ones that answer the document columns. Pure, so it is unit-tested on the JVM.
+     */
+    fun isDocumentPath(segments: List<String>): Boolean =
+        segments.contains("document") || segments.contains("tree")
+
     fun stat(resolver: ContentResolver, uri: Uri): DocumentEntryMsg {
+        // A MediaStore or FileProvider URI from "Open with" is not a document: the document
+        // columns do not exist there, so the query fails. Name, size and type come from the
+        // openable columns instead.
+        if (uri.scheme == ContentResolver.SCHEME_FILE || !isDocumentPath(uri.pathSegments)) {
+            val (name, size) = nameAndSize(resolver, uri)
+            val mime = try {
+                resolver.getType(uri)
+            } catch (e: Exception) {
+                null
+            }
+            return DocumentEntryMsg(
+                uri = uri.toString(),
+                name = name,
+                isDirectory = false,
+                size = size,
+                modifiedMs = null,
+                mimeType = mime,
+            )
+        }
         val doc = documentUri(uri)
         query(resolver, doc).use { c ->
             if (!c.moveToFirst()) throw FlutterError("notFound", "No document $uri")
