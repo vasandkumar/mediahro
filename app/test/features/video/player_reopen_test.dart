@@ -7,7 +7,6 @@ import 'package:mediahro/app/app.dart';
 import 'package:mediahro/app/incoming/incoming_router.dart'
     show appRouterProvider;
 import 'package:mediahro/features/video/player/play_request.dart';
-    show videoMemoryProvider;
 import 'package:mediahro/features/video/player/video_player_screen.dart';
 import 'package:mediahro/features/video/video_open.dart';
 import 'package:mediahro/platform/platform_facades.dart';
