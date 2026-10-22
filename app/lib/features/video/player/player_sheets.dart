@@ -13,6 +13,7 @@ import 'package:mediahro/features/video/subtitles/subtitle_sheets.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_sources.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_speech.dart';
 import 'package:mediahro/features/video/subtitles/subtitle_text_source.dart';
+import 'package:mediahro/features/video/video_settings.dart';
 import 'package:mediahro_design/mediahro_design.dart';
 import 'package:mediahro_engine/mediahro_engine.dart';
 
@@ -551,6 +552,23 @@ Future<void> showMoreSheet(
               subtitle: Text(l.videoKeepPlayingInBackgroundDetail),
               value: on || platform.backgroundAllowed,
               onChanged: (v) => platform.backgroundThisSession.value = v,
+            ),
+          ),
+          // Turning the phone rotates the player instead of staying locked to the
+          // video's shape (VID-070); off goes back to following the video.
+          ListenableBuilder(
+            listenable: platform.settings,
+            builder: (_, _) => SwitchListTile(
+              secondary: const Icon(Icons.screen_rotation_outlined),
+              title: Text(l.videoRotationAllow),
+              subtitle: Text(l.videoRotationAllowDetail),
+              value:
+                  platform.settings.get(VideoSettings.orientation) ==
+                  VideoOrientation.auto,
+              onChanged: (v) => platform.settings.set(
+                VideoSettings.orientation,
+                v ? VideoOrientation.auto : VideoOrientation.followVideo,
+              ),
             ),
           ),
           SwitchListTile(

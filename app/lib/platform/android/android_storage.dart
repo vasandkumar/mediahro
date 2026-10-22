@@ -194,7 +194,11 @@ final class AndroidStorage implements StorageFacade {
           name: e.name,
           size: e.size,
           modified: DateTime.fromMillisecondsSinceEpoch(e.modifiedMs),
-          kind: e.kind == PickKindMsg.video ? PickKind.video : PickKind.audio,
+          kind: switch (e.kind) {
+            PickKindMsg.video => PickKind.video,
+            PickKindMsg.subtitle => PickKind.subtitle,
+            _ => PickKind.audio,
+          },
         );
       }
       if (page.length < pageSize) return;

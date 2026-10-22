@@ -341,14 +341,14 @@ void videoPlayerSuite({
     final (engine, _) = await pumpPlayer(tester);
     await tester.tap(iconButton('More'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound only'));
+    await tapVisible(tester, find.text('Sound only'));
     await tester.pumpAndSettle();
     expect(engine.selections.last, (
       TrackType.video,
       null,
       SubtitleSlot.primary,
     ));
-    await tester.tap(find.text('Keep playing in the background'));
+    await tapVisible(tester, find.text('Keep playing in the background'));
     await tester.pumpAndSettle();
     expect(
       tester
@@ -361,6 +361,29 @@ void videoPlayerSuite({
           .value,
       isTrue,
     );
+  });
+
+  playerTest('VID-070 the More sheet lets the player rotate with the phone', (
+    tester,
+  ) async {
+    final display = FakeDisplay();
+    final (_, store) = await pumpPlayer(
+      tester,
+      overrides: [displayProvider.overrideWithValue(display)],
+    );
+    expect(store.get(VideoSettings.orientation), VideoOrientation.followVideo);
+    await tester.tap(iconButton('More'));
+    await tester.pumpAndSettle();
+
+    await tapVisible(tester, find.text('Rotate with the phone'));
+    await tester.pumpAndSettle();
+
+    expect(store.get(VideoSettings.orientation), VideoOrientation.auto);
+    expect(display.locks.last, OrientationLock.auto);
+    await tapVisible(tester, find.text('Rotate with the phone'));
+    await tester.pumpAndSettle();
+    expect(store.get(VideoSettings.orientation), VideoOrientation.followVideo);
+    expect(display.locks.last, OrientationLock.landscape);
   });
 
   playerTest('VID-070 the screen stays on while playing; leaving restores '
@@ -404,7 +427,7 @@ void videoPlayerSuite({
     await pumpPlayer(tester);
     await tester.tap(iconButton('More'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sleep timer'));
+    await tapVisible(tester, find.text('Sleep timer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('15 minutes'));
     await tester.pumpAndSettle();

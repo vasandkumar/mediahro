@@ -114,6 +114,22 @@ void main() {
     );
 
     test(
+      'VID-070 turning on rotation while playing frees the screen',
+      () async {
+        await build(tracks: _portrait);
+        await c.open(req('tall'));
+        await settle();
+        expect(display.locks.last, OrientationLock.portrait);
+        settings.set(VideoSettings.orientation, VideoOrientation.auto);
+        await settle();
+        expect(display.locks.last, OrientationLock.auto);
+        settings.set(VideoSettings.orientation, VideoOrientation.followVideo);
+        await settle();
+        expect(display.locks.last, OrientationLock.portrait);
+      },
+    );
+
+    test(
       'VID-070 a fixed rotation setting wins over the video shape',
       () async {
         settings.set(VideoSettings.orientation, VideoOrientation.portrait);
@@ -309,6 +325,40 @@ void main() {
       expect(c.videoOff, isFalse);
       expect(engine.selections.last.$2, 1);
     });
+
+    test('VID-068 sound only keeps playing when the screen locks', () async {
+      await build();
+      await c.open(req('a'));
+      await settle();
+      await c.setVideoOff(off: true);
+      // Locking the screen: the app goes inactive, hidden, then paused.
+      p
+        ..didChangeAppLifecycleState(AppLifecycleState.inactive)
+        ..didChangeAppLifecycleState(AppLifecycleState.hidden)
+        ..didChangeAppLifecycleState(AppLifecycleState.paused);
+      await settle();
+      expect(c.state.status, PlaybackStatus.playing);
+      expect(c.videoOff, isTrue);
+      // Unlocking leaves it as the user chose: still sound only.
+      p.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await settle();
+      expect(c.state.status, PlaybackStatus.playing);
+      expect(c.videoOff, isTrue);
+    });
+
+    test(
+      'VID-068 with the picture on, locking the screen still pauses',
+      () async {
+        await build();
+        await c.open(req('a'));
+        await settle();
+        await c.setVideoOff(off: true);
+        await c.setVideoOff(off: false);
+        p.didChangeAppLifecycleState(AppLifecycleState.paused);
+        await settle();
+        expect(c.state.status, PlaybackStatus.paused);
+      },
+    );
 
     test('VID-068 a video starting pauses the music', () async {
       await music.open(UriSource(Uri.parse('file:///m/song.flac')));
