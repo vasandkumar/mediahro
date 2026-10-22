@@ -37,6 +37,25 @@ void main() {
     expect(await p.products({'mediahro_unknown_product'}), isEmpty);
   }, skip: !android);
 
+  testWidgets(
+    'SUP-002 billing starts without the Data Transport uploader, or says no store',
+    (tester) async {
+      // The CCT backend and the location client are excluded from the APK (no
+      // telemetry). The Billing Library must still be built lazily on the first
+      // call and reach onBillingSetupFinished, or the call must answer "no
+      // store" instead of throwing (NoClassDefFoundError and the like).
+      final p = AndroidPurchases();
+      final supported = await p.isSupported().timeout(
+        const Duration(seconds: 30),
+      );
+      expect(supported, isA<bool>());
+      // A second call reuses or rebuilds the client and agrees.
+      expect(await p.isSupported(), supported);
+      expect(await p.products({'tip_small'}), isA<List<Object?>>());
+    },
+    skip: !android,
+  );
+
   testWidgets('SUP-002 purchasing an unknown product fails with a code', (
     tester,
   ) async {

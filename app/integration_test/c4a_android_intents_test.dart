@@ -71,6 +71,30 @@ void main() {
     skip: !android,
   );
 
+  testWidgets(
+    'CORE-003 a provider URI from Open with (not a document) can be named and opened',
+    (tester) async {
+      // The batch 6 failure: statDocument asked the document columns of a
+      // MediaStore / FileProvider URI, which has none, so Open with always
+      // ended in "Couldn't open this file". The hook's FileProvider URI is
+      // the same shape (no /document/ in the path).
+      final c = ProviderContainer(overrides: platformOverrides());
+      addTearDown(c.dispose);
+      final storage = c.read(storageProvider);
+      final uri = Uri.parse((await op('view', 'c4a-stat.mp4'))! as String);
+      expect(uri.pathSegments, isNot(contains('document')));
+
+      final entry = await storage.statDocument(uri);
+      expect(entry.name, 'c4a-stat.mp4');
+      expect(entry.isDirectory, isFalse);
+      expect(entry.size, 16);
+
+      final fd = await storage.openDocumentFd(uri);
+      expect(fd, greaterThan(2));
+    },
+    skip: !android,
+  );
+
   testWidgets('SYS-003 launcher shortcuts and App Actions reach incoming', (
     tester,
   ) async {

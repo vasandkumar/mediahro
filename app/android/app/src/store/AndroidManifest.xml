@@ -11,5 +11,14 @@
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             tools:node="remove" />
+        <!-- Play Billing links Google Data Transport (its own usage reporting). The
+             CCT backend that uploads is excluded in build.gradle.kts; the job and
+             alarm that would retry uploads are not declared either (no telemetry). -->
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+            tools:node="remove" />
     </application>
 </manifest>

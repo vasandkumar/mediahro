@@ -72,7 +72,7 @@ final class AppIncomingHandler implements IncomingHandler {
       started = false;
     }
     router.go(AppDestination.music.path);
-    if (!started) _show(IncomingNotice.playlistLater);
+    if (!started) unawaited(_show(IncomingNotice.playlistLater));
   }
 
   /// The last video played, or the mode last used.
@@ -151,7 +151,7 @@ final class AppIncomingHandler implements IncomingHandler {
         router.push<void>(VideoRoutes.play, extra: makers.first(queued)),
       );
     }
-    if (notice != null) _show(notice);
+    if (notice != null) unawaited(_show(notice));
   }
 
   Future<List<Uri>> _fileRoots() async {
@@ -220,8 +220,15 @@ final class AppIncomingHandler implements IncomingHandler {
 
   BuildContext? _context() => router.routerDelegate.navigatorKey.currentContext;
 
-  void _show(IncomingNotice notice) {
-    final context = _context();
+  /// Says why something was not opened. On a cold start the first request
+  /// can be handled before the navigator has a context, so this waits for one
+  /// (a few seconds at most) instead of dropping the message.
+  Future<void> _show(IncomingNotice notice) async {
+    var context = _context();
+    for (var i = 0; (context == null || !context.mounted) && i < 40; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      context = _context();
+    }
     if (context == null || !context.mounted) return;
     final l10n = AppLocalizations.of(context);
     final text = switch (notice) {

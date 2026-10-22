@@ -67,14 +67,22 @@ internal class PlayBillingModule(
         .enableAutoServiceReconnection()
         .build()
 
-    /** Built on the first call and rebuilt after an idle disconnect; nothing connects at app start. */
-    private var client: BillingClient = newClient()
+    /**
+     * Nothing is built at app start: the client is created by the first call from the tip
+     * screen and dropped after an idle disconnect, so the billing library (and the Data
+     * Transport runtime it links) does not run for anyone who never opens that screen.
+     */
+    private var current: BillingClient? = null
+
+    private val client: BillingClient
+        get() = current ?: newClient().also { current = it }
 
     /** Ends the connection once the tip screen has been quiet for [IDLE_MS] and no purchase is open. */
     private val idle = Runnable {
-        if (waiting == null && client.isReady) {
-            client.endConnection()
-            client = newClient()
+        val open = current
+        if (waiting == null && open != null) {
+            if (open.isReady) open.endConnection()
+            current = null
         }
     }
 
@@ -91,19 +99,30 @@ internal class PlayBillingModule(
 
     private suspend fun ready(): Boolean {
         touch()
-        if (client.isReady) return true
+        // A client that cannot be built or started (a library part missing, the Play Store
+        // absent) means "no store", never a crash: tips are optional.
+        val billing = try {
+            client
+        } catch (e: Throwable) {
+            return false
+        }
+        if (billing.isReady) return true
         return connecting.withLock {
-            if (client.isReady) return@withLock true
+            if (billing.isReady) return@withLock true
             suspendCancellableCoroutine { cont ->
-                client.startConnection(object : BillingClientStateListener {
-                    override fun onBillingSetupFinished(result: BillingResult) {
-                        if (cont.isActive) cont.resume(result.responseCode == BillingClient.BillingResponseCode.OK)
-                    }
+                try {
+                    billing.startConnection(object : BillingClientStateListener {
+                        override fun onBillingSetupFinished(result: BillingResult) {
+                            if (cont.isActive) cont.resume(result.responseCode == BillingClient.BillingResponseCode.OK)
+                        }
 
-                    override fun onBillingServiceDisconnected() {
-                        // Automatic reconnection is enabled; the next call connects again.
-                    }
-                })
+                        override fun onBillingServiceDisconnected() {
+                            // Automatic reconnection is enabled; the next call connects again.
+                        }
+                    })
+                } catch (e: Throwable) {
+                    if (cont.isActive) cont.resume(false)
+                }
             }
         }
     }
@@ -269,7 +288,8 @@ internal class PlayBillingModule(
         main.removeCallbacks(idle)
         scope.cancel()
         waiting?.second?.cancel()
-        if (client.isReady) client.endConnection()
+        current?.let { if (it.isReady) it.endConnection() }
+        current = null
     }
 
     companion object {
