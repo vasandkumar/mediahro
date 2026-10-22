@@ -86,11 +86,18 @@ void main() {
       await expectLater(
         open(fs, onClose: () => closed++),
         throwsA(
-          isA<ArchiveBookException>().having(
-            (e) => e.problem,
-            'problem',
-            ArchiveProblem.unreadable,
-          ),
+          isA<ArchiveBookException>()
+              .having((e) => e.problem, 'problem', ArchiveProblem.unreadable)
+              // The reason from the file system survives, so a device log
+              // says why (batch 6 only said "unreadable").
+              .having(
+                (e) => e.detail,
+                'detail',
+                allOf(
+                  contains('not a readable archive'),
+                  contains('unsupported'),
+                ),
+              ),
         ),
       );
       expect(closed, 1);

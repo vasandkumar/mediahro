@@ -32,12 +32,17 @@ enum ArchiveProblem {
 }
 
 final class ArchiveBookException implements Exception {
-  const ArchiveBookException(this.problem);
+  const ArchiveBookException(this.problem, [this.detail]);
 
   final ArchiveProblem problem;
 
+  /// Technical detail from the file system, for logs and test output; never
+  /// shown as primary copy.
+  final String? detail;
+
   @override
-  String toString() => 'ArchiveBookException($problem)';
+  String toString() =>
+      'ArchiveBookException($problem${detail == null ? '' : ', $detail'})';
 }
 
 /// The pictures of one archive, in reading order, opened one at a time
@@ -77,7 +82,10 @@ final class ArchiveBook {
       if (e.error == VirtualFileError.authenticationRequired) {
         throw const ArchiveBookException(ArchiveProblem.needsPassphrase);
       }
-      throw const ArchiveBookException(ArchiveProblem.unreadable);
+      throw ArchiveBookException(
+        ArchiveProblem.unreadable,
+        '${e.error.name} ${e.uri}${e.detail == null ? '' : ': ${e.detail}'}',
+      );
     } on Object {
       await onClose?.call();
       rethrow;
