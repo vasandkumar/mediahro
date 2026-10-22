@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/music/library/music_library.dart';
 import 'package:mediahro/features/music/music_providers.dart';
+import 'package:mediahro/features/music/ui/abs_screens.dart';
 import 'package:mediahro/features/music/ui/alarms_screen.dart';
 import 'package:mediahro/features/music/ui/books_tab.dart';
 import 'package:mediahro/features/music/ui/extras.dart';
@@ -99,6 +100,8 @@ class _MusicHomeState extends ConsumerState<_MusicHome> {
       (l10n.musicTabFolders, const FoldersTab()),
       (l10n.musicTabPodcasts, const PodcastsTab()),
       (l10n.musicTabBooks, const BooksTab()),
+      if (ref.watch(audiobookshelfAccountsProvider).isNotEmpty)
+        (l10n.musicTabAbs, const AbsTab()),
       (l10n.musicTabRadio, const RadioTab()),
     ];
     final songs = _songs;

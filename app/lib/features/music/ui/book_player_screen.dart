@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:mediahro/app/l10n/gen/app_localizations.dart';
 import 'package:mediahro/features/library/format.dart';
 import 'package:mediahro/features/music/books/book.dart';
@@ -474,8 +475,7 @@ const speedPresets = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0];
 
 void showBookSpeedSheet(BuildContext context) => showSpeedSheet(
   context,
-  speedOf: (ref) =>
-      ref.watch(bookPlayerStateProvider.select((s) => s.value?.speed ?? 1)),
+  speed: bookPlayerStateProvider.select((s) => s.value?.speed ?? 1),
   onChange: (ref, v) => unawaited(ref.read(bookPlayerProvider).setSpeed(v)),
   note: (l10n) => l10n.musicBookSpeedRemembered,
 );
@@ -484,33 +484,32 @@ void showBookSpeedSheet(BuildContext context) => showSpeedSheet(
 /// slider in 0.05 steps and the usual presets.
 void showSpeedSheet(
   BuildContext context, {
-  required double Function(WidgetRef ref) speedOf,
+  required ProviderListenable<double> speed,
   required void Function(WidgetRef ref, double speed) onChange,
   required String Function(AppLocalizations l10n) note,
 }) => unawaited(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    builder: (_) =>
-        _SpeedSheet(speedOf: speedOf, onChange: onChange, note: note),
+    builder: (_) => _SpeedSheet(speed: speed, onChange: onChange, note: note),
   ),
 );
 
 class _SpeedSheet extends ConsumerWidget {
   const _SpeedSheet({
-    required this.speedOf,
+    required this.speed,
     required this.onChange,
     required this.note,
   });
 
-  final double Function(WidgetRef ref) speedOf;
+  final ProviderListenable<double> speed;
   final void Function(WidgetRef ref, double speed) onChange;
   final String Function(AppLocalizations l10n) note;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
-    final speed = speedOf(ref);
+    final speed = ref.watch(this.speed);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(KSpacing.s16),

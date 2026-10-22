@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show InternetAddress;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:mediahro/core/db/library_database.dart';
@@ -240,6 +240,9 @@ final class FakeDownloads implements EpisodeDownloads {
   final removed = <Uri>[];
   final have = <String>{};
 
+  /// Finished copies: address to file.
+  final files = <String, File>{};
+
   @override
   Future<void> enqueue(Uri url, {required String title, int? size}) async {
     enqueued.add((url, title, size));
@@ -253,9 +256,13 @@ final class FakeDownloads implements EpisodeDownloads {
     return _status(url);
   }
 
-  EpisodeDownload? _status(Uri url) => have.contains(url.toString())
-      ? const EpisodeDownload(DownloadState.queued)
-      : null;
+  EpisodeDownload? _status(Uri url) {
+    final f = files[url.toString()];
+    if (f != null) return EpisodeDownload(DownloadState.done, file: f);
+    return have.contains(url.toString())
+        ? const EpisodeDownload(DownloadState.queued)
+        : null;
+  }
 
   @override
   Future<void> remove(Uri url) async {

@@ -10,6 +10,10 @@ import 'package:mediahro/core/net/network_policy.dart';
 import 'package:mediahro/core/net/persistent_network_policy.dart';
 import 'package:mediahro/core/providers.dart';
 import 'package:mediahro/engine/engine_pool.dart';
+import 'package:mediahro/features/music/abs/abs_account.dart';
+import 'package:mediahro/features/music/abs/abs_player.dart';
+import 'package:mediahro/features/music/abs/abs_service.dart';
+import 'package:mediahro/features/music/abs/abs_store.dart';
 import 'package:mediahro/features/music/books/book_library.dart';
 import 'package:mediahro/features/music/books/book_player.dart';
 import 'package:mediahro/features/music/books/book_store.dart';
@@ -520,6 +524,65 @@ final FutureProviderFamily<List<EpisodeEntry>, String> podcastEpisodesProvider =
       ref.onDispose(sub.cancel);
       return s.episodes(showId);
     });
+
+/// Audiobookshelf (POD-003): the connected servers. Empty until the
+/// `ServerLibrary` client for Audiobookshelf (C4d, NET-016) is wired in by
+/// overriding this provider with one [AbsAccount] per saved server account
+/// of kind `audiobookshelf`; the Audiobookshelf tab shows only when there is
+/// one.
+final audiobookshelfAccountsProvider = Provider<List<AbsAccount>>(
+  (ref) => const [],
+);
+
+final absStoreProvider = Provider<AbsStore>(
+  (ref) => AbsStore(ref.watch(musicPrefsProvider)),
+);
+
+final absServiceProvider = Provider<AbsService>(
+  (ref) => AbsService(
+    store: ref.watch(absStoreProvider),
+    downloads: ref.watch(episodeDownloadsProvider),
+    http: ref.watch(podcastHttpProvider),
+    artDir: Directory(
+      [
+        ref.watch(appDataDirectoryProvider).path,
+        'music',
+        'abs',
+        'art',
+      ].join(Platform.pathSeparator),
+    ),
+  ),
+);
+
+final absPlayerProvider = Provider<AbsPlayer>((ref) {
+  final sleep = ref.watch(sleepTimerProvider);
+  final p = AbsPlayer(
+    mode: ref.watch(spokenModeProvider),
+    player: ref.watch(musicPlayerProvider),
+    engine: ref.watch(playbackEngineProvider(EngineRole.music)),
+    dsp: ref.watch(musicDspProvider),
+    service: ref.watch(absServiceProvider),
+    holdAtEnd: () {
+      final s = sleep.state;
+      return s.active &&
+          (s.mode == SleepMode.endOfTrack ||
+              (s.mode == SleepMode.tracks && s.tracksLeft == 1));
+    },
+  );
+  ref.onDispose(() => unawaited(p.dispose()));
+  return p;
+});
+
+final absPlayerStateProvider = StreamProvider<AbsPlayerState>(
+  (ref) => ref.watch(absPlayerProvider).states,
+);
+
+/// "Continue listening" across the connected servers.
+final absContinueProvider = FutureProvider<List<AbsEntry>>(
+  (ref) => ref
+      .watch(absServiceProvider)
+      .continueListening(ref.watch(audiobookshelfAccountsProvider)),
+);
 
 /// Audiobooks (POD-001): the books in the music library, where the listener
 /// stands in each, and the player mode that remembers it.

@@ -249,6 +249,10 @@ final class ScriptedMusicEngine implements PlaybackEngine {
   Future<void> setTransition(TransitionConfig config) async =>
       transition = config;
 
+  /// The file's own chapters appear, as the engine reads them (POD-003).
+  void setChapters(List<Chapter> chapters) =>
+      _emit(_state.copyWith(chapters: chapters));
+
   /// Every speed the app set (POD-001).
   final rates = <double>[];
 
